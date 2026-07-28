@@ -1,0 +1,16 @@
+import express from 'express';
+import { createLead, getAllLeads, getLeadById, updateLead, deleteLead, getLeadsByProject, assignLead, uploadLeads, upload, getAnalytics, convertLeadToProject } from '../controllers/leadController.js';
+
+const router = express.Router();
+
+// Analytics + project — specific routes BEFORE /:id
+router.get('/analytics', getAnalytics);
+router.get('/project/:slug', getLeadsByProject);
+router.post('/assign/:id', assignLead);
+router.post('/:id/convert', convertLeadToProject);
+router.post('/upload', upload.single('file'), uploadLeads);
+
+router.route('/').get(getAllLeads).post(createLead);
+router.route('/:id').get(getLeadById).put(updateLead).delete(deleteLead);
+
+export default router;

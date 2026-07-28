@@ -1,0 +1,234 @@
+िवदुत बीजक /Electricity Bill
+"हर वोट है जररी, मतदाता के   रप मे आज ही पंजीकरण करवाये"
+सहायता के  िलए डायल करे  / For Assistance Dial
+1912
+वहाटसएप नं /WhatsApp No:
+8010968292
+खाता सं./Account No.
+7920466000
+खंड /Division
+EDD MUGALSARAI(DIV416531)
+Scan & Pay your Bill
+नाम /Name
+PUSHPA  GUPTA
+उपखंड /Subdivision
+SDO4165311
+सकै न   करे   और अपने िबल का भुगतान करे
+िपता/पित का नाम
+SANTOSH KUMAR GUPTA
+सवीकृ त भार /Sanctioned Load
+    2 kW     
+Father/Husband name
+पता /Address
+BP 337, RAVINAGAR MUGHALSARAI   
+MUGHALSARAI UP  IND
+मीटर कम संखया /Meter S.No
+10381834
+टैिरफ  /Tariff
+LMV1
+सपलाई टाइप /Supply Type
+10
+मोबाइल नंबर /Mobile No
+xxxxxx7017
+जमा पितभूित Security Deposit
+िबल अकांश / Bill Latitude 
+िबल देशांतर / Bill Longitude 
+350
+25.29
+83.11
+ईमेल /Emailसंयोजन ितिथ /Connection Date
+24-JUL-2014
+िबल संखया  /Bill No
+792253786904
+िबल आधार/Bill Basis
+OK
+देय  ितिथ/ Due Date
+10-JUN-2024
+िबल की ितिथ/Bill Date
+03-JUN-2024
+िबल डीमांड/Billed Demand
+2.00
+देय  ितिथ तक छूट / Due Date Rebate
+15.02
+िबल माह/Bill Month
+JUN-2024
+पगामी सिबसडी/Progressive Subsidy
+3708
+देय  ितिथ तक रािश/ Payable By Due Date
+ 13340
+नेट िबल यूिनट/ Net Billed Unit
+227
+इनऑपरेिटव रािश/Inoperative Amount
+15567
+िवचछेदन ितिथ /Disconection. Date
+17-JUN-2024
+This bill will be construed as final notice under section 171 of Supply Code 2005. Supply can be disconnected at any date on non-payment of old dues.
+इस िबल को आपूितर संिहता 2005 की धारा 171 के  तहत अंितम नोिटस माना जाएगा। पुराने बकाया का भुगतान न करने पर िकसी भी ितिथ पर आपूितर काटी जा सकती है।
+DetailsAmountDetailsAmount
+ Gross AmtSubsidyAmount
+पितभूित बयाज/Interest on Security
+0.00
+ऊजार पभार /Energy  Charges1475.51193.501282.01
+देय  पितभूित /Due Security 
+0
+िफकस माँग पभार /Fixed/Demand Charges220.000.00220.00
+अिगम भुगतान पर बयाज /Interest on Advance Payment
+0
+नयूनतम पभार /Min Charge0.000.000.00
+टी डी एस रािश/TDS Amount 
+0
+िवदुत कर /Electricity Duty75.10
+टी सी एस रािश/TCS Amount 
+0
+गीन ऊजार शुलक /Green_EC
+0.00
+सी जी एस टी/   CGST
+0
+अितिरक मांग पभार /Excess Demand Penalty
+0.00
+एस जी एस टी/   SGST
+0
+कम पी एफ अिधभार/Low P.F. Surcharge
+0.00
+वतरमन िवलंभ भुगतान अिधभार/Current  LPSC
+160.22
+अंितम समायोजन/Provisional Adjustment
+0.00
+नेट करेट   िबल /Net Current Bill
+13354.33
+टैिरफ समायोजन /Tariff Adjustments0.00
+देय  ितिथ छूट  समायोजन/Prev. Due Date Rebate Adj.
+0
+के िडट /Credit
+0.00
+बकाया धनरािश /Arrear Amount 
+9786.08
+डेिबट/Debit
+0
+पूवर िवलमब भुगतान अिधभार /Prev. Arrear LPSC
+-9785.61
+िविवध शुलक/ Misc Charges 
+0.00
+आमरडर के बल शुलक /Armoured Cable Cost
+0
+छूट/Rebate
+0
+मुआवजा रािश /Compensation Amt
+देय  रािश /Payable Amount
+ 13355
+िकशत/Installment
+11617.00
+अनािदत चेक/Dishonor Cheque
+0
+शबदो मे /In Words : Thirteen Thousand Three Hundred Fifty Five Rupees Only
+अनािदत पभार /Dishonor Charge0
+Pay your bill online on < https://uppcl.org/ > ऑनलाइन भुगतान करे   consumers can also pay bills from Deptt. offices, Fair price shops, e-Suvidha, Jansuvidha Kendra and through Vidyut Sakhi and Metereaders उपभोका िवभाग के  कायारलयो, 
+उिचत मूलय की दकान, ई-सुिवधा, जन सुिवधा के द  और िवदुत सखी और मीटर रीडर के  माधयम से भी िबलो का भुगतान कर सकते है। डी डी चेक हेतु पापतकतार Pay DD/Cheque in favour of : EXECUTIVE ENGINEER-EDD MUGALSARAI
+मीटर लेब संखयामीटर िसतिथदजर मांगिपछली ितिथिपछली रीडवतरमान ितिथवतरमान रीडअंतरमीटर 
+गुणांक
+मीटर 
+यूिनट
+अविध
+( माह)
+मीटर 
+िटपणणी
+Meter Badge 
+Number
+Meter 
+Status
+Recorde
+d DMD
+Previous 
+Date
+Previous    
+Read
+Current DateCurrent 
+Read
+DiffMFMeter 
+Unit
+Period 
+Months
+Meter 
+Remar
+k
+M41653100E1P104
+70
+A
+02-MAY-24 
+11:08
+22372
+03-JUN-24 00:
+00
+225992271227 KWH1
+OK   
+M41653100E1P104
+70
+A212 KW1
+OK  
+ 
+M41653100E1P104
+70
+A
+02-MAY-24 
+00:00
+03-JUN-24 00:
+00
+00
+ 
+िनधारिरत यूिनट Assessed Unit
+Opening Surplus Solar 
+Units
+0.00
+Closing Surplus Solar Units
+0.0
+0
+मीटर यूिनट Meter Units
+227
+राष िहत मे िबजली बचाए /Energy Saved is Energy Produced
+वाटसएप पर िवदुत् संबंधी िविभनन सेवाएं पापत करने हेतु िमस कॉल करे   /To get electricity related services or give a missed call on 
+8010968292 
+ऊजार गणना शुलक/   EC Calculation
+यूिनट/
+Unit
+टैिरफ  रेट  
+Rates
+ 
+कु ल
+ 
+रािश
+      
+Amount
+सिबसडी दरे   
+Subsidy 
+Rate
+सिबसडी रािश 
+Subsidy 
+Amount
+नेट ऊजार पभार
+Net Energy 
+Charge
+अंितम भुगतान िववरण /Last Payment Detailsवतरमान भुगतान िववरण/Current  Payment Details
+अंितम भुगतान रािश/Last Paid Amount        14335
+अंितम भुगतान ितिथ/Last Paid Date         28-MAY-2024
+भुगतान रािश/Paid Amount
+भुगतान ितिथ/Paid Date                   
+भुगतान माधयम/Payment Mode      
+रसीद
+ 
+संखया
+/Receipt No                 
+थेफट िनधाररण का िववरण /Details of Theft Assessment
+अिनतम थेफट भुगतान का िववरण /Detail of Last Theft Payment
+थेफट िनधाररण का बकाया/Theft Assessment Arrear
+0
+अिनतम भुगतान रािश / Last Paid Amount
+वतरमान थेफट िनधाररण/ Current Theft Assessmentअिनतम भुगतान ितिथ / Last Paid Date
+थेफट िनधाररण पर िवलमभ भुगतान अिधभार/LPSC on Theft Assessment
+0
+भुगतान का माधयम / Payment Mode
+थेफट िनधाररण की कु ल  देय  धनरािश/Total Payable Theft Assessment
+0
+रशीद संखया / Receipt No
+ 
+Printed By :                              As On Date:       20-Jun-24 14:47 PM
+ अिधशाषी अिभयंता EXECUTIVE ENGINEER - EDD MUGALSARAI

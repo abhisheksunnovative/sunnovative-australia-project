@@ -1,0 +1,6 @@
+{
+  "name": "Sunnovative Admin Panel",
+  "description": "Solar EPC Management System for tracking partners, KYC, agreements, and project logistics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
