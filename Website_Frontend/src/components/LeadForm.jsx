@@ -56,6 +56,9 @@ export default function LeadForm({ initialMode = "calculator" }) {
   const [city, setCity] = useState("Rajkot");
   const [customerState, setCustomerState] = useState("Gujarat");
   const [monthlyBill, setMonthlyBill] = useState(2500);
+  const [postcode, setPostcode] = useState("");
+  const [retailer, setRetailer] = useState("AGL");
+  const [ownsProperty, setOwnsProperty] = useState(true);
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
 
@@ -277,6 +280,9 @@ export default function LeadForm({ initialMode = "calculator" }) {
         kw: capacity,
         source: "website-form",
         solarType: mappedSolarType,
+        postcode: isAU ? postcode : undefined,
+        retailer: isAU ? retailer : undefined,
+        ownsProperty: isAU ? ownsProperty : undefined,
         notes: `Estimated Subsidy: ${subsidy}, Net Cost: ${net}`,
       };
 
@@ -732,9 +738,14 @@ export default function LeadForm({ initialMode = "calculator" }) {
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">{isAU ? "Suburb / City *" : "City *"}</label>
                   {isAU ? (
-                    <input type="text" required value={city} onChange={(e) => setCity(e.target.value)}
-                      placeholder="e.g. Parramatta"
-                      className="w-full px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all" />
+                    <div className="flex gap-2">
+                      <input type="text" required value={city} onChange={(e) => setCity(e.target.value)}
+                        placeholder="e.g. Parramatta"
+                        className="w-2/3 px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all" />
+                      <input type="text" required value={postcode} onChange={(e) => setPostcode(e.target.value.replace(/\D/g, ""))} maxLength={4}
+                        placeholder="Postcode"
+                        className="w-1/3 px-3 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all" />
+                    </div>
                   ) : (
                     <select value={city} onChange={(e) => setCity(e.target.value)}
                       className="w-full px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all cursor-pointer">
@@ -762,6 +773,32 @@ export default function LeadForm({ initialMode = "calculator" }) {
                   </div>
                 </div>
               </div>
+
+              {isAU && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Electricity Retailer *</label>
+                    <select value={retailer} onChange={(e) => setRetailer(e.target.value)}
+                      className="w-full px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all cursor-pointer">
+                      <option value="AGL">AGL</option>
+                      <option value="Origin Energy">Origin Energy</option>
+                      <option value="EnergyAustralia">EnergyAustralia</option>
+                      <option value="Red Energy">Red Energy</option>
+                      <option value="Alinta Energy">Alinta Energy</option>
+                      <option value="Simply Energy">Simply Energy</option>
+                      <option value="Lumo Energy">Lumo Energy</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center mt-6">
+                    <label className="flex items-center cursor-pointer">
+                      <input type="checkbox" checked={ownsProperty} onChange={(e) => setOwnsProperty(e.target.checked)}
+                        className="w-4 h-4 text-solar-sky bg-slate-50 border-slate-300 rounded focus:ring-solar-sky" />
+                      <span className="ml-2 text-xs font-semibold text-slate-700">I own this property</span>
+                    </label>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Upload Latest Light Bill — Auto-Scanned</label>
