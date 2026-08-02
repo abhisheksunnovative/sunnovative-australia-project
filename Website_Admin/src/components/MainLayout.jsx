@@ -152,6 +152,11 @@ export const MainLayout = ({
       icon: <Globe className="w-5 h-5" />,
     },
     {
+      name: "Brand Management",
+      id: "brand-management",
+      icon: <Package className="w-5 h-5" />,
+    },
+    {
       name: "Admin Settings",
       id: "admin-settings",
       icon: <ShieldCheck className="w-5 h-5" />,

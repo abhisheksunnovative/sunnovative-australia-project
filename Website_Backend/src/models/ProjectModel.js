@@ -71,6 +71,10 @@ const ProjectOrderSchema = new mongoose.Schema(
     monthlyBillAmount: { type: Number, default: 0 },
     estimatedSubsidy: { type: Number, default: 0 },
     totalProjectCost: { type: Number, default: 0 },
+    preferredSolarBrand: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand' },
+    preferredInverterBrand: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand' },
+    selectedSolarBrand: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand' },
+    selectedInverterBrand: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand' },
     country: { type: String, default: "india" },
     state: { type: String, default: "Gujarat" },
 

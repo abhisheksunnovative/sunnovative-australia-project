@@ -24,6 +24,9 @@ const EpcMyProfile = () => {
   // Dynamic filter states
   const [filterType, setFilterType] = useState('');
   const [filterDist, setFilterDist] = useState('');
+  const [showBrandConfig, setShowBrandConfig] = useState(false);
+  const [availableBrands, setAvailableBrands] = useState([]);
+  const [brandOfferings, setBrandOfferings] = useState([]);
   
   // Trust Badge modal state
   const [showTrustBadgeModal, setShowTrustBadgeModal] = useState(false);
@@ -31,8 +34,16 @@ const EpcMyProfile = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const { data } = await epcApi.get('/api/epc/auth/profile');
+      const [profileRes, brandsRes] = await Promise.all([
+        epcApi.get('/api/epc/auth/profile'),
+        fetch(import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/brands?country=australia` : 'http://localhost:4005/api/brands?country=australia').then(r => r.json()).catch(() => ({ data: [] }))
+      ]);
+      const data = profileRes.data;
       setProfile(data);
+      setBrandOfferings(data.brandOfferings || []);
+      if (brandsRes?.success || brandsRes?.data) {
+         setAvailableBrands(brandsRes.data || []);
+      }
       setForm({
         companyName: data.companyName || '',
         ownerName:   data.ownerName   || '',
@@ -56,13 +67,29 @@ const EpcMyProfile = () => {
     e.preventDefault();
     setSaving(true);
     try {
-      const { data } = await epcApi.put('/api/epc/auth/profile', form);
+      const { data } = await epcApi.put('/api/epc/auth/profile', { ...form, brandOfferings });
       setMsg({ text: 'Profile updated successfully!', type: 'success' });
       updateEpcData({ companyName: data.companyName });
       setEditing(false);
+      setShowBrandConfig(false);
       load();
     } catch (error) {
       setMsg({ text: error.response?.data?.message || 'Update failed', type: 'error' });
+    } finally {
+      setSaving(false);
+      setTimeout(() => setMsg({ text: '', type: '' }), 3000);
+    }
+  };
+
+  const handleSaveBrands = async () => {
+    setSaving(true);
+    try {
+      const { data } = await epcApi.put('/api/epc/auth/profile', { brandOfferings });
+      setMsg({ text: 'Brand offerings updated successfully!', type: 'success' });
+      setShowBrandConfig(false);
+      load();
+    } catch (error) {
+      setMsg({ text: error.response?.data?.message || 'Failed to update brand offerings', type: 'error' });
     } finally {
       setSaving(false);
       setTimeout(() => setMsg({ text: '', type: '' }), 3000);
@@ -354,11 +381,100 @@ const EpcMyProfile = () => {
       {/* Active districts */}
       {profile?.activeDistricts?.length > 0 && (
         <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <p className="text-gray-700 text-sm font-semibold mb-3">Active Districts</p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-gray-700 text-sm font-semibold">Active Districts</p>
+            <button onClick={() => setShowBrandConfig(true)}
+              className="text-xs bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 px-3 py-1.5 rounded-lg font-medium transition-colors">
+              Configure Brand Offerings
+            </button>
+          </div>
           <div className="flex gap-2 flex-wrap">
             {profile.activeDistricts.map(d => (
               <span key={d} className="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg border border-blue-200">{d}</span>
             ))}
+          </div>
+        </div>
+      )}
+
+      {showBrandConfig && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <h3 className="text-gray-800 text-lg font-bold mb-4">Configure Brand Offerings</h3>
+            <p className="text-gray-500 text-sm mb-6">Select which solar panels and inverters you offer in each active district.</p>
+            
+            <div className="space-y-6">
+              {profile.activeDistricts.map(district => {
+                const districtConfig = brandOfferings.find(b => b.district === district) || { district, solarBrands: [], inverterBrands: [] };
+                return (
+                  <div key={district} className="border border-gray-200 rounded-xl p-4">
+                    <p className="font-semibold text-gray-700 mb-3">{district}</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-gray-500 mb-2">Solar Brands</p>
+                        <div className="flex flex-wrap gap-2">
+                          {availableBrands.filter(b => b.type === 'Solar').map(brand => {
+                            const isSelected = districtConfig.solarBrands.includes(brand._id);
+                            return (
+                              <button key={brand._id} type="button"
+                                onClick={() => {
+                                  const updated = [...brandOfferings];
+                                  let dIndex = updated.findIndex(b => b.district === district);
+                                  if (dIndex === -1) {
+                                    updated.push({ district, solarBrands: [], inverterBrands: [] });
+                                    dIndex = updated.length - 1;
+                                  }
+                                  if (isSelected) {
+                                    updated[dIndex].solarBrands = updated[dIndex].solarBrands.filter(id => id !== brand._id);
+                                  } else {
+                                    updated[dIndex].solarBrands.push(brand._id);
+                                  }
+                                  setBrandOfferings(updated);
+                                }}
+                                className={`text-xs px-3 py-1.5 rounded-full border ${isSelected ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}>
+                                {brand.name}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 mb-2">Inverter Brands</p>
+                        <div className="flex flex-wrap gap-2">
+                          {availableBrands.filter(b => b.type === 'Inverter').map(brand => {
+                            const isSelected = districtConfig.inverterBrands.includes(brand._id);
+                            return (
+                              <button key={brand._id} type="button"
+                                onClick={() => {
+                                  const updated = [...brandOfferings];
+                                  let dIndex = updated.findIndex(b => b.district === district);
+                                  if (dIndex === -1) {
+                                    updated.push({ district, solarBrands: [], inverterBrands: [] });
+                                    dIndex = updated.length - 1;
+                                  }
+                                  if (isSelected) {
+                                    updated[dIndex].inverterBrands = updated[dIndex].inverterBrands.filter(id => id !== brand._id);
+                                  } else {
+                                    updated[dIndex].inverterBrands.push(brand._id);
+                                  }
+                                  setBrandOfferings(updated);
+                                }}
+                                className={`text-xs px-3 py-1.5 rounded-full border ${isSelected ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}>
+                                {brand.name}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => setShowBrandConfig(false)} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium">Cancel</button>
+              <button onClick={handleSaveBrands} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium">{saving ? 'Saving...' : 'Save Configuration'}</button>
+            </div>
           </div>
         </div>
       )}

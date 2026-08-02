@@ -27,6 +27,8 @@ const leadSchema = new mongoose.Schema(
     discom: { type: String, trim: true },
     tariff: { type: String, trim: true },
     meterCategory: { type: String, trim: true },
+    preferredSolarBrand: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand' },
+    preferredInverterBrand: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand' },
     sourceOfMedia: { type: String },
     profession: { type: String },
     notes: { type: String, trim: true },

@@ -26,6 +26,8 @@ import { EpcRewardsScreen } from "./components/EpcRewardsScreen";
 import LeadScreen from "./components/LeadScreen";
 import { DemandSupplyScreen } from "./components/DemandSupplyScreen";
 import { DiscomManagementScreen } from "./components/DiscomManagementScreen";
+import BrandManagementScreen from "./components/BrandManagementScreen";
+import DynamicWebsiteModule from "./components/DynamicWebsiteModule";
 
 // ── BDE Portal ─────────────────────────────────────────────────────────────
 import BDELayout from "./components/bde/BDELayout";
@@ -33,7 +35,7 @@ import BDEDashboard from "./components/bde/BDEDashboard";
 import BDELeadManagement from "./components/bde/BDELeadManagement";
 import BDEDemandPool from "./components/bde/BDEDemandPool";
 import BDEProjectTracking from "./components/bde/BDEProjectTracking";
-import BDEOverdueDashboard from "./components/bde/BDEOverdueDashboard";
+import BDEAustDashboard from "./components/bde/BDEAustDashboard";
 import {
   initialEPCPartners,
   initialQualificationRules,
@@ -77,7 +79,7 @@ export default function App() {
     if (loginUserId) localStorage.setItem("sunnovative_user_id", loginUserId);
     
     if (role === "BDE") {
-      setCurrentTab("bde-dashboard");
+      setCurrentTab("bde-aust");
     } else {
       setCurrentTab("dashboard");
     }
@@ -94,7 +96,7 @@ export default function App() {
   };
 
   // Navigation states
-  const [currentTab, setCurrentTab] = useState(userRole === "BDE" ? "bde-dashboard" : "dashboard");
+  const [currentTab, setCurrentTab] = useState(userRole === "BDE" ? "bde-aust" : "dashboard");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Core Persistent State Pools for SaaS Administration
@@ -464,6 +466,10 @@ export default function App() {
 
       case "bde-management":
         return <BDEManagementScreen />;
+      case "brand-management":
+        return <BrandManagementScreen />;
+      case "country-websites":
+        return <DynamicWebsiteModule />;
 
       case "project-orders":
         return <ProjectOrdersScreen />;
@@ -474,7 +480,7 @@ export default function App() {
       case "demand-supply":
         return <DemandSupplyScreen />;
 
-      // ── BDE Portal Routes ────────────────────────────────────────────────
+      // ── BDE Overrides ───────────────────────────────────────
       case "bde-dashboard":
         return <BDEDashboard bdeId={userId} />;
       case "bde-leads":
@@ -483,8 +489,8 @@ export default function App() {
         return <BDEProjectTracking bdeId={userId} />;
       case "bde-demand":
         return <BDEDemandPool bdeId={userId} />;
-      case "bde-overdue":
-        return <BDEOverdueDashboard bdeId={userId} />;
+      case "bde-aust":
+        return <BDEAustDashboard bdeId={userId} />;
 
       default:
         return (

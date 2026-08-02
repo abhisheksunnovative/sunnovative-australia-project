@@ -28,6 +28,11 @@ const EpcPartnerSchema = new mongoose.Schema({
     weeklyCapacityKw: { type: Number, default: 25 }
   }],
   activeDistricts: [{ type: String }],
+  brandOfferings: [{
+    district: { type: String, required: true },
+    solarBrands: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Brand' }],
+    inverterBrands: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Brand' }]
+  }],
   onboardingStatus: {
     type:    String,
     enum:    ['Pending', 'KYC Submitted', 'Verified', 'Rejected', 'Active'],

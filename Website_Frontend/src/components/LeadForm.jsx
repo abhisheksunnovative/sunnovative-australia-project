@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Calculator,
   HelpCircle,
@@ -61,6 +61,24 @@ export default function LeadForm({ initialMode = "calculator" }) {
   const [ownsProperty, setOwnsProperty] = useState(true);
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [preferredSolarBrand, setPreferredSolarBrand] = useState("");
+  const [preferredInverterBrand, setPreferredInverterBrand] = useState("");
+  const [availableBrands, setAvailableBrands] = useState([]);
+
+  useEffect(() => {
+    const fetchBrands = async () => {
+      try {
+        const res = await fetch(import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/brands?country=${getCountryCode()}` : `http://localhost:4005/api/brands?country=${getCountryCode()}`);
+        const data = await res.json();
+        if (data.success) {
+          setAvailableBrands(data.data.filter(b => b.isActive));
+        }
+      } catch (err) {
+        console.error("Failed to fetch brands", err);
+      }
+    };
+    fetchBrands();
+  }, [country]);
 
   // Status & Dynamic Feedback state
   const [isFetching, setIsFetching] = useState(false);
@@ -283,6 +301,8 @@ export default function LeadForm({ initialMode = "calculator" }) {
         postcode: isAU ? postcode : undefined,
         retailer: isAU ? retailer : undefined,
         ownsProperty: isAU ? ownsProperty : undefined,
+        preferredSolarBrand: preferredSolarBrand || undefined,
+        preferredInverterBrand: preferredInverterBrand || undefined,
         notes: `Estimated Subsidy: ${subsidy}, Net Cost: ${net}`,
       };
 
@@ -342,6 +362,8 @@ export default function LeadForm({ initialMode = "calculator" }) {
     setEligibilityError("");
     setDiscom(null);
     setTariffDesc(null);
+    setPreferredSolarBrand("");
+    setPreferredInverterBrand("");
   };
 
   const isAU = country === "AU";
@@ -799,6 +821,27 @@ export default function LeadForm({ initialMode = "calculator" }) {
                   </div>
                 </div>
               )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Preferred Solar Brand</label>
+                  <select value={preferredSolarBrand} onChange={(e) => setPreferredSolarBrand(e.target.value)} className="w-full px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all cursor-pointer">
+                    <option value="">Any Reputed Brand</option>
+                    {availableBrands.filter(b => b.type === 'Solar').map(b => (
+                      <option key={b._id} value={b._id}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Preferred Inverter Brand</label>
+                  <select value={preferredInverterBrand} onChange={(e) => setPreferredInverterBrand(e.target.value)} className="w-full px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all cursor-pointer">
+                    <option value="">Any Reputed Brand</option>
+                    {availableBrands.filter(b => b.type === 'Inverter').map(b => (
+                      <option key={b._id} value={b._id}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Upload Latest Light Bill — Auto-Scanned</label>

@@ -15,6 +15,7 @@ import demandSupplyRoutes from "./src/routes/demandSupplyRoutes.js";
 import notificationRoutes from "./src/routes/notificationRoutes.js";
 import discomRoutes from "./src/routes/discomRoutes.js";
 import countryWebsiteSettingsRoutes from "./src/routes/countryWebsiteSettingsRoutes.js";
+import brandRoutes from "./src/routes/brandRoutes.js";
 
 // ── EPC Routes (converted to ESM, all under src/routes now) ─────────────────
 import epcAuthRoutes from "./src/routes/epcAuthRoutes.js";
@@ -108,6 +109,8 @@ app.use("/api/order-journey-settings", orderJourneySettingsRoutes);
 app.use("/api/project-orders", projectOrderRoutes);
 app.use("/api/geo", geoLocationRoutes);
 app.use("/api/discoms", discomRoutes);
+app.use("/api/brands", brandRoutes);
+app.use("/api/country-website-settings", countryWebsiteSettingsRoutes);
 app.use("/api/leads", leadRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/demand-supply", demandSupplyRoutes);
