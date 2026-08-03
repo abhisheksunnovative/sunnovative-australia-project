@@ -112,7 +112,7 @@ const EpcProjectDetail = () => {
       {/* Dynamic Project Steps */}
       <SectionCard title="Project Journey Tasks">
         <div className="space-y-4">
-          {project.steps?.length > 0 ? project.steps.map((step, i) => {
+          {project.steps?.filter(s => s.visibleToEpc !== false).length > 0 ? project.steps.filter(s => s.visibleToEpc !== false).map((step, i) => {
             const isEPC = step.assignedTo === 'epc-partner';
             const isActive = step.status === 'pending' || step.status === 'in-progress';
             const isCompleted = step.status === 'completed';

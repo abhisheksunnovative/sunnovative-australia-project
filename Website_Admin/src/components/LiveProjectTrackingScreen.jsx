@@ -116,8 +116,6 @@ const StepItem = ({ step, isLast, onComplete, completingId }) => {
   const assignedConfig = ASSIGNED_TO_CONFIG[step.assignedTo] || ASSIGNED_TO_CONFIG.company;
   const isCompleted = step.status === "completed";
   const isCompleting = completingId === step.stepId;
-  const [file, setFile] = useState(null);
-  const [note, setNote] = useState("");
 
   return (
     <div className="flex gap-3">
@@ -144,63 +142,49 @@ const StepItem = ({ step, isLast, onComplete, completingId }) => {
           </span>
         </div>
 
-        {isCompleted ? (
-          <div className="mt-2 bg-slate-50 p-3 rounded-lg border border-slate-100">
-            <div className="text-[11px] text-green-600 flex items-center gap-1 font-semibold mb-1">
-              <CheckCircle className="w-3 h-3" />
-              Completed on {step.completedAt ? new Date(step.completedAt).toLocaleString("en-IN") : ""}
-              {step.completedBy ? ` by ${step.completedBy}` : ""}
+          {isCompleted ? (
+            <div className="mt-2 bg-slate-50 p-3 rounded-lg border border-slate-100">
+              <div className="text-[11px] text-green-600 flex items-center gap-1 font-semibold mb-1">
+                <CheckCircle className="w-3 h-3" />
+                Completed on {step.completedAt ? new Date(step.completedAt).toLocaleString("en-IN") : ""}
+                {step.completedBy ? ` by ${step.completedBy}` : ""}
+              </div>
+              {step.evidenceNote && (
+                <p className="text-[11px] text-slate-600 mt-1"><span className="font-semibold text-slate-700">Note:</span> {step.evidenceNote}</p>
+              )}
+              {step.evidenceUrl && (
+                <a href={step.evidenceUrl} target="_blank" rel="noreferrer" className="text-[11px] text-blue-600 hover:underline mt-1 inline-block font-medium">
+                  📄 View Attached Document
+                </a>
+              )}
             </div>
-            {step.evidenceNote && (
-              <p className="text-[11px] text-slate-600 mt-1"><span className="font-semibold text-slate-700">Note:</span> {step.evidenceNote}</p>
-            )}
-            {step.evidenceUrl && (
-              <a href={step.evidenceUrl} target="_blank" rel="noreferrer" className="text-[11px] text-blue-600 hover:underline mt-1 inline-block font-medium">
-                📄 View Attached Document
-              </a>
-            )}
-          </div>
-        ) : (
-          <div className="mt-2">
-            {step.pendingActionAlert && (
-              <p className="text-xs text-amber-600 mb-2 flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" />{step.pendingActionAlert}
-              </p>
-            )}
-            {step.assignedTo === 'company' || step.assignedTo === 'both' ? (
-              <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-3">
-                <input
-                  type="text"
-                  placeholder="Add a note (optional)"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg outline-none focus:border-yellow-400"
-                />
-                <input
-                  type="file"
-                  onChange={(e) => setFile(e.target.files[0])}
-                  className="w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-yellow-50 file:text-yellow-700 hover:file:bg-yellow-100"
-                />
+          ) : (
+            <div className="mt-2">
+              {step.pendingActionAlert && (
+                <p className="text-xs text-amber-600 mb-2 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />{step.pendingActionAlert}
+                </p>
+              )}
+              {step.assignedTo === 'company' || step.assignedTo === 'both' ? (
                 <button
-                  onClick={() => onComplete(step.stepId, file, note)}
+                  onClick={() => onComplete(step.stepId)}
                   disabled={isCompleting}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-yellow-900 bg-yellow-400 rounded-lg hover:bg-amber-400 transition disabled:opacity-50"
                 >
                   {isCompleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
                   {isCompleting ? "Marking..." : "Mark Complete"}
                 </button>
-              </div>
-            ) : (
-              <div className="bg-blue-50 border border-blue-100 text-blue-700 text-[11px] px-3 py-2 rounded-lg flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                <p>
-                  <strong>Action Required by {assignedConfig.label}</strong><br/>
-                  This step will automatically mark as complete when the {assignedConfig.label} performs their task in their portal.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
+              ) : (
+                <div className="bg-blue-50 border border-blue-100 text-blue-700 text-[11px] px-3 py-2 rounded-lg flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <p>
+                    <strong>Action Required by {assignedConfig.label}</strong><br/>
+                    This step will automatically mark as complete when the {assignedConfig.label} performs their task in their portal.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
       </div>
     </div>
   );
@@ -212,7 +196,6 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
   const [loading, setLoading] = useState(true);
   const [completingId, setCompletingId] = useState(null);
   const [toast, setToast] = useState(null);
-  const [activeTab, setActiveTab] = useState("journey"); // "journey" or "stc"
 
   const showToast = (type, msg) => {
     setToast({ type, msg });
@@ -234,27 +217,13 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
 
   useEffect(() => { fetchOrder(); }, [fetchOrder]);
 
-  const handleCompleteStep = async (stepId, file = null, note = "") => {
+  const handleCompleteStep = async (stepId) => {
     setCompletingId(stepId);
     try {
-      let body;
-      let headers = {};
-
-      if (file) {
-        body = new FormData();
-        body.append("stepId", stepId);
-        body.append("completedBy", "Admin");
-        body.append("note", note);
-        body.append("evidence", file);
-      } else {
-        headers = { "Content-Type": "application/json" };
-        body = JSON.stringify({ stepId, completedBy: "Admin", note });
-      }
-
       const res = await fetch(`${API_BASE}/api/project-orders/${orderId}/complete-step`, {
         method: "POST",
-        headers,
-        body,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stepId, completedBy: "Admin" }),
       });
       const data = await res.json();
       if (data.success) {
@@ -268,25 +237,6 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
       showToast("error", "Network error");
     } finally {
       setCompletingId(null);
-    }
-  };
-
-  const handleStcAction = async (action, amount = null) => {
-    try {
-      const res = await fetch(`${API_BASE}/api/project-orders/${orderId}/stc-status`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, amountRecovered: amount }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        showToast("success", data.message);
-        fetchOrder();
-      } else {
-        showToast("error", data.message);
-      }
-    } catch {
-      showToast("error", "Failed to update STC status");
     }
   };
 
@@ -541,32 +491,13 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
         </div>
       )}
 
-      {/* TABS */}
-      <div className="flex items-center gap-4 border-b border-slate-200 mt-6 mb-4 px-2">
-        <button 
-          onClick={() => setActiveTab("journey")}
-          className={`pb-3 text-sm font-bold border-b-2 transition-colors ${activeTab === "journey" ? "border-yellow-400 text-yellow-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}
-        >
-          Journey Timeline
-        </button>
-        {order.location?.country === "Australia" && (
-          <button 
-            onClick={() => setActiveTab("stc")}
-            className={`pb-3 text-sm font-bold border-b-2 transition-colors ${activeTab === "stc" ? "border-yellow-400 text-yellow-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}
-          >
-            STC Tracking
-          </button>
-        )}
-      </div>
-
-      {activeTab === "journey" ? (
-        {/* Steps Timeline */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-          <div className="flex items-center gap-2 mb-5">
-            <GitBranch className="w-4 h-4 text-yellow-500" />
-            <h3 className="text-sm font-bold text-slate-800">Journey Timeline</h3>
-            <span className="text-xs text-slate-400">({order.steps?.filter(s => s.status === "completed").length}/{order.steps?.length} steps)</span>
-          </div>
+      {/* Steps Timeline */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div className="flex items-center gap-2 mb-5">
+          <GitBranch className="w-4 h-4 text-yellow-500" />
+          <h3 className="text-sm font-bold text-slate-800">Journey Timeline</h3>
+          <span className="text-xs text-slate-400">({order.steps?.filter(s => s.status === "completed").length}/{order.steps?.length} steps)</span>
+        </div>
 
         <div>
           {(order.steps || []).map((step, i) => (
@@ -580,80 +511,12 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
           ))}
         </div>
       </div>
-      ) : (
-        {/* STC Tracking Tab */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-            <h3 className="text-sm font-bold text-slate-800 mb-4 border-b pb-2">STC Calculation Breakdown</h3>
-            <div className="space-y-3 text-sm text-slate-600">
-              <div className="flex justify-between"><span className="font-semibold">System Size:</span> <span>{order.stcDetails?.systemSizeKw || 0} kW</span></div>
-              <div className="flex justify-between"><span className="font-semibold">Postcode:</span> <span>{order.stcDetails?.postcode || "-"} (Zone {order.stcDetails?.zone || "-"})</span></div>
-              <div className="flex justify-between"><span className="font-semibold">Deeming Years:</span> <span>{order.stcDetails?.deemingYears || 0}</span></div>
-              <div className="flex justify-between border-t pt-2 mt-2 font-bold text-slate-800">
-                <span>Calculated STCs:</span>
-                <span>{order.stcDetails?.stcs || 0} STCs</span>
-              </div>
-              <div className="flex justify-between"><span className="font-semibold">STC Price Used:</span> <span>${order.stcDetails?.stcPriceUsed || 0} AUD</span></div>
-              <div className="flex justify-between border-t pt-2 mt-2 font-bold text-green-700">
-                <span>STC Rebate Applied:</span>
-                <span>${order.stcDetails?.stcRebateAmount || 0} AUD</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-            <h3 className="text-sm font-bold text-slate-800 mb-4 border-b pb-2">STC Status Tracking</h3>
-            <div className="space-y-4">
-              
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-slate-600">Assignment Form Signed:</span>
-                {order.stcStatus?.assignmentFormSigned ? (
-                  <span className="text-xs font-bold text-green-600 flex items-center gap-1"><CheckCircle className="w-3 h-3"/> {new Date(order.stcStatus.assignmentFormSignedAt).toLocaleDateString()}</span>
-                ) : <span className="text-xs font-bold text-slate-400">Pending Customer</span>}
-              </div>
-
-              <div className="flex items-center justify-between border-t pt-3">
-                <span className="text-sm font-semibold text-slate-600">STCs Created in Registry:</span>
-                {order.stcStatus?.stcsCreatedInRegistry ? (
-                  <span className="text-xs font-bold text-green-600 flex items-center gap-1"><CheckCircle className="w-3 h-3"/> {new Date(order.stcStatus.stcsCreatedDate).toLocaleDateString()}</span>
-                ) : (
-                  <button onClick={() => handleStcAction("mark-stcs-created")} className="text-xs px-3 py-1 bg-blue-50 text-blue-600 rounded font-bold hover:bg-blue-100">Mark as Created</button>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between border-t pt-3">
-                <span className="text-sm font-semibold text-slate-600">STCs Traded:</span>
-                {order.stcStatus?.stcsTraded ? (
-                  <span className="text-xs font-bold text-green-600 flex items-center gap-1"><CheckCircle className="w-3 h-3"/> {new Date(order.stcStatus.stcsTradedDate).toLocaleDateString()}</span>
-                ) : (
-                  <button onClick={() => handleStcAction("mark-stcs-traded")} className="text-xs px-3 py-1 bg-purple-50 text-purple-600 rounded font-bold hover:bg-purple-100">Mark as Traded</button>
-                )}
-              </div>
-
-              {order.stcStatus?.stcsTraded && (
-                <div className="flex items-center justify-between border-t pt-3">
-                  <span className="text-sm font-semibold text-slate-600">Amount Recovered (AUD):</span>
-                  {order.stcStatus?.amountRecovered > 0 ? (
-                    <span className="text-sm font-bold text-green-700">${order.stcStatus.amountRecovered}</span>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <input type="number" id="tradeAmt" placeholder="Enter Amt" className="w-24 text-xs p-1 border rounded" />
-                      <button onClick={() => handleStcAction("update-amount", document.getElementById("tradeAmt").value)} className="text-xs px-2 py-1 bg-green-500 text-white rounded font-bold hover:bg-green-600">Save</button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
-export const ProjectOrdersScreen = () => {
+export const LiveProjectTrackingScreen = () => {
   const [orders, setOrders] = useState([]);
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
@@ -662,7 +525,40 @@ export const ProjectOrdersScreen = () => {
   const [filterCountry, setFilterCountry] = useState("");
   const [filterState, setFilterState] = useState("");
   const [filterDistrict, setFilterDistrict] = useState("");
+  const [filterProjectType, setFilterProjectType] = useState("");
+  const [availableDiscoms, setAvailableDiscoms] = useState([]);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+
+  // Predefined states for various countries
+  const countryStatesMap = {
+    india: [
+      "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana",
+      "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur",
+      "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana",
+      "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal"
+    ],
+    australia: [
+      "New South Wales", "Victoria", "Queensland", "Western Australia", "South Australia", "Tasmania", "Australian Capital Territory", "Northern Territory"
+    ],
+    newzealand: ["Northland", "Auckland", "Waikato", "Bay of Plenty", "Gisborne", "Hawke's Bay", "Taranaki", "Manawatu-Wanganui", "Wellington", "Tasman", "Nelson", "Marlborough", "West Coast", "Canterbury", "Otago", "Southland"],
+    uk: ["England", "Scotland", "Wales", "Northern Ireland"],
+    usa: ["California", "Texas", "Florida", "New York", "Pennsylvania", "Illinois", "Ohio", "Georgia", "North Carolina", "Michigan"]
+  };
+  const allStates = countryStatesMap[filterCountry] || [];
+
+  const fetchDiscoms = useCallback(async () => {
+    if (!filterCountry) return;
+    try {
+      let url = `${API_BASE}/api/discoms?country=${filterCountry}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) setAvailableDiscoms(data.data || []);
+    } catch { }
+  }, [filterCountry]);
+
+  useEffect(() => { fetchDiscoms(); }, [fetchDiscoms]);
+
+  const availableDistricts = [...new Set(availableDiscoms.filter(d => filterState === "" || d.state === filterState).flatMap(d => d.districts || []))].sort();
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -673,6 +569,7 @@ export const ProjectOrdersScreen = () => {
       if (filterCountry) params.append("country", filterCountry);
       if (filterState) params.append("state", filterState);
       if (filterDistrict) params.append("district", filterDistrict);
+      if (filterProjectType) params.append("projectType", filterProjectType);
 
       const res = await fetch(`${API_BASE}/api/project-orders?${params}`);
       const data = await res.json();
@@ -685,7 +582,7 @@ export const ProjectOrdersScreen = () => {
     } finally {
       setLoading(false);
     }
-  }, [search, statusFilter, filterCountry, filterState, filterDistrict]);
+  }, [search, statusFilter, filterCountry, filterState, filterDistrict, filterProjectType]);
 
   useEffect(() => {
     const debounce = setTimeout(fetchOrders, 300);
@@ -715,7 +612,7 @@ export const ProjectOrdersScreen = () => {
             <GitBranch className="w-5 h-5 text-yellow-500" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-slate-800">Project Orders</h1>
+            <h1 className="text-lg font-bold text-slate-800">Live Project Tracking</h1>
             <p className="text-xs text-slate-500">Customer projects ka live journey tracking — {totalOrders} total orders</p>
           </div>
         </div>
@@ -740,31 +637,53 @@ export const ProjectOrdersScreen = () => {
         ))}
       </div>
 
-      {/* Search + Filter */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Customer name, mobile, ya order number search karo..."
-            className="w-full pl-9 pr-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/40"
-          />
+      {/* Filters */}
+      <div className="bg-slate-800 p-4 rounded-2xl shadow-inner flex flex-wrap gap-4 overflow-x-auto items-end">
+        <div className="flex flex-col flex-1 min-w-[150px]">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Country</label>
+          <select value={filterCountry} onChange={e => { setFilterCountry(e.target.value); setFilterState(""); setFilterDistrict(""); }}
+            className="text-sm font-bold text-white border border-slate-600 rounded-xl px-4 py-2.5 bg-slate-700 focus:outline-none focus:border-yellow-400 focus:bg-slate-800 transition">
+            <option value="">🌍 All Countries</option>
+            <option value="india">🇮🇳 India</option>
+            <option value="australia">🇦🇺 Australia</option>
+            <option value="newzealand">🇳🇿 New Zealand</option>
+            <option value="uk">🇬🇧 United Kingdom</option>
+            <option value="usa">🇺🇸 United States</option>
+          </select>
         </div>
-        <select value={filterCountry} onChange={e => setFilterCountry(e.target.value)}
-          className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400/40">
-          <option value="">All Countries</option>
-          <option value="India">India</option>
-          <option value="Australia">Australia</option>
-          <option value="New Zealand">New Zealand</option>
-        </select>
-        <input type="text" value={filterState} onChange={e => setFilterState(e.target.value)} placeholder="Filter State"
-            className="w-32 px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/40" />
-        <input type="text" value={filterDistrict} onChange={e => setFilterDistrict(e.target.value)} placeholder="Filter District"
-            className="w-32 px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/40" />
-        {(statusFilter || search || filterCountry || filterState || filterDistrict) && (
-          <button onClick={() => { setStatusFilter(""); setSearch(""); setFilterCountry(""); setFilterState(""); setFilterDistrict(""); }} className="flex items-center gap-1 px-3 py-2.5 text-xs font-semibold text-red-500 bg-red-50 rounded-xl hover:bg-red-100">
+
+        <div className="flex flex-col flex-1 min-w-[150px]">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">State</label>
+          <select value={filterState} onChange={e => { setFilterState(e.target.value); setFilterDistrict(""); }} disabled={!filterCountry}
+            className="text-sm font-semibold text-white border border-slate-600 rounded-xl px-4 py-2.5 bg-slate-700 focus:outline-none focus:border-yellow-400 disabled:opacity-50">
+            <option value="">All States</option>
+            {allStates.map(state => <option key={state} value={state}>{state}</option>)}
+          </select>
+        </div>
+
+        <div className="flex flex-col flex-1 min-w-[150px]">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">District</label>
+          <select value={filterDistrict} onChange={e => setFilterDistrict(e.target.value)} disabled={!filterCountry}
+            className="text-sm font-semibold text-white border border-slate-600 rounded-xl px-4 py-2.5 bg-slate-700 focus:outline-none focus:border-yellow-400 disabled:opacity-50">
+            <option value="">All Districts</option>
+            {availableDistricts.map(dist => <option key={dist} value={dist}>{dist}</option>)}
+          </select>
+        </div>
+
+        <div className="flex flex-col flex-1 min-w-[150px]">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Project Type</label>
+          <select value={filterProjectType} onChange={e => setFilterProjectType(e.target.value)}
+            className="text-sm font-semibold text-white border border-slate-600 rounded-xl px-4 py-2.5 bg-slate-700 focus:outline-none focus:border-yellow-400">
+            <option value="">All Types</option>
+            <option value="residential">Residential</option>
+            <option value="commercial">Commercial</option>
+            <option value="group">Group / Society</option>
+            <option value="common-meter">Common Meter</option>
+          </select>
+        </div>
+
+        {(statusFilter || search || filterCountry || filterState || filterDistrict || filterProjectType) && (
+          <button onClick={() => { setStatusFilter(""); setSearch(""); setFilterCountry(""); setFilterState(""); setFilterDistrict(""); setFilterProjectType(""); }} className="flex items-center gap-1 px-4 py-2.5 text-xs font-bold text-red-400 bg-slate-700 border border-red-500/30 rounded-xl hover:bg-red-500/10 hover:text-red-300">
             <X className="w-3.5 h-3.5" /> Clear Filter
           </button>
         )}

@@ -30,6 +30,7 @@ export default function CustomerDashboard({ onClose }) {
   const [profile, setProfile] = useState({ ...customer });
   const [saving, setSaving]   = useState(false);
   const [profileMsg, setProfileMsg] = useState("");
+  const [completingStep, setCompletingStep] = useState(null);
 
   const fetchProjects = async () => {
     setLoading(true);
@@ -49,6 +50,64 @@ export default function CustomerDashboard({ onClose }) {
     setLoading(false);
   };
 
+  const handleCompleteStep = async (stepId, file = null, note = "") => {
+    if (!selProject) return;
+    setCompletingStep(stepId);
+    try {
+      let body;
+      let headers = {};
+
+      if (file) {
+        body = new FormData();
+        body.append("stepId", stepId);
+        body.append("completedBy", profile?.fullName || "Customer");
+        body.append("note", note);
+        body.append("evidence", file);
+      } else {
+        headers = { "Content-Type": "application/json" };
+        body = JSON.stringify({ stepId, completedBy: profile?.fullName || "Customer", note });
+      }
+
+      const res = await authFetch(`/api/customer/projects/${selProject._id}/complete-step`, {
+        method: "POST",
+        headers,
+        body
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Refresh project data
+        await fetchProject(selProject._id);
+      } else {
+        alert(data.message || "Failed to complete step");
+      }
+    } catch (err) {
+      alert("Network error");
+    } finally {
+      setCompletingStep(null);
+    }
+  };
+
+  const handleSignStc = async () => {
+    if (!selProject) return;
+    if (!window.confirm("I hereby assign my right to create STCs to the agent/installer for this solar project. Sign STC Assignment Form?")) return;
+    
+    setLoading(true);
+    try {
+      const res = await authFetch(`/api/customer/projects/${selProject._id}/sign-stc`, { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        alert("STC Assignment Form signed successfully! ✅");
+        fetchProject(selProject._id);
+      } else {
+        alert(data.message || "Failed to sign STC form");
+      }
+    } catch (err) {
+      alert("Network error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const saveProfile = async () => {
     setSaving(true);
     const res = await authFetch("/api/customer/auth/profile", {
@@ -63,21 +122,65 @@ export default function CustomerDashboard({ onClose }) {
   const handleLogout = () => { logout(); onClose?.(); };
 
   // ── Journey Progress Bar ────────────────────────────────────────────────────
-  const JourneyBar = ({ steps, currentStep }) => {
+  const StepItemCustomer = ({ step, index, onCompleteStep, completingStep }) => {
+    const [file, setFile] = useState(null);
+    const [note, setNote] = useState("");
+    
+    return (
+      <div className={`flex items-start gap-3 p-3 rounded-xl ${step.status === "completed" ? "bg-green-50 border border-green-100" : step.status === "in-progress" ? "bg-yellow-50 border border-yellow-200" : "bg-slate-50 border border-slate-100"}`}>
+        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${step.status === "completed" ? "bg-green-500 text-white" : step.status === "in-progress" ? "bg-yellow-400 text-yellow-900" : "bg-slate-200 text-slate-400"}`}>
+          {step.status === "completed" ? "✓" : index + 1}
+        </div>
+        <div className="flex-1">
+          <p className={`text-xs font-bold ${step.status === "pending" ? "text-slate-400" : "text-slate-700"}`}>{step.title}</p>
+          {step.completedAt && (
+            <div className="mt-1 bg-slate-50 p-2 rounded border border-slate-100">
+              <p className="text-[10px] text-green-600 font-medium">Completed on {new Date(step.completedAt).toLocaleString("en-IN")} {step.completedBy ? `by ${step.completedBy}` : ""}</p>
+              {step.evidenceNote && <p className="text-[10px] text-slate-500 mt-1"><span className="font-semibold">Note:</span> {step.evidenceNote}</p>}
+              {step.evidenceUrl && <a href={step.evidenceUrl} target="_blank" rel="noreferrer" className="text-[10px] text-blue-600 hover:underline mt-1 inline-block">📄 View Document</a>}
+            </div>
+          )}
+          
+          {step.status === "in-progress" && step.assignedTo === "customer" && (
+            <div className="mt-3 bg-white p-3 rounded-lg border border-slate-200 space-y-3">
+              <input
+                type="text"
+                placeholder="Add a note (optional)"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg outline-none focus:border-yellow-400"
+              />
+              <input
+                type="file"
+                onChange={(e) => setFile(e.target.files[0])}
+                className="w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-yellow-50 file:text-yellow-700 hover:file:bg-yellow-100"
+              />
+              <button
+                onClick={() => onCompleteStep && onCompleteStep(step.stepId, file, note)}
+                disabled={completingStep === step.stepId}
+                className="w-full sm:w-auto px-4 py-2 bg-solar-gold hover:bg-yellow-500 text-white text-xs font-bold rounded-lg transition disabled:opacity-50 flex items-center justify-center"
+              >
+                {completingStep === step.stepId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Complete Action"}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const JourneyBar = ({ steps, currentStep, onCompleteStep, completingStep }) => {
     if (!steps?.length) return null;
-    const doneIdx = steps.findIndex(s => s.status === "pending") - 1;
     return (
       <div className="space-y-2">
         {steps.map((step, i) => (
-          <div key={i} className={`flex items-start gap-3 p-3 rounded-xl ${step.status === "completed" ? "bg-green-50 border border-green-100" : step.status === "in-progress" ? "bg-yellow-50 border border-yellow-200" : "bg-slate-50 border border-slate-100"}`}>
-            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${step.status === "completed" ? "bg-green-500 text-white" : step.status === "in-progress" ? "bg-yellow-400 text-yellow-900" : "bg-slate-200 text-slate-400"}`}>
-              {step.status === "completed" ? "✓" : i + 1}
-            </div>
-            <div className="flex-1">
-              <p className={`text-xs font-bold ${step.status === "pending" ? "text-slate-400" : "text-slate-700"}`}>{step.title}</p>
-              {step.completedAt && <p className="text-[10px] text-slate-400 mt-0.5">{new Date(step.completedAt).toLocaleDateString("en-IN")}</p>}
-            </div>
-          </div>
+          <StepItemCustomer 
+            key={i} 
+            step={step} 
+            index={i} 
+            onCompleteStep={onCompleteStep} 
+            completingStep={completingStep} 
+          />
         ))}
       </div>
     );
@@ -204,11 +307,63 @@ export default function CustomerDashboard({ onClose }) {
                 </div>
               </div>
 
+              {/* STC Tracking Section for Australian Projects */}
+              {selProject.stcDetails?.stcs > 0 && (
+                <div className="bg-white rounded-2xl p-4 border border-blue-200 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <FileText className="w-4 h-4 text-blue-600" />
+                    <h4 className="font-bold text-blue-900 text-sm">STC Rebate Tracking</h4>
+                  </div>
+                  
+                  <div className="space-y-2 text-xs text-slate-600 mb-4 bg-blue-50/50 p-3 rounded-xl border border-blue-100">
+                    <div className="flex justify-between"><span>Calculated STCs:</span> <span className="font-bold">{selProject.stcDetails.stcs}</span></div>
+                    <div className="flex justify-between"><span>Discount Applied:</span> <span className="font-bold text-green-700">${selProject.stcDetails.stcRebateAmount}</span></div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold">1. STC Assignment Form</span>
+                      {selProject.stcStatus?.assignmentFormSigned ? (
+                        <span className="text-[10px] font-bold text-green-600 flex items-center gap-1 bg-green-50 px-2 py-1 rounded">
+                          <CheckCircle className="w-3 h-3"/> Signed
+                        </span>
+                      ) : (
+                        <button 
+                          onClick={handleSignStc}
+                          disabled={loading}
+                          className="text-[10px] bg-blue-600 text-white font-bold px-3 py-1.5 rounded-lg hover:bg-blue-700 transition"
+                        >
+                          Sign Form Digitally
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold">2. STC Registration</span>
+                      {selProject.stcStatus?.stcsCreatedInRegistry ? (
+                        <span className="text-[10px] font-bold text-green-600 flex items-center gap-1 bg-green-50 px-2 py-1 rounded">
+                          <CheckCircle className="w-3 h-3"/> Complete
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded">
+                          Pending Installer
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Journey Steps */}
-              {selProject.steps?.length > 0 && (
+              {selProject.steps?.filter(s => s.visibleToCustomer !== false).length > 0 && (
                 <div>
                   <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Project Journey</h4>
-                  <JourneyBar steps={selProject.steps} currentStep={selProject.currentStepNumber} />
+                  <JourneyBar 
+                      steps={selProject.steps.filter(s => s.visibleToCustomer !== false)} 
+                      currentStep={selProject.currentStepNumber}
+                      onCompleteStep={handleCompleteStep}
+                      completingStep={completingStep}
+                    />
                 </div>
               )}
 

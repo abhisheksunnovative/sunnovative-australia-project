@@ -177,32 +177,75 @@ const StepCard = ({ step, index, totalSteps, onUpdate, onRemove, onMoveUp, onMov
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3 bg-white p-3 border border-slate-200 rounded-xl">
-            <div>
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Assigned To</label>
-              <select
-                className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400/40 bg-white"
-                value={step.assignedTo}
-                onChange={(e) => onUpdate("assignedTo", e.target.value)}
-              >
-                <option value="company">Platform Admin (Company)</option>
-                <option value="epc-partner">EPC Partner</option>
-                <option value="customer">Customer</option>
-                <option value="both">Company + EPC Both</option>
-              </select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-white p-3 border border-slate-200 rounded-xl">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Assigned To</label>
+                <select
+                  className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400/40 bg-white"
+                  value={step.assignedTo}
+                  onChange={(e) => onUpdate("assignedTo", e.target.value)}
+                >
+                  <option value="company">Platform Admin (Company)</option>
+                  <option value="epc-partner">EPC Partner</option>
+                  <option value="customer">Customer</option>
+                  <option value="both">Company + EPC Both</option>
+                </select>
+              </div>
+              <Field
+                label="SLA Days"
+                value={step.slaDays !== undefined ? step.slaDays : step.estimatedDays}
+                onChange={(v) => onUpdate("slaDays", v)}
+                type="number"
+                hint="Max time allowed (0 = same day)"
+              />
             </div>
-            <Field
-              label="SLA Days"
-              value={step.slaDays !== undefined ? step.slaDays : step.estimatedDays}
-              onChange={(v) => onUpdate("slaDays", v)}
-              type="number"
-              hint="Max time allowed (0 = same day)"
-            />
-            <div className="pt-1">
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Milestone Type</label>
+                <select
+                  className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400/40 bg-white"
+                  value={step.milestoneType || 'standard'}
+                  onChange={(e) => onUpdate("milestoneType", e.target.value)}
+                >
+                  <option value="standard">Standard Step</option>
+                  <option value="customer_payment">Customer Payment</option>
+                  <option value="epc_advance">EPC Advance</option>
+                  <option value="rating">Customer Rating</option>
+                  <option value="stc_minting">STC Minting</option>
+                  <option value="doc_upload">Document Upload</option>
+                </select>
+              </div>
+              {step.milestoneType === 'customer_payment' || step.milestoneType === 'epc_advance' ? (
+                <Field
+                  label="Payment Percentage (%)"
+                  value={step.paymentPercentage || 0}
+                  onChange={(v) => onUpdate("paymentPercentage", v)}
+                  type="number"
+                  hint="% of total amount"
+                />
+              ) : (
+                <div className="pt-1">
+                  <Toggle
+                    label="Mandatory Step"
+                    checked={step.isMandatory}
+                    onChange={(v) => onUpdate("isMandatory", v)}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="col-span-1 md:col-span-2 pt-2 flex items-center gap-6 border-t border-slate-100 mt-2">
               <Toggle
-                label="Mandatory Step"
-                checked={step.isMandatory}
-                onChange={(v) => onUpdate("isMandatory", v)}
+                label="Visible to Customer"
+                checked={step.visibleToCustomer !== false}
+                onChange={(v) => onUpdate("visibleToCustomer", v)}
+              />
+              <Toggle
+                label="Visible to EPC"
+                checked={step.visibleToEpc !== false}
+                onChange={(v) => onUpdate("visibleToEpc", v)}
               />
             </div>
           </div>
@@ -433,6 +476,10 @@ const JourneyCard = ({ journey, journeyIndex, onUpdateJourney, onRemoveJourney, 
       assignedTo: "company",
       enabled: true,
       slaDays: 1,
+      milestoneType: "standard",
+      paymentPercentage: 0,
+      visibleToCustomer: true,
+      visibleToEpc: true,
       isMandatory: false,
       requiresDocumentUpload: false,
       requiresAdminApproval: false,
@@ -775,6 +822,10 @@ export const OrderJourneyScreen = () => {
             assignedTo: "company",
             enabled: true,
             slaDays: 0,
+            milestoneType: "standard",
+            paymentPercentage: 0,
+            visibleToCustomer: true,
+            visibleToEpc: true,
             isMandatory: true,
             requiresDocumentUpload: false,
             requiresAdminApproval: false,

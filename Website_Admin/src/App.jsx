@@ -17,7 +17,7 @@ import { SaaSAdminSettingsScreen } from "./components/SaaSAdminSettingsScreen";
 import { WebsiteSettingsScreen } from "./components/WebsiteSettingsScreen";
 import { CustomerEligibilityScreen } from "./components/CustomerEligibilityScreen";
 import { OrderJourneyScreen } from "./components/OrderJourneyScreen";
-import { ProjectOrdersScreen } from "./components/Projectordersscreen";
+import { LiveProjectTrackingScreen } from "./components/LiveProjectTrackingScreen";
 import { LoginScreen } from "./components/LoginScreen";
 import { EpcWalletSettingsScreen } from "./components/Epcwalletsettingsscreen";
 import EpcSystemSettingsScreen from "./components/EpcSystemSettingsScreen";
@@ -28,6 +28,7 @@ import { DemandSupplyScreen } from "./components/DemandSupplyScreen";
 import { DiscomManagementScreen } from "./components/DiscomManagementScreen";
 import BrandManagementScreen from "./components/BrandManagementScreen";
 import DynamicWebsiteModule from "./components/DynamicWebsiteModule";
+import StcManagementDashboard from "./components/country/StcManagementDashboard";
 
 // ── BDE Portal ─────────────────────────────────────────────────────────────
 import BDELayout from "./components/bde/BDELayout";
@@ -471,8 +472,11 @@ export default function App() {
       case "country-websites":
         return <DynamicWebsiteModule />;
 
+      case "stc-management":
+        return <StcManagementDashboard />;
+
       case "project-orders":
-        return <ProjectOrdersScreen />;
+        return <LiveProjectTrackingScreen />;
 
       case "website-leads":
         return <LeadScreen />;

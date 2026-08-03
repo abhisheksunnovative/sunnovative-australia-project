@@ -68,6 +68,11 @@ export const createProjectOrder = async (req, res) => {
         stepNumber: s.stepNumber,
         title: s.title,
         assignedTo: s.assignedTo,
+        milestoneType: s.milestoneType || 'standard',
+        paymentPercentage: s.paymentPercentage || 0,
+        slaDays: s.slaDays || 2,
+        visibleToCustomer: s.visibleToCustomer !== false,
+        visibleToEpc: s.visibleToEpc !== false,
         status: "pending",
         completedAt: null,
         completedBy: "",
@@ -190,7 +195,13 @@ export const getProjectOrder = async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 export const completeStep = async (req, res) => {
   try {
-    const { stepId, completedBy = "Admin", evidenceUrl = "", evidenceNote = "" } = req.body;
+    const { stepId, completedBy = "Admin", note = "", evidenceNote = "" } = req.body;
+    
+    const finalNote = evidenceNote || note || "";
+    let finalUrl = req.body.evidenceUrl || "";
+    if (req.file) {
+      finalUrl = `/${req.file.path.replace(/\\/g, '/')}`;
+    }
 
     const order = await ProjectOrder.findById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: "Order nahi mila" });
@@ -211,8 +222,8 @@ export const completeStep = async (req, res) => {
     order.steps[stepIndex].status = "completed";
     order.steps[stepIndex].completedAt = new Date();
     order.steps[stepIndex].completedBy = completedBy;
-    order.steps[stepIndex].evidenceUrl = evidenceUrl;
-    order.steps[stepIndex].evidenceNote = evidenceNote;
+    order.steps[stepIndex].evidenceUrl = finalUrl;
+    order.steps[stepIndex].evidenceNote = finalNote;
     order.steps[stepIndex].pendingActionAlert = "";
 
     // Next pending step dhundho
@@ -565,6 +576,29 @@ export const confirmInstallDate = async (req, res) => {
     console.log('[SMS/Email Trigger] Send to EPC: Installation date confirmed on ' + projectOrder.preferredInstallDate);
     
     res.json({ success: true, message: 'Installation date confirmed successfully!' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateStcStatus = async (req, res) => {
+  try {
+    const { action, amountRecovered } = req.body;
+    const order = await ProjectOrder.findById(req.params.id);
+    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+    
+    if (action === "mark-stcs-created") {
+      order.stcStatus.stcsCreatedInRegistry = true;
+      order.stcStatus.stcsCreatedDate = new Date();
+    } else if (action === "mark-stcs-traded") {
+      order.stcStatus.stcsTraded = true;
+      order.stcStatus.stcsTradedDate = new Date();
+    } else if (action === "update-amount") {
+      order.stcStatus.amountRecovered = Number(amountRecovered) || 0;
+    }
+    
+    await order.save();
+    res.json({ success: true, message: "STC status updated", stcStatus: order.stcStatus });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -74,6 +74,22 @@ const countryWebsiteSettingsSchema = new mongoose.Schema({
     address: { type: String, default: "" }
   },
 
+  stcSettings: {
+    schemeEnabled: { type: Boolean, default: true },
+    currentDeemingYear: { type: Number, default: 2026 },
+    deemingPeriodRemaining: { type: Number, default: 4 },
+    schemeEndYear: { type: Number, default: 2030 },
+    cerClearingHousePrice: { type: Number, default: 40.00 },
+    defaultTradePrice: { type: Number, default: 38.00 },
+    batteryStcsEnabled: { type: Boolean, default: false },
+    zoneRatings: {
+      zone1: { type: Number, default: 1.622 },
+      zone2: { type: Number, default: 1.536 },
+      zone3: { type: Number, default: 1.382 },
+      zone4: { type: Number, default: 1.185 }
+    }
+  },
+
   isPublished: { type: Boolean, default: false }
 
 }, { timestamps: true });

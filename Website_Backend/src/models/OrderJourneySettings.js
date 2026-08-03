@@ -13,6 +13,14 @@ const JourneyStepSchema = new mongoose.Schema({
   enabled: { type: Boolean, default: true },
   estimatedDays: { type: Number, default: 1 }, // Legacy field, keeping for compatibility
   slaDays: { type: Number, default: 1 }, // New SLA field
+  milestoneType: { 
+    type: String, 
+    enum: ['standard', 'customer_payment', 'epc_advance', 'rating', 'stc_minting', 'doc_upload'], 
+    default: 'standard' 
+  },
+  paymentPercentage: { type: Number, default: 0 },
+  visibleToCustomer: { type: Boolean, default: true },
+  visibleToEpc: { type: Boolean, default: true },
   isMandatory: { type: Boolean, default: false },
   actionLabel: { type: String, default: "" }, // CTA label e.g. "Upload Survey Report"
   notifyCustomer: { type: Boolean, default: true },

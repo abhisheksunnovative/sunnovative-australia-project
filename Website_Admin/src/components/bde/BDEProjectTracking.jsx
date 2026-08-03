@@ -5,17 +5,49 @@ export default function BDEProjectTracking({ bdeId }) {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [filterCountry, setFilterCountry] = useState("");
+  const [filterState, setFilterState] = useState("");
+  const [filterDistrict, setFilterDistrict] = useState("");
+  const [filterProjectType, setFilterProjectType] = useState("");
+  const [availableDiscoms, setAvailableDiscoms] = useState([]);
   const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
+
+  // Predefined states for various countries
+  const countryStatesMap = {
+    india: ["Andhra Pradesh", "Gujarat", "Maharashtra", "Rajasthan", "Uttar Pradesh"],
+    australia: ["New South Wales", "Victoria", "Queensland", "Western Australia", "South Australia", "Tasmania"],
+    newzealand: ["Auckland", "Wellington", "Canterbury", "Otago"],
+  };
+  const allStates = countryStatesMap[filterCountry] || [];
+
+  const fetchDiscoms = async () => {
+    if (!filterCountry) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/discoms?country=${filterCountry}`);
+      const data = await res.json();
+      if (data.success) setAvailableDiscoms(data.data || []);
+    } catch { }
+  };
+  useEffect(() => { fetchDiscoms(); }, [filterCountry]);
+
+  const availableDistricts = [...new Set(availableDiscoms.filter(d => filterState === "" || d.state === filterState).flatMap(d => d.districts || []))].sort();
 
   useEffect(() => {
     if (!bdeId) return;
     fetchProjects();
-  }, [bdeId]);
+  }, [bdeId, search, filterCountry, filterState, filterDistrict, filterProjectType]);
 
   const fetchProjects = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/bde/${bdeId}/projects`);
+      const params = new URLSearchParams();
+      if (search) params.append("search", search);
+      if (filterCountry) params.append("country", filterCountry);
+      if (filterState) params.append("state", filterState);
+      if (filterDistrict) params.append("district", filterDistrict);
+      if (filterProjectType) params.append("projectType", filterProjectType);
+
+      const res = await fetch(`${API_BASE}/api/bde/${bdeId}/projects?${params}`);
       const data = await res.json();
       if (data.success) {
         setProjects(data.projects);
@@ -70,6 +102,47 @@ export default function BDEProjectTracking({ bdeId }) {
           />
           <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
         </div>
+      </div>
+
+      <div className="bg-slate-800 p-4 rounded-xl shadow-inner flex flex-wrap gap-4 overflow-x-auto items-end">
+        <div className="flex flex-col flex-1 min-w-[120px]">
+          <select value={filterCountry} onChange={e => { setFilterCountry(e.target.value); setFilterState(""); setFilterDistrict(""); }}
+            className="text-sm font-bold text-white border border-slate-600 rounded-lg px-3 py-2 bg-slate-700 focus:outline-none focus:border-yellow-400">
+            <option value="">🌍 All Countries</option>
+            <option value="india">🇮🇳 India</option>
+            <option value="australia">🇦🇺 Australia</option>
+            <option value="newzealand">🇳🇿 New Zealand</option>
+          </select>
+        </div>
+        <div className="flex flex-col flex-1 min-w-[120px]">
+          <select value={filterState} onChange={e => { setFilterState(e.target.value); setFilterDistrict(""); }} disabled={!filterCountry}
+            className="text-sm font-semibold text-white border border-slate-600 rounded-lg px-3 py-2 bg-slate-700 focus:outline-none focus:border-yellow-400 disabled:opacity-50">
+            <option value="">All States</option>
+            {allStates.map(state => <option key={state} value={state}>{state}</option>)}
+          </select>
+        </div>
+        <div className="flex flex-col flex-1 min-w-[120px]">
+          <select value={filterDistrict} onChange={e => setFilterDistrict(e.target.value)} disabled={!filterCountry}
+            className="text-sm font-semibold text-white border border-slate-600 rounded-lg px-3 py-2 bg-slate-700 focus:outline-none focus:border-yellow-400 disabled:opacity-50">
+            <option value="">All Districts</option>
+            {availableDistricts.map(dist => <option key={dist} value={dist}>{dist}</option>)}
+          </select>
+        </div>
+        <div className="flex flex-col flex-1 min-w-[120px]">
+          <select value={filterProjectType} onChange={e => setFilterProjectType(e.target.value)}
+            className="text-sm font-semibold text-white border border-slate-600 rounded-lg px-3 py-2 bg-slate-700 focus:outline-none focus:border-yellow-400">
+            <option value="">All Types</option>
+            <option value="residential">Residential</option>
+            <option value="commercial">Commercial</option>
+            <option value="group">Group / Society</option>
+            <option value="common-meter">Common Meter</option>
+          </select>
+        </div>
+        {(search || filterCountry || filterState || filterDistrict || filterProjectType) && (
+          <button onClick={() => { setSearch(""); setFilterCountry(""); setFilterState(""); setFilterDistrict(""); setFilterProjectType(""); }} className="flex items-center gap-1 px-3 py-2 text-xs font-bold text-red-400 bg-slate-700 border border-red-500/30 rounded-lg hover:bg-red-500/10 hover:text-red-300">
+            Clear Filter
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-6">

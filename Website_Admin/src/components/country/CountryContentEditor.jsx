@@ -57,6 +57,26 @@ export default function CountryContentEditor({ countryCode, onBack }) {
     }));
   };
 
+  const handleStcChange = (field, value) => {
+    setSettings((prev) => ({
+      ...prev,
+      stcSettings: { ...prev.stcSettings, [field]: value }
+    }));
+  };
+
+  const handleZoneChange = (zone, value) => {
+    setSettings((prev) => ({
+      ...prev,
+      stcSettings: {
+        ...prev.stcSettings,
+        zoneRatings: {
+          ...prev.stcSettings?.zoneRatings,
+          [zone]: value
+        }
+      }
+    }));
+  };
+
   const handleAddFaq = () => {
     setSettings((prev) => ({
       ...prev,
@@ -199,6 +219,100 @@ export default function CountryContentEditor({ countryCode, onBack }) {
             )}
           </div>
         </div>
+
+        {/* STC Configuration (Australia Only) */}
+        {countryCode === "AU" && (
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">STC Configuration (Australia)</h2>
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <h3 className="font-medium text-gray-700">Scheme Settings</h3>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="checkbox" 
+                    checked={settings.stcSettings?.schemeEnabled ?? true} 
+                    onChange={(e) => handleStcChange("schemeEnabled", e.target.checked)} 
+                    id="schemeEnabled"
+                  />
+                  <label htmlFor="schemeEnabled" className="text-sm font-medium text-gray-700">Scheme Enabled</label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Current Deeming Year</label>
+                  <input 
+                    type="number" 
+                    value={settings.stcSettings?.currentDeemingYear || 2026} 
+                    onChange={(e) => handleStcChange("currentDeemingYear", Number(e.target.value))}
+                    className="w-full border border-gray-300 rounded p-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Deeming Period Remaining (Years)</label>
+                  <input 
+                    type="number" 
+                    value={settings.stcSettings?.deemingPeriodRemaining || 4} 
+                    onChange={(e) => handleStcChange("deemingPeriodRemaining", Number(e.target.value))}
+                    className="w-full border border-gray-300 rounded p-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">CER Clearing House Price (AUD)</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    value={settings.stcSettings?.cerClearingHousePrice || 40.00} 
+                    onChange={(e) => handleStcChange("cerClearingHousePrice", Number(e.target.value))}
+                    className="w-full border border-gray-300 rounded p-2 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="font-medium text-gray-700">Zone Ratings</h3>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Zone 1 (Darwin/NT)</label>
+                  <input 
+                    type="number" 
+                    step="0.001"
+                    value={settings.stcSettings?.zoneRatings?.zone1 || 1.622} 
+                    onChange={(e) => handleZoneChange("zone1", Number(e.target.value))}
+                    className="w-full border border-gray-300 rounded p-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Zone 2 (Brisbane/Perth)</label>
+                  <input 
+                    type="number" 
+                    step="0.001"
+                    value={settings.stcSettings?.zoneRatings?.zone2 || 1.536} 
+                    onChange={(e) => handleZoneChange("zone2", Number(e.target.value))}
+                    className="w-full border border-gray-300 rounded p-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Zone 3 (Sydney/Adelaide)</label>
+                  <input 
+                    type="number" 
+                    step="0.001"
+                    value={settings.stcSettings?.zoneRatings?.zone3 || 1.382} 
+                    onChange={(e) => handleZoneChange("zone3", Number(e.target.value))}
+                    className="w-full border border-gray-300 rounded p-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Zone 4 (Melbourne/TAS)</label>
+                  <input 
+                    type="number" 
+                    step="0.001"
+                    value={settings.stcSettings?.zoneRatings?.zone4 || 1.185} 
+                    onChange={(e) => handleZoneChange("zone4", Number(e.target.value))}
+                    className="w-full border border-gray-300 rounded p-2 text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );

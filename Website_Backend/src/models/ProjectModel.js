@@ -6,7 +6,16 @@ const StepCompletionSchema = new mongoose.Schema({
   stepNumber: { type: Number, required: true },
   title: { type: String, required: true },
   description: { type: String, default: "" },
-  assignedTo: { type: String, default: "company" },
+  assignedTo: { type: String, enum: ['customer', 'epc-partner', 'company'], default: "company" },
+  milestoneType: { 
+    type: String, 
+    enum: ['standard', 'customer_payment', 'epc_advance', 'rating', 'stc_minting', 'doc_upload'], 
+    default: 'standard' 
+  },
+  paymentPercentage: { type: Number, default: 0 },
+  visibleToCustomer: { type: Boolean, default: true },
+  visibleToEpc: { type: Boolean, default: true },
+  slaDays: { type: Number, default: 2 },
   status: {
     type: String,
     enum: ["pending", "in-progress", "completed", "skipped", "blocked"],
@@ -168,6 +177,29 @@ const ProjectOrderSchema = new mongoose.Schema(
     // ── Admin Notes ───────────────────────────────────────────
     adminNotes: { type: String, default: "" },
     internalTags: [String],
+
+    // STC Tracking (Australia Specific)
+    stcDetails: {
+      systemSizeKw: { type: Number, default: 0 },
+      postcode: { type: String, default: "" },
+      zone: { type: Number, default: 0 },
+      deemingYears: { type: Number, default: 0 },
+      stcs: { type: Number, default: 0 },
+      stcPriceUsed: { type: Number, default: 0 },
+      stcRebateAmount: { type: Number, default: 0 },
+    },
+    stcStatus: {
+      assignmentFormSigned: { type: Boolean, default: false },
+      assignmentFormSignedAt: Date,
+      customerSignatureUrl: String,
+      cecProductsVerified: { type: Boolean, default: false },
+      cesCertificateUploaded: { type: Boolean, default: false },
+      stcsCreatedInRegistry: { type: Boolean, default: false },
+      stcsCreatedDate: Date,
+      stcsTraded: { type: Boolean, default: false },
+      stcsTradedDate: Date,
+      amountRecovered: { type: Number, default: 0 }
+    }
   },
   { timestamps: true }
 );

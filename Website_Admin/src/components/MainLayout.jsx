@@ -113,7 +113,7 @@ export const MainLayout = ({
   icon: <Settings className="w-5 h-5" />,
 },
     { name: "Projects", id: "projects", icon: <Sun className="w-5 h-5" /> },
-    { name: "Project Orders", id: "project-orders", icon: <ListChecks className="w-5 h-5" /> },
+    { name: "Live Project Tracking", id: "project-orders", icon: <ListChecks className="w-5 h-5" /> },
     { name: "Products", id: "products", icon: <Package className="w-5 h-5" /> },
     { name: "Demand & Supply", id: "demand-supply", icon: <Activity className="w-5 h-5" /> },
     {
@@ -146,13 +146,18 @@ export const MainLayout = ({
       id: "discom-management",
       icon: <Zap className="w-5 h-5" />,
     },
-    {
-      name: "Country Websites",
-      id: "country-websites",
-      icon: <Globe className="w-5 h-5" />,
-    },
-    {
-      name: "Brand Management",
+      {
+        name: "Country Websites",
+        id: "country-websites",
+        icon: <Globe className="w-5 h-5" />,
+      },
+      {
+        name: "STC Management (AU)",
+        id: "stc-management",
+        icon: <FileCheck className="w-5 h-5" />,
+      },
+      {
+        name: "Brand Management",
       id: "brand-management",
       icon: <Package className="w-5 h-5" />,
     },

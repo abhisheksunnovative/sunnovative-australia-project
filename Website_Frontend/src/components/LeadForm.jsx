@@ -64,6 +64,7 @@ export default function LeadForm({ initialMode = "calculator" }) {
   const [preferredSolarBrand, setPreferredSolarBrand] = useState("");
   const [preferredInverterBrand, setPreferredInverterBrand] = useState("");
   const [availableBrands, setAvailableBrands] = useState([]);
+  const [stcSettings, setStcSettings] = useState(null);
 
   useEffect(() => {
     const fetchBrands = async () => {
@@ -77,7 +78,22 @@ export default function LeadForm({ initialMode = "calculator" }) {
         console.error("Failed to fetch brands", err);
       }
     };
+    
+    const fetchStcSettings = async () => {
+      if (country !== "AU") return;
+      try {
+        const res = await fetch(import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/country-website-settings/public/AU` : "http://localhost:4005/api/country-website-settings/public/AU");
+        const data = await res.json();
+        if (data.success && data.data?.stcSettings) {
+          setStcSettings(data.data.stcSettings);
+        }
+      } catch (err) {
+        console.error("Failed to fetch STC settings", err);
+      }
+    };
+
     fetchBrands();
+    fetchStcSettings();
   }, [country]);
 
   // Status & Dynamic Feedback state
@@ -369,14 +385,34 @@ export default function LeadForm({ initialMode = "calculator" }) {
   const isAU = country === "AU";
   let sliderUnits, sliderKw, sliderSubsidy, sliderCost, sliderNet, sliderPaybackMonths, sliderTreesPlanted;
 
+  const getStcZone = (pc) => {
+    const code = parseInt(pc, 10);
+    if (!code) return 3; 
+    // Basic mapping: NT and North WA/QLD -> Zone 1
+    if ((code >= 800 && code <= 899) || (code >= 6700 && code <= 6799) || (code >= 4700 && code <= 4899)) return 1;
+    // Central AU -> Zone 2
+    if ((code >= 4600 && code <= 4699) || (code >= 4300 && code <= 4499) || (code >= 6600 && code <= 6699)) return 2;
+    // Tasmania and Alpine -> Zone 4
+    if ((code >= 7000 && code <= 7999) || code === 2627 || code === 2628) return 4;
+    // Default major cities -> Zone 3
+    return 3;
+  };
+
   if (isAU) {
-    // For AU: monthlyBill is actually Quarterly Bill in AUD
     sliderKw = Math.max(3, Math.min(15, Math.ceil(monthlyBill / 100))); // e.g. $400/qtr = 4kW
     sliderUnits = Math.round(sliderKw * 115); 
-    sliderSubsidy = Math.round(sliderKw * 1.17 * 5 * 38); // Zone 3 estimate (multiplier 1.17, 5 yrs deeming, $38 STC)
+    
+    const zone = getStcZone(postcode);
+    const multiplier = zone === 1 ? 1.62 : zone === 2 ? 1.53 : zone === 3 ? 1.38 : 1.18;
+    const deemingYears = stcSettings?.deemingYears || 5; 
+    const stcPrice = stcSettings?.stcPrice || 38;
+    
+    const stcs = Math.floor(sliderKw * multiplier * deemingYears);
+    sliderSubsidy = stcs * stcPrice; 
+    
     sliderCost = sliderKw * 1100;
     sliderNet = Math.max(1000, sliderCost - sliderSubsidy);
-    sliderPaybackMonths = Math.round(sliderNet / (monthlyBill * 0.85 / 3)); // monthlyBill is quarterly, so div by 3 for monthly savings
+    sliderPaybackMonths = Math.round(sliderNet / (monthlyBill * 0.85 / 3)); 
     sliderTreesPlanted = sliderKw * 35;
   } else {
     // For IN: monthlyBill is Monthly Bill in INR

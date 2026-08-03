@@ -414,3 +414,77 @@ export const getAvailableEpcs = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
+
+// -- POST /api/customer/projects/:id/complete-step -- Complete a customer assigned step --
+export const completeStep = async (req, res) => {
+  try {
+    const { stepId, note } = req.body;
+    
+    const project = await ProjectOrder.findOne({
+      _id: req.params.id,
+      customer: req.customer._id,
+    });
+    
+    if (!project) return res.status(404).json({ message: 'Project not found' });
+
+    const stepIndex = project.steps.findIndex(s => s.stepId === stepId);
+    if (stepIndex === -1) return res.status(404).json({ message: 'Step not found' });
+    
+    if (project.steps[stepIndex].assignedTo !== 'customer') {
+      return res.status(403).json({ message: 'Not authorized to complete this step. It is assigned to ' + project.steps[stepIndex].assignedTo });
+    }
+
+    project.steps[stepIndex].status = 'completed';
+    project.steps[stepIndex].completedAt = new Date();
+    project.steps[stepIndex].completedBy = req.customer.name || 'Customer';
+    
+    if (note) project.steps[stepIndex].evidenceNote = note;
+    
+    if (req.file) {
+      project.steps[stepIndex].evidenceUrl = `/${req.file.path.replace(/\\/g, '/')}`;
+    }
+
+    // Update overall current step
+    const nextStep = project.steps.find(s => s.status !== 'completed');
+    if (nextStep) {
+      project.currentStepNumber = nextStep.stepNumber;
+      project.status = nextStep.title;
+      nextStep.status = 'in-progress';
+    } else {
+      project.status = 'Project Completed';
+      project.completionPercentage = 100;
+    }
+
+    // Recalculate completion percentage
+    const completedStepsCount = project.steps.filter(s => s.status === 'completed').length;
+    project.completionPercentage = Math.round((completedStepsCount / project.steps.length) * 100);
+
+    await project.save();
+
+    res.json({ success: true, message: 'Step completed successfully', project });
+  } catch (error) {
+    console.error('Customer completeStep error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const signStcForm = async (req, res) => {
+  try {
+    const { signatureUrl } = req.body;
+    const project = await ProjectOrder.findOne({ _id: req.params.id, customer: req.customer._id });
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    
+    if (!project.stcStatus) {
+      project.stcStatus = {};
+    }
+    
+    project.stcStatus.assignmentFormSigned = true;
+    project.stcStatus.assignmentFormSignedAt = new Date();
+    project.stcStatus.customerSignatureUrl = signatureUrl;
+    await project.save();
+    
+    res.json({ success: true, message: "STC Assignment Form signed successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
