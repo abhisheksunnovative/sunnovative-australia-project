@@ -11,7 +11,8 @@ const router = express.Router();
 router.use(extractCountry);
 
 router.get("/", getWebsiteSettings);
-router.put("/", updateWebsiteSettings);
+router.get("/:country/:projectType", getWebsiteSettings);
+router.put("/:country/:projectType", updateWebsiteSettings);
 router.post("/reset", resetWebsiteSettings);
 
 export default router;

@@ -45,7 +45,7 @@ const countryStatesMap = {
   ]
 };
 
-export default function LeadForm({ initialMode = "calculator" }) {
+export default function LeadForm({ initialMode = "calculator", selectedProjectType, settings: propSettings }) {
   const { country } = useCountry();
   const getCountryCode = () => { if (country === "AU") return "australia"; if (country === "NZ") return "new_zealand"; return "india"; };
 
@@ -67,6 +67,34 @@ export default function LeadForm({ initialMode = "calculator" }) {
   const [stcSettings, setStcSettings] = useState(null);
   const [projectTypeConfigs, setProjectTypeConfigs] = useState([]);
   const [selectedUpgradeKw, setSelectedUpgradeKw] = useState(0);
+  const [selectedKw, setSelectedKw] = useState(3);
+
+  // Dynamic form settings from backend
+  const [formSettings, setFormSettings] = useState(null);
+  // Dynamic field values for any extra dynamic fields
+  const [dynamicValues, setDynamicValues] = useState({});
+
+  // Fetch project-specific form settings
+  useEffect(() => {
+    const loadFormSettings = async () => {
+      // Use propSettings if passed, else try fetching
+      const ptKey = selectedProjectType || "default";
+      const countryCode = getCountryCode();
+      try {
+        const apiBase = import.meta.env.VITE_API_URL || "http://localhost:4005";
+        const res = await fetch(`${apiBase}/api/website-settings/${countryCode}/${ptKey}`);
+        const data = await res.json();
+        if (data.success && data.data?.projectForm) {
+          setFormSettings(data.data.projectForm);
+        } else if (propSettings?.projectForm) {
+          setFormSettings(propSettings.projectForm);
+        }
+      } catch {
+        if (propSettings?.projectForm) setFormSettings(propSettings.projectForm);
+      }
+    };
+    loadFormSettings();
+  }, [country, selectedProjectType, propSettings]);
 
   useEffect(() => {
     const fetchBrands = async () => {
@@ -150,7 +178,7 @@ export default function LeadForm({ initialMode = "calculator" }) {
   };
 
   // Task 2: Call the real eligibility engine (CustomerEligibilityScreen rules)
-  const handleCheckEligibility = async ({ meterCategory, billAmount, monthlyUnits, dueAmount, billStatus, monthsOverdue }) => {
+  const handleCheckEligibility = async ({ meterCategory, billAmount, monthlyUnits, dueAmount, billStatus, monthsOverdue, overrideKw = 0 }) => {
     setIsCheckingEligibility(true);
     setEligibilityError("");
     setEligibilityResult(null);
@@ -164,6 +192,7 @@ export default function LeadForm({ initialMode = "calculator" }) {
         billStatus,
         monthsOverdue,
         state: customerState,
+        overrideKw,
       }, { headers: { "x-country": getCountryCode() } });
       setEligibilityResult(data);
 
@@ -310,22 +339,31 @@ export default function LeadForm({ initialMode = "calculator" }) {
       else mappedSolarType = "au-ev-owners";
     }
 
+    // Merge dynamic field values into submission (only for Lead-known keys)
+    const KNOWN_LEAD_KEYS = ["consumerNumber","fullName","mobileNumber","email","postcode","city","customerState","monthlyBill","ownsProperty"];
+    const extraFromDynamic = {};
+    Object.entries(dynamicValues).forEach(([key, val]) => {
+      if (KNOWN_LEAD_KEYS.includes(key)) extraFromDynamic[key] = val;
+      else extraFromDynamic[key] = val; // include any extra as notes
+    });
+
     const submission = {
-        name: fullName,
-        mobile: mobileNumber,
-        city,
-        state: customerState,
-        consumerNumber: consumerNumber || "",
+        name: fullName || extraFromDynamic.fullName,
+        mobile: mobileNumber || extraFromDynamic.mobileNumber,
+        email: extraFromDynamic.email,
+        city: city || extraFromDynamic.city,
+        state: customerState || extraFromDynamic.customerState,
+        consumerNumber: consumerNumber || extraFromDynamic.consumerNumber || "",
         meterCategory: meterCategory || "Not detected",
         discom: discom || "Not detected",
         tariff: tariffDesc || "Not detected",
-        billAmount: monthlyBill,
+        billAmount: monthlyBill || extraFromDynamic.monthlyBill,
         kw: finalCapacity,
         source: "website-form",
         solarType: mappedSolarType,
-        postcode: isAU ? postcode : undefined,
+        postcode: postcode || extraFromDynamic.postcode,
         retailer: isAU ? retailer : undefined,
-        ownsProperty: isAU ? ownsProperty : undefined,
+        ownsProperty: ownsProperty !== undefined ? ownsProperty : extraFromDynamic.ownsProperty,
         preferredSolarBrand: preferredSolarBrand || undefined,
         preferredInverterBrand: preferredInverterBrand || undefined,
         notes: `Estimated Subsidy: ${subsidy}, Net Cost: ${net}`,
@@ -407,8 +445,18 @@ export default function LeadForm({ initialMode = "calculator" }) {
     return 3;
   };
 
+  // Effect to auto-update selectedKw when monthly bill or scan results change
+  useEffect(() => {
+    if (isAU) {
+      setSelectedKw(Math.max(3, Math.min(15, Math.ceil(monthlyBill / 100))));
+    } else {
+      const units = Math.round(monthlyBill / 7.2);
+      setSelectedKw(Math.max(1, Math.min(15, Math.ceil(units / 115))));
+    }
+  }, [monthlyBill, isAU]);
+
   if (isAU) {
-    sliderKw = Math.max(3, Math.min(15, Math.ceil(monthlyBill / 100))); // e.g. $400/qtr = 4kW
+    sliderKw = selectedKw || Math.max(3, Math.min(15, Math.ceil(monthlyBill / 100))); // e.g. $400/qtr = 4kW
     sliderUnits = Math.round(sliderKw * 115); 
     
     const zone = getStcZone(postcode);
@@ -440,15 +488,74 @@ export default function LeadForm({ initialMode = "calculator" }) {
     sliderTreesPlanted = sliderKw * 35;
   }
 
+  // Helper: render a single dynamic form field
+  const renderDynamicField = (field, idx) => {
+    const stateKeyMap = {
+      consumerNumber: [consumerNumber, setConsumerNumber],
+      fullName: [fullName, setFullName],
+      mobileNumber: [mobileNumber, (v) => setMobileNumber(v.replace(/\D/g, ""))],
+      city: [city, setCity],
+      customerState: [customerState, setCustomerState],
+      monthlyBill: [monthlyBill, (v) => setMonthlyBill(Number(v))],
+      postcode: [postcode, setPostcode],
+      ownsProperty: [ownsProperty ? "Yes" : "No", (v) => setOwnsProperty(v === "Yes")],
+      billFile: [null, null], // handled separately
+    };
+    const mapped = stateKeyMap[field.key];
+    const value = mapped ? mapped[0] : (dynamicValues[field.key] || "");
+    const onChange = mapped ? mapped[1] : (v) => setDynamicValues(prev => ({ ...prev, [field.key]: v }));
+
+    // Skip billFile — handled by the drag-drop area below
+    if (field.key === "billFile") return null;
+
+    return (
+      <div key={idx}>
+        <label className="block text-xs font-semibold text-slate-700 mb-1">
+          {field.label}{field.required && " *"}
+        </label>
+        {field.type === "select" ? (
+          <select
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            required={field.required}
+            className="w-full px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all cursor-pointer"
+          >
+            <option value="">Select...</option>
+            {(field.options || []).map((opt, oi) => <option key={oi} value={opt}>{opt}</option>)}
+          </select>
+        ) : field.type === "textarea" ? (
+          <textarea
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            required={field.required}
+            rows={3}
+            className="w-full px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all"
+          />
+        ) : (
+          <input
+            type={field.type || "text"}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            required={field.required}
+            className="w-full px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all"
+          />
+        )}
+      </div>
+    );
+  };
+
+  // Decide whether to use dynamic fields or default layout
+  const hasDynamicFields = formSettings?.fields && formSettings.fields.length > 0;
+
   return (
     <section id="eligibility-calculator" className="py-20 solar-gradient relative">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-14">
           <span className="text-xs font-bold uppercase tracking-widest text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
-            Realtime Solar Simulator
+            {formSettings?.title || "Apply for Solar"}
           </span>
           <h2 className="text-3xl md:text-4xl font-display font-extrabold text-slate-900 mt-3 leading-tight">
-            Check Your Subsidy & Rooftop Solar Estimate
+            {formSettings?.subtitle || "Check Your Subsidy & Rooftop Solar Estimate"}
           </h2>
           <p className="text-slate-600 mt-3 text-xs md:text-sm">
             Select your state, then upload a photo of your latest light bill —
@@ -469,77 +576,8 @@ export default function LeadForm({ initialMode = "calculator" }) {
                 Your application ID is <strong className="text-slate-800 font-mono">{submitSuccess.id}</strong>.
                 A dedicated Sunnovative solar consultant is processing your file.
               </p>
-
-              <div className="w-full max-w-md bg-slate-50 rounded-2xl p-5 border border-slate-100 mt-6 text-left space-y-3 font-sans">
-                <div className="flex justify-between items-center pb-2 border-b border-slate-200">
-                  <span className="text-xs text-slate-400 uppercase font-black tracking-wider">Parameters</span>
-                  <span className="text-xs text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" /> {isAU ? "CEC Accredited" : "GEDA Empanelled"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs">
-                  <div>
-                    <span className="text-slate-400 uppercase tracking-wide text-[10px]">Applicant Name</span>
-                    <p className="font-semibold text-slate-800 truncate">{submitSuccess.fullName}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 uppercase tracking-wide text-[10px]">Contact Mobile</span>
-                    <p className="font-semibold text-slate-800">{submitSuccess.mobileNumber}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 uppercase tracking-wide text-[10px]">City / State</span>
-                    <p className="font-semibold text-slate-800 flex items-center gap-0.5">
-                      <MapPin className="w-3 h-3 text-rose-500" /> {submitSuccess.city}, {submitSuccess.state}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 uppercase tracking-wide text-[10px]/none">{isAU ? "Postcode" : "Consumer No"}</span>
-                    <p className="font-semibold font-mono text-slate-800">{submitSuccess.consumerNumber}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 uppercase tracking-wide text-[10px]">{isAU ? "Retailer/DNSP" : "DISCOM"}</span>
-                    <p className="font-semibold text-slate-800">{submitSuccess.discom}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 uppercase tracking-wide text-[10px]">Meter Category</span>
-                    <p className="font-semibold text-slate-800">{submitSuccess.meterCategory}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 uppercase tracking-wide text-[10px]">Tariff</span>
-                    <p className="font-semibold text-slate-800 text-xs truncate" title={submitSuccess.tariff}>{submitSuccess.tariff}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 uppercase tracking-wide text-[10px]">Eligibility</span>
-                    <p className={`font-semibold ${submitSuccess.isEligible ? "text-emerald-600" : "text-red-500"}`}>
-                      {submitSuccess.isEligible ? "✓ Eligible" : "✗ Needs Review"}
-                    </p>
-                  </div>
-                  <div className="col-span-2 pt-2 border-t border-slate-150 grid grid-cols-3 gap-2 text-center">
-                    <div className="p-2 bg-sky-50 rounded-lg">
-                      <span className="text-slate-400 text-[9px] block uppercase leading-none font-semibold">Recommended Capacity</span>
-                      <span className="text-sm font-black text-solar-sky mt-0.5 block">{submitSuccess.estimatedCapacityKw} kW</span>
-                    </div>
-                    <div className="p-2 bg-emerald-50 rounded-lg">
-                      <span className="text-slate-400 text-[9px] block uppercase leading-none font-semibold">{isAU ? "STC Discount" : "Estimated Subsidy"}</span>
-                      <span className="text-sm font-black text-solar-green mt-0.5 block">{isAU ? "$" : "₹"}{submitSuccess.estimatedSubsidy.toLocaleString("en-IN")}</span>
-                    </div>
-                    <div className="p-2 bg-amber-50 rounded-lg">
-                      <span className="text-slate-400 text-[9px] block uppercase leading-none font-semibold">Your Est Investment</span>
-                      <span className="text-sm font-black text-slate-900 mt-0.5 block">{isAU ? "$" : "₹"}{submitSuccess.netCostEstimate.toLocaleString("en-IN")}</span>
-                    </div>
-                  </div>
-                </div>
-                {submitSuccess.billFileName && (
-                  <div className="text-[10px] text-slate-400 flex items-center gap-1.5 pt-2 border-t border-slate-150">
-                    <FileCheck className="w-3.5 h-3.5 text-emerald-500" /> Light Bill uploaded safely: <strong>{submitSuccess.billFileName}</strong>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                <a href="tel:+919898231245" className="px-5 py-2 text-xs font-bold text-white bg-slate-950 rounded-xl hover:bg-slate-800 text-center">
-                  📞 Direct Helpline Call
-                </a>
+              
+              <div className="mt-6 flex gap-3">
                 <button onClick={() => setSubmitSuccess(null)} className="px-5 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl text-center">
                   Enquire for another home
                 </button>
@@ -548,138 +586,34 @@ export default function LeadForm({ initialMode = "calculator" }) {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          <div className="lg:col-span-5 glass-panel p-6 rounded-3xl">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 bg-amber-100 rounded-xl text-amber-600">
-                <Calculator className="w-5 h-5" />
-              </div>
+        <div className="glass-panel p-6 md:p-8 rounded-3xl max-w-3xl mx-auto">
+          <form onSubmit={handleFormSubmit} className="space-y-6" id="solar-lead-form">
+            
+            {/* --- DYNAMIC FIELDS (from Admin Panel Form Builder) --- */}
+            {hasDynamicFields ? (
               <div>
-                <h3 className="text-base font-bold font-display text-slate-900">Subsidy Estimator</h3>
-                <p className="text-[11px] text-slate-500">Quick calculation — for your exact eligibility, scan your bill on the right →</p>
-              </div>
-            </div>
-
-            <div className="mt-6 space-y-6">
-              <div>
-                <div className="flex justify-between items-center mb-1 bg-slate-50 p-2 rounded-xl">
-                  <span className="text-xs text-slate-550 font-bold">
-                    {isAU ? "Average Quarterly Bill Amount:" : "Average Monthly Bill Amount:"}
-                  </span>
-                  <span className="text-lg font-black text-solar-sky">
-                    {isAU ? "$" : "₹"}{monthlyBill.toLocaleString("en-IN")}
-                  </span>
-                </div>
-                <input
-                  type="range" min="500" max="15000" step="250" value={monthlyBill}
-                  onChange={(e) => {
-                    setMonthlyBill(Number(e.target.value));
-                    if (fetchedData) setFetchedData(null);
-                    if (eligibilityResult) setEligibilityResult(null);
-                  }}
-                  className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-solar-sky focus:outline-none"
-                  id="bill-range-slider"
-                />
-                <div className="flex justify-between text-[10px] text-slate-400 px-1 mt-1">
-                  <span>{isAU ? "$500 / Qtr" : "₹500 / Month"}</span>
-                  <span>{isAU ? "$15,000 / Qtr" : "₹15,000 / Month"}</span>
+                <h3 className="text-sm font-bold text-slate-900 border-b pb-2 mb-4">1. Your Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {formSettings.fields.filter(f => f.key !== "billFile").map((field, idx) => renderDynamicField(field, idx))}
                 </div>
               </div>
-
-              <div className="space-y-4 pt-1">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                    <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-tight">Est. Power Needs</span>
-                    <span className="text-lg font-extrabold text-slate-900 mt-0.5 block">{sliderUnits} Units <span className="text-[10px] text-slate-400">/ mo</span></span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                    <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-tight">Recommended Panel</span>
-                    <span className="text-lg font-extrabold text-solar-sky mt-0.5 block">{sliderKw} kW Rooftop</span>
-                  </div>
-                </div>
-                <div className="p-4 bg-[#10B981]/5 rounded-2xl border border-[#10B981]/15">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-emerald-700 font-bold flex items-center gap-1">
-                      <Award className="w-4 h-4" /> 
-                      {isAU ? "STC Upfront Discount" : "PM Surya Ghar Subsidy"}
-                    </span>
-                    <span className="text-lg font-black text-solar-green">
-                      {isAU ? "$" : "₹"}{sliderSubsidy.toLocaleString("en-IN")}
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-slate-500 mt-1">
-                    {isAU ? "Small-scale Technology Certificates (STC) applied directly by installer." : "Standard central government incentive transferred to bank."}
-                  </div>
-                </div>
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-150 space-y-2">
-                  <div className="flex justify-between items-center text-xs text-slate-650">
-                    <span>Approx Setup Cost</span>
-                    <span className="font-semibold text-slate-800">{isAU ? "$" : "₹"}{sliderCost.toLocaleString("en-IN")}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs text-slate-650">
-                    <span className="text-emerald-600 font-bold">{isAU ? "Minus STC Discount" : "Minus Central Subsidy"}</span>
-                    <span className="font-bold text-solar-green">- {isAU ? "$" : "₹"}{sliderSubsidy.toLocaleString("en-IN")}</span>
-                  </div>
-                  <div className="border-t border-slate-200/60 pt-2 flex justify-between items-center">
-                    <span className="text-xs font-bold text-slate-900">Your Net Investment</span>
-                    <span className="text-base font-black text-slate-900">{isAU ? "$" : "₹"}{sliderNet.toLocaleString("en-IN")}</span>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3 text-center">
-                  <div className="p-2.5 bg-sky-50 rounded-xl">
-                    <span className="text-slate-500 text-[9px] block font-bold uppercase leading-none">Investment ROI</span>
-                    <span className="text-xs font-extrabold text-slate-800 mt-1 block flex items-center justify-center gap-0.5">
-                      <TrendingDown className="w-3.5 h-3.5 text-solar-sky" /> Approx {sliderPaybackMonths} Months
-                    </span>
-                  </div>
-                  <div className="p-2.5 bg-emerald-50 rounded-xl">
-                    <span className="text-slate-500 text-[9px] block font-bold uppercase leading-none">Green Benefit</span>
-                    <span className="text-xs font-extrabold text-slate-800 mt-1 block flex items-center justify-center gap-0.5">
-                      <Trees className="w-3.5 h-3.5 text-solar-green" /> Plnt {sliderTreesPlanted} Trees
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="lg:col-span-7 glass-panel p-6 md:p-8 rounded-3xl">
-            <div className="bg-[#0081C9]/5 rounded-2xl p-4 border border-[#0081C9]/15 mb-6">
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Your State * (for {isAU ? 'STC zone estimation' : 'subsidy calculation'})</label>
-              <select
-                value={customerState}
-                onChange={(e) => { setCustomerState(e.target.value); setEligibilityResult(null); }}
-                className="w-full px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all cursor-pointer"
-              >
-                {(countryStatesMap[country] || countryStatesMap["IN"]).map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-
-            <form onSubmit={handleFormSubmit} className="space-y-4" id="solar-lead-form">
-              <h3 className="text-sm font-bold text-slate-900 border-b pb-2 mb-3">Applicant & Survey Details</h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            ) : (
+            /* --- DEFAULT FIELDS (fallback) --- */
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 border-b pb-2 mb-4">1. Applicant & Location Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name (Owner Name) *</label>
-                  <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)}
-                    placeholder="e.g. Rajeshbhai Kunjibhai Patel"
-                    className="w-full px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all" />
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">State *</label>
+                  <select
+                    value={customerState}
+                    onChange={(e) => { setCustomerState(e.target.value); setEligibilityResult(null); }}
+                    className="w-full px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all cursor-pointer"
+                  >
+                    {(countryStatesMap[country] || countryStatesMap["IN"]).map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Mobile Number (WhatsApp Status Sync) *</label>
-                  <div className="relative">
-                    {isAU && <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs">+61</span>}
-                    <input type="tel" required maxLength={10} value={mobileNumber}
-                      onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, ""))}
-                      placeholder={isAU ? "412 345 678" : "e.g. 98982 12345"}
-                      className={`w-full ${isAU ? 'pl-10' : 'px-4'} pr-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all`} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">{isAU ? "Suburb / City *" : "City *"}</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">{isAU ? "Suburb / City *" : "District / City *"}</label>
                   {isAU ? (
                     <div className="flex gap-2">
                       <input type="text" required value={city} onChange={(e) => setCity(e.target.value)}
@@ -705,249 +639,151 @@ export default function LeadForm({ initialMode = "calculator" }) {
                     </select>
                   )}
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">{isAU ? "Average Quarterly Bill *" : "Average Monthly Bill *"}</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name (Owner Name) *</label>
+                  <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)}
+                    placeholder="e.g. Rajeshbhai Kunjibhai Patel"
+                    className="w-full px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Mobile Number (WhatsApp) *</label>
+                  <div className="relative">
+                    {isAU && <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs">+61</span>}
+                    <input type="tel" required maxLength={10} value={mobileNumber}
+                      onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, ""))}
+                      placeholder={isAU ? "412 345 678" : "e.g. 98982 12345"}
+                      className={`w-full ${isAU ? 'pl-10' : 'px-4'} pr-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all`} />
+                  </div>
+                </div>
+              </div>
+            </div>
+            )}
+
+            {/* 2. Bill Fetch / Upload Section */}
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 border-b pb-2 mb-4 mt-6">2. Electricity Bill Check</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-2">Upload Light Bill for Auto-Scan</label>
+                  <div
+                    onDragEnter={handleDrag} onDragOver={handleDrag} onDragLeave={handleDrag} onDrop={handleDrop}
+                    onClick={handleTriggerFileInput}
+                    className={`border-2 border-dashed rounded-2xl p-5 text-center cursor-pointer transition-all ${
+                      dragActive ? "border-solar-sky bg-sky-50/50" : uploadedFile ? "border-solar-green bg-emerald-50/20" : "border-slate-200 bg-slate-50/50 hover:bg-slate-50"
+                    }`}
+                    id="drag-drop-container"
+                  >
+                    <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*,application/pdf" className="hidden" id="bill-file-input" />
+                    {isScanning ? (
+                      <div className="flex flex-col items-center">
+                        <ScanLine className="w-8 h-8 text-solar-sky mb-2 animate-pulse" />
+                        <p className="text-xs font-bold text-slate-800">Scanning your bill...</p>
+                      </div>
+                    ) : uploadedFile ? (
+                      <div className="flex flex-col items-center">
+                        <div className="w-10 h-10 rounded-full bg-emerald-100 text-solar-green flex items-center justify-center mb-2">
+                          <FileCheck className="w-5 h-5 animate-pulse-subtle" />
+                        </div>
+                        <p className="text-xs font-bold text-slate-800 tracking-tight">{uploadedFile.name}</p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center">
+                        <UploadCloud className="w-8 h-8 text-slate-400 mb-2" />
+                        <p className="text-xs font-semibold text-slate-700">Drag & drop bill photo</p>
+                      </div>
+                    )}
+                  </div>
+                  {scanError && (
+                    <div className="text-[11px] text-red-500 font-semibold mt-2 flex items-center gap-1">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> {scanError}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-2">Or Enter Average Bill Manually</label>
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs">{isAU ? "$" : "₹"}</span>
                     <input type="number" required value={monthlyBill}
                       onChange={(e) => setMonthlyBill(Number(e.target.value))}
                       placeholder="e.g. 2150"
-                      className="w-full pl-7 pr-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all" />
+                      className="w-full pl-7 pr-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all mb-2" />
                   </div>
+                  <p className="text-[10px] text-slate-400 italic">This helps us calculate your required solar system size.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Subsidy Rules & kW Scale Selector (Appears BELOW the bill fetch) */}
+            <div className="bg-amber-50/50 rounded-2xl border border-amber-100 p-5 mt-6">
+              <h3 className="text-sm font-bold text-slate-900 border-b border-amber-200/50 pb-2 mb-4">3. Recommended System & Expected Subsidy</h3>
+              
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs text-slate-600 font-bold">Select System Size (kW):</span>
+                  <span className="text-lg font-black text-solar-sky">{selectedKw} kW</span>
+                </div>
+                <input
+                  type="range" min="1" max="15" step="1" value={selectedKw}
+                  onChange={(e) => setSelectedKw(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-solar-sky focus:outline-none"
+                />
+                <div className="flex justify-between text-[10px] text-slate-400 px-1 mt-1">
+                  <span>1 kW</span>
+                  <span>15 kW</span>
                 </div>
               </div>
 
-              {isAU && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Electricity Retailer *</label>
-                    <select value={retailer} onChange={(e) => setRetailer(e.target.value)}
-                      className="w-full px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all cursor-pointer">
-                      <option value="AGL">AGL</option>
-                      <option value="Origin Energy">Origin Energy</option>
-                      <option value="EnergyAustralia">EnergyAustralia</option>
-                      <option value="Red Energy">Red Energy</option>
-                      <option value="Alinta Energy">Alinta Energy</option>
-                      <option value="Simply Energy">Simply Energy</option>
-                      <option value="Lumo Energy">Lumo Energy</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-                  <div className="flex items-center mt-6">
-                    <label className="flex items-center cursor-pointer">
-                      <input type="checkbox" checked={ownsProperty} onChange={(e) => setOwnsProperty(e.target.checked)}
-                        className="w-4 h-4 text-solar-sky bg-slate-50 border-slate-300 rounded focus:ring-solar-sky" />
-                      <span className="ml-2 text-xs font-semibold text-slate-700">I own this property</span>
-                    </label>
-                  </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <div className="p-3 bg-white rounded-xl border border-slate-100 text-center">
+                  <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-tight">Est. Generation</span>
+                  <span className="text-sm font-extrabold text-slate-900 mt-0.5 block">{sliderUnits} Units<span className="text-[9px] text-slate-400">/mo</span></span>
                 </div>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Preferred Solar Brand</label>
-                  <select value={preferredSolarBrand} onChange={(e) => setPreferredSolarBrand(e.target.value)} className="w-full px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all cursor-pointer">
-                    <option value="">Any Reputed Brand</option>
-                    {availableBrands.filter(b => b.type === 'Solar').map(b => (
-                      <option key={b._id} value={b._id}>{b.name}</option>
-                    ))}
-                  </select>
+                <div className="p-3 bg-[#10B981]/10 rounded-xl border border-[#10B981]/20 text-center">
+                  <span className="text-[10px] text-emerald-600 block uppercase font-bold tracking-tight">Govt Subsidy</span>
+                  <span className="text-sm font-black text-solar-green mt-0.5 block">{isAU ? "$" : "₹"}{sliderSubsidy.toLocaleString("en-IN")}</span>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Preferred Inverter Brand</label>
-                  <select value={preferredInverterBrand} onChange={(e) => setPreferredInverterBrand(e.target.value)} className="w-full px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all cursor-pointer">
-                    <option value="">Any Reputed Brand</option>
-                    {availableBrands.filter(b => b.type === 'Inverter').map(b => (
-                      <option key={b._id} value={b._id}>{b.name}</option>
-                    ))}
-                  </select>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-center">
+                  <span className="text-[10px] text-slate-500 block uppercase font-bold tracking-tight">Setup Cost</span>
+                  <span className="text-sm font-bold text-slate-700 mt-0.5 block">{isAU ? "$" : "₹"}{sliderCost.toLocaleString("en-IN")}</span>
+                </div>
+                <div className="p-3 bg-blue-50 rounded-xl border border-blue-200 text-center">
+                  <span className="text-[10px] text-blue-600 block uppercase font-bold tracking-tight">Net Investment</span>
+                  <span className="text-sm font-black text-blue-900 mt-0.5 block">{isAU ? "$" : "₹"}{sliderNet.toLocaleString("en-IN")}</span>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Upload Latest Light Bill — Auto-Scanned</label>
-                <div
-                  onDragEnter={handleDrag} onDragOver={handleDrag} onDragLeave={handleDrag} onDrop={handleDrop}
-                  onClick={handleTriggerFileInput}
-                  className={`border-2 border-dashed rounded-2xl p-5 text-center cursor-pointer transition-all ${
-                    dragActive ? "border-solar-sky bg-sky-50/50" : uploadedFile ? "border-solar-green bg-emerald-50/20" : "border-slate-200 bg-slate-50/50 hover:bg-slate-50"
-                  }`}
-                  id="drag-drop-container"
-                >
-                  <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*,application/pdf" className="hidden" id="bill-file-input" />
-
-                  {isScanning ? (
-                    <div className="flex flex-col items-center">
-                      <ScanLine className="w-8 h-8 text-solar-sky mb-2 animate-pulse" />
-                      <p className="text-xs font-bold text-slate-800">Scanning your bill...</p>
-                      <p className="text-[10px] text-slate-400 mt-1">Reading consumer number, meter category & consumption</p>
-                    </div>
-                  ) : uploadedFile ? (
-                    <div className="flex flex-col items-center">
-                      <div className="w-10 h-10 rounded-full bg-emerald-100 text-solar-green flex items-center justify-center mb-2">
-                        <FileCheck className="w-5 h-5 animate-pulse-subtle" />
-                      </div>
-                      <p className="text-xs font-bold text-slate-800 tracking-tight">{uploadedFile.name}</p>
-                      <p className="text-[10px] text-slate-400 mt-1">{(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB • Click or drag to change file</p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center">
-                      <UploadCloud className="w-8 h-8 text-slate-400 mb-2" />
-                      <p className="text-xs font-semibold text-slate-700">Drag & drop your latest Light Bill photo</p>
-                      <p className="text-[10.5px] text-slate-400 mt-1">Or click to browse • Supports JPG, PNG, and PDF — auto-scans instantly</p>
-                    </div>
-                  )}
-                </div>
-                {scanError && (
-                  <div className="text-[11px] text-red-500 font-semibold mt-2 flex items-center gap-1">
-                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> {scanError}
-                  </div>
-                )}
+              <div className="flex items-center gap-2 p-3 bg-white rounded-xl border border-slate-100 text-[11px] text-slate-600">
+                <Award className="w-4 h-4 text-solar-sky shrink-0" />
+                <p>
+                  By installing a <strong>{selectedKw} kW</strong> system, you will generate approx <strong>{sliderUnits} units</strong> monthly, saving {isAU ? "$" : "₹"}{(sliderUnits * (isAU ? 0.3 : 7.2)).toFixed(0)} on your bill. 
+                  ROI is estimated at <strong>{sliderPaybackMonths} months</strong>.
+                </p>
               </div>
+            </div>
 
-              {fetchedData && (
-              <div className="p-4 bg-[#10B981]/5 rounded-2xl border border-[#10B981]/20 mb-4" id="fetched-details-card">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-[#10B981] mb-2 uppercase tracking-wide">
-                  <Sparkles className="w-4 h-4 shrink-0" />
-                  {scanConfidence ? "Bill scanned successfully!" : "Demo data loaded!"}
-                </div>
-                {scanConfidence && scanConfidence !== "high" && (
-                  <div className="flex items-start gap-2 mb-3 p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-700">
-                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                    <span>Kuch details bill se clearly nahi mil payi — kripya neeche form me manually check/edit kar lo.</span>
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-3 text-xs mb-1">
-                  <div>
-                    <span className="text-slate-400 font-medium">Consumer Name:</span>
-                    <p className="font-bold text-slate-800 truncate">{fetchedData.consumerName}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 font-medium">DISCOM Provider:</span>
-                    <p className="font-bold text-[#0081C9] truncate">{discom || fetchedData.discom || "—"}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 font-medium">Meter Category:</span>
-                    <p className="font-bold text-[#0081C9]">{meterCategory || "—"}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 font-medium">Tariff / Phase:</span>
-                    <p className="font-bold text-[#0081C9]">{tariffDesc || "—"}</p>
-                  </div>
-                  <div className="grid grid-cols-3 col-span-2 gap-2 text-center pt-2 mt-2 border-t border-slate-200/50">
-                    <div className="p-1.5 bg-white rounded-lg">
-                      <span className="text-[9px] text-slate-400">Monthly units</span>
-                      <span className="font-extrabold text-slate-800 block">{fetchedData.monthlyUnits} Units</span>
-                    </div>
-                    <div className="p-1.5 bg-white rounded-lg">
-                      <span className="text-[9px] text-slate-400">Est solar capacity</span>
-                      <span className="font-extrabold text-solar-sky block">{fetchedData.eligibleCapacityKw} kW System</span>
-                    </div>
-                    <div className="p-1.5 bg-white rounded-lg">
-                      <span className="text-[9px] text-slate-400">Guaranteed Subsidy</span>
-                      <span className="font-extrabold text-solar-green block">₹{Number(fetchedData.subsidyAmount || 0).toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {isCheckingEligibility && (
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 mb-6 flex items-center gap-3">
-                <Loader2 className="w-5 h-5 text-solar-sky animate-spin" />
-                <span className="text-xs font-semibold text-slate-600">Checking eligibility against Sunnovative's admin rules...</span>
-              </div>
-            )}
-
-            {eligibilityError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-semibold mb-6 flex items-center gap-2">
-                <XCircle className="w-4 h-4 shrink-0" /> {eligibilityError}
-              </div>
-            )}
-
-            {eligibilityResult && (
-              <div className={`p-4 rounded-2xl border mb-6 ${
-                eligibilityResult.isEligible ? "bg-emerald-50/60 border-emerald-200" : "bg-red-50/60 border-red-200"
-              }`}>
-                <div className="flex items-center gap-2 mb-3">
-                  {eligibilityResult.isEligible ? (
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                  ) : (
-                    <XCircle className="w-5 h-5 text-red-500" />
-                  )}
-                  <span className={`text-sm font-bold ${eligibilityResult.isEligible ? "text-emerald-700" : "text-red-600"}`}>
-                    {eligibilityResult.isEligible ? "You're Eligible for Rooftop Solar!" : "Needs Review Before Proceeding"}
+            <div className="pt-4 border-t border-slate-100 mt-6">
+              <button type="submit" disabled={isSubmitting}
+                className="w-full py-4 bg-solar-green hover:bg-emerald-600 text-white font-bold text-sm rounded-xl cursor-pointer shadow-lg shadow-emerald-500/10 transition-all flex items-center justify-center gap-2"
+                id="lead-submit-btn">
+                {isSubmitting ? (
+                  <span className="flex items-center gap-2">
+                    <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                    {isAU ? "Generating Quote..." : "Registering Application..."}
                   </span>
-                </div>
-
-                {eligibilityResult.reasons?.length > 0 && (
-                  <ul className="text-[11px] text-slate-600 space-y-1 mb-3 list-disc list-inside">
-                    {eligibilityResult.reasons.map((r, i) => <li key={i}>{r}</li>)}
-                  </ul>
+                ) : (
+                  <>Submit Application <ArrowRight className="w-4 h-4" /></>
                 )}
-
-                {eligibilityResult.dueAmountWarning && (
-                  <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3 flex items-start gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {eligibilityResult.dueAmountWarning}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="p-2 bg-white rounded-lg border border-slate-100">
-                    <p className="text-[9px] text-slate-400 uppercase font-bold">Recommended</p>
-                    <p className="text-base font-black text-solar-sky">{eligibilityResult.suggestedKW} kW</p>
-                  </div>
-                  <div className="p-2 bg-white rounded-lg border border-slate-100">
-                    <p className="text-[9px] text-slate-400 uppercase font-bold">Subsidy</p>
-                    <p className="text-base font-black text-solar-green">
-                      {eligibilityResult.isSubsidyEligible ? `₹${eligibilityResult.subsidy.total.toLocaleString("en-IN")}` : "Not eligible"}
-                    </p>
-                  </div>
-                  <div className="p-2 bg-white rounded-lg border border-slate-100">
-                    <p className="text-[9px] text-slate-400 uppercase font-bold">Net Investment</p>
-                    <p className="text-base font-black text-slate-900">₹{eligibilityResult.estimatedInvestment.netAfterSubsidy.toLocaleString("en-IN")}</p>
-                  </div>
-                </div>
-
-                {eligibilityResult.isSubsidyEligible && eligibilityResult.subsidy.total > 0 && (
-                  <p className="text-[10px] text-slate-500 mt-2">
-                    ₹{eligibilityResult.subsidy.central.toLocaleString("en-IN")} Central (PM Surya Ghar) + ₹{eligibilityResult.subsidy.state.toLocaleString("en-IN")} {customerState} state top-up
-                    {eligibilityResult.subsidy.stateScheme ? ` (${eligibilityResult.subsidy.stateScheme})` : ""}.
-                  </p>
-                )}
-
-                {eligibilityResult.isEligible && (
-                  <div className="mt-3 pt-3 border-t border-slate-200/60">
-                    <p className="text-[11px] text-slate-500">
-                      Next step: fill your details below and submit — our team will help you choose an EPC installer for this project. 👇
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            
-
-
-              <div className="pt-3 border-t border-slate-100">
-                <button type="submit" disabled={isSubmitting}
-                  className="w-full py-4 bg-solar-green hover:bg-emerald-600 text-white font-bold text-sm rounded-xl cursor-pointer shadow-lg shadow-emerald-500/10 transition-all flex items-center justify-center gap-2"
-                  id="lead-submit-btn">
-                  {isSubmitting ? (
-                    <span className="flex items-center gap-2">
-                      <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
-                      {isAU ? "Generating Quote..." : "Registering GEDA File..."}
-                    </span>
-                  ) : (
-                    <>Submit your enquiry here <ArrowRight className="w-4 h-4" /></>
-                  )}
-                </button>
-                <span className="block text-center text-[10px] text-slate-400 mt-2.5 flex items-center justify-center gap-1">
-                  <ShieldAlert className="w-3.5 h-3.5 text-slate-400" /> Your bill or consumer information is fully secured under {isAU ? "DNSP" : "GEDA/DISCOM"} security protocols. We never share your data.
-                </span>
-              </div>
-            </form>
-          </div>
+              </button>
+              <span className="block text-center text-[10px] text-slate-400 mt-2.5 flex items-center justify-center gap-1">
+                <ShieldAlert className="w-3.5 h-3.5 text-slate-400" /> Your information is fully secured. We never share your data.
+              </span>
+            </div>
+          </form>
         </div>
       </div>
     </section>

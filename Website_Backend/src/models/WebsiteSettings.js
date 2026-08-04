@@ -3,7 +3,9 @@ import mongoose from "mongoose";
 const websiteSettingsSchema = new mongoose.Schema(
   {
     // Country identifier (india, australia, new_zealand)
-    country: { type: String, default: "india", unique: true },
+    country: { type: String, default: "india" },
+    // Project Type (e.g. 'default' for global settings, 'residential_solar', etc.)
+    projectType: { type: String, default: "default" },
     _settingsKey: { type: String, unique: true, sparse: true },
 
     // ── HEADER / BRAND ──────────────────────────────────────────
@@ -151,8 +153,47 @@ const websiteSettingsSchema = new mongoose.Schema(
         enabled: { type: Boolean, default: true }
       }
     },
+    // ── NEW: PROJECT SPECIFIC SECTIONS ───────────────────────────
+    projectTitle: {
+      title: { type: String },
+      description: { type: String },
+      videoUrl: { type: String }
+    },
+    projectForm: {
+      title: { type: String, default: "Apply for Solar" },
+      subtitle: { type: String },
+      formId: { type: String },
+      fields: [
+        {
+          label: { type: String },
+          key: { type: String },
+          type: { type: String, enum: ['text', 'email', 'number', 'tel', 'select', 'textarea', 'file'], default: 'text' },
+          required: { type: Boolean, default: false },
+          options: [{ type: String }]
+        }
+      ]
+    },
+    journeySnap: {
+      title: { type: String, default: "Customer Journey Snap" },
+      imageUrl: { type: String }
+    },
+    testimonials: {
+      title: { type: String, default: "Testimonials" },
+      videoUrl: { type: String }
+    },
+    applySolarCta: {
+      title: { type: String, default: "Apply for Solar" },
+      buttonText: { type: String, default: "Apply Now" }
+    },
+    usps: {
+      title: { type: String, default: "Why Choose Us" },
+      items: [{ text: { type: String } }]
+    }
   },
   { timestamps: true }
 );
+
+// Compound unique index for country + projectType
+websiteSettingsSchema.index({ country: 1, projectType: 1 }, { unique: true });
 
 export const WebsiteSettings = mongoose.model("WebsiteSettings", websiteSettingsSchema);

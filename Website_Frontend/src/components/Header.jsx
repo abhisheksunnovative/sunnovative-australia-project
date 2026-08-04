@@ -25,16 +25,18 @@ export default function Header({
 
   const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
 
-  const navItems = [
-    { label: "Sectors & Benefits", href: "#benefits", isPageLink: true },
-    {
-      label: "Check Subsidy",
-      href: "#eligibility-calculator",
-      isPageLink: true,
-    },
-    { label: "Solar Blogs", href: "#blog", isPageLink: false },
-    { label: "FAQs", href: "#faqs", isPageLink: true },
-  ];
+  const navItems = (settings.websiteContent && settings.websiteContent.navItems && settings.websiteContent.navItems.length > 0) 
+    ? settings.websiteContent.navItems 
+    : [
+        { label: "Sectors & Benefits", href: "#benefits", isPageLink: true },
+        {
+          label: "Check Subsidy",
+          href: "#eligibility-calculator",
+          isPageLink: true,
+        },
+        { label: "Solar Blogs", href: "#blog", isPageLink: false },
+        { label: "FAQs", href: "#faqs", isPageLink: true },
+      ];
 
   const handleNavClick = (e, href, isPageLink) => {
     e.preventDefault();

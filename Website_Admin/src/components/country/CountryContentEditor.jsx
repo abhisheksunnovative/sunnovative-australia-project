@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, Save, Loader2, Plus, Trash2 } from "lucide-react";
-import { toast } from "react-toastify";
+import { ArrowLeft, Save, Loader2, Plus, Trash2, LayoutTemplate } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
 export default function CountryContentEditor({ countryCode, onBack }) {
   const [settings, setSettings] = useState(null);
+  const [journeySettings, setJourneySettings] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [activeProjectType, setActiveProjectType] = useState(null);
 
   useEffect(() => {
     fetchSettings();
@@ -16,14 +17,26 @@ export default function CountryContentEditor({ countryCode, onBack }) {
   const fetchSettings = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch(`${API_BASE}/api/country-settings/${countryCode}`);
-      if (res.ok) {
-        const data = await res.json();
+      const [resSettings, resJourney] = await Promise.all([
+        fetch(`${API_BASE}/api/country-settings/${countryCode}`),
+        fetch(`${API_BASE}/api/order-journey-settings/${countryCode}`)
+      ]);
+      
+      if (resSettings.ok) {
+        const data = await resSettings.json();
+        // Initialize projectTypeConfigs if not present
+        if (!data.projectTypeConfigs) {
+          data.projectTypeConfigs = [];
+        }
         setSettings(data);
+      }
+      if (resJourney.ok) {
+        const journeyData = await resJourney.json();
+        setJourneySettings(journeyData);
       }
     } catch (err) {
       console.error("Failed to fetch settings:", err);
-      toast.error("Failed to load country settings");
+      alert("Failed to load country settings");
     } finally {
       setIsLoading(false);
     }
@@ -38,71 +51,83 @@ export default function CountryContentEditor({ countryCode, onBack }) {
         body: JSON.stringify(settings),
       });
       if (res.ok) {
-        toast.success("Settings saved successfully");
+        alert("Settings saved successfully");
       } else {
         throw new Error("Failed to save");
       }
     } catch (err) {
       console.error(err);
-      toast.error("Failed to save settings");
+      alert("Failed to save settings");
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleContentChange = (field, value) => {
-    setSettings((prev) => ({
-      ...prev,
-      websiteContent: { ...prev.websiteContent, [field]: value }
-    }));
+  const handleAddOverrideDynamicSection = () => {
+    const activeConfig = settings.projectTypeConfigs?.find(c => c.type === activeProjectType.projectType);
+    const currentSections = activeConfig?.dynamicSections || [];
+    if (currentSections.length >= 6) {
+      alert("Maximum 6 sections allowed");
+      return;
+    }
+    
+    const newConfigs = [...(settings.projectTypeConfigs || [])];
+    const configIndex = newConfigs.findIndex(c => c.type === activeProjectType.projectType);
+    
+    if (configIndex >= 0) {
+      newConfigs[configIndex] = {
+        ...newConfigs[configIndex],
+        dynamicSections: [
+          ...currentSections,
+          {
+            id: `sec_${Date.now()}`,
+            type: "cards",
+            title: "New Section",
+            subtitle: "",
+            isVisible: true,
+            order: currentSections.length
+          }
+        ]
+      };
+    } else {
+      newConfigs.push({
+        type: activeProjectType.projectType,
+        dynamicSections: [
+          {
+            id: `sec_${Date.now()}`,
+            type: "cards",
+            title: "New Section",
+            subtitle: "",
+            isVisible: true,
+            order: 0
+          }
+        ]
+      });
+    }
+    
+    setSettings(prev => ({ ...prev, projectTypeConfigs: newConfigs }));
   };
 
-  const handleStcChange = (field, value) => {
-    setSettings((prev) => ({
-      ...prev,
-      stcSettings: { ...prev.stcSettings, [field]: value }
-    }));
+  const handleOverrideDynamicSectionChange = (index, field, value) => {
+    const newConfigs = [...(settings.projectTypeConfigs || [])];
+    const configIndex = newConfigs.findIndex(c => c.type === activeProjectType.projectType);
+    if (configIndex >= 0) {
+      const sections = [...(newConfigs[configIndex].dynamicSections || [])];
+      sections[index] = { ...sections[index], [field]: value };
+      newConfigs[configIndex].dynamicSections = sections;
+      setSettings(prev => ({ ...prev, projectTypeConfigs: newConfigs }));
+    }
   };
 
-  const handleZoneChange = (zone, value) => {
-    setSettings((prev) => ({
-      ...prev,
-      stcSettings: {
-        ...prev.stcSettings,
-        zoneRatings: {
-          ...prev.stcSettings?.zoneRatings,
-          [zone]: value
-        }
-      }
-    }));
-  };
-
-  const handleAddFaq = () => {
-    setSettings((prev) => ({
-      ...prev,
-      websiteContent: {
-        ...prev.websiteContent,
-        faqs: [...(prev.websiteContent?.faqs || []), { question: "", answer: "" }]
-      }
-    }));
-  };
-
-  const handleFaqChange = (index, field, value) => {
-    const newFaqs = [...(settings.websiteContent?.faqs || [])];
-    newFaqs[index][field] = value;
-    setSettings((prev) => ({
-      ...prev,
-      websiteContent: { ...prev.websiteContent, faqs: newFaqs }
-    }));
-  };
-
-  const handleRemoveFaq = (index) => {
-    const newFaqs = [...(settings.websiteContent?.faqs || [])];
-    newFaqs.splice(index, 1);
-    setSettings((prev) => ({
-      ...prev,
-      websiteContent: { ...prev.websiteContent, faqs: newFaqs }
-    }));
+  const handleRemoveOverrideDynamicSection = (index) => {
+    const newConfigs = [...(settings.projectTypeConfigs || [])];
+    const configIndex = newConfigs.findIndex(c => c.type === activeProjectType.projectType);
+    if (configIndex >= 0) {
+      const sections = [...(newConfigs[configIndex].dynamicSections || [])];
+      sections.splice(index, 1);
+      newConfigs[configIndex].dynamicSections = sections;
+      setSettings(prev => ({ ...prev, projectTypeConfigs: newConfigs }));
+    }
   };
 
   if (isLoading || !settings) {
@@ -113,6 +138,8 @@ export default function CountryContentEditor({ countryCode, onBack }) {
     );
   }
 
+  const availableProjectTypes = journeySettings?.projectTypes?.filter(pt => pt.enabled) || [];
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex justify-between items-center mb-6">
@@ -122,9 +149,9 @@ export default function CountryContentEditor({ countryCode, onBack }) {
           </button>
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              Edit {settings.countryName} Settings
+              Edit {settings.countryName} Project Types
             </h1>
-            <p className="text-sm text-gray-500 mt-1">Manage localized content and SEO.</p>
+            <p className="text-sm text-gray-500 mt-1">Configure project-type specific landing pages.</p>
           </div>
         </div>
         <button
@@ -137,183 +164,178 @@ export default function CountryContentEditor({ countryCode, onBack }) {
         </button>
       </div>
 
-      <div className="space-y-6">
-        {/* Basic Settings */}
+      {!activeProjectType ? (
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Basic Information</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Country Name</label>
-              <input type="text" value={settings.countryName || ""} readOnly className="w-full border-gray-300 rounded-md bg-gray-50 text-gray-500 p-2 border" />
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Select Project Type</h2>
+          {availableProjectTypes.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No enabled project types found in Order Journey settings for this country.
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Currency Symbol</label>
-              <input type="text" value={settings.currencySymbol || ""} readOnly className="w-full border-gray-300 rounded-md bg-gray-50 text-gray-500 p-2 border" />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {availableProjectTypes.map((pt) => {
+                const configCount = settings.projectTypeConfigs?.find(c => c.type === pt.projectType)?.dynamicSections?.length || 0;
+                return (
+                  <div
+                    key={pt.projectType}
+                    onClick={() => setActiveProjectType(pt)}
+                    className="border border-gray-200 p-5 rounded-xl hover:border-blue-500 hover:shadow-md cursor-pointer transition-all bg-gray-50 flex flex-col items-start gap-3 group"
+                  >
+                    <div className="p-3 bg-white rounded-lg border border-gray-100 group-hover:bg-blue-50">
+                      <LayoutTemplate className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{pt.projectTypeLabel || pt.projectType}</h3>
+                      <p className="text-sm text-gray-500 mt-1">{configCount} Custom Section(s) configured</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>
+          )}
         </div>
-
-        {/* Hero Section */}
-        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Hero Section</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Hero Title</label>
-              <input 
-                type="text" 
-                value={settings.websiteContent?.heroTitle || ""} 
-                onChange={(e) => handleContentChange("heroTitle", e.target.value)}
-                className="w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="e.g. Switch to Solar in Australia"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Hero Subtitle</label>
-              <textarea 
-                value={settings.websiteContent?.heroSubtitle || ""} 
-                onChange={(e) => handleContentChange("heroSubtitle", e.target.value)}
-                className="w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500 h-24"
-                placeholder="e.g. Save on electricity bills with government rebates..."
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* FAQs Section */}
-        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-800">Frequently Asked Questions</h2>
-            <button onClick={handleAddFaq} className="flex items-center gap-1 text-sm text-blue-600 font-medium hover:text-blue-800">
-              <Plus className="w-4 h-4" /> Add FAQ
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm relative overflow-hidden">
+          <div className="border-b border-gray-100 bg-gray-50/50 p-6 flex justify-between items-center">
+             <div>
+                <h3 className="text-lg font-bold text-gray-900">
+                  Editing: {activeProjectType.projectTypeLabel || activeProjectType.projectType}
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Configure specific dynamic sections for this project type. These will override global settings.
+                </p>
+             </div>
+             <button 
+              onClick={() => setActiveProjectType(null)}
+              className="text-gray-500 hover:text-gray-800 text-sm font-medium flex items-center gap-1 bg-white border border-gray-200 px-3 py-1.5 rounded-lg shadow-sm"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back to Project Types
             </button>
           </div>
-          <div className="space-y-4">
-            {(settings.websiteContent?.faqs || []).map((faq, idx) => (
-              <div key={idx} className="border border-gray-200 p-4 rounded-lg bg-gray-50 relative">
-                <button onClick={() => handleRemoveFaq(idx)} className="absolute top-4 right-4 text-gray-400 hover:text-red-500">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-                <div className="space-y-3 mr-8">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Question</label>
-                    <input 
-                      type="text" 
-                      value={faq.question} 
-                      onChange={(e) => handleFaqChange(idx, "question", e.target.value)}
-                      className="w-full border border-gray-300 rounded p-2 text-sm"
-                    />
+          
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="text-md font-semibold text-gray-800">Dynamic Sections</h4>
+              <button onClick={handleAddOverrideDynamicSection} className="flex items-center gap-1 text-sm bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg font-medium hover:bg-blue-100">
+                <Plus className="w-4 h-4" /> Add Section
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {(settings.projectTypeConfigs?.find(c => c.type === activeProjectType.projectType)?.dynamicSections || []).map((sec, idx) => (
+                <div key={sec.id || idx} className="border border-gray-200 rounded-lg p-4 bg-gray-50/50">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex gap-4 items-center">
+                      <span className="bg-blue-100 text-blue-700 font-bold px-2 py-1 rounded text-xs uppercase tracking-wider">
+                        Type: {sec.type}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={sec.isVisible !== false}
+                          onChange={(e) => handleOverrideDynamicSectionChange(idx, "isVisible", e.target.checked)}
+                          className="rounded text-blue-600"
+                        />
+                        <span className="text-sm font-medium text-gray-600">Visible</span>
+                      </label>
+                      <button 
+                        onClick={() => handleRemoveOverrideDynamicSection(idx)}
+                        className="text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Answer</label>
-                    <textarea 
-                      value={faq.answer} 
-                      onChange={(e) => handleFaqChange(idx, "answer", e.target.value)}
-                      className="w-full border border-gray-300 rounded p-2 text-sm h-20"
-                    />
+                  
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Section Type</label>
+                      <select
+                        value={sec.type}
+                        onChange={(e) => handleOverrideDynamicSectionChange(idx, "type", e.target.value)}
+                        className="w-full border-gray-300 rounded p-2 text-sm border"
+                      >
+                        <option value="text">Rich Text / Hero</option>
+                        <option value="cards">Cards / Grid</option>
+                        <option value="faq">FAQ Variant</option>
+                        <option value="stats">Statistics</option>
+                        <option value="cta">Call to Action</option>
+                        <option value="video">Video Embed</option>
+                        <option value="snap">Journey Snap</option>
+                        <option value="form">Apply Form</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Display Order</label>
+                      <input
+                        type="number"
+                        value={sec.order || 0}
+                        onChange={(e) => handleOverrideDynamicSectionChange(idx, "order", parseInt(e.target.value))}
+                        className="w-full border-gray-300 rounded p-2 text-sm border"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Title</label>
+                      <input
+                        type="text"
+                        value={sec.title || ""}
+                        onChange={(e) => handleOverrideDynamicSectionChange(idx, "title", e.target.value)}
+                        className="w-full border-gray-300 rounded p-2 text-sm border"
+                        placeholder="Section title"
+                      />
+                    </div>
+                    
+                    {sec.type === 'video' ? (
+                       <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">YouTube URL</label>
+                        <input
+                          type="text"
+                          value={sec.videoUrl || ""}
+                          onChange={(e) => handleOverrideDynamicSectionChange(idx, "videoUrl", e.target.value)}
+                          className="w-full border-gray-300 rounded p-2 text-sm border"
+                          placeholder="https://www.youtube.com/watch?v=..."
+                        />
+                       </div>
+                    ) : sec.type === 'cards' || sec.type === 'snap' ? (
+                       <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Subtitle / Description</label>
+                        <textarea
+                          value={sec.subtitle || ""}
+                          onChange={(e) => handleOverrideDynamicSectionChange(idx, "subtitle", e.target.value)}
+                          className="w-full border-gray-300 rounded p-2 text-sm border h-16"
+                          placeholder="Brief description"
+                        />
+                       </div>
+                    ) : (
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Subtitle / Content</label>
+                        <textarea
+                          value={sec.subtitle || ""}
+                          onChange={(e) => handleOverrideDynamicSectionChange(idx, "subtitle", e.target.value)}
+                          className="w-full border-gray-300 rounded p-2 text-sm border h-20"
+                          placeholder="Section content..."
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            ))}
-            {(!settings.websiteContent?.faqs || settings.websiteContent.faqs.length === 0) && (
-              <p className="text-sm text-gray-500 italic text-center py-4">No FAQs added yet.</p>
-            )}
-          </div>
-        </div>
-
-        {/* STC Configuration (Australia Only) */}
-        {countryCode === "AU" && (
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">STC Configuration (Australia)</h2>
-            <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <h3 className="font-medium text-gray-700">Scheme Settings</h3>
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="checkbox" 
-                    checked={settings.stcSettings?.schemeEnabled ?? true} 
-                    onChange={(e) => handleStcChange("schemeEnabled", e.target.checked)} 
-                    id="schemeEnabled"
-                  />
-                  <label htmlFor="schemeEnabled" className="text-sm font-medium text-gray-700">Scheme Enabled</label>
+              ))}
+              
+              {(!settings.projectTypeConfigs?.find(c => c.type === activeProjectType.projectType)?.dynamicSections || settings.projectTypeConfigs?.find(c => c.type === activeProjectType.projectType).dynamicSections.length === 0) && (
+                <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-gray-200 border-dashed">
+                  No dynamic sections configured for this project type.
+                  <br /> Global website content will be used.
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Current Deeming Year</label>
-                  <input 
-                    type="number" 
-                    value={settings.stcSettings?.currentDeemingYear || 2026} 
-                    onChange={(e) => handleStcChange("currentDeemingYear", Number(e.target.value))}
-                    className="w-full border border-gray-300 rounded p-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Deeming Period Remaining (Years)</label>
-                  <input 
-                    type="number" 
-                    value={settings.stcSettings?.deemingPeriodRemaining || 4} 
-                    onChange={(e) => handleStcChange("deemingPeriodRemaining", Number(e.target.value))}
-                    className="w-full border border-gray-300 rounded p-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">CER Clearing House Price (AUD)</label>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    value={settings.stcSettings?.cerClearingHousePrice || 40.00} 
-                    onChange={(e) => handleStcChange("cerClearingHousePrice", Number(e.target.value))}
-                    className="w-full border border-gray-300 rounded p-2 text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="font-medium text-gray-700">Zone Ratings</h3>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Zone 1 (Darwin/NT)</label>
-                  <input 
-                    type="number" 
-                    step="0.001"
-                    value={settings.stcSettings?.zoneRatings?.zone1 || 1.622} 
-                    onChange={(e) => handleZoneChange("zone1", Number(e.target.value))}
-                    className="w-full border border-gray-300 rounded p-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Zone 2 (Brisbane/Perth)</label>
-                  <input 
-                    type="number" 
-                    step="0.001"
-                    value={settings.stcSettings?.zoneRatings?.zone2 || 1.536} 
-                    onChange={(e) => handleZoneChange("zone2", Number(e.target.value))}
-                    className="w-full border border-gray-300 rounded p-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Zone 3 (Sydney/Adelaide)</label>
-                  <input 
-                    type="number" 
-                    step="0.001"
-                    value={settings.stcSettings?.zoneRatings?.zone3 || 1.382} 
-                    onChange={(e) => handleZoneChange("zone3", Number(e.target.value))}
-                    className="w-full border border-gray-300 rounded p-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Zone 4 (Melbourne/TAS)</label>
-                  <input 
-                    type="number" 
-                    step="0.001"
-                    value={settings.stcSettings?.zoneRatings?.zone4 || 1.185} 
-                    onChange={(e) => handleZoneChange("zone4", Number(e.target.value))}
-                    className="w-full border border-gray-300 rounded p-2 text-sm"
-                  />
-                </div>
-              </div>
+              )}
             </div>
           </div>
-        )}
-
-      </div>
+        </div>
+      )}
     </div>
   );
 }

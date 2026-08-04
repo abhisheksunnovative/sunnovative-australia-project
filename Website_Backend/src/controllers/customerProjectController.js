@@ -1,4 +1,4 @@
-import { processStepCompletion } from "../utils/stepTrackingHelper.js";
+
 /**
  * customerProjectController.js
  * Customer project APIs â€” view, apply, track, upload documents
@@ -60,7 +60,17 @@ export const getProjectDetail = async (req, res) => {
       };
     }
 
-    res.json({ success: true, data: { ...project, tokenData } });
+    let epcDetails = null;
+    if (project.assignedEPCId) {
+      try {
+        const { default: EpcPartner } = await import('../models/EpcPartner.js');
+        epcDetails = await EpcPartner.findById(project.assignedEPCId).select("companyName rating totalInstallations contactPerson contactPersonMobile contactPersonEmail city state activeDistricts").lean();
+      } catch (err) {
+        console.error("Failed to fetch epcDetails:", err);
+      }
+    }
+
+    res.json({ success: true, data: { ...project, tokenData, epcDetails } });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
@@ -166,15 +176,10 @@ export const applyForProject = async (req, res) => {
       assignedEPCId: payload.selectedEpcId || null,
       assignedEPCName: payload.selectedEpcName || "",
       paymentStatus: currentJourney?.signupToken?.enabled ? 'pending' : 'not_required',
-      steps: (currentJourney?.steps || []).filter(s => s.enabled).map(s => ({
-        stepId: s.id,
-        stepNumber: s.stepNumber,
-        title: s.title,
-        assignedTo: s.assignedTo,
-        status: "pending",
-        isMandatory: s.isMandatory,
-        pendingActionAlert: s.actionLabel || `Complete ${s.title}`,
-      })),
+      steps: await (async () => {
+        const { mapJourneyStepsToProjectSteps } = await import('../utils/stepEngine.js');
+        return mapJourneyStepsToProjectSteps(currentJourney?.steps || []);
+      })(),
       currentStepTitle: currentJourney?.steps?.[0]?.title || "Lead Captured",
     });
 
@@ -524,6 +529,106 @@ export const rejectEpcRecommendations = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const rateEpc = async (req, res) => {
+  try {
+    const { rating } = req.body;
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ success: false, message: 'Invalid rating. Must be between 1 and 5.' });
+    }
+
+    const project = await ProjectOrder.findOne({
+      _id: req.params.id,
+      $or: [
+        { customerId: req.customer._id.toString() },
+        { customerMobile: req.customer.mobile },
+      ],
+    });
+
+    if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
+    if (!project.assignedEPCId) {
+      return res.status(400).json({ success: false, message: 'No installer assigned to this project yet.' });
+    }
+    if (project.customerRating > 0) {
+      return res.status(400).json({ success: false, message: 'You have already rated this installer.' });
+    }
+
+    // Check if the project is completed
+    const isCompleted = ["completed", "closed", "Project Completed", "Warranty Activated", "Installation Completed"].includes(project.status) || project.completionPercentage >= 90;
+    if (!isCompleted) {
+      return res.status(400).json({ success: false, message: 'Rating can only be submitted after the installation is completed.' });
+    }
+
+    const { default: EpcPartner } = await import('../models/EpcPartner.js');
+    const epc = await EpcPartner.findById(project.assignedEPCId);
+    if (epc) {
+      const currentTotal = epc.totalRatings || 0;
+      const currentRating = epc.rating || 0;
+      const newTotal = currentTotal + 1;
+      const newAvgRating = ((currentRating * currentTotal) + Number(rating)) / newTotal;
+
+      epc.rating = Math.round(newAvgRating * 10) / 10;
+      epc.totalRatings = newTotal;
+
+      if (epc.rating < 3.0 && epc.totalRatings >= 3) {
+        epc.isActive = false;
+        epc.deactivationReason = "Auto-deactivated due to average rating falling below 3.0 stars";
+      }
+
+      await epc.save();
+    }
+
+    project.customerRating = Number(rating);
+    await project.save();
+
+    res.json({ success: true, message: 'Thank you for your rating!', customerRating: project.customerRating });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateProjectDetail = async (req, res) => {
+  try {
+    const { address, city, pincode, preferredInstallDate, latitude, longitude } = req.body;
+    
+    const project = await ProjectOrder.findOne({
+      _id: req.params.id,
+      $or: [
+        { customerId: req.customer._id.toString() },
+        { customerMobile: req.customer.mobile }
+      ]
+    });
+
+    if (!project) {
+      return res.status(404).json({ success: false, message: "Project not found" });
+    }
+
+    if (project.location) {
+      if (address) project.location.address = address;
+      if (city) project.location.city = city;
+      if (pincode) project.location.pincode = pincode;
+    } else {
+      project.location = { address, city, pincode, state: project.state };
+    }
+
+    if (preferredInstallDate) {
+      project.preferredInstallDate = new Date(preferredInstallDate);
+    }
+    if (latitude) project.latitude = Number(latitude);
+    if (longitude) project.longitude = Number(longitude);
+
+    if (req.file) {
+      project.rooftopPhoto = `/uploads/${req.file.filename}`;
+    }
+
+    await project.save();
+    res.json({ success: true, message: "Project details updated successfully", data: project });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
 
 
 

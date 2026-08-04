@@ -112,6 +112,7 @@ const ProjectOrderSchema = new mongoose.Schema(
     currentStepNumber: { type: Number, default: 1 },
     currentStepTitle: { type: String, default: "Lead Captured" },
     completionPercentage: { type: Number, default: 0 },
+    customerRating: { type: Number, default: 0 },
     steps: { type: [StepCompletionSchema], default: [] },
 
     // ── Overall Status ────────────────────────────────────────

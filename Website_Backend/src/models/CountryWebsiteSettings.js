@@ -26,7 +26,25 @@ const projectTypeConfigSchema = new mongoose.Schema({
     }
   ],
   pricingInfo: { type: String, default: "" },
-  faqs: [faqSchema]
+  faqs: [faqSchema],
+  navItems: [
+    {
+      label: { type: String },
+      href: { type: String },
+      isPageLink: { type: Boolean, default: true }
+    }
+  ],
+  dynamicSections: [
+    {
+      id: { type: String },
+      type: { type: String, enum: ['cards', 'text', 'hero', 'faq', 'stats', 'cta', 'video', 'snap', 'form'] },
+      title: { type: String },
+      subtitle: { type: String },
+      content: { type: mongoose.Schema.Types.Mixed }, // e.g. array of cards, html, etc.
+      order: { type: Number, default: 0 },
+      isVisible: { type: Boolean, default: true }
+    }
+  ]
 });
 
 const countryWebsiteSettingsSchema = new mongoose.Schema({
@@ -58,8 +76,26 @@ const countryWebsiteSettingsSchema = new mongoose.Schema({
         description: { type: String }
       }
     ],
+    navItems: [
+      {
+        label: { type: String },
+        href: { type: String },
+        isPageLink: { type: Boolean, default: true }
+      }
+    ],
     faqs: [faqSchema],
-    footerText: { type: String, default: "" }
+    footerText: { type: String, default: "" },
+    dynamicSections: [
+      {
+        id: { type: String },
+        type: { type: String, enum: ['cards', 'text', 'hero', 'faq', 'stats', 'cta', 'video', 'snap', 'form'] },
+        title: { type: String },
+        subtitle: { type: String },
+        content: { type: mongoose.Schema.Types.Mixed }, // e.g. array of cards
+        order: { type: Number, default: 0 },
+        isVisible: { type: Boolean, default: true }
+      }
+    ]
   },
 
   projectTypes: { type: [String], default: [] }, // Legacy, keep for backward compatibility

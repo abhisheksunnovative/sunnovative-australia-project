@@ -14,14 +14,23 @@ export const getAllCountrySettings = async (req, res) => {
 export const getCountrySettingsByCode = async (req, res) => {
   try {
     const { countryCode } = req.params;
-    const settings = await CountryWebsiteSettings.findOne({ 
-      countryCode: countryCode.toUpperCase(),
-      isEnabled: true,
-      isPublished: true 
+    let settings = await CountryWebsiteSettings.findOne({ 
+      countryCode: countryCode.toUpperCase()
     });
     
     if (!settings) {
-      return res.status(404).json({ message: "Country settings not found or not published" });
+      settings = await CountryWebsiteSettings.create({
+        countryCode: countryCode.toUpperCase(),
+        countryName: getCountryNameFromCode(countryCode.toUpperCase()),
+        currency: getCurrencyFromCode(countryCode.toUpperCase()),
+        currencySymbol: getCurrencySymbolFromCode(countryCode.toUpperCase()),
+        isEnabled: true,
+        isPublished: true
+      });
+    } else if (!settings.isEnabled || !settings.isPublished) {
+      settings.isEnabled = true;
+      settings.isPublished = true;
+      await settings.save();
     }
     
     res.status(200).json(settings);

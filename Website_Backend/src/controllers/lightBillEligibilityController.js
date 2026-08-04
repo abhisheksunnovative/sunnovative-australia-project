@@ -51,6 +51,7 @@ export const checkBillEligibility = async (req, res) => {
       monthsOverdue,  // from OCR parsed result (0 if not overdue)
       state,
       solarEligible,  // ← v4 new: from ocrExtractor resolveCat
+      overrideKw,     // Optional: custom kW requested by user
     } = req.body;
 
     if (!billAmount) {
@@ -210,6 +211,10 @@ export const checkBillEligibility = async (req, res) => {
       );
       // Prefer units-derived KW if available
       suggestedKW = unitsDerivedKw;
+    }
+
+    if (overrideKw && overrideKw > 0) {
+      suggestedKW = Number(overrideKw);
     }
 
     // ── 7. Subsidy Criteria check ──────────────────────────────────────────

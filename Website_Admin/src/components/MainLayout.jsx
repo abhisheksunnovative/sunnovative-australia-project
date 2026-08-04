@@ -136,15 +136,16 @@ export const MainLayout = ({
       id: "epc-settings",
       icon: <Settings className="w-5 h-5" />,
     },
-    {
-      name: "Order Journey Settings",
-      id: "order-journey",
-      icon: <GitBranch className="w-5 h-5" />,
-    },
+    
     {
       name: "Discom Management",
       id: "discom-management",
       icon: <Zap className="w-5 h-5" />,
+    },
+    {
+      name: "Order Journey Settings",
+      id: "order-journey",
+      icon: <GitBranch className="w-5 h-5" />,
     },
       {
         name: "Country Websites",
@@ -177,20 +178,11 @@ export const MainLayout = ({
     ? allMenuItems.filter(item => ["dashboard", "project-orders", "order-journey"].includes(item.id))
     : allMenuItems;
 
-  // ── Website Content — Settings sub-pages (each is its own page with its own Save button) ──
+  // ── Website Content — Now a single unified page ──
   const websiteContentItems = [
-    { name: "Brand & Logo", id: "website-brand" },
-    { name: "Hero Section", id: "website-hero" },
-    { name: "Stats Bar", id: "website-stats" },
-    { name: "Benefits Section", id: "website-benefits" },
-    { name: "How It Works", id: "website-howitworks" },
-    { name: "Trust / About", id: "website-trust" },
-    { name: "Milestones", id: "website-milestones" },
-    { name: "FAQs", id: "website-faqs" },
-    { name: "Footer Details", id: "website-footer" },
-    { name: "Video Guides", id: "website-videos" },
+    { name: "Website Content", id: "website-content" }
   ];
-  const websiteContentIds = websiteContentItems.map((item) => item.id);
+  const websiteContentIds = ["website-content"];
 
   // ── Customer Eligibility — Settings sub-pages (each is its own page with its own Save button) ──
   const eligibilityItems = [
@@ -427,16 +419,19 @@ export const MainLayout = ({
             />
           )}
 
-          {/* Website Content Dropdown — each sub-page has its own Save button */}
+          {/* Website Content - Single Button */}
           {!isVeneet && (
-            <DropdownGroup
-              label="Website Content"
-              icon={<Globe className="w-5 h-5 text-sky-200" />}
-              isOpen={websiteContentOpen}
-              setIsOpen={setWebsiteContentOpen}
-              items={websiteContentItems}
-              activeIds={websiteContentIds}
-            />
+            <button
+              onClick={() => onTabChange("website-content")}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${
+                currentTab === "website-content"
+                  ? "bg-secondary text-primary font-bold shadow-md shadow-secondary/15 transform translate-x-1.5"
+                  : "text-sky-100 hover:bg-white/5 hover:text-white"
+              }`}
+            >
+              <Globe className="w-5 h-5" />
+              <span className="truncate">Website Content</span>
+            </button>
           )}
         </nav>
 

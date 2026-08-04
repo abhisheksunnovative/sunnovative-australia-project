@@ -1,6 +1,6 @@
 import express from 'express';
 import { sendOtp, verifyOtp, getMe, updateProfile, setPin, loginWithPin } from '../controllers/customerAuthController.js';
-import { getMyProjects, getProjectDetail, uploadDocument, applyForProject, payEscrow, payToken, getAvailableEpcs, completeStep, signStcForm, acceptEpcRecommendation, rejectEpcRecommendations } from '../controllers/customerProjectController.js';
+import { getMyProjects, getProjectDetail, uploadDocument, applyForProject, payEscrow, payToken, getAvailableEpcs, completeStep, signStcForm, acceptEpcRecommendation, rejectEpcRecommendations, rateEpc, updateProjectDetail } from '../controllers/customerProjectController.js';
 import { protectCustomer } from '../middleware/protectCustomer.js';
 import upload from '../middleware/upload.js';
 import EpcPartner from '../models/EpcPartner.js';
@@ -24,6 +24,7 @@ router.put ('/auth/profile',     protectCustomer, updateProfile);
 // Projects — protected
 router.get ('/projects',                          protectCustomer, getMyProjects);
 router.get ('/projects/:id',                      protectCustomer, getProjectDetail);
+router.put ('/projects/:id',                      protectCustomer, upload.single('rooftopPhoto'), updateProjectDetail);
 router.post('/projects',                          protectCustomer, upload.single('rooftopPhoto'), applyForProject);
 router.post('/projects/:id/documents',            protectCustomer, upload.single('file'), uploadDocument);
 router.post('/projects/:id/pay-token',            protectCustomer, payToken);
@@ -32,6 +33,7 @@ router.post('/projects/:id/complete-step',        protectCustomer, upload.single
 router.post('/projects/:id/sign-stc',             protectCustomer, signStcForm);
 router.post('/projects/:id/accept-epc',           protectCustomer, acceptEpcRecommendation);
 router.post('/projects/:id/reject-epcs',          protectCustomer, rejectEpcRecommendations);
+router.post('/projects/:id/rate-epc',             protectCustomer, rateEpc);
 router.get ('/epcs',                              protectCustomer, getAvailableEpcs);
 
 // ── Public data (no auth needed) ─────────────────────────────────────────────
@@ -59,14 +61,38 @@ router.get('/public/epc-partners', async (req, res) => {
 router.get('/public/solar-packages', async (req, res) => {
   try {
     let settings = await EligibilitySettings.findOne();
+    
+    // We can fetch dynamic base rates or stick to predefined ones for packages.
+    // Let's use the DB's centralSubsidyTiers if available
+    const tiers = settings?.eligibilityRules?.centralSubsidyTiers || [];
+    
+    // Helper to calculate central subsidy for a given kW
+    const calcPackageCentralSubsidy = (kw) => {
+      let subsidy = 0;
+      let remainingKw = kw;
+      for (const tier of tiers.sort((a, b) => a.maxKW - b.maxKW)) {
+        if (remainingKw <= 0) break;
+        const kwInTier = Math.min(remainingKw, tier.maxKW);
+        subsidy += kwInTier * tier.ratePerKW + tier.fixedBaseAmount;
+        remainingKw -= kwInTier;
+      }
+      return subsidy || (kw === 1 ? 30000 : kw === 2 ? 60000 : kw === 3 ? 78000 : kw > 3 ? 78000 : 0); // Fallback
+    };
+
     const packages = [
-      { id: "1kw",  kw: 1,  name: "Starter Solar",   desc: "Small households ke liye — 1-2 BHK apartments",  centralSubsidy: 30000, installCost: 65000, units: 90,  suitable: ["Residential Solar"], badge: null },
-      { id: "2kw",  kw: 2,  name: "Family Solar",    desc: "Average family homes ke liye — 2-3 BHK",          centralSubsidy: 60000, installCost: 115000, units: 180, suitable: ["Residential Solar"], badge: "Popular" },
-      { id: "3kw",  kw: 3,  name: "Premium Solar",   desc: "Large homes ke liye — 3-4 BHK, AC wale ghar",     centralSubsidy: 78000, installCost: 155000, units: 270, suitable: ["Residential Solar", "Group Solar"], badge: "Max Subsidy" },
+      { id: "1kw",  kw: 1,  name: "Starter Solar",   desc: "Small households ke liye — 1-2 BHK apartments",  centralSubsidy: calcPackageCentralSubsidy(1), installCost: 65000, units: 90,  suitable: ["Residential Solar"], badge: null },
+      { id: "2kw",  kw: 2,  name: "Family Solar",    desc: "Average family homes ke liye — 2-3 BHK",          centralSubsidy: calcPackageCentralSubsidy(2), installCost: 115000, units: 180, suitable: ["Residential Solar"], badge: "Popular" },
+      { id: "3kw",  kw: 3,  name: "Premium Solar",   desc: "Large homes ke liye — 3-4 BHK, AC wale ghar",     centralSubsidy: calcPackageCentralSubsidy(3), installCost: 155000, units: 270, suitable: ["Residential Solar", "Group Solar"], badge: "Max Subsidy" },
       { id: "5kw",  kw: 5,  name: "Business Solar",  desc: "Small shops, offices, clinics ke liye",             centralSubsidy: 0,     installCost: 230000, units: 450, suitable: ["Commercial Solar"], badge: null },
       { id: "10kw", kw: 10, name: "Commercial Pro",  desc: "Factories, large offices, warehouses ke liye",      centralSubsidy: 0,     installCost: 420000, units: 900, suitable: ["Commercial Solar"], badge: "Best ROI" },
     ];
-    const stateOverrides = settings?.eligibilityRules?.stateSubsidyOverrides || {};
+    
+    const stateOverrides = {};
+    if (settings?.eligibilityRules?.stateSubsidies) {
+      settings.eligibilityRules.stateSubsidies.forEach(ss => {
+        stateOverrides[ss.state] = ss.stateSubsidyMax; // E.g. Gujarat max subsidy
+      });
+    }
 
     let journeySettings = await OrderJourneySettings.findOne();
     const minBookingDays = journeySettings?.globalSettings?.minBookingDays || 5;

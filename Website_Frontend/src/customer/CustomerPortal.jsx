@@ -15,6 +15,8 @@ import {
 import { useCustomerAuth } from "./CustomerAuthContext";
 import { useCountry } from "../context/CountryContext";
 import { generateDynamicEligibility } from "../data/mockConsumers";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
@@ -58,21 +60,54 @@ function StarRating({ rating, count }) {
 }
 
 function ProgressTracker({ status, pct }) {
+  // E-Commerce Style Tracker UI
   return (
-    <div className="relative">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-bold text-white uppercase tracking-wider">Project Progress</span>
-        <span className="text-xs font-black text-yellow-400">{pct || 0}%</span>
+    <div className="w-full bg-white rounded-2xl border border-slate-200 p-6 shadow-sm mb-6">
+      <div className="flex items-center justify-between mb-8">
+        <h3 className="font-black text-lg text-slate-800">Project Journey Timeline</h3>
+        <Badge status={status} />
       </div>
-      <div className="h-2 w-full bg-white/20 rounded-full overflow-hidden">
-        <div className="h-full bg-gradient-to-r from-yellow-400 to-amber-500 transition-all duration-700"
-          style={{ width: `${pct || 0}%` }} />
+
+      <div className="relative">
+        {/* Progress Line */}
+        <div className="absolute top-5 left-0 w-full h-1 bg-slate-100 rounded-full" />
+        
+        <div className="flex justify-between relative z-10 overflow-x-auto pb-4 snap-x">
+          {/* Mocked steps for display representation */}
+          {["Lead", "Qualified", "Surveyed", "Installed", "Completed"].map((title, i) => {
+            const done = i < 2;
+            const active = i === 2;
+            return (
+              <div key={i} className="flex flex-col items-center min-w-[140px] px-2 snap-center cursor-pointer group">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-3 transition-transform ${active ? 'scale-110' : 'group-hover:scale-105'}`}>
+                  {done ? (
+                    <CheckCircle2 className="w-10 h-10 text-green-500 fill-white" />
+                  ) : active ? (
+                    <div className="w-10 h-10 rounded-full bg-white border-4 border-yellow-400 flex items-center justify-center shadow-lg shadow-yellow-100">
+                      <div className="w-3 h-3 bg-yellow-500 rounded-full animate-ping" />
+                    </div>
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-white border-4 border-slate-200" />
+                  )}
+                </div>
+                <p className={`text-[11px] font-black uppercase tracking-wider text-center ${done ? 'text-green-700' : active ? 'text-yellow-700' : 'text-slate-400'} mb-1`}>
+                  Step {i + 1}
+                </p>
+                <p className={`text-xs font-bold text-center ${active ? 'text-slate-800' : 'text-slate-500'} max-w-[120px] leading-tight`}>
+                  {title}
+                </p>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 }
 
-function HorizontalJourneyTracker({ steps }) {
+function ProjectJourneyTracker({ steps }) {
+  const [expandedStep, setExpandedStep] = useState(null);
+
   const displaySteps = steps?.length > 0 ? steps : [
     { stepNumber: 1, title: 'Lead Captured', status: 'completed' },
     { stepNumber: 2, title: 'EPC Assigned', status: 'pending' },
@@ -82,75 +117,101 @@ function HorizontalJourneyTracker({ steps }) {
   ];
 
   return (
-    <div className="w-full overflow-x-auto pb-4 scrollbar-hide">
-      <div className="min-w-[600px] flex items-start justify-between relative mt-4 px-4">
-        {/* Background track line */}
-        <div className="absolute left-10 right-10 top-5 h-1 bg-slate-200 -z-10" />
-        
-        {displaySteps.map((step, i) => {
-          const done = step.status === "completed";
-          const active = step.status === "in-progress" || step.status === "pending"; // For visualization, if no active, show pending as gray
-          const reallyActive = step.status === "in-progress" || (step.status === "pending" && (i === 0 || displaySteps[i-1]?.status === "completed"));
-          const blocked = step.status === "blocked";
-          
-          return (
-            <div key={i} className="flex flex-col items-center flex-1 relative group cursor-default">
-              {/* Colored track line (if completed) */}
-              {i > 0 && (done || reallyActive) && (
-                <div className={`absolute right-[50%] left-[-50%] top-5 h-1 -z-10 transition-all ${done || reallyActive ? 'bg-orange-400' : 'bg-slate-200'}`} />
-              )}
-              
-              {/* Circle */}
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ring-4 ring-white mb-2 transition-all ${
-                done ? "bg-orange-500 text-white shadow-md" : 
-                reallyActive ? "bg-amber-400 text-white shadow-md ring-amber-50" : 
-                blocked ? "bg-red-500 text-white shadow-md" : 
-                "bg-slate-200 text-slate-400"
-              }`}>
-                {done ? <Check className="w-5 h-5" /> : 
-                 blocked ? <XCircle className="w-5 h-5" /> : 
-                 <span className={reallyActive ? "text-white" : ""}>{step.stepNumber || (i+1)}</span>}
-              </div>
-              
-              {/* Title */}
-              <p className={`text-xs text-center font-bold px-2 max-w-[120px] ${
-                done ? "text-slate-800" : 
-                reallyActive ? "text-amber-700" : 
-                "text-slate-400"
-              }`}>
-                {step.title}
-              </p>
+    <div className="w-full space-y-3 mt-4">
+      {displaySteps.map((step, i) => {
+        const done = step.status === "completed";
+        const blocked = step.status === "blocked";
+        const active = step.status === "in-progress" || (step.status === "pending" && (i === 0 || displaySteps[i-1]?.status === "completed"));
+        const isExpanded = expandedStep === i;
 
-              {/* Assignments / Dates */}
-              {step.assignedTo && (
-                <span className={`text-[9px] font-bold mt-1 px-1.5 py-0.5 rounded-full ${
-                  step.assignedTo === "epc-partner" ? "bg-purple-100 text-purple-700" :
-                  step.assignedTo === "customer" ? "bg-blue-100 text-blue-700" :
-                  "bg-slate-100 text-slate-600"
+        // Role-based colors
+        let roleColor = "bg-slate-100 text-slate-600";
+        let roleLabel = "Admin";
+        if (step.assignedTo === "bde") {
+          roleColor = "bg-blue-100 text-blue-700";
+          roleLabel = "BDE";
+        } else if (step.assignedTo === "epc-partner") {
+          roleColor = "bg-orange-100 text-orange-700";
+          roleLabel = "EPC";
+        } else if (step.assignedTo === "company") {
+          roleColor = "bg-red-100 text-red-700";
+          roleLabel = "Admin";
+        } else if (step.assignedTo === "customer") {
+          roleColor = "bg-green-100 text-green-700";
+          roleLabel = "Aap (Customer)";
+        }
+
+        return (
+          <div key={i} className={`border rounded-xl transition-all ${active ? 'border-amber-300 bg-amber-50/30' : 'border-slate-200 bg-white'}`}>
+            <div 
+              className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 rounded-xl"
+              onClick={() => setExpandedStep(isExpanded ? null : i)}
+            >
+              <div className="flex items-center gap-4">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm ${
+                  done ? "bg-green-500 text-white" : 
+                  blocked ? "bg-red-500 text-white" :
+                  active ? "bg-amber-400 text-white ring-4 ring-amber-100" : 
+                  "bg-slate-100 text-slate-400"
                 }`}>
-                  {step.assignedTo === "epc-partner" ? "⚡ EPC" : step.assignedTo === "customer" ? "👤 Aap" : "🏢 Us"}
+                  {done ? <Check className="w-5 h-5" /> : 
+                   blocked ? <XCircle className="w-5 h-5" /> : 
+                   <span>{step.stepNumber || (i+1)}</span>}
+                </div>
+                <div>
+                  <h4 className={`font-bold text-sm ${done ? 'text-slate-800' : active ? 'text-amber-800' : 'text-slate-500'}`}>
+                    {step.title}
+                  </h4>
+                  {step.completedAt && <p className="text-[10px] text-slate-400 mt-0.5">Completed: {fmtDate(step.completedAt)}</p>}
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${roleColor}`}>
+                  {roleLabel}
                 </span>
-              )}
-              
-              {step.completedAt && (
-                <p className="text-[10px] text-slate-500 mt-1">{fmtDate(step.completedAt)}</p>
-              )}
-              {step.pendingActionAlert && reallyActive && (
-                <p className="text-[9px] text-red-600 bg-red-50 px-1 py-0.5 rounded mt-1 font-bold text-center leading-tight max-w-[110px]">
-                  {step.pendingActionAlert}
-                </p>
-              )}
+                {isExpanded ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+              </div>
             </div>
-          )
-        })}
-      </div>
+
+            {/* Expanded Details */}
+            {isExpanded && (
+              <div className="px-4 pb-4 pt-2 border-t border-slate-100 bg-slate-50/50 rounded-b-xl">
+                <p className="text-xs text-slate-600 mb-3">{step.description || "No description provided for this step."}</p>
+                
+                {step.pendingActionAlert && active && (
+                  <div className="p-2 mb-3 bg-red-50 border border-red-200 rounded-lg text-xs font-bold text-red-700 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    {step.pendingActionAlert}
+                  </div>
+                )}
+
+                {(step.evidenceUrl || step.evidenceNote) ? (
+                  <div className="bg-white p-3 rounded-lg border border-slate-200">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Completion Details</p>
+                    {step.evidenceUrl && (
+                      <a href={step.evidenceUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-xs text-blue-600 hover:underline mb-2 font-medium">
+                        <FileText className="w-4 h-4" /> View Document / Evidence
+                      </a>
+                    )}
+                    {step.evidenceNote && (
+                      <p className="text-xs text-slate-700 bg-slate-50 p-2 rounded border border-slate-100 italic">"{step.evidenceNote}"</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400 italic mt-2">No attachments or notes yet.</p>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 
 // ── SOLAR PACKAGES ────────────────────────────────────────────────────────────
-function SolarPackages({ onApply }) {
+function SolarPackages({ onApply, preselectedType }) {
   const [packages, setPackages] = useState([]);
   const [stateOverrides, setStateOverrides] = useState({});
   const [selectedState, setSelectedState] = useState("Gujarat");
@@ -319,8 +380,6 @@ function EpcDirectory() {
     return true;
   });
 
-  const PLAN_COLOR = { Standard: "bg-slate-100 text-slate-600", Professional: "bg-blue-100 text-blue-700", Enterprise: "bg-purple-100 text-purple-700" };
-
   return (
     <div className="space-y-4">
       <div>
@@ -409,6 +468,7 @@ function EpcDirectory() {
 
 // ── PROJECT DETAIL ────────────────────────────────────────────────────────────
 function ProjectDetail({ projectId, onBack, authFetch }) {
+  const { country } = useCountry();
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploadFile, setUploadFile] = useState(null);
@@ -456,253 +516,269 @@ function ProjectDetail({ projectId, onBack, authFetch }) {
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-yellow-400" /></div>;
   if (!project) return <div className="text-center py-16 text-slate-400"><AlertCircle className="w-8 h-8 mx-auto mb-2" /><p className="text-sm">Project nahi mila</p></div>;
 
-  const cfg = sCfg(project.status);
+  const isAU = country === "AU";
 
   return (
-    <div className="space-y-5">
-      {/* Hero card */}
-      <div className={`bg-gradient-to-br ${
-        project?.projectType?.toLowerCase().includes("commercial") || project?.projectType?.toLowerCase().includes("industrial")
-          ? "from-amber-600 via-orange-500 to-amber-700" 
-          : project?.projectType?.toLowerCase().includes("agri")
-            ? "from-emerald-700 via-green-600 to-emerald-800"
-            : project?.projectType?.toLowerCase().includes("off-grid") || project?.projectType?.toLowerCase().includes("off grid")
-              ? "from-violet-700 via-purple-600 to-violet-800"
-              : "from-solar-navy via-slate-800 to-slate-900"
-      } rounded-3xl p-6 text-white relative overflow-hidden`}>
-        <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400/5 rounded-full -translate-y-8 translate-x-8" />
-        <div className="absolute bottom-0 left-0 w-20 h-20 bg-blue-400/5 rounded-full translate-y-4 -translate-x-4" />
-
-        <div className="flex items-start justify-between mb-5 relative z-10">
-          <div>
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{project.orderNumber}</p>
-            <h2 className="text-xl font-black mt-1">{project.projectTypeLabel || project.projectType} Solar</h2>
-            {project.location?.address && (
-              <p className="text-xs text-slate-400 mt-1 flex items-center gap-1"><MapPin className="w-3 h-3" />{project.location.city || project.location.address}</p>
-            )}
-          </div>
-          <Badge status={project.status} />
-        </div>
-
-        {/* Progress tracker */}
-        <div className="relative z-10 mb-5">
-          <ProgressTracker status={project.status} pct={project.completionPercentage} />
-        </div>
-
-        <div className="grid grid-cols-4 gap-2 relative z-10">
-          {[
-            { l: "System", v: project.systemSizeKW ? `${project.systemSizeKW} kW` : "—" },
-            { l: "Total Cost", v: project.totalProjectCost ? fmt(project.totalProjectCost) : "—" },
-            { l: "Subsidy", v: project.estimatedSubsidy ? fmt(project.estimatedSubsidy) : "—" },
-            { l: "You Pay", v: (project.totalProjectCost && project.estimatedSubsidy) ? fmt(Math.max(0, project.totalProjectCost - project.estimatedSubsidy)) : "—" },
-          ].map(s => (
-            <div key={s.l} className="bg-white/8 rounded-xl p-2.5 text-center backdrop-blur-sm border border-white/5">
-              <p className="text-[9px] text-slate-500 uppercase font-bold">{s.l}</p>
-              <p className="text-xs font-black text-white mt-0.5">{s.v}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Token Payment Banner */}
-      {project.tokenData?.isPending && (
-        <div className="bg-gradient-to-r from-amber-400 to-yellow-500 rounded-2xl p-5 shadow-lg shadow-yellow-200 relative overflow-hidden">
-          <div className="absolute -right-10 -top-10 w-32 h-32 bg-white/20 rounded-full blur-xl pointer-events-none" />
-          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0 shadow-inner">
-                <CreditCard className="w-5 h-5 text-yellow-900" />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-yellow-950">Pay Platform Token</h3>
-                <p className="text-sm font-medium text-yellow-900 mt-0.5">Please pay ₹{project.tokenData.amount.toLocaleString('en-IN')} to publish your project to EPC partners.</p>
-              </div>
-            </div>
-            <button
-              onClick={async () => {
-                if (window.confirm(`Are you sure you want to pay ₹${project.tokenData.amount.toLocaleString('en-IN')}?`)) {
-                  try {
-                    const res = await authFetch(`/api/customer/projects/${projectId}/pay-token`, { method: "POST" });
-                    const data = await res.json();
-                    if (data.success) {
-                      alert("Payment successful! Your order is now Open for EPCs.");
-                      fetchProject();
-                    } else {
-                      alert(data.message || "Payment failed");
-                    }
-                  } catch (e) {
-                    alert("An error occurred during payment.");
-                  }
-                }
-              }}
-              className="px-6 py-3 bg-yellow-950 text-white rounded-xl font-bold text-sm hover:bg-black transition shadow-xl shrink-0"
-            >
-              Pay Now (₹{project.tokenData.amount.toLocaleString('en-IN')})
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Pending action banner */}
-      {project.pendingActionAlert && project.pendingActionFor === "customer" && (
-        <div className="flex items-start gap-3 p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl">
-          <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center shrink-0">
-            <Bell className="w-5 h-5 text-amber-900" />
-          </div>
-          <div>
-            <p className="text-sm font-black text-amber-800">Action Required — Aapki Taraf Se</p>
-            <p className="text-xs text-amber-700 mt-0.5">{project.pendingActionAlert}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Australia BDE EPC Recommendation Block */}
-      {project.bdeRecommendationStatus === "pending" && project.recommendedEpcs?.length > 0 && (
-        <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-blue-200 rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center shrink-0 shadow-sm text-white">
-              <Star className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-black text-blue-950">Recommended Installers</h3>
-              <p className="text-xs font-medium text-blue-800 mt-0.5">Humare BDE ne aapke project ke liye {project.recommendedEpcs.length} best EPCs select kiye hain. Kripya ek chunein.</p>
-            </div>
-          </div>
-          
-          <div className="space-y-3">
-            {project.recommendedEpcs.map(epc => (
-              <div key={epc._id} className="bg-white border border-blue-100 rounded-xl p-4 flex items-center justify-between gap-4">
-                <div>
-                  <p className="font-black text-slate-800">{epc.companyName}</p>
-                  <p className="text-xs text-slate-500">{epc.city}, {epc.state} • ⭐ {epc.rating} Rating</p>
-                </div>
-                <button 
-                  onClick={async () => {
-                    if (window.confirm(`Kya aap ${epc.companyName} ko as a installer accept karna chahte hain?`)) {
-                      try {
-                        const res = await authFetch(`/api/customer/projects/${projectId}/accept-epc`, {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ epcId: epc._id, epcName: epc.companyName })
-                        });
-                        const d = await res.json();
-                        if (d.success) {
-                          alert("EPC Successfully Assigned! 🚀");
-                          fetchProject();
-                        } else alert(d.message || "Failed to accept EPC");
-                      } catch(e) { alert("Error connecting to server"); }
-                    }
-                  }}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition shadow-sm whitespace-nowrap"
-                >
-                  Accept & Assign
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <button 
-            onClick={async () => {
-              if (window.confirm("Are you sure you want to reject all recommendations and request new ones?")) {
-                try {
-                  const res = await authFetch(`/api/customer/projects/${projectId}/reject-epcs`, { method: "POST" });
-                  const d = await res.json();
-                  if (d.success) {
-                    alert("Recommendations rejected. Your BDE will send new ones soon.");
-                    fetchProject();
-                  } else alert(d.message);
-                } catch(e) { alert("Error connecting to server"); }
-              }
-            }}
-            className="w-full mt-4 py-2 border border-blue-200 text-blue-600 font-bold text-xs rounded-xl hover:bg-blue-100 transition"
-          >
-            Reject All & Request New
+    <div className="flex flex-col h-[calc(100vh-140px)] md:h-[calc(100vh-80px)] overflow-hidden">
+      {/* Top Fixed Area */}
+      <div className="shrink-0 space-y-4 pb-2">
+        {/* Back Button and Header */}
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition">
+            <ArrowLeft className="w-5 h-5" />
           </button>
-        </div>
-      )}
-
-      {/* EPC Partner */}
-      {project.assignedEPCName && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-5">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Your Solar Installation Partner</p>
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-yellow-100 to-amber-100 flex items-center justify-center text-yellow-700 font-black text-lg border border-yellow-200">
-              <Building className="w-6 h-6 text-yellow-700" />
-            </div>
-            <div className="flex-1">
-              <p className="font-black text-slate-800">Certified Solar Installer</p>
-              <p className="text-xs text-slate-500">Verified Installation Partner</p>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-[10px] bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5">
-                  <Shield className="w-2.5 h-2.5" />Verified
-                </span>
-                <span className="text-[10px] bg-yellow-100 text-yellow-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5">
-                  <Zap className="w-2.5 h-2.5" />Assigned
-                </span>
-              </div>
-            </div>
+          <div>
+            <h1 className="text-base font-black text-slate-800">Project Details</h1>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">SUN-ACCOUNT</p>
           </div>
         </div>
-      )}
-      {/* ── PROGRESS TRACKER (HORIZONTAL) ── */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm mt-4">
-        <div className="flex items-center gap-2 mb-4">
-          <BarChart3 className="w-4 h-4 text-yellow-500" />
-          <h3 className="font-black text-slate-800">Installation Journey</h3>
-        </div>
-        
-        <HorizontalJourneyTracker steps={project.steps} />
-      </div>
 
-      {/* Documents */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5">
-        <p className="font-black text-slate-800 mb-4 flex items-center gap-2">
-          <FileText className="w-4 h-4 text-yellow-500" />Documents
-        </p>
+        {/* Hero card */}
+        <div className={`bg-gradient-to-br ${
+          project?.projectType?.toLowerCase().includes("commercial") || project?.projectType?.toLowerCase().includes("industrial")
+            ? "from-amber-600 via-orange-500 to-amber-700" 
+            : project?.projectType?.toLowerCase().includes("agri")
+              ? "from-emerald-700 via-green-600 to-emerald-800"
+              : project?.projectType?.toLowerCase().includes("off-grid") || project?.projectType?.toLowerCase().includes("off grid")
+                ? "from-violet-700 via-purple-600 to-violet-800"
+                : "from-solar-navy via-slate-800 to-slate-900"
+        } rounded-3xl p-5 text-white relative overflow-hidden`}>
+          <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400/5 rounded-full -translate-y-8 translate-x-8" />
+          <div className="absolute bottom-0 left-0 w-20 h-20 bg-blue-400/5 rounded-full translate-y-4 -translate-x-4" />
 
-        {project.documents?.length > 0 ? (
-          <div className="space-y-2 mb-4">
-            {project.documents.map((doc, i) => (
-              <a key={i} href={doc.url} target="_blank" rel="noreferrer"
-                className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 hover:bg-slate-100 transition">
-                <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center">
-                  <FileText className="w-4 h-4 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs font-bold text-slate-700 capitalize">{doc.type?.replace(/_/g, " ")}</p>
-                  <p className="text-[10px] text-slate-400">{fmtDate(doc.uploadedAt)}</p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-300" />
-              </a>
+          <div className="flex items-start justify-between mb-4 relative z-10">
+            <div>
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{project.orderNumber}</p>
+              <h2 className="text-lg font-black mt-0.5">{project.projectTypeLabel || project.projectType} Solar</h2>
+              {project.location?.city && (
+                <p className="text-xs text-slate-300 mt-0.5 flex items-center gap-1"><MapPin className="w-3 h-3" />{project.location.city}</p>
+              )}
+            </div>
+            <Badge status={project.status} />
+          </div>
+
+          {/* Progress tracker */}
+          <div className="relative z-10 mb-4">
+            <ProgressTracker status={project.status} pct={project.completionPercentage} />
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 relative z-10">
+            {[
+              { l: "System", v: project.systemSizeKW ? `${project.systemSizeKW} kW` : "—" },
+              { l: "Total Cost", v: project.totalProjectCost ? fmt(project.totalProjectCost) : "—" },
+              { l: "Subsidy", v: project.estimatedSubsidy ? fmt(project.estimatedSubsidy) : "—" },
+            ].map(s => (
+              <div key={s.l} className="bg-white/8 rounded-xl p-2 text-center backdrop-blur-sm border border-white/5">
+                <p className="text-[9px] text-slate-300 uppercase font-bold">{s.l}</p>
+                <p className="text-xs font-black text-white mt-0.5">{s.v}</p>
+              </div>
             ))}
           </div>
-        ) : (
-          <p className="text-xs text-slate-400 mb-4">Abhi koi document nahi. Neeche upload karo.</p>
-        )}
+        </div>
+      </div>
 
-        {/* Upload */}
-        <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center cursor-pointer hover:border-yellow-300 hover:bg-yellow-50/30 transition"
-          onClick={() => fileRef.current?.click()}>
-          <input ref={fileRef} type="file" accept="image/*,.pdf" className="hidden"
-            onChange={e => setUploadFile(e.target.files?.[0])} />
-          {uploadFile ? (
-            <div className="space-y-3">
-              <p className="text-xs font-bold text-slate-700">📎 {uploadFile.name}</p>
-              <button onClick={e => { e.stopPropagation(); handleUpload(); }} disabled={uploading}
-                className="px-6 py-2 bg-yellow-400 text-yellow-900 font-black text-xs rounded-xl hover:bg-amber-400 transition flex items-center gap-2 mx-auto">
-                {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                {uploading ? "Uploading..." : "Upload Karo"}
+      {/* Scrollable Bottom Area */}
+      <div className="flex-1 overflow-y-auto space-y-4 pr-1 mt-2 pb-16 hide-scrollbar">
+        {/* Token Payment Banner */}
+        {project.tokenData?.isPending && (
+          <div className="bg-gradient-to-r from-amber-400 to-yellow-500 rounded-2xl p-5 shadow-lg shadow-yellow-200 relative overflow-hidden">
+            <div className="absolute -right-10 -top-10 w-32 h-32 bg-white/20 rounded-full blur-xl pointer-events-none" />
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0 shadow-inner">
+                  <CreditCard className="w-5 h-5 text-yellow-900" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-yellow-950">Pay Platform Token</h3>
+                  <p className="text-sm font-medium text-yellow-900 mt-0.5">Please pay {isAU ? "$" : "₹"}{project.tokenData.amount.toLocaleString('en-IN')} to publish your project to EPC partners.</p>
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  if (window.confirm(`Are you sure you want to pay ${isAU ? "$" : "₹"}${project.tokenData.amount.toLocaleString('en-IN')}?`)) {
+                    try {
+                      const res = await authFetch(`/api/customer/projects/${projectId}/pay-token`, { method: "POST" });
+                      const data = await res.json();
+                      if (data.success) {
+                        alert("Payment successful! Your order is now Open for EPCs.");
+                        fetchProject();
+                      } else {
+                        alert(data.message || "Payment failed");
+                      }
+                    } catch (e) {
+                      alert("An error occurred during payment.");
+                    }
+                  }
+                }}
+                className="px-6 py-3 bg-yellow-950 text-white rounded-xl font-bold text-sm hover:bg-black transition shadow-xl shrink-0"
+              >
+                Pay Now ({isAU ? "$" : "₹"}{project.tokenData.amount.toLocaleString('en-IN')})
               </button>
             </div>
-          ) : (
-            <div>
-              <Upload className="w-6 h-6 mx-auto mb-1.5 text-slate-300" />
-              <p className="text-xs font-bold text-slate-500">Document Upload Karo</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">JPG, PNG, PDF • Max 8MB</p>
+          </div>
+        )}
+
+        {/* Pending action banner */}
+        {project.pendingActionAlert && project.pendingActionFor === "customer" && (
+          <div className="flex items-start gap-3 p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl">
+            <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center shrink-0">
+              <Bell className="w-5 h-5 text-amber-900" />
             </div>
-          )}
+            <div>
+              <p className="text-sm font-black text-amber-800">Action Required — Aapki Taraf Se</p>
+              <p className="text-xs text-amber-700 mt-0.5">{project.pendingActionAlert}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Australia BDE EPC Recommendation Block */}
+        {project.bdeRecommendationStatus === "pending" && project.recommendedEpcs?.length > 0 && (
+          <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-blue-200 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center shrink-0 shadow-sm text-white">
+                <Star className="w-5 h-5 animate-pulse" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-blue-950">Recommended Installers</h3>
+                <p className="text-xs font-medium text-blue-800 mt-0.5">Humare BDE ne aapke project ke liye {project.recommendedEpcs.length} best EPCs select kiye hain. Kripya ek chunein.</p>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              {project.recommendedEpcs.map(epc => (
+                <div key={epc._id} className="bg-white border border-blue-100 rounded-xl p-4 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-black text-slate-800">{epc.companyName}</p>
+                    <p className="text-xs text-slate-500">{epc.city}, {epc.state} • ⭐ {epc.rating} Rating</p>
+                  </div>
+                  <button 
+                    onClick={async () => {
+                      if (window.confirm(`Kya aap ${epc.companyName} ko as a installer accept karna chahte hain?`)) {
+                        try {
+                          const res = await authFetch(`/api/customer/projects/${projectId}/accept-epc`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ epcId: epc._id, epcName: epc.companyName })
+                          });
+                          const d = await res.json();
+                          if (d.success) {
+                            alert("EPC Successfully Assigned! 🚀");
+                            fetchProject();
+                          } else alert(d.message || "Failed to accept EPC");
+                        } catch(e) { alert("Error connecting to server"); }
+                      }
+                    }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition shadow-sm whitespace-nowrap"
+                  >
+                    Accept & Assign
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button 
+              onClick={async () => {
+                if (window.confirm("Are you sure you want to reject all recommendations and request new ones?")) {
+                  try {
+                    const res = await authFetch(`/api/customer/projects/${projectId}/reject-epcs`, { method: "POST" });
+                    const d = await res.json();
+                    if (d.success) {
+                      alert("Recommendations rejected. Your BDE will send new ones soon.");
+                      fetchProject();
+                    } else alert(d.message);
+                  } catch(e) { alert("Error connecting to server"); }
+                }
+              }}
+              className="w-full mt-4 py-2 border border-blue-200 text-blue-600 font-bold text-xs rounded-xl hover:bg-blue-100 transition"
+            >
+              Reject All & Request New
+            </button>
+          </div>
+        )}
+
+        {/* EPC Partner */}
+        {project.assignedEPCName && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-5">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Your Solar Installation Partner</p>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-yellow-100 to-amber-100 flex items-center justify-center text-yellow-700 font-black text-lg border border-yellow-200">
+                <Building className="w-6 h-6 text-yellow-700" />
+              </div>
+              <div className="flex-1">
+                <p className="font-black text-slate-800">{project.assignedEPCName}</p>
+                <p className="text-xs text-slate-500">Verified Installation Partner</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[10px] bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                    <Shield className="w-2.5 h-2.5" />Verified
+                  </span>
+                  <span className="text-[10px] bg-yellow-100 text-yellow-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                    <Zap className="w-2.5 h-2.5" />Assigned
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── PROGRESS TRACKER (VERTICAL) ── */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart3 className="w-4 h-4 text-yellow-500" />
+            <h3 className="font-black text-slate-800">Installation Journey</h3>
+          </div>
+          <ProjectJourneyTracker steps={project.steps} />
         </div>
-        {uploadMsg && <p className="text-xs font-medium text-center mt-2">{uploadMsg}</p>}
+
+        {/* Documents */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-5">
+          <p className="font-black text-slate-800 mb-4 flex items-center gap-2">
+            <FileText className="w-4 h-4 text-yellow-500" />Documents
+          </p>
+
+          {project.documents?.length > 0 ? (
+            <div className="space-y-2 mb-4">
+              {project.documents.map((doc, i) => (
+                <a key={i} href={doc.url} target="_blank" rel="noreferrer"
+                  className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 hover:bg-slate-100 transition">
+                  <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center">
+                    <FileText className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-bold text-slate-700 capitalize">{doc.type?.replace(/_/g, " ")}</p>
+                    <p className="text-[10px] text-slate-400">{fmtDate(doc.uploadedAt)}</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-300" />
+                </a>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400 mb-4">Abhi koi document nahi. Neeche upload karo.</p>
+          )}
+
+          {/* Upload */}
+          <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center cursor-pointer hover:border-yellow-300 hover:bg-yellow-50/30 transition"
+            onClick={() => fileRef.current?.click()}>
+            <input ref={fileRef} type="file" accept="image/*,.pdf" className="hidden"
+              onChange={e => setUploadFile(e.target.files?.[0])} />
+            {uploadFile ? (
+              <div className="space-y-3">
+                <p className="text-xs font-bold text-slate-700">📎 {uploadFile.name}</p>
+                <button onClick={e => { e.stopPropagation(); handleUpload(); }} disabled={uploading}
+                  className="px-6 py-2 bg-yellow-400 text-yellow-900 font-black text-xs rounded-xl hover:bg-amber-400 transition flex items-center gap-2 mx-auto">
+                  {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                  {uploading ? "Uploading..." : "Upload Karo"}
+                </button>
+              </div>
+            ) : (
+              <div>
+                <Upload className="w-6 h-6 mx-auto mb-1.5 text-slate-300" />
+                <p className="text-xs font-bold text-slate-500">Document Upload Karo</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">JPG, PNG, PDF • Max 8MB</p>
+              </div>
+            )}
+          </div>
+          {uploadMsg && <p className="text-xs font-medium text-center mt-2">{uploadMsg}</p>}
+        </div>
       </div>
     </div>
   );
@@ -732,7 +808,6 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
 
   const token = localStorage.getItem("customer_token");
   const total = pkg.centralSubsidy + stateSubsidy;
-  const net = Math.max(0, pkg.installCost - total);
 
   const getMinDateString = () => {
     const d = new Date();
@@ -939,12 +1014,8 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
             </div>
           ) : (
             <>
-              {/* Dynamic Filters for Location & Project Type */}
-
-
               <div>
                 <h4 className="text-sm font-black text-slate-700 mb-3 border-b border-slate-100 pb-1">Application Details</h4>
-
             
             {/* Eligibility Check */}
             <div className="mb-4">
@@ -992,7 +1063,7 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
               </p>
             </div>
 
-            {/* Geo-tag & Photo (Simplified design to match new clean look) */}
+            {/* Geo-tag & Photo */}
             <div className="mb-4">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Rooftop Photo *</label>
               <div className={`border-2 border-dashed rounded-xl p-3 text-center cursor-pointer transition ${rooftopPhoto ? "border-green-300 bg-green-50" : "border-slate-200 hover:border-slate-300"}`}
@@ -1051,6 +1122,46 @@ export default function CustomerPortal({ onClose }) {
   const [profileMsg, setProfileMsg] = useState("");
   const [applyData, setApplyData] = useState(null);
   const [appliedProject, setAppliedProject] = useState(null);
+  const { country } = useCountry();
+  const [journeySettings, setJourneySettings] = useState(null);
+
+  // Active Project Detail for EPC Partner / Select Installer tabs
+  const [activeProjectDetail, setActiveProjectDetail] = useState(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  // Installer Rating States
+  const [ratingValue, setRatingValue] = useState(0);
+  const [ratingHover, setRatingHover] = useState(0);
+  const [submittingRating, setSubmittingRating] = useState(false);
+  const [ratingError, setRatingError] = useState("");
+
+  const fetchActiveProjectDetail = async (id) => {
+    if (!id) return;
+    setLoadingDetail(true);
+    try {
+      const res = await authFetch(`/api/customer/projects/${id}`);
+      const d = await res.json();
+      if (d.success) {
+        setActiveProjectDetail(d.data);
+      }
+    } catch (e) {
+      console.error("Error fetching active project detail:", e);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  const fetchJourney = async () => {
+    try {
+      const res = await fetch(`${API}/api/order-journey/${country || "IN"}`);
+      if(res.ok) {
+        const d = await res.json();
+        setJourneySettings(d);
+      }
+    } catch(err) { console.error(err); }
+  };
+
+  useEffect(() => { fetchJourney(); }, [country]);
 
   const fetchProjects = async () => {
     setProjLoading(true);
@@ -1075,176 +1186,160 @@ export default function CustomerPortal({ onClose }) {
 
   const handleApply = (pkg, state, stateSubsidy, minBookingDays) => setApplyData({ pkg, state, stateSubsidy, minBookingDays });
 
-  const handleApplySuccess = (order) => {
+  const handleApplySuccess = (newProj) => {
     setApplyData(null);
-    setAppliedProject(order);
     fetchProjects();
-    setTab("projects");
+    if (newProj && newProj._id) {
+      setSelectedProjectId(newProj._id);
+      setProjectView("detail");
+      setTab("projects");
+    } else {
+      setTab("projects");
+      setProjectView("list");
+    }
   };
 
   const active = projects.filter(p => !["completed","closed","cancelled"].includes(p.status));
   const done = projects.filter(p => ["completed","closed"].includes(p.status));
-  const totalSavings = projects.reduce((s, p) => s + (p.estimatedSubsidy || 0), 0);
 
-  const TABS = [
-    { id: "home",     icon: <LayoutDashboard className="w-4 h-4" />, label: "Home" },
-    { id: "projects", icon: <FolderOpen className="w-4 h-4" />,      label: `Projects${projects.length ? ` (${projects.length})` : ""}` },
-  ];
+  useEffect(() => {
+    const targetId = selectedProjectId || active[0]?._id;
+    if (targetId) {
+      fetchActiveProjectDetail(targetId);
+    } else {
+      setActiveProjectDetail(null);
+    }
+  }, [selectedProjectId, projects]);
+
+  // Rating prompt toast interval (every 2 minutes)
+  const triggerRatingToastPrompt = () => {
+    const targetProject = activeProjectDetail || active[0];
+    if (!targetProject) return;
+
+    const isCompleted = ["completed", "closed", "Project Completed", "Warranty Activated", "Installation Completed"].includes(targetProject.status) || targetProject.completionPercentage >= 90;
+    const hasNotRated = !targetProject.customerRating || targetProject.customerRating === 0;
+
+    if (isCompleted && hasNotRated) {
+      toast.success("Please rate your installer in the 'My Installer' tab! 🌟", {
+        position: "top-right",
+        autoClose: 8000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        style: {
+          backgroundColor: '#10B981',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          borderRadius: '12px',
+          fontFamily: 'sans-serif'
+        }
+      });
+    }
+  };
+
+  useEffect(() => {
+    // Show immediate prompt after 3 seconds if conditions met
+    const timer = setTimeout(() => {
+      triggerRatingToastPrompt();
+    }, 3000);
+
+    const interval = setInterval(() => {
+      triggerRatingToastPrompt();
+    }, 120000); // 2 minutes
+
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
+  }, [projects, activeProjectDetail]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col">
-      {/* Header */}
-      <div className="bg-solar-navy px-4 sm:px-6 py-3.5 flex items-center gap-3 shrink-0">
-        <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 transition text-white">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div className="w-9 h-9 rounded-xl bg-solar-yellow flex items-center justify-center shrink-0">
-          <Sun className="w-5 h-5 text-slate-900 fill-amber-300" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-bold text-white text-sm truncate">{customer?.fullName}</p>
-          <p className="text-[11px] text-slate-400">Solar Customer Portal</p>
-        </div>
-        {tab === "projects" && projectView === "detail" && (
-          <button onClick={() => setProjectView("list")} className="flex items-center gap-1 text-xs text-slate-300 hover:text-white px-2 py-1.5 rounded-lg hover:bg-white/10 transition">
-            <ArrowLeft className="w-3.5 h-3.5" />All
+    <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col md:flex-row">
+      <ToastContainer />
+      
+      {/* Sidebar */}
+      <div className="md:w-64 bg-solar-navy shrink-0 flex flex-col md:h-full overflow-y-auto">
+        
+        {/* Brand */}
+        <div className="px-4 py-4 flex items-center gap-3">
+          <button onClick={onClose} className="p-2 -ml-2 rounded-xl hover:bg-white/10 transition text-white/70 hover:text-white md:hidden">
+            <ArrowLeft className="w-5 h-5" />
           </button>
-        )}
-        {active.length > 0 && tab !== "projects" && (
-          <button onClick={() => setTab("projects")} className="relative p-2 rounded-xl hover:bg-white/10 transition text-slate-400 hover:text-white">
-            <Bell className="w-4 h-4" />
-            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-yellow-400" />
-          </button>
-        )}
-        <button onClick={() => { logout(); onClose?.(); }} className="p-2 rounded-xl hover:bg-white/10 transition text-slate-400 hover:text-white">
-          <LogOut className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Nav tabs */}
-      <div className="bg-white border-b border-slate-200 shrink-0 overflow-x-auto">
-        <div className="flex px-2 min-w-max">
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => { setTab(t.id); setProjectView("list"); }}
-              className={`flex items-center gap-1.5 px-4 py-3.5 text-xs font-bold border-b-2 whitespace-nowrap transition-all ${
-                tab === t.id ? "border-yellow-400 text-yellow-600" : "border-transparent text-slate-500 hover:text-slate-700"
-              }`}>
-              {t.icon}{t.label}
-            </button>
-          ))}
+          <div className="w-9 h-9 rounded-xl bg-solar-yellow flex items-center justify-center shrink-0">
+            <Sun className="w-5 h-5 text-slate-900 fill-amber-300" />
+          </div>
+          <div className="flex-1">
+            <p className="font-bold text-white text-sm truncate">{customer?.fullName}</p>
+          </div>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
-
-          {/* ── HOME ── */}
-          {tab === "home" && (
-            <div className="space-y-5">
-              {/* Welcome */}
-              <div className="bg-gradient-to-br from-solar-navy to-slate-800 rounded-3xl p-6 text-white relative overflow-hidden">
-                <div className="absolute -top-10 -right-10 w-36 h-36 bg-yellow-400/10 rounded-full" />
-                <div className="absolute top-12 right-14 w-16 h-16 bg-yellow-400/10 rounded-full" />
-                <div className="relative z-10">
-                  <p className="text-sm text-slate-400">Namaste 👋</p>
-                  <h2 className="text-2xl font-black mt-1">{customer?.fullName?.split(" ")[0]}</h2>
-                  <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1"><MapPin className="w-3 h-3" />{customer?.city || customer?.state || "Gujarat"}</p>
-
-                  <div className="mt-5 grid grid-cols-3 gap-3">
-                    {[
-                      { l: "Projects", v: projects.length || "0", c: "text-yellow-400" },
-                      { l: "Active", v: active.length || "0", c: "text-blue-400" },
-                      { l: "Total Savings", v: totalSavings ? `₹${(totalSavings/1000).toFixed(0)}K` : "₹0", c: "text-green-400" },
-                    ].map(s => (
-                      <div key={s.l} className="bg-white/8 rounded-2xl p-3 text-center backdrop-blur-sm border border-white/5">
-                        <p className={`text-lg font-black ${s.c}`}>{s.v}</p>
-                        <p className="text-[10px] text-slate-400 font-medium mt-0.5">{s.l}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Success banner after apply */}
-              {appliedProject && (
-                <div className="flex items-start gap-3 p-4 bg-green-50 border-2 border-green-300 rounded-2xl">
-                  <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
-                  <div>
-                    <p className="text-sm font-black text-green-800">Application Submitted! 🎉</p>
-                    <p className="text-xs text-green-700 mt-0.5">Order ID: <strong>{appliedProject.orderNumber}</strong> — Sunnovative team 24hrs mein contact karegi.</p>
-                  </div>
-                  <button onClick={() => setAppliedProject(null)} className="ml-auto text-green-600"><X className="w-4 h-4" /></button>
-                </div>
-              )}
-
-              {/* Active projects */}
-              {active.length > 0 && (
+        {/* Dynamic Sidebar Nav */}
+        <div className="flex-1 py-4 md:py-6 overflow-y-auto px-3 sm:px-4 flex md:flex-col gap-2 sm:gap-3 hide-scrollbar">
+          
+          <p className="text-[10px] font-black uppercase text-white/40 tracking-wider mb-2 hidden md:block px-3">Active Projects</p>
+          {active.length > 0 ? (
+            active.map(p => (
+              <button key={p._id} onClick={() => { setTab("projects"); setProjectView("detail"); setSelectedProjectId(p._id); }}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all whitespace-nowrap md:whitespace-normal text-left ${tab === "projects" && selectedProjectId === p._id ? "bg-yellow-400 text-yellow-900 shadow-md shadow-yellow-400/20" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}>
+                <Sun className={`w-5 h-5 shrink-0 ${tab === "projects" && selectedProjectId === p._id ? "fill-yellow-600 text-yellow-600" : ""}`} />
                 <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-black text-slate-500 uppercase tracking-wider">Active Projects</p>
-                    <button onClick={() => setTab("projects")} className="text-xs text-yellow-600 font-bold flex items-center gap-0.5 hover:gap-1.5 transition-all">
-                      View all <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  {active.slice(0,2).map(p => (
-                    <div key={p._id} className="bg-white border border-slate-200 rounded-2xl p-4 mb-3 cursor-pointer hover:shadow-sm hover:border-yellow-200 transition-all"
-                      onClick={() => { setTab("projects"); setProjectView("detail"); setSelectedProjectId(p._id); }}>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="text-xs font-bold text-slate-400">{p.orderNumber}</p>
-                          <p className="font-bold text-slate-800 text-sm mt-0.5">{p.projectTypeLabel || p.projectType} Solar</p>
-                        </div>
-                        <Badge status={p.status} />
-                      </div>
-                      <div className="mt-3">
-                        <div className="flex justify-between text-[11px] text-slate-500 mb-1">
-                          <span>Progress</span><span className="font-bold">{p.completionPercentage || 0}%</span>
-                        </div>
-                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-gradient-to-r from-yellow-400 to-amber-500 rounded-full" style={{ width: `${p.completionPercentage || sCfg(p.status).pct}%` }} />
-                        </div>
-                      </div>
-                      {p.pendingActionAlert && p.pendingActionFor === "customer" && (
-                        <div className="mt-2 flex items-center gap-1.5 text-[10px] text-amber-700 font-bold">
-                          <Bell className="w-3 h-3" />{p.pendingActionAlert}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                  <p className="font-bold text-sm leading-tight">{p.projectTypeLabel || p.projectType}</p>
+                  <p className="text-[10px] opacity-80">{p.orderNumber}</p>
                 </div>
-              )}
+              </button>
+            ))
+          ) : (
+             <p className="text-xs text-white/30 italic px-3 hidden md:block mb-4">No active projects</p>
+          )}
 
-              {/* Quick actions */}
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { id:"apply", icon:<Plus className="w-5 h-5 text-yellow-600" />, label:"New Application", desc:"Solar system ke liye apply karo", color:"bg-yellow-50 border-yellow-100" },
-                  { id:"epc",   icon:<Zap className="w-5 h-5 text-purple-600" />,  label:"Solar Installers",   desc:"Verified installers dekho",    color:"bg-purple-50 border-purple-100" },
-                ].map(a => (
-                  <button key={a.id} onClick={() => setTab(a.id)}
-                    className={`${a.color} border rounded-2xl p-4 text-left hover:shadow-sm transition-all`}>
-                    <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm mb-3 border border-white/80">{a.icon}</div>
-                    <p className="font-bold text-slate-800 text-sm">{a.label}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{a.desc}</p>
-                  </button>
-                ))}
-              </div>
+          <div className="hidden md:block my-2 border-t border-white/10" />
 
-              {/* Trust / Ad Banner */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-5 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/40 rounded-full -translate-y-8 translate-x-8 blur-2xl" />
-                <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-500 flex items-center justify-center shrink-0 shadow-lg shadow-blue-200">
-                    <Star className="w-6 h-6 text-white fill-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-black text-blue-900">#1 Choice in {customer?.district || customer?.city || customer?.state || "Your Area"}!</h3>
-                    <p className="text-xs text-blue-800 mt-1">Hamare verified installers ne pichle mahine <strong>50+ projects</strong> time par complete kiye hain. Customers ki <strong>4.8/5 average rating</strong> ke saath aapko milti hai sabse tez aur safe installation guarantee!</p>
-                  </div>
-                </div>
-              </div>
+          <p className="text-[10px] font-black uppercase text-white/40 tracking-wider mb-2 hidden md:block px-3 mt-2">Services</p>
+          
+          {/* Start Another Project Tab */}
+          <button onClick={() => { setTab("new-project"); setProjectView("list"); }}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all whitespace-nowrap md:whitespace-normal text-left ${tab === "new-project" ? "bg-white/20 text-white shadow-md" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}>
+            <Plus className="w-5 h-5 shrink-0" />
+            <div>
+              <p className="font-bold text-sm leading-tight">Start Another Project</p>
+              <p className="text-[10px] opacity-80">New Application</p>
+            </div>
+          </button>
 
-              {/* Solar tip */}
+          {/* Installer Tab */}
+          <button onClick={() => { setTab(country === "AU" ? "select-installer" : "epc-details"); setProjectView("list"); }}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all whitespace-nowrap md:whitespace-normal text-left ${(tab === "select-installer" || tab === "epc-details") ? "bg-white/20 text-white shadow-md" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}>
+            <Building className="w-5 h-5 shrink-0" />
+            <div>
+              <p className="font-bold text-sm leading-tight">My Installer</p>
+              <p className="text-[10px] opacity-80">Solar Installer</p>
+            </div>
+          </button>
+
+          <div className="md:mt-auto border-l md:border-l-0 md:border-t border-white/10 ml-2 pl-2 md:ml-0 md:pl-0 md:pt-4" />
+          
+          <button onClick={() => { setTab("profile"); setProjectView("list"); }}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all whitespace-nowrap md:whitespace-normal ${tab === "profile" ? "bg-white/20 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}>
+            <User className="w-5 h-5 shrink-0" />
+            <span className="font-bold text-sm">Profile</span>
+          </button>
+        </div>
+
+        <div className="p-4 hidden md:block">
+          <button onClick={() => { logout(); onClose?.(); }} className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-bold text-sm text-slate-400 hover:bg-white/5 hover:text-white transition">
+            <LogOut className="w-4 h-4" /> Sign Out
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className={`flex-1 bg-slate-50 flex flex-col h-full ${(tab === "projects" && projectView === "detail") ? "overflow-hidden" : "overflow-y-auto"}`}>
+        <div className={`max-w-4xl mx-auto px-4 sm:px-6 py-6 w-full ${(tab === "projects" && projectView === "detail") ? "h-full flex flex-col overflow-hidden pb-4" : "pb-24 md:pb-12"}`}>
+
+          {/* ── HOME DASHBOARD REMOVED - NOW DEFAULTING TO PROJECTS/APPLY VIEW ── */}
+          {tab === "home" && (
               <div className="bg-gradient-to-r from-emerald-50 to-green-50 border border-green-100 rounded-2xl p-4 flex items-start gap-3">
                 <div className="w-9 h-9 rounded-xl bg-green-500 flex items-center justify-center shrink-0">
                   <Leaf className="w-5 h-5 text-white" />
@@ -1254,15 +1349,383 @@ export default function CustomerPortal({ onClose }) {
                   <p className="text-xs text-green-700 mt-0.5">Central ₹78,000 + Gujarat state ₹40,000 = total ₹1,18,000 tak subsidy milti hai 3kW system pe! PM Surya Ghar Yojana ke under.</p>
                 </div>
               </div>
-            </div>
           )}
 
           {/* ── APPLY ── */}
           {tab === "apply" && <SolarPackages onApply={handleApply} />}
 
+          {/* ── START ANOTHER PROJECT (NEW APPLICATION) ── */}
+          {tab === "new-project" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="font-black text-slate-800 text-lg">Start Another Project</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Select a project type to start a new solar journey</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {journeySettings?.projectTypes?.filter(pt => pt.enabled).map((pt) => {
+                  const isComm = pt.projectType === "commercial";
+                  const pkg = {
+                    name: pt.projectTypeLabel || pt.projectType,
+                    kw: isComm ? 10 : 3,
+                    installCost: isComm ? 500000 : 180000,
+                    centralSubsidy: isComm ? 0 : 78000,
+                    suitable: [pt.projectTypeLabel || pt.projectType]
+                  };
+                  return (
+                    <div 
+                      key={pt.projectType}
+                      onClick={() => handleApply(pkg, "Gujarat", 40000, 5)}
+                      className="bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-lg hover:border-yellow-400 cursor-pointer transition duration-300 flex flex-col justify-between gap-4 group"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">New Application</p>
+                          <h3 className="font-black text-slate-800 text-lg group-hover:text-yellow-600 transition">{pt.projectTypeLabel || pt.projectType}</h3>
+                          <p className="text-xs text-slate-500 mt-1">Tap to fill form and request installer details.</p>
+                        </div>
+                        <div className="w-12 h-12 rounded-xl bg-yellow-50 flex items-center justify-center group-hover:scale-110 transition shrink-0">
+                          <Plus className="w-6 h-6 text-yellow-600" />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-yellow-600 group-hover:underline">
+                        Apply Now <ArrowRight className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── SELECT INSTALLER (AUSTRALIA) ── */}
+          {tab === "select-installer" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="font-black text-slate-800 text-lg">Select Your Installer</h2>
+                <p className="text-xs text-slate-500 mt-0.5">CEC-approved installation partners recommended for your project</p>
+              </div>
+
+              {loadingDetail ? (
+                <div className="flex justify-center py-12"><Loader2 className="w-7 h-7 animate-spin text-yellow-500" /></div>
+              ) : !activeProjectDetail ? (
+                <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
+                  <Building className="w-10 h-10 mx-auto mb-2 text-slate-200" />
+                  <p className="text-sm font-bold text-slate-500">No active project found</p>
+                </div>
+              ) : activeProjectDetail.assignedEPCName ? (
+                <div className="bg-white border border-slate-200 rounded-2xl p-5">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Your Solar Installation Partner</p>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-yellow-100 to-amber-100 flex items-center justify-center text-yellow-700 font-black text-lg border border-yellow-200">
+                      <Building className="w-6 h-6 text-yellow-700" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-black text-slate-800">{activeProjectDetail.assignedEPCName}</h4>
+                      <p className="text-xs text-slate-500">Verified Installation Partner</p>
+                      
+                      {activeProjectDetail.epcDetails ? (
+                        <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
+                          <p className="text-xs text-slate-600 flex items-center gap-2"><strong>Contact Person:</strong> {activeProjectDetail.epcDetails.contactPerson}</p>
+                          <p className="text-xs text-slate-600 flex items-center gap-2"><strong>Phone:</strong> {activeProjectDetail.epcDetails.contactPersonMobile || "Not Shared"}</p>
+                          <p className="text-xs text-slate-600 flex items-center gap-2"><strong>Email:</strong> {activeProjectDetail.epcDetails.contactPersonEmail || "Not Shared"}</p>
+                          <p className="text-xs text-slate-600 flex items-center gap-2"><strong>Location:</strong> {activeProjectDetail.epcDetails.city}, {activeProjectDetail.epcDetails.state}</p>
+                        </div>
+                      ) : (
+                        <div className="mt-2 text-xs text-slate-400 italic">Contact details will be visible shortly.</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Rating Section (Visible when project is completed) */}
+                  {(() => {
+                    const isCompleted = ["completed", "closed", "Project Completed", "Warranty Activated", "Installation Completed"].includes(activeProjectDetail.status) || activeProjectDetail.completionPercentage >= 90;
+                    if (!isCompleted) return null;
+
+                    return (
+                      <div className="border-t border-slate-100 pt-4 mt-4">
+                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Rate Your Installation Experience</h4>
+                        
+                        {activeProjectDetail.customerRating > 0 ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500 font-bold">Aapki Rating:</span>
+                            <div className="flex gap-1">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star 
+                                  key={star} 
+                                  className={`w-5 h-5 ${star <= activeProjectDetail.customerRating ? "fill-yellow-400 text-yellow-400" : "text-slate-200"}`} 
+                                />
+                              ))}
+                            </div>
+                            <span className="text-xs font-bold text-slate-700 ml-1">({activeProjectDetail.customerRating}.0 Stars)</span>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <p className="text-xs text-slate-600">Installation complete ho chuki hai! Kripya apne installer ko rate karein:</p>
+                            <div className="flex items-center gap-1.5">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star 
+                                  key={star} 
+                                  onClick={() => setRatingValue(star)}
+                                  onMouseEnter={() => setRatingHover(star)}
+                                  onMouseLeave={() => setRatingHover(0)}
+                                  className={`w-6 h-6 cursor-pointer transition ${
+                                    star <= (ratingHover || ratingValue) 
+                                      ? "fill-yellow-400 text-yellow-400 scale-110" 
+                                      : "text-slate-300 hover:scale-105"
+                                  }`} 
+                                />
+                              ))}
+                            </div>
+
+                            {ratingError && <p className="text-xs text-red-500 font-bold">{ratingError}</p>}
+
+                            <button 
+                              onClick={async () => {
+                                if (ratingValue === 0) return setRatingError("Kripya kam se kam 1 star select karein.");
+                                setSubmittingRating(true);
+                                setRatingError("");
+                                try {
+                                  const res = await authFetch(`/api/customer/projects/${activeProjectDetail._id}/rate-epc`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ rating: ratingValue })
+                                  });
+                                  const d = await res.json();
+                                  if (d.success) {
+                                    alert("Thank you for your feedback! 🌟");
+                                    fetchProjects();
+                                    fetchActiveProjectDetail(activeProjectDetail._id);
+                                  } else {
+                                    setRatingError(d.message || "Rating save failed");
+                                  }
+                                } catch (e) {
+                                  setRatingError("Failed to submit rating");
+                                } finally {
+                                  setSubmittingRating(false);
+                                }
+                              }}
+                              disabled={submittingRating}
+                              className="px-4 py-2 bg-yellow-400 hover:bg-amber-400 text-yellow-900 font-black text-xs rounded-xl transition flex items-center gap-2 disabled:opacity-50"
+                            >
+                              {submittingRating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                              Submit Rating
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              ) : activeProjectDetail.bdeRecommendationStatus === "pending" && activeProjectDetail.recommendedEpcs?.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-2xl p-4 flex items-start gap-3">
+                    <Star className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-black text-yellow-800">BDE Has Suggested Best EPCs For You</p>
+                      <p className="text-xs text-yellow-700 mt-0.5">Please review the recommended installers below and accept your preferred partner to proceed with installation.</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {activeProjectDetail.recommendedEpcs.map(epc => (
+                      <div key={epc._id} className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-yellow-400 transition flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100 shrink-0">
+                            <Building className="w-5 h-5 text-slate-500" />
+                          </div>
+                          <div>
+                            <h4 className="font-black text-slate-800 text-sm">{epc.companyName}</h4>
+                            <p className="text-xs text-slate-500">{epc.city}, {epc.state} • ⭐ {epc.rating || "New"}</p>
+                            <p className="text-[10px] text-slate-400 mt-1">Total installs: {epc.totalInstallations || 0} • Contact: {epc.contactPerson}</p>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={async () => {
+                            if (window.confirm(`Kya aap ${epc.companyName} ko as a installer accept karna chahte hain?`)) {
+                              try {
+                                const res = await authFetch(`/api/customer/projects/${activeProjectDetail._id}/accept-epc`, {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ epcId: epc._id, epcName: epc.companyName })
+                                });
+                                const d = await res.json();
+                                if (d.success) {
+                                  alert("EPC Successfully Assigned! 🚀");
+                                  fetchProjects();
+                                  fetchActiveProjectDetail(activeProjectDetail._id);
+                                } else alert(d.message || "Failed to accept EPC");
+                              } catch(e) { alert("Error connecting to server"); }
+                            }
+                          }}
+                          className="px-5 py-2.5 bg-yellow-400 hover:bg-amber-400 text-yellow-900 rounded-xl text-xs font-bold transition shadow-sm whitespace-nowrap self-stretch sm:self-auto text-center"
+                        >
+                          Accept & Assign
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center">
+                  <Clock className="w-8 h-8 text-slate-355 mx-auto mb-2 animate-pulse" />
+                  <p className="text-sm font-bold text-slate-700">Curating Best Installers...</p>
+                  <p className="text-xs text-slate-500 mt-1">Your BDE is curating the best CEC-approved installers for your property. They will appear here shortly.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── EPC PARTNER DETAILS (INDIA) ── */}
+          {tab === "epc-details" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="font-black text-slate-800 text-lg">Your EPC Partner</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Details of the certified solar installation partner assigned to you</p>
+              </div>
+
+              {loadingDetail ? (
+                <div className="flex justify-center py-12"><Loader2 className="w-7 h-7 animate-spin text-yellow-500" /></div>
+              ) : !activeProjectDetail ? (
+                <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
+                  <Building className="w-10 h-10 mx-auto mb-2 text-slate-200" />
+                  <p className="text-sm font-bold text-slate-500">No active project found</p>
+                </div>
+              ) : activeProjectDetail.assignedEPCName ? (
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                  <div className="flex items-center gap-4 border-b border-slate-100 pb-4 mb-4">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-yellow-100 to-amber-100 flex items-center justify-center text-yellow-700 font-black text-xl border border-yellow-200 shrink-0">
+                      <Building className="w-7 h-7 text-yellow-700" />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-slate-800 text-lg">{activeProjectDetail.assignedEPCName}</h3>
+                      <p className="text-xs text-slate-500 mt-0.5">Sunnovative Empanelled Installation Partner</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] bg-green-50 text-green-700 font-bold px-2 py-0.5 rounded-full border border-green-200 flex items-center gap-0.5">
+                          <Check className="w-2.5 h-2.5" />Verified Partner
+                        </span>
+                        <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded-full border border-blue-200 flex items-center gap-0.5">
+                          ⭐ {activeProjectDetail.epcDetails?.rating || "New"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Contact & Office Information</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <p className="text-[10px] text-slate-400 font-bold uppercase">Contact Person</p>
+                        <p className="text-sm font-bold text-slate-700 mt-0.5">{activeProjectDetail.epcDetails?.contactPerson || "Not Shared"}</p>
+                      </div>
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <p className="text-[10px] text-slate-400 font-bold uppercase">Mobile Number</p>
+                        <p className="text-sm font-bold text-slate-700 mt-0.5">{activeProjectDetail.epcDetails?.contactPersonMobile || "Not Shared"}</p>
+                      </div>
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <p className="text-[10px] text-slate-400 font-bold uppercase">Email Address</p>
+                        <p className="text-sm font-bold text-slate-700 mt-0.5">{activeProjectDetail.epcDetails?.contactPersonEmail || "Not Shared"}</p>
+                      </div>
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <p className="text-[10px] text-slate-400 font-bold uppercase">Operating Location</p>
+                        <p className="text-sm font-bold text-slate-700 mt-0.5">{activeProjectDetail.epcDetails?.city}, {activeProjectDetail.epcDetails?.state}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Rating Section (Visible when project is completed) */}
+                  {(() => {
+                    const isCompleted = ["completed", "closed", "Project Completed", "Warranty Activated", "Installation Completed"].includes(activeProjectDetail.status) || activeProjectDetail.completionPercentage >= 90;
+                    if (!isCompleted) return null;
+
+                    return (
+                      <div className="border-t border-slate-100 pt-4 mt-4">
+                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Rate Your Installation Experience</h4>
+                        
+                        {activeProjectDetail.customerRating > 0 ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500 font-bold">Aapki Rating:</span>
+                            <div className="flex gap-1">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star 
+                                  key={star} 
+                                  className={`w-5 h-5 ${star <= activeProjectDetail.customerRating ? "fill-yellow-400 text-yellow-400" : "text-slate-200"}`} 
+                                />
+                              ))}
+                            </div>
+                            <span className="text-xs font-bold text-slate-700 ml-1">({activeProjectDetail.customerRating}.0 Stars)</span>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <p className="text-xs text-slate-600">Installation complete ho chuki hai! Kripya apne installer ko rate karein:</p>
+                            <div className="flex items-center gap-1.5">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star 
+                                  key={star} 
+                                  onClick={() => setRatingValue(star)}
+                                  onMouseEnter={() => setRatingHover(star)}
+                                  onMouseLeave={() => setRatingHover(0)}
+                                  className={`w-6 h-6 cursor-pointer transition ${
+                                    star <= (ratingHover || ratingValue) 
+                                      ? "fill-yellow-400 text-yellow-400 scale-110" 
+                                      : "text-slate-300 hover:scale-105"
+                                  }`} 
+                                />
+                              ))}
+                            </div>
+
+                            {ratingError && <p className="text-xs text-red-500 font-bold">{ratingError}</p>}
+
+                            <button 
+                              onClick={async () => {
+                                if (ratingValue === 0) return setRatingError("Kripya kam se kam 1 star select karein.");
+                                setSubmittingRating(true);
+                                setRatingError("");
+                                try {
+                                  const res = await authFetch(`/api/customer/projects/${activeProjectDetail._id}/rate-epc`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ rating: ratingValue })
+                                  });
+                                  const d = await res.json();
+                                  if (d.success) {
+                                    alert("Thank you for your feedback! 🌟");
+                                    fetchProjects();
+                                    fetchActiveProjectDetail(activeProjectDetail._id);
+                                  } else {
+                                    setRatingError(d.message || "Rating save failed");
+                                  }
+                                } catch (e) {
+                                  setRatingError("Failed to submit rating");
+                                } finally {
+                                  setSubmittingRating(false);
+                                }
+                              }}
+                              disabled={submittingRating}
+                              className="px-4 py-2 bg-yellow-400 hover:bg-amber-400 text-yellow-900 font-black text-xs rounded-xl transition flex items-center gap-2 disabled:opacity-50"
+                            >
+                              {submittingRating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                              Submit Rating
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center">
+                  <Clock className="w-8 h-8 text-slate-350 mx-auto mb-2 animate-pulse" />
+                  <p className="text-sm font-bold text-slate-700">Assigning Partner Soon...</p>
+                  <p className="text-xs text-slate-500 mt-1">Your Solar Partner is being assigned by Sunnovative. Once finalized, their contact details will appear here.</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ── PROJECTS ── */}
           {tab === "projects" && (
-            <div className="space-y-4">
+            <div className={`space-y-4 ${(tab === "projects" && projectView === "detail") ? "h-full flex flex-col overflow-hidden" : ""}`}>
               {projectView === "list" ? (
                 <>
                   <div className="flex items-center justify-between">
@@ -1440,13 +1903,36 @@ export default function CustomerPortal({ onClose }) {
                   { l: "Mobile Verified", v: <span className="text-green-600 font-bold flex items-center gap-1"><CheckCheck className="w-3 h-3" />Yes</span> },
                   { l: "Total Projects", v: <span className="font-bold">{projects.length}</span> },
                   { l: "Active Projects", v: <span className="font-bold text-blue-600">{active.length}</span> },
-                  { l: "Total Subsidy Earned", v: <span className="font-bold text-green-600">{fmt(totalSavings)}</span> },
+                  { l: "Total Subsidy Earned", v: <span className="font-bold text-green-600">{fmt(projects.reduce((acc, p) => acc + (p.estimatedSubsidy || 0), 0))}</span> },
                 ].map(row => (
                   <div key={row.l} className="flex items-center justify-between text-xs">
                     <span className="text-slate-500">{row.l}</span>
                     {row.v}
                   </div>
                 ))}
+              </div>
+
+              {/* My Applications / Project Form Details Section */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
+                <h3 className="text-sm font-black text-slate-800 border-b border-slate-100 pb-2 flex items-center gap-2">
+                  <FolderOpen className="w-4 h-4 text-yellow-500" />
+                  My Project Applications (Submitted Forms)
+                </h3>
+
+                {projects.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic">No submitted applications found.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {projects.map((proj) => (
+                      <ProjectFormEditor 
+                        key={proj._id} 
+                        proj={proj} 
+                        authFetch={authFetch}
+                        fetchProjects={fetchProjects}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
 
               <button onClick={() => { logout(); onClose?.(); }}
@@ -1469,6 +1955,203 @@ export default function CustomerPortal({ onClose }) {
           onClose={() => setApplyData(null)}
           onSuccess={handleApplySuccess}
         />
+      )}
+    </div>
+  );
+}
+
+// ── PROJECT FORM EDITOR SUB-COMPONENT ──────────────────────────────────────────
+function ProjectFormEditor({ proj, authFetch, fetchProjects }) {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({
+    address: proj.location?.address || "",
+    city: proj.location?.city || "",
+    pincode: proj.location?.pincode || "",
+    preferredInstallDate: proj.preferredInstallDate ? proj.preferredInstallDate.split("T")[0] : ""
+  });
+  const [rooftopPhoto, setRooftopPhoto] = useState(null);
+  const [geo, setGeo] = useState({ lat: proj.latitude || null, lng: proj.longitude || null });
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+  const fileRef = useRef();
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setRooftopPhoto(file);
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            setGeo({ lat, lng });
+
+            // Reverse Geocoding
+            try {
+              const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+              const data = await res.json();
+              if (data && data.address) {
+                const fetchedAddress = data.display_name || "";
+                const fetchedCity = data.address.city || data.address.town || data.address.village || "";
+                const fetchedPincode = data.address.postcode || "";
+                setForm(p => ({ ...p, address: fetchedAddress, city: fetchedCity, pincode: fetchedPincode }));
+              }
+            } catch (err) {
+              console.error("Reverse geocoding failed", err);
+            }
+          },
+          (err) => console.error("Location access denied")
+        );
+      }
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setMsg("");
+    try {
+      const fd = new FormData();
+      fd.append("address", form.address);
+      fd.append("city", form.city);
+      fd.append("pincode", form.pincode);
+      fd.append("preferredInstallDate", form.preferredInstallDate);
+      if (geo.lat) fd.append("latitude", geo.lat);
+      if (geo.lng) fd.append("longitude", geo.lng);
+      if (rooftopPhoto) {
+        fd.append("rooftopPhoto", rooftopPhoto);
+      }
+
+      const token = localStorage.getItem("customer_token");
+      const res = await fetch(`${API}/api/customer/projects/${proj._id}`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd
+      });
+      const d = await res.json();
+      if (d.success) {
+        setMsg("✅ Application updated successfully!");
+        setTimeout(() => {
+          setEditing(false);
+          setMsg("");
+        }, 1500);
+        fetchProjects();
+      } else {
+        setMsg(`❌ ${d.message || "Failed to save"}`);
+      }
+    } catch (e) {
+      setMsg("❌ Network error saving changes");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="border border-slate-100 rounded-xl p-4 bg-slate-50 space-y-3 text-left">
+      <div className="flex justify-between items-start">
+        <div>
+          <h4 className="text-xs font-black text-slate-700">{proj.projectTypeLabel || proj.projectType} Solar</h4>
+          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{proj.orderNumber}</p>
+        </div>
+        <button 
+          onClick={() => { setEditing(!editing); setMsg(""); }}
+          className="text-[10px] font-black uppercase text-yellow-600 bg-yellow-50 px-2.5 py-1 rounded-lg border border-yellow-200 hover:bg-yellow-100 transition"
+        >
+          {editing ? "Cancel" : "Edit Details"}
+        </button>
+      </div>
+
+      {!editing ? (
+        <div className="space-y-2 text-xs text-slate-650">
+          <p><strong>Address:</strong> {proj.location?.address || "—"}</p>
+          <p><strong>City:</strong> {proj.location?.city || "—"} ({proj.location?.pincode || "—"})</p>
+          <p><strong>Preferred Install Date:</strong> {proj.preferredInstallDate ? new Date(proj.preferredInstallDate).toLocaleDateString("en-IN") : "—"}</p>
+          {proj.rooftopPhoto && (
+            <div className="mt-2">
+              <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Rooftop Photo:</span>
+              <img 
+                src={`${API}${proj.rooftopPhoto}`} 
+                alt="Rooftop" 
+                className="w-24 h-16 object-cover rounded-lg border border-slate-200 hover:scale-105 transition cursor-pointer"
+                onClick={() => window.open(`${API}${proj.rooftopPhoto}`, "_blank")}
+              />
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div>
+            <label className="text-[10px] font-bold text-slate-450 uppercase block mb-1">Address</label>
+            <textarea 
+              rows={2}
+              value={form.address}
+              onChange={e => setForm(p => ({ ...p, address: e.target.value }))}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-yellow-400 resize-none bg-white text-slate-700"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[10px] font-bold text-slate-450 uppercase block mb-1">City</label>
+              <input 
+                type="text"
+                value={form.city}
+                onChange={e => setForm(p => ({ ...p, city: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-yellow-400 bg-white text-slate-700"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-450 uppercase block mb-1">Pincode</label>
+              <input 
+                type="text"
+                value={form.pincode}
+                onChange={e => setForm(p => ({ ...p, pincode: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-yellow-400 bg-white text-slate-700"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-slate-450 uppercase block mb-1">Preferred Install Date</label>
+            <input 
+              type="date"
+              value={form.preferredInstallDate}
+              onChange={e => setForm(p => ({ ...p, preferredInstallDate: e.target.value }))}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-yellow-400 bg-white text-slate-700"
+            />
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-slate-450 uppercase block mb-1">Rooftop Photo</label>
+            <input 
+              type="file"
+              accept="image/*"
+              ref={fileRef}
+              onChange={handlePhotoChange}
+              className="hidden"
+            />
+            <div 
+              onClick={() => fileRef.current?.click()}
+              className="border border-dashed border-slate-300 rounded-xl p-3 text-center cursor-pointer hover:bg-slate-100/50 transition bg-white"
+            >
+              {rooftopPhoto ? (
+                <span className="text-xs font-bold text-slate-600">📎 {rooftopPhoto.name}</span>
+              ) : (
+                <span className="text-xs text-slate-400">Change Photo (Geotags automatically capture)</span>
+              )}
+            </div>
+          </div>
+
+          {msg && <p className={`text-xs font-bold ${msg.startsWith("✅") ? "text-green-600" : "text-red-500"}`}>{msg}</p>}
+
+          <button 
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full py-2 bg-yellow-400 text-yellow-900 font-black text-xs rounded-xl hover:bg-amber-400 transition flex items-center justify-center gap-1.5 disabled:opacity-50"
+          >
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            Save Changes
+          </button>
+        </div>
       )}
     </div>
   );

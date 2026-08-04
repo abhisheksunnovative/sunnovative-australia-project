@@ -371,23 +371,9 @@ export const convertLeadToProject = async (req, res) => {
     const journey = journeySettings?.journeys?.find(j => j.projectType === projectType && j.enabled);
     
     let steps = [];
-    if (journey) {
-      steps = journey.steps.filter(s => s.enabled).map((s, idx) => ({
-        stepId: s.id,
-        stepNumber: s.stepNumber || (idx + 1),
-        title: s.title,
-        description: s.description,
-        assignedTo: s.assignedTo || 'company',
-        milestoneType: s.milestoneType || 'standard',
-        paymentPercentage: s.paymentPercentage || 0,
-        slaDays: s.slaDays || 2,
-        visibleToCustomer: s.visibleToCustomer !== false,
-        visibleToEpc: s.visibleToEpc !== false,
-        status: 'pending',
-        requiresDoc: !!s.requiresDocumentUpload,
-        documentRequirements: s.documentRequirements || [],
-        notificationMedium: s.notificationMedium || ['email']
-      }));
+    if (journeySettings && journey) {
+      const { mapJourneyStepsToProjectSteps } = await import('../utils/stepEngine.js');
+      steps = mapJourneyStepsToProjectSteps(journey.steps);
     } else {
       // Fallback default steps if admin hasn't configured OrderJourneySettings yet
       steps = [

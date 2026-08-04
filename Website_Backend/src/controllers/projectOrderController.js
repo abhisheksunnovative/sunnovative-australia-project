@@ -4,28 +4,7 @@ import EpcEnquiry from "../models/EpcEnquiry.js";
 import Lead from "../models/Lead.js";
 import EpcCalendar from "../models/EpcCalender.js";
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-// Calculate completion percentage
-const calcCompletion = (steps) => {
-  if (!steps || steps.length === 0) return 0;
-  const done = steps.filter((s) => s.status === "completed" || s.status === "skipped").length;
-  return Math.round((done / steps.length) * 100);
-};
-
-// Get status from completion %
-const getStatusFromSteps = (steps, currentPct) => {
-  if (currentPct === 100) return "Project Completed";
-  const completedTitles = steps.filter((s) => s.status === "completed").map((s) => s.title.toLowerCase());
-  
-  if (completedTitles.some((t) => t.includes("warranty"))) return "Warranty Activated";
-  if (completedTitles.some((t) => t.includes("commissioning") || t.includes("net meter"))) return "Installation Completed";
-  if (completedTitles.some((t) => t.includes("installation"))) return "Work In Progress";
-  if (completedTitles.some((t) => t.includes("payment"))) return "Customer Payment Received";
-  if (completedTitles.some((t) => t.includes("document"))) return "Documents Uploaded";
-  
-  return "Enquiry Created";
-};
+import { calcCompletion, getStatusFromSteps, processStepCompletionEngine } from "../utils/stepEngine.js";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CREATE NEW PROJECT ORDER (Lead creation)
@@ -61,29 +40,8 @@ export const createProjectOrder = async (req, res) => {
     }
 
     // Enabled steps se initial step completion records banao
-    const steps = journey.steps
-      .filter((s) => s.enabled)
-      .map((s) => ({
-        stepId: s.id,
-        stepNumber: s.stepNumber,
-        title: s.title,
-        description: s.description || "",
-        assignedTo: s.assignedTo,
-        milestoneType: s.milestoneType || 'standard',
-        paymentPercentage: s.paymentPercentage || 0,
-        slaDays: s.slaDays || 2,
-        visibleToCustomer: s.visibleToCustomer !== false,
-        visibleToEpc: s.visibleToEpc !== false,
-        status: "pending",
-        completedAt: null,
-        completedBy: "",
-        evidenceUrl: "",
-        evidenceNote: "",
-        pendingActionAlert: s.actionLabel || "",
-        isMandatory: s.isMandatory,
-        requiresAdminApproval: s.requiresAdminApproval || false,
-        completionCondition: s.completionCondition || "manual",
-      }));
+    const { mapJourneyStepsToProjectSteps } = await import('../utils/stepEngine.js');
+    const steps = mapJourneyStepsToProjectSteps(journey.steps);
 
     // First step auto-complete (Lead Captured)
     if (steps.length > 0) {
@@ -209,82 +167,26 @@ export const completeStep = async (req, res) => {
     const order = await ProjectOrder.findById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: "Order nahi mila" });
 
-    // Step dhundho
-    const stepIndex = order.steps.findIndex((s) => s.stepId === stepId);
-    if (stepIndex === -1) {
-      return res.status(404).json({ success: false, message: "Step nahi mila" });
+    const result = await processStepCompletionEngine(order, stepId, completedBy, finalUrl, finalNote);
+
+    if (!result.success) {
+      return res.status(400).json({ success: false, message: result.message });
     }
 
-    const step = order.steps[stepIndex];
-
-    if (step.status === "completed") {
-      return res.status(400).json({ success: false, message: "Step already completed hai" });
-    }
-
-    // Handle Admin Approval Flow
-    const requiresAdminApproval = step.requiresAdminApproval && completedBy !== "Admin";
-    const newStatus = requiresAdminApproval ? "awaiting-approval" : "completed";
-
-    // Step complete karo
-    order.steps[stepIndex].status = newStatus;
-    order.steps[stepIndex].completedAt = new Date();
-    order.steps[stepIndex].completedBy = completedBy;
-    order.steps[stepIndex].evidenceUrl = finalUrl || order.steps[stepIndex].evidenceUrl;
-    order.steps[stepIndex].evidenceNote = finalNote || order.steps[stepIndex].evidenceNote;
-    order.steps[stepIndex].pendingActionAlert = "";
-
-    // If awaiting approval, DO NOT activate the next step yet.
-    if (newStatus === "awaiting-approval") {
-      order.pendingActionAlert = `Waiting for Admin approval on ${step.title}`;
-      order.pendingActionFor = "company";
-    } else {
-      // Next pending step dhundho
-      const nextStep = order.steps.find(
-        (s, i) => i > stepIndex && s.status === "pending"
-      );
-
-      // Update current step info
-      if (nextStep) {
-        // Find the index of nextStep to update the array
-        const nextStepIndex = order.steps.findIndex(s => s.stepId === nextStep.stepId);
-        if (nextStepIndex !== -1) {
-          order.steps[nextStepIndex].status = "in-progress";
-          order.steps[nextStepIndex].startedAt = new Date();
-        }
-
-        order.currentStepNumber = nextStep.stepNumber;
-        order.currentStepTitle = nextStep.title;
-        order.pendingActionAlert = nextStep.pendingActionAlert || `${nextStep.title} complete karo`;
-        order.pendingActionFor = nextStep.assignedTo;
-      } else {
-        order.status = "completed";
-        order.completionPercentage = 100;
-        order.pendingActionAlert = "";
-        order.pendingActionFor = "none";
-      }
-    }
-
-    // Recalculate completion %
-    order.completionPercentage = calcCompletion(order.steps);
-
-    // Update overall status
-    order.status = getStatusFromSteps(order.steps, order.completionPercentage);
-    order.lastActivityAt = new Date();
-
-    await order.save();
+    await result.order.save();
 
     res.json({
       success: true,
-      message: `Step "${step.title}" completed! Progress: ${order.completionPercentage}%`,
+      message: result.message,
       data: {
-        orderNumber: order.orderNumber,
-        completionPercentage: order.completionPercentage,
-        currentStepNumber: order.currentStepNumber,
-        currentStepTitle: order.currentStepTitle,
-        status: order.status,
-        pendingActionAlert: order.pendingActionAlert,
-        pendingActionFor: order.pendingActionFor,
-        nextStep: nextStep ? { stepId: nextStep.stepId, title: nextStep.title, assignedTo: nextStep.assignedTo } : null,
+        orderNumber: result.order.orderNumber,
+        completionPercentage: result.order.completionPercentage,
+        currentStepNumber: result.order.currentStepNumber,
+        currentStepTitle: result.order.currentStepTitle,
+        status: result.order.status,
+        pendingActionAlert: result.order.pendingActionAlert,
+        pendingActionFor: result.order.pendingActionFor,
+        nextStep: result.nextStep ? { stepId: result.nextStep.stepId, title: result.nextStep.title, assignedTo: result.nextStep.assignedTo } : null,
       },
     });
   } catch (err) {

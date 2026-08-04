@@ -14,7 +14,7 @@ import { ProjectScreen } from "./components/ProjectScreen";
 import { ProductInstallerScreen } from "./components/ProductInstallerScreen";
 import { WorkflowSettingsScreen } from "./components/WorkflowSettingsScreen";
 import { SaaSAdminSettingsScreen } from "./components/SaaSAdminSettingsScreen";
-import { WebsiteSettingsScreen } from "./components/WebsiteSettingsScreen";
+import WebsiteSettingsScreen from "./components/WebsiteSettingsScreen";
 import { CustomerEligibilityScreen } from "./components/CustomerEligibilityScreen";
 import { OrderJourneyScreen } from "./components/OrderJourneyScreen";
 import { LiveProjectTrackingScreen } from "./components/LiveProjectTrackingScreen";
@@ -27,7 +27,7 @@ import LeadScreen from "./components/LeadScreen";
 import { DemandSupplyScreen } from "./components/DemandSupplyScreen";
 import { DiscomManagementScreen } from "./components/DiscomManagementScreen";
 import BrandManagementScreen from "./components/BrandManagementScreen";
-import DynamicWebsiteModule from "./components/DynamicWebsiteModule";
+import CountryWebsiteScreen from "./components/country/CountryWebsiteScreen";
 import StcManagementDashboard from "./components/country/StcManagementDashboard";
 
 // ── BDE Portal ─────────────────────────────────────────────────────────────
@@ -412,26 +412,8 @@ export default function App() {
           />
         );
 
-      case "website-brand":
-        return <WebsiteSettingsScreen section="brand" />;
-      case "website-hero":
-        return <WebsiteSettingsScreen section="hero" />;
-      case "website-stats":
-        return <WebsiteSettingsScreen section="stats" />;
-      case "website-benefits":
-        return <WebsiteSettingsScreen section="benefits" />;
-      case "website-howitworks":
-        return <WebsiteSettingsScreen section="howItWorks" />;
-      case "website-trust":
-        return <WebsiteSettingsScreen section="trust" />;
-      case "website-milestones":
-        return <WebsiteSettingsScreen section="milestones" />;
-      case "website-faqs":
-        return <WebsiteSettingsScreen section="faqs" />;
-      case "website-footer":
-        return <WebsiteSettingsScreen section="footer" />;
-      case "website-videos":
-        return <WebsiteSettingsScreen section="videos" />;
+      case "website-content":
+        return <WebsiteSettingsScreen />;
 
       case "customer-eligibility":
       case "eligibility-categories":
@@ -454,8 +436,7 @@ export default function App() {
         return <CustomerEligibilityScreen section="stateSubsidy" />;
 
       // ── Order Journey Settings ──────────────────────────────────
-      case "order-journey":
-        return <OrderJourneyScreen />;
+      
 
          case "epc-wallet-settings":
         return <EpcWalletSettingsScreen />;
@@ -470,7 +451,9 @@ export default function App() {
       case "brand-management":
         return <BrandManagementScreen />;
       case "country-websites":
-        return <DynamicWebsiteModule />;
+        return <CountryWebsiteScreen />;
+      case "order-journey":
+        return <OrderJourneyScreen />;
 
       case "stc-management":
         return <StcManagementDashboard />;

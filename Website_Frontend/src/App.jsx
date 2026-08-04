@@ -23,6 +23,8 @@ const EsopPanel = lazy(() => import("./components/EsopPanel"));
 const BlogPanel = lazy(() => import("./components/BlogPanel"));
 const Faqs = lazy(() => import("./components/Faqs"));
 const Footer = lazy(() => import("./components/Footer"));
+const DynamicSections = lazy(() => import("./components/DynamicSections"));
+const DynamicPageRenderer = lazy(() => import("./components/DynamicPageRenderer"));
 const EpcPartnerModal = lazy(() => import("./components/EpcPartnerModal"));
 const CustomerLogin = lazy(() => import("./customer/CustomerLogin"));
 const CustomerPortal = lazy(() => import("./customer/CustomerPortal"));
@@ -31,20 +33,64 @@ const CustomerPortal = lazy(() => import("./customer/CustomerPortal"));
 function AppInner() {
   const { customer } = useCustomerAuth();
   const { country } = useCountry();
+  const { settings } = useWebsiteSettings();
   const isAU = country === "AU";
   const [viewMode, setViewMode] = useState("home"); // home | blog | account
   const [showCustomerLogin, setShowCustomerLogin] = useState(false);
-  const settings = useWebsiteSettings();
-  const projectTypes = settings?.projectTypeConfigs?.length > 0 
-    ? settings.projectTypeConfigs 
-    : [{ type: "Residential" }, { type: "Commercial" }, { type: "Group" }];
-  const [selectedPt, setSelectedPt] = useState("");
+  const [journeySettings, setJourneySettings] = useState(null);
+  const [selectedPt, setSelectedPt] = useState(null);
   
   useEffect(() => {
-    if (projectTypes.length > 0 && !selectedPt) {
-      setSelectedPt(projectTypes[0].type);
+    // Fetch journey settings to know available project types for this country
+    const fetchJourney = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:4005"}/api/order-journey/${country || "IN"}`);
+        if(res.ok) {
+          const data = await res.json();
+          setJourneySettings(data);
+          
+          if(data.projectTypes && data.projectTypes.length > 0 && !selectedPt) {
+            setSelectedPt(data.projectTypes[0].projectType);
+          }
+        }
+      } catch(err) {
+        console.error("Failed to fetch journey settings:", err);
+      }
+    };
+    fetchJourney();
+  }, [country]);
+
+  // Merge selected project type overrides with global settings
+  const currentPtConfig = settings?.projectTypeConfigs?.find(c => c.type === selectedPt);
+  
+  // Merge dynamic sections by type
+  const globalSections = settings?.websiteContent?.dynamicSections || [];
+  const ptSections = currentPtConfig?.dynamicSections || [];
+  let mergedDynamicSections = [...globalSections];
+  ptSections.forEach(ptSec => {
+    const existingIdx = mergedDynamicSections.findIndex(gSec => gSec.type === ptSec.type);
+    if (existingIdx >= 0) {
+      mergedDynamicSections[existingIdx] = ptSec;
+    } else {
+      mergedDynamicSections.push(ptSec);
     }
-  }, [projectTypes, selectedPt]);
+  });
+
+  const displaySettings = {
+    ...settings,
+    websiteContent: {
+      ...settings?.websiteContent,
+      heroTitle: currentPtConfig?.heroTitle || settings?.websiteContent?.heroTitle,
+      heroSubtitle: currentPtConfig?.heroSubtitle || settings?.websiteContent?.heroSubtitle,
+      navItems: currentPtConfig?.navItems?.length > 0 ? currentPtConfig.navItems : settings?.websiteContent?.navItems,
+      dynamicSections: mergedDynamicSections
+    }
+  };
+
+  const hasDynamic = (type) => mergedDynamicSections.some(s => s.type === type && s.isVisible !== false);
+
+  const availableProjectTypes = journeySettings?.projectTypes?.filter(pt => pt.enabled) || 
+    (settings?.projectTypeConfigs?.length > 0 ? settings.projectTypeConfigs : [{ type: "residential", projectTypeLabel: "Residential Solar" }, { type: "commercial", projectTypeLabel: "Commercial Solar" }]);
 
   // Hash routing
   useEffect(() => {
@@ -108,6 +154,7 @@ function AppInner() {
         onOpenCustomerLogin={openCustomerSection}
         isCustomerLoggedIn={!!customer}
         customerName={customer?.fullName}
+        settings={displaySettings}
       />
 
       {/* Floating badge */}
@@ -125,24 +172,49 @@ function AppInner() {
         </div>
       </div>
 
-      <main>
+      <main className="flex-grow pt-20">
         {viewMode === "blog" ? (
           <div className="animate-fadeIn">
             <BlogPanel onBackToHome={() => { setViewMode("home"); window.location.hash = ""; window.scrollTo(0, 0); }} onScrollToForm={scrollToForm} />
           </div>
         ) : (
           <>
-            <Hero onScrollToForm={scrollToForm} projectTypes={projectTypes} selectedPt={selectedPt} onSelectPt={setSelectedPt} />
-            <Benefits onScrollToForm={scrollToForm} projectTypes={projectTypes} selectedPt={selectedPt} />
-            <HowItWorks onScrollToForm={scrollToForm} />
-            <LeadForm />
-            <TrustSection />
-            <Faqs projectTypes={projectTypes} selectedPt={selectedPt} />
+            {/* Project Type Switcher */}
+            <div className="bg-gray-50 border-b border-gray-200">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex space-x-8 overflow-x-auto py-3">
+                  {availableProjectTypes.map((pt) => (
+                    <button
+                      key={pt.type || pt.projectType}
+                      onClick={() => setSelectedPt(pt.type || pt.projectType)}
+                      className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                        selectedPt === (pt.type || pt.projectType)
+                          ? "border-blue-600 text-blue-600"
+                          : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                      }`}
+                    >
+                      {pt.projectTypeLabel || pt.type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {!hasDynamic('hero') && <Hero onScrollToForm={scrollToForm} settings={displaySettings} />}
+            {!hasDynamic('cards') && <Benefits onScrollToForm={scrollToForm} settings={displaySettings} />}
+            {!hasDynamic('snap') && <HowItWorks onScrollToForm={scrollToForm} settings={displaySettings} />}
+            {!hasDynamic('form') && (
+              <div id="eligibility-calculator">
+                <LeadForm selectedProjectType={selectedPt} settings={displaySettings} />
+              </div>
+            )}
+            <TrustSection settings={displaySettings} />
+            <DynamicPageRenderer onScrollToForm={scrollToForm} selectedProjectType={selectedPt} settings={displaySettings} />
+            {!hasDynamic('faq') && <Faqs settings={displaySettings} />}
           </>
         )}
       </main>
 
-      <Footer onScrollToForm={scrollToForm} />
+      <Footer onScrollToForm={scrollToForm} settings={displaySettings} />
 
       {showCustomerLogin && (
         <CustomerLogin

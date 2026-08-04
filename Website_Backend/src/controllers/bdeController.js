@@ -322,8 +322,14 @@ export const uploadBDEProjectDoc = async (req, res) => {
     project.steps[stepIndex].evidenceUrl = fileUrl;
     
     // Use the shared helper to advance the journey correctly
-    const { processStepCompletion } = await import('../utils/stepTrackingHelper.js');
-    await processStepCompletion(project, stepId, 'BDE', fileUrl, null);
+    const { processStepCompletionEngine } = await import('../utils/stepEngine.js');
+    const result = await processStepCompletionEngine(project, stepId, 'BDE', fileUrl, null);
+    
+    if (!result.success) {
+      return res.status(400).json({ success: false, message: result.message });
+    }
+    
+    await project.save();
     
     res.json({ success: true, project });
   } catch (error) {

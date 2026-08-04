@@ -156,6 +156,43 @@ app.use("/api/bde", bdeRoutes);
 app.use("/api/payments", paymentRoutes);
 
 
+// ── Order Journey Project Types Route (For Frontend Compatibility) ────────────
+app.get("/api/order-journey/:country", async (req, res) => {
+  try {
+    const rawCountry = req.params.country.toLowerCase();
+    const countryMap = {
+      au: "australia",
+      nz: "new_zealand",
+      uk: "uk",
+      usa: "usa",
+      in: "india",
+      india: "india",
+      australia: "australia",
+      new_zealand: "new_zealand"
+    };
+    const dbCountry = countryMap[rawCountry] || "india";
+    const { OrderJourneySettings } = await import("./src/models/OrderJourneySettings.js");
+    const settings = await OrderJourneySettings.findOne({
+      country: dbCountry,
+      state: "all",
+      district: "all",
+      discom: "all"
+    });
+    if (!settings) {
+      return res.json({ projectTypes: [] });
+    }
+    const projectTypes = settings.journeys.map(j => ({
+      projectType: j.projectType,
+      projectTypeLabel: j.projectTypeLabel || j.projectType,
+      enabled: j.enabled
+    }));
+    res.json({ projectTypes });
+  } catch (err) {
+    console.error("Error in /api/order-journey/:country:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── 404 handler ───────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ message: `Route ${req.originalUrl} not found` });

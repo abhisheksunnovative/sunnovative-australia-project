@@ -176,8 +176,23 @@ const DEFAULT_SETTINGS = {
     phone: "+91 98982 31245",
     email: "info@sunnovative.com",
     gedaCertNo: "#RJK-20412",
-    copyrightText:
-      "Sunnovative Solar System Pvt Ltd is Rajkot's premium GEDA registered EPC service provider specialized in standard residential PM Surya Ghar Yojana. Turns rooftop shadows into guaranteed cash savings.",
+    copyrightText: "Sunnovative Solar System Pvt Ltd is Rajkot's premium GEDA registered EPC service provider specialized in standard residential PM Surya Ghar Yojana. Turns rooftop shadows into guaranteed cash savings.",
+  },
+  projectForm: {
+    title: "Apply for Solar",
+    subtitle: "Fill in your details for an instant quote.",
+    formId: "default_lead_form",
+    fields: [
+      { label: "Consumer Number (For Auto-Scan)", key: "consumerNumber", type: "text", required: true, options: [] },
+      { label: "Full Name", key: "fullName", type: "text", required: true, options: [] },
+      { label: "Mobile Number", key: "mobileNumber", type: "tel", required: true, options: [] },
+      { label: "Postcode / Pincode", key: "postcode", type: "number", required: true, options: [] },
+      { label: "City", key: "city", type: "text", required: true, options: [] },
+      { label: "State", key: "customerState", type: "select", required: true, options: ["Gujarat", "Maharashtra", "Rajasthan", "New South Wales", "Victoria", "Queensland"] },
+      { label: "Average Monthly Bill", key: "monthlyBill", type: "number", required: true, options: [] },
+      { label: "Do you own the property?", key: "ownsProperty", type: "select", required: true, options: ["Yes", "No"] },
+      { label: "Upload Electricity Bill", key: "billFile", type: "file", required: false, options: [] }
+    ]
   },
   videos: {
     customerWebsiteVideo: {
@@ -191,16 +206,18 @@ const DEFAULT_SETTINGS = {
   }
 };
 
-// GET /api/website-settings — returns settings (auto-seeds defaults if empty)
+// GET /api/website-settings/:country/:projectType — returns settings (auto-seeds defaults if empty)
 export const getWebsiteSettings = async (req, res) => {
   try {
-    let settings = await WebsiteSettings.findOne({ country: req.country });
+    const country = (req.params.country || req.country || "india").toLowerCase();
+    const projectType = req.params.projectType || "default";
+    let settings = await WebsiteSettings.findOne({ country, projectType });
 
     if (!settings) {
       // First time — seed with defaults safely using upsert
       settings = await WebsiteSettings.findOneAndUpdate(
-        { country: req.country },
-        { ...DEFAULT_SETTINGS, country: req.country, _settingsKey: Math.random().toString() },
+        { country, projectType },
+        { ...DEFAULT_SETTINGS, country, projectType, _settingsKey: `${country}_${projectType}_${Math.random()}` },
         { new: true, upsert: true }
       );
     }
@@ -212,12 +229,15 @@ export const getWebsiteSettings = async (req, res) => {
   }
 };
 
-// PUT /api/website-settings — full upsert (admin saves)
+// PUT /api/website-settings/:country/:projectType — full upsert (admin saves)
 export const updateWebsiteSettings = async (req, res) => {
   try {
+    const country = (req.params.country || req.country || "india").toLowerCase();
+    const projectType = req.params.projectType || "default";
+    
     const updated = await WebsiteSettings.findOneAndUpdate(
-      { country: req.country },
-      { ...req.body, country: req.country },
+      { country, projectType },
+      { ...req.body, country, projectType },
       { new: true, upsert: true, runValidators: false }
     );
 
