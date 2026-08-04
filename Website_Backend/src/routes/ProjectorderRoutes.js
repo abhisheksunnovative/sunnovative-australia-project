@@ -12,7 +12,9 @@ import {
   getProjectOrderStats,
   qualifyProjectOrder,
   confirmInstallDate,
-  updateStcStatus
+  updateStcStatus,
+  approveStep,
+  rejectStep
 } from "../controllers/projectOrderController.js";
 import upload from "../middleware/multer.js";
 
@@ -31,6 +33,8 @@ router.put("/:id", updateProjectOrder);
 // Journey actions
 router.post("/:id/qualify", qualifyProjectOrder);
 router.post("/:id/complete-step", upload.single('evidence'), completeStep);
+router.post("/:id/steps/:stepId/approve", approveStep);
+router.post("/:id/steps/:stepId/reject", rejectStep);
 router.put("/:id/location", updateLocation);
 router.put("/:id/assign-epc", assignEPC);
 

@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
+import HorizontalStepper from "./HorizontalStepper";
 import {
   ArrowLeft,
   ArrowRight,
@@ -856,139 +857,22 @@ export default function EsopPanel({ viewMode, setViewMode }) {
               </p>
             </div>
 
-            {/* Micro Tracker Login Module */}
-            <div className="bg-slate-950/90 border border-slate-800 p-5 rounded-3xl w-full md:max-w-md shadow-2xl relative">
-              {isTrackerLoggedIn && currentAccount ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-slate-850 pb-3">
-                    <div>
-                      <span className="text-[9px] text-emerald-400 font-extrabold uppercase tracking-widest block">
-                        ● Ledger Synchronized
-                      </span>
-                      <h4 className="text-sm font-bold text-white mt-1 leading-none">
-                        {currentAccount.consumerName}
-                      </h4>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setIsTrackerLoggedIn(false);
-                        setCurrentAccount(null);
-                      }}
-                      className="text-[10px] font-bold text-slate-400 hover:text-rose-400 bg-slate-900 border border-slate-805 px-2.5 py-1.5 rounded-lg transition"
-                    >
-                      Logout Tracker
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="bg-slate-900/60 p-2 rounded-xl">
-                      <span className="text-[9px] text-slate-500 uppercase font-black block">
-                        Consumer Code
-                      </span>
-                      <span className="font-mono font-bold text-slate-200">
-                        {currentAccount.consumerNumber}
-                      </span>
-                    </div>
-                    <div className="bg-slate-900/60 p-2 rounded-xl">
-                      <span className="text-[9px] text-slate-500 uppercase font-black block">
-                        Eligible Capacity
-                      </span>
-                      <span className="font-bold text-solar-yellow">
-                        {currentAccount.eligibleCapacityKw} kW Size
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-1.5 bg-slate-900/95 p-1 rounded-xl">
-                    <button
-                      onClick={() => setActiveTrackerTab("milestones")}
-                      className={`flex-1 py-1.5 text-center text-[10px] font-black uppercase rounded-lg transition-all ${
-                        activeTrackerTab === "milestones"
-                          ? "bg-[#0081C9] text-white"
-                          : "text-slate-400 hover:text-white"
-                      }`}
-                    >
-                      Tracker Steps
-                    </button>
-                    <button
-                      onClick={() => setActiveTrackerTab("technical")}
-                      className={`flex-1 py-1.5 text-center text-[10px] font-black uppercase rounded-lg transition-all ${
-                        activeTrackerTab === "technical"
-                          ? "bg-[#0081C9] text-white"
-                          : "text-slate-400 hover:text-white"
-                      }`}
-                    >
-                      Tech Specs
-                    </button>
-                    <button
-                      onClick={() => setActiveTrackerTab("telemetry")}
-                      className={`flex-1 py-1.5 text-center text-[10px] font-black uppercase rounded-lg transition-all ${
-                        activeTrackerTab === "telemetry"
-                          ? "bg-[#0081C9] text-white"
-                          : "text-slate-400 hover:text-white"
-                      }`}
-                    >
-                      Live SCADA
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <form onSubmit={handleTrackerLogin} className="space-y-3">
-                  <div className="flex items-center gap-1.5 text-solar-yellow">
-                    <Lock className="w-4 h-4 shrink-0" />
-                    <span className="text-[11px] font-black uppercase tracking-wider">
-                      Sign In Active Customer File
-                    </span>
-                  </div>
-
-                  <div className="relative">
-                    <input
-                      type="text"
-                      maxLength={11}
-                      placeholder="Enter PGVCL Grid Number"
-                      value={consumerNumInput}
-                      onChange={(e) =>
-                        setConsumerNumInput(e.target.value.replace(/\D/g, ""))
-                      }
-                      className="w-full bg-slate-900/90 border border-slate-750 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-600 font-mono outline-none focus:ring-1 focus:ring-solar-yellow transition"
-                    />
-
-                    <User className="w-3.5 h-3.5 text-slate-500 absolute right-4 top-3.5" />
-                  </div>
-
-                  {loginError && (
-                    <p className="text-red-400 text-[10px] font-bold leading-tight flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />{" "}
-                      {loginError}
-                    </p>
-                  )}
-
-                  <button
-                    type="submit"
-                    className="w-full bg-[#0081C9] hover:bg-[#006EAD] text-white font-black uppercase text-xs py-2.5 rounded-xl transition flex items-center justify-center gap-1"
-                  >
-                    Load Progress Ledger
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-
-                  <div className="text-[9px] text-slate-500 text-center leading-normal mt-1">
-                    Demo Code:{" "}
-                    <span
-                      className="font-mono text-slate-350 cursor-pointer underline mr-2"
-                      onClick={() => setConsumerNumInput("04602123456")}
-                    >
-                      04602123456
-                    </span>{" "}
-                    or{" "}
-                    <span
-                      className="font-mono text-slate-350 cursor-pointer underline"
-                      onClick={() => setConsumerNumInput("04608987654")}
-                    >
-                      04608987654
-                    </span>
-                  </div>
-                </form>
-              )}
+            {/* Authenticated Tracker CTA */}
+            <div className="bg-slate-950/90 border border-slate-800 p-6 rounded-3xl w-full md:max-w-md shadow-2xl relative flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-blue-900/40 rounded-full flex items-center justify-center mb-4 border border-blue-500/30">
+                <Shield className="w-8 h-8 text-blue-400" />
+              </div>
+              <h4 className="text-lg font-black text-white mb-2">Track Your Project Securely</h4>
+              <p className="text-xs text-slate-400 mb-6">
+                Login to your Solar Customer Portal to view real-time project progress, manage documents, and communicate with your assigned EPC installer.
+              </p>
+              <button
+                onClick={() => { window.location.hash = "account"; }}
+                className="w-full bg-[#0081C9] hover:bg-[#006EAD] text-white font-black uppercase text-xs py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20"
+              >
+                Login to Customer Portal
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>
@@ -1062,86 +946,21 @@ export default function EsopPanel({ viewMode, setViewMode }) {
 
                 {/* Progress Timeline Graphic */}
                 <div className="relative pt-4 pb-6">
-                  {/* Progress Connector Track */}
-                  <div className="absolute top-[32px] left-8 right-8 h-1 bg-slate-850 rounded"></div>
-                  <div
-                    className="absolute top-[32px] left-8 h-1 bg-gradient-to-r from-[#0081C9] to-emerald-400 rounded transition-all duration-700"
-                    style={{
-                      width: `${(currentAccount.installDetails.currentStepIndex / 5) * 85}%`,
-                    }}
-                  ></div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-6 gap-6 relative">
-                    {ledgerSteps.map((step, idx) => {
-                      const isActive =
-                        idx === currentAccount.installDetails.currentStepIndex;
-                      const isComplete =
-                        idx < currentAccount.installDetails.currentStepIndex;
-
-                      return (
-                        <div
-                          key={idx}
-                          className="flex md:flex-col items-start gap-4 md:gap-2 relative text-left"
-                        >
-                          <div className="md:mx-auto relative z-10">
-                            <div
-                              className={`w-9 h-9 rounded-full border-2 flex items-center justify-center text-xs font-black transition-all ${
-                                isComplete
-                                  ? "bg-emerald-500 border-emerald-400 text-slate-950"
-                                  : isActive
-                                    ? "bg-solar-yellow border-white text-slate-950 scale-105 shadow-md shadow-amber-400/10"
-                                    : "bg-slate-900 border-slate-700 text-slate-450"
-                              }`}
-                            >
-                              {isComplete ? (
-                                <Check className="w-5 h-5 stroke-[3]" />
-                              ) : (
-                                idx + 1
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex-1 md:text-center">
-                            <div
-                              className={`text-xs font-black ${
-                                isComplete
-                                  ? "text-emerald-400"
-                                  : isActive
-                                    ? "text-solar-yellow"
-                                    : "text-slate-400"
-                              }`}
-                            >
-                              {step.title}
-                            </div>
-                            <p className="text-[10px] text-slate-450 mt-1 leading-snug">
-                              {step.info}
-                            </p>
-
-                            {/* Date Log */}
-                            <span className="block text-[9px] text-[#0081C9] font-mono mt-1 leading-tight font-bold">
-                              {idx === 0 &&
-                                currentAccount.installDetails.dates.booked}
-                              {idx === 1 &&
-                                currentAccount.installDetails.dates
-                                  .surveyCompleted}
-                              {idx === 2 &&
-                                currentAccount.installDetails.dates
-                                  .gedaApproved}
-                              {idx === 3 &&
-                                currentAccount.installDetails.dates
-                                  .installationStart}
-                              {idx === 4 &&
-                                currentAccount.installDetails.dates
-                                  .netMeteringSet}
-                              {idx === 5 &&
-                                currentAccount.installDetails.dates
-                                  .subsidyDisbursed}
-                            </span>
-                          </div>
-                        </div>
-                      );
+                  <HorizontalStepper
+                    theme="dark"
+                    steps={ledgerSteps.map((step, idx) => {
+                      const dateVal =
+                        idx === 0 ? currentAccount.installDetails.dates.booked :
+                        idx === 1 ? currentAccount.installDetails.dates.surveyCompleted :
+                        idx === 2 ? currentAccount.installDetails.dates.gedaApproved :
+                        idx === 3 ? currentAccount.installDetails.dates.installationStart :
+                        idx === 4 ? currentAccount.installDetails.dates.netMeteringSet :
+                        idx === 5 ? currentAccount.installDetails.dates.subsidyDisbursed : null;
+                      
+                      return { title: step.title, info: dateVal || step.info };
                     })}
-                  </div>
+                    currentStatus={ledgerSteps[currentAccount.installDetails.currentStepIndex]?.title}
+                  />
                 </div>
 
                 {/* Economic Breakdown Ledger */}
@@ -2041,15 +1860,11 @@ export default function EsopPanel({ viewMode, setViewMode }) {
                   <button
                     onClick={() => {
                       setIsCheckoutOpen(false);
-                      setIsTrackerLoggedIn(true);
-                      // load freshly added account
-                      if (accountsDb[consumerCode]) {
-                        setCurrentAccount(accountsDb[consumerCode]);
-                      }
+                      window.location.hash = "account";
                     }}
                     className="bg-emerald-555 hover:bg-emerald-600 font-bold text-slate-105 text-xs uppercase px-6 py-2.5 rounded-xl transition cursor-pointer"
                   >
-                    Open GEDA Live Progress Tracker
+                    Open Project Tracking Dashboard
                   </button>
                 </div>
               ) : (

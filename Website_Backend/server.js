@@ -67,6 +67,12 @@ const allowedOrigins = [
   process.env.CLIENT_URL, // e.g. http://localhost:3001
   process.env.ADMIN_URL,  // e.g. http://localhost:3000
   process.env.EPC_CLIENT_URL, // e.g. http://localhost:5173 (optional, EPC frontend)
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://localhost:3002",
+  "http://localhost:3003",
+  "http://localhost:5173",
+  "http://localhost:5174",
   "https://sunnovative-australia-project.onrender.com",
   "https://sunnovative-australia-project-admin.onrender.com" // Just in case they deploy admin too
 ].filter(Boolean);

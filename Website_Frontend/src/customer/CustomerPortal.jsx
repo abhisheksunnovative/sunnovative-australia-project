@@ -72,83 +72,82 @@ function ProgressTracker({ status, pct }) {
   );
 }
 
-function JourneyStep({ step, isLast }) {
-  const [open, setOpen] = useState(false);
-  const done = step.status === "completed";
-  const active = step.status === "in-progress";
-  const blocked = step.status === "blocked";
+function HorizontalJourneyTracker({ steps }) {
+  const displaySteps = steps?.length > 0 ? steps : [
+    { stepNumber: 1, title: 'Lead Captured', status: 'completed' },
+    { stepNumber: 2, title: 'EPC Assigned', status: 'pending' },
+    { stepNumber: 3, title: 'Site Survey', status: 'pending' },
+    { stepNumber: 4, title: 'Installation', status: 'pending' },
+    { stepNumber: 5, title: 'Completed', status: 'pending' }
+  ];
 
   return (
-    <div className="flex gap-3">
-      <div className="flex flex-col items-center">
-        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 z-10 ring-4 ${
-          done    ? "bg-green-500 text-white ring-green-100" :
-          active  ? "bg-yellow-400 text-yellow-900 ring-yellow-100" :
-          blocked ? "bg-red-400 text-white ring-red-100" :
-                    "bg-white border-2 border-slate-200 text-slate-400 ring-slate-50"
-        }`}>
-          {done ? <CheckCheck className="w-3.5 h-3.5" /> : active ? <TrendingUp className="w-3 h-3" /> : blocked ? <X className="w-3.5 h-3.5" /> : <span>{step.stepNumber}</span>}
-        </div>
-        {!isLast && <div className={`w-0.5 flex-1 min-h-[24px] mt-1 ${done ? "bg-green-300" : "bg-slate-200"}`} />}
-      </div>
+    <div className="w-full overflow-x-auto pb-4 scrollbar-hide">
+      <div className="min-w-[600px] flex items-start justify-between relative mt-4 px-4">
+        {/* Background track line */}
+        <div className="absolute left-10 right-10 top-5 h-1 bg-slate-200 -z-10" />
+        
+        {displaySteps.map((step, i) => {
+          const done = step.status === "completed";
+          const active = step.status === "in-progress" || step.status === "pending"; // For visualization, if no active, show pending as gray
+          const reallyActive = step.status === "in-progress" || (step.status === "pending" && (i === 0 || displaySteps[i-1]?.status === "completed"));
+          const blocked = step.status === "blocked";
+          
+          return (
+            <div key={i} className="flex flex-col items-center flex-1 relative group cursor-default">
+              {/* Colored track line (if completed) */}
+              {i > 0 && (done || reallyActive) && (
+                <div className={`absolute right-[50%] left-[-50%] top-5 h-1 -z-10 transition-all ${done || reallyActive ? 'bg-orange-400' : 'bg-slate-200'}`} />
+              )}
+              
+              {/* Circle */}
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ring-4 ring-white mb-2 transition-all ${
+                done ? "bg-orange-500 text-white shadow-md" : 
+                reallyActive ? "bg-amber-400 text-white shadow-md ring-amber-50" : 
+                blocked ? "bg-red-500 text-white shadow-md" : 
+                "bg-slate-200 text-slate-400"
+              }`}>
+                {done ? <Check className="w-5 h-5" /> : 
+                 blocked ? <XCircle className="w-5 h-5" /> : 
+                 <span className={reallyActive ? "text-white" : ""}>{step.stepNumber || (i+1)}</span>}
+              </div>
+              
+              {/* Title */}
+              <p className={`text-xs text-center font-bold px-2 max-w-[120px] ${
+                done ? "text-slate-800" : 
+                reallyActive ? "text-amber-700" : 
+                "text-slate-400"
+              }`}>
+                {step.title}
+              </p>
 
-      <div className={`flex-1 pb-5 cursor-pointer`} onClick={() => setOpen(!open)}>
-        <div className={`rounded-2xl border p-4 transition-all ${
-          active  ? "border-yellow-300 bg-yellow-50 shadow-sm" :
-          done    ? "border-green-100 bg-green-50/40" :
-          blocked ? "border-red-200 bg-red-50" :
-                    "border-slate-100 bg-white"
-        }`}>
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className={`text-sm font-bold ${!done && !active && !blocked ? "text-slate-400" : "text-slate-800"}`}>{step.title}</p>
-              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+              {/* Assignments / Dates */}
+              {step.assignedTo && (
+                <span className={`text-[9px] font-bold mt-1 px-1.5 py-0.5 rounded-full ${
                   step.assignedTo === "epc-partner" ? "bg-purple-100 text-purple-700" :
                   step.assignedTo === "customer" ? "bg-blue-100 text-blue-700" :
                   "bg-slate-100 text-slate-600"
                 }`}>
-                  {step.assignedTo === "epc-partner" ? "⚡ EPC Partner" : step.assignedTo === "customer" ? "👤 Aap" : "🏢 Sunnovative"}
+                  {step.assignedTo === "epc-partner" ? "⚡ EPC" : step.assignedTo === "customer" ? "👤 Aap" : "🏢 Us"}
                 </span>
-                {step.estimatedDays > 0 && (
-                  <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
-                    <Clock className="w-2.5 h-2.5" />{step.estimatedDays}d est.
-                  </span>
-                )}
-              </div>
-            </div>
-            {open ? <ChevronUp className="w-3.5 h-3.5 text-slate-400" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400" />}
-          </div>
-
-          {step.pendingActionAlert && step.status !== "completed" && (
-            <div className="mt-2 flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded-xl">
-              <Bell className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
-              <p className="text-[11px] text-amber-700 font-medium">{step.pendingActionAlert}</p>
-            </div>
-          )}
-
-          {open && (
-            <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+              )}
+              
               {step.completedAt && (
-                <p className="text-[11px] text-slate-500 flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3 text-green-500" />
-                  Completed: {fmtDate(step.completedAt)}{step.completedBy ? ` by ${step.completedBy}` : ""}
+                <p className="text-[10px] text-slate-500 mt-1">{fmtDate(step.completedAt)}</p>
+              )}
+              {step.pendingActionAlert && reallyActive && (
+                <p className="text-[9px] text-red-600 bg-red-50 px-1 py-0.5 rounded mt-1 font-bold text-center leading-tight max-w-[110px]">
+                  {step.pendingActionAlert}
                 </p>
               )}
-              {step.evidenceNote && <p className="text-[11px] text-slate-500 italic">"{step.evidenceNote}"</p>}
-              {step.evidenceUrl && (
-                <a href={step.evidenceUrl} target="_blank" rel="noreferrer"
-                   className="flex items-center gap-1.5 text-[11px] text-blue-600 hover:text-blue-800 font-semibold">
-                  <FileText className="w-3 h-3" />View attached document
-                </a>
-              )}
             </div>
-          )}
-        </div>
+          )
+        })}
       </div>
     </div>
   );
 }
+
 
 // ── SOLAR PACKAGES ────────────────────────────────────────────────────────────
 function SolarPackages({ onApply }) {
@@ -462,7 +461,15 @@ function ProjectDetail({ projectId, onBack, authFetch }) {
   return (
     <div className="space-y-5">
       {/* Hero card */}
-      <div className="bg-gradient-to-br from-solar-navy via-slate-800 to-slate-900 rounded-3xl p-6 text-white relative overflow-hidden">
+      <div className={`bg-gradient-to-br ${
+        project?.projectType?.toLowerCase().includes("commercial") || project?.projectType?.toLowerCase().includes("industrial")
+          ? "from-amber-600 via-orange-500 to-amber-700" 
+          : project?.projectType?.toLowerCase().includes("agri")
+            ? "from-emerald-700 via-green-600 to-emerald-800"
+            : project?.projectType?.toLowerCase().includes("off-grid") || project?.projectType?.toLowerCase().includes("off grid")
+              ? "from-violet-700 via-purple-600 to-violet-800"
+              : "from-solar-navy via-slate-800 to-slate-900"
+      } rounded-3xl p-6 text-white relative overflow-hidden`}>
         <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400/5 rounded-full -translate-y-8 translate-x-8" />
         <div className="absolute bottom-0 left-0 w-20 h-20 bg-blue-400/5 rounded-full translate-y-4 -translate-x-4" />
 
@@ -549,6 +556,71 @@ function ProjectDetail({ projectId, onBack, authFetch }) {
         </div>
       )}
 
+      {/* Australia BDE EPC Recommendation Block */}
+      {project.bdeRecommendationStatus === "pending" && project.recommendedEpcs?.length > 0 && (
+        <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-blue-200 rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center shrink-0 shadow-sm text-white">
+              <Star className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-blue-950">Recommended Installers</h3>
+              <p className="text-xs font-medium text-blue-800 mt-0.5">Humare BDE ne aapke project ke liye {project.recommendedEpcs.length} best EPCs select kiye hain. Kripya ek chunein.</p>
+            </div>
+          </div>
+          
+          <div className="space-y-3">
+            {project.recommendedEpcs.map(epc => (
+              <div key={epc._id} className="bg-white border border-blue-100 rounded-xl p-4 flex items-center justify-between gap-4">
+                <div>
+                  <p className="font-black text-slate-800">{epc.companyName}</p>
+                  <p className="text-xs text-slate-500">{epc.city}, {epc.state} • ⭐ {epc.rating} Rating</p>
+                </div>
+                <button 
+                  onClick={async () => {
+                    if (window.confirm(`Kya aap ${epc.companyName} ko as a installer accept karna chahte hain?`)) {
+                      try {
+                        const res = await authFetch(`/api/customer/projects/${projectId}/accept-epc`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ epcId: epc._id, epcName: epc.companyName })
+                        });
+                        const d = await res.json();
+                        if (d.success) {
+                          alert("EPC Successfully Assigned! 🚀");
+                          fetchProject();
+                        } else alert(d.message || "Failed to accept EPC");
+                      } catch(e) { alert("Error connecting to server"); }
+                    }
+                  }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition shadow-sm whitespace-nowrap"
+                >
+                  Accept & Assign
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <button 
+            onClick={async () => {
+              if (window.confirm("Are you sure you want to reject all recommendations and request new ones?")) {
+                try {
+                  const res = await authFetch(`/api/customer/projects/${projectId}/reject-epcs`, { method: "POST" });
+                  const d = await res.json();
+                  if (d.success) {
+                    alert("Recommendations rejected. Your BDE will send new ones soon.");
+                    fetchProject();
+                  } else alert(d.message);
+                } catch(e) { alert("Error connecting to server"); }
+              }
+            }}
+            className="w-full mt-4 py-2 border border-blue-200 text-blue-600 font-bold text-xs rounded-xl hover:bg-blue-100 transition"
+          >
+            Reject All & Request New
+          </button>
+        </div>
+      )}
+
       {/* EPC Partner */}
       {project.assignedEPCName && (
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
@@ -572,25 +644,14 @@ function ProjectDetail({ projectId, onBack, authFetch }) {
           </div>
         </div>
       )}
-
-      {/* Journey Timeline */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5">
-        <p className="font-black text-slate-800 mb-4 flex items-center gap-2">
-          <BarChart3 className="w-4 h-4 text-yellow-500" />Installation Journey
-        </p>
-        {project.steps?.length > 0 ? (
-          <div>
-            {project.steps.map((step, i) => (
-              <JourneyStep key={i} step={step} isLast={i === project.steps.length - 1} />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-6 text-slate-400">
-            <Clock className="w-8 h-8 mx-auto mb-2 opacity-30" />
-            <p className="text-sm">Journey steps assign hone ka wait kar rahe hain</p>
-            <p className="text-xs mt-1">Qualification ke baad steps dikhenge</p>
-          </div>
-        )}
+      {/* ── PROGRESS TRACKER (HORIZONTAL) ── */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm mt-4">
+        <div className="flex items-center gap-2 mb-4">
+          <BarChart3 className="w-4 h-4 text-yellow-500" />
+          <h3 className="font-black text-slate-800">Installation Journey</h3>
+        </div>
+        
+        <HorizontalJourneyTracker steps={project.steps} />
       </div>
 
       {/* Documents */}
@@ -1027,10 +1088,7 @@ export default function CustomerPortal({ onClose }) {
 
   const TABS = [
     { id: "home",     icon: <LayoutDashboard className="w-4 h-4" />, label: "Home" },
-    { id: "apply",    icon: <Plus className="w-4 h-4" />,            label: "Apply" },
     { id: "projects", icon: <FolderOpen className="w-4 h-4" />,      label: `Projects${projects.length ? ` (${projects.length})` : ""}` },
-    { id: "epc",      icon: <Zap className="w-4 h-4" />,             label: "Installers" },
-    { id: "profile",  icon: <User className="w-4 h-4" />,            label: "Profile" },
   ];
 
   return (
@@ -1232,13 +1290,20 @@ export default function CustomerPortal({ onClose }) {
                   {active.length > 0 && (
                     <div className="space-y-3">
                       <p className="text-xs font-black text-slate-400 uppercase tracking-wider">Active ({active.length})</p>
-                      {active.map(p => (
-                        <div key={p._id} className="bg-white border border-slate-200 rounded-2xl p-5 cursor-pointer hover:shadow-md hover:border-yellow-300 transition-all"
+                      {active.map(p => {
+                        const isComm = p.projectType?.toLowerCase().includes("commercial") || p.projectType?.toLowerCase().includes("industrial");
+                        const isAgri = p.projectType?.toLowerCase().includes("agri");
+                        const isOffGrid = p.projectType?.toLowerCase().includes("off-grid") || p.projectType?.toLowerCase().includes("off grid");
+                        const cardBg = isComm ? "bg-orange-50/30 border-orange-200" : isAgri ? "bg-green-50/30 border-green-200" : isOffGrid ? "bg-purple-50/30 border-purple-200" : "bg-white border-slate-200";
+                        const headerCol = isComm ? "text-orange-900" : isAgri ? "text-green-900" : isOffGrid ? "text-purple-900" : "text-slate-800";
+                        
+                        return (
+                        <div key={p._id} className={`${cardBg} border rounded-2xl p-5 cursor-pointer hover:shadow-md hover:border-yellow-300 transition-all`}
                           onClick={() => { setProjectView("detail"); setSelectedProjectId(p._id); }}>
                           <div className="flex justify-between items-start mb-3">
                             <div>
                               <p className="text-[11px] font-bold text-slate-400">{p.orderNumber}</p>
-                              <p className="font-black text-slate-800 mt-0.5">{p.projectTypeLabel || p.projectType} Solar</p>
+                              <p className={`font-black ${headerCol} mt-0.5`}>{p.projectTypeLabel || p.projectType} Solar</p>
                               {p.location?.city && <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1"><MapPin className="w-3 h-3" />{p.location.city}</p>}
                             </div>
                             <Badge status={p.status} />
@@ -1274,28 +1339,38 @@ export default function CustomerPortal({ onClose }) {
                             <p className="text-[10px] text-slate-400 mt-2 flex items-center gap-1"><Zap className="w-3 h-3 text-yellow-500" />Installer Assigned</p>
                           )}
                         </div>
-                      ))}
+                      );
+                      })}
                     </div>
                   )}
 
                   {done.length > 0 && (
                     <div className="space-y-3">
                       <p className="text-xs font-black text-slate-400 uppercase tracking-wider">Completed ({done.length})</p>
-                      {done.map(p => (
-                        <div key={p._id} className="bg-white border border-green-100 rounded-2xl p-4 cursor-pointer hover:shadow-sm transition-all"
-                          onClick={() => { setProjectView("detail"); setSelectedProjectId(p._id); }}>
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <p className="text-[11px] text-slate-400">{p.orderNumber}</p>
-                              <p className="font-bold text-slate-700 text-sm">{p.projectTypeLabel || p.projectType} Solar</p>
+                      {done.map(p => {
+                        const isComm = p.projectType?.toLowerCase().includes("commercial") || p.projectType?.toLowerCase().includes("industrial");
+                        const isAgri = p.projectType?.toLowerCase().includes("agri");
+                        const isOffGrid = p.projectType?.toLowerCase().includes("off-grid") || p.projectType?.toLowerCase().includes("off grid");
+                        const cardBg = isComm ? "bg-orange-50 border-orange-200" : isAgri ? "bg-green-50 border-green-200" : isOffGrid ? "bg-purple-50 border-purple-200" : "bg-white border-green-100";
+                        const textColor = isComm ? "text-orange-900" : isAgri ? "text-green-900" : isOffGrid ? "text-purple-900" : "text-slate-700";
+                        const subTextColor = isComm ? "text-orange-700" : isAgri ? "text-green-700" : isOffGrid ? "text-purple-700" : "text-green-600";
+                        
+                        return (
+                          <div key={p._id} className={`${cardBg} border rounded-2xl p-4 cursor-pointer hover:shadow-sm transition-all`}
+                            onClick={() => { setProjectView("detail"); setSelectedProjectId(p._id); }}>
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="text-[11px] text-slate-400">{p.orderNumber}</p>
+                                <p className={`font-bold ${textColor} text-sm`}>{p.projectTypeLabel || p.projectType} Solar</p>
+                              </div>
+                              <Badge status={p.status} />
                             </div>
-                            <Badge status={p.status} />
+                            <p className={`text-xs ${subTextColor} font-bold mt-2 flex items-center gap-1`}>
+                              <Award className="w-3 h-3" />Subsidy: {p.estimatedSubsidy ? fmt(p.estimatedSubsidy) : "—"}
+                            </p>
                           </div>
-                          <p className="text-xs text-green-600 font-bold mt-2 flex items-center gap-1">
-                            <Award className="w-3 h-3" />Subsidy: {p.estimatedSubsidy ? fmt(p.estimatedSubsidy) : "—"}
-                          </p>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </>

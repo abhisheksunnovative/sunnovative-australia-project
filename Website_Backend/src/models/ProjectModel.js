@@ -12,13 +12,15 @@ const StepCompletionSchema = new mongoose.Schema({
     enum: ['standard', 'customer_payment', 'epc_advance', 'rating', 'stc_minting', 'doc_upload'], 
     default: 'standard' 
   },
+  requiresAdminApproval: { type: Boolean, default: false },
+  completionCondition: { type: String, enum: ["manual", "document_upload", "admin_approval"], default: "manual" },
   paymentPercentage: { type: Number, default: 0 },
   visibleToCustomer: { type: Boolean, default: true },
   visibleToEpc: { type: Boolean, default: true },
   slaDays: { type: Number, default: 2 },
   status: {
     type: String,
-    enum: ["pending", "in-progress", "completed", "skipped", "blocked"],
+    enum: ["pending", "in-progress", "awaiting-approval", "completed", "skipped", "blocked"],
     default: "pending",
   },
   completedAt: { type: Date, default: null },
@@ -103,6 +105,8 @@ const ProjectOrderSchema = new mongoose.Schema(
     assignedEPCId: { type: String, default: null },
     assignedEPCName: { type: String, default: "" },
     assignedBde: { type: mongoose.Schema.Types.ObjectId, ref: 'BDE', default: null },
+    recommendedEpcs: [{ type: mongoose.Schema.Types.ObjectId, ref: 'EpcPartner' }],
+    bdeRecommendationStatus: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
 
     // ── Journey & Step Tracking ───────────────────────────────
     currentStepNumber: { type: Number, default: 1 },

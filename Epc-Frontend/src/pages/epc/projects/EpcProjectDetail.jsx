@@ -1,8 +1,76 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Check, XCircle } from 'lucide-react';
 import epcApi from '../../../api/epcApi';
 
-const EpcProjectDetail = () => {
+// ── Shared Horizontal Tracker ──────────────────────────────────────────────────
+function HorizontalJourneyTracker({ steps }) {
+  const displaySteps = steps?.length > 0 ? steps : [
+    { stepNumber: 1, title: 'Lead Captured', status: 'completed' },
+    { stepNumber: 2, title: 'EPC Assigned', status: 'pending' },
+    { stepNumber: 3, title: 'Site Survey', status: 'pending' },
+    { stepNumber: 4, title: 'Installation', status: 'pending' },
+    { stepNumber: 5, title: 'Completed', status: 'pending' }
+  ];
+
+  return (
+    <div className="w-full overflow-x-auto pb-4 scrollbar-hide">
+      <div className="min-w-[600px] flex items-start justify-between relative mt-4 px-4">
+        <div className="absolute left-10 right-10 top-5 h-1 bg-gray-200 -z-10" />
+        
+        {displaySteps.map((step, i) => {
+          const done = step.status === "completed";
+          const active = step.status === "in-progress" || step.status === "pending";
+          const reallyActive = step.status === "in-progress" || (step.status === "pending" && (i === 0 || displaySteps[i-1]?.status === "completed"));
+          const blocked = step.status === "blocked";
+          
+          return (
+            <div key={i} className="flex flex-col items-center flex-1 relative group cursor-default">
+              {i > 0 && (done || reallyActive) && (
+                <div className={`absolute right-[50%] left-[-50%] top-5 h-1 -z-10 transition-all ${done || reallyActive ? 'bg-blue-400' : 'bg-gray-200'}`} />
+              )}
+              
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ring-4 ring-white mb-2 transition-all ${
+                done ? "bg-blue-600 text-white shadow-md" : 
+                reallyActive ? "bg-blue-400 text-white shadow-md ring-blue-50" : 
+                blocked ? "bg-red-500 text-white shadow-md" : 
+                "bg-gray-200 text-gray-400"
+              }`}>
+                {done ? <Check className="w-5 h-5" /> : 
+                 blocked ? <XCircle className="w-5 h-5" /> : 
+                 <span className={reallyActive ? "text-white" : ""}>{step.stepNumber || (i+1)}</span>}
+              </div>
+              
+              <p className={`text-xs text-center font-bold px-2 max-w-[120px] ${
+                done ? "text-gray-800" : 
+                reallyActive ? "text-blue-700" : 
+                "text-gray-400"
+              }`}>
+                {step.title}
+              </p>
+
+              {step.assignedTo && (
+                <span className={`text-[9px] font-bold mt-1 px-1.5 py-0.5 rounded-full ${
+                  step.assignedTo === "epc-partner" ? "bg-purple-100 text-purple-700" :
+                  step.assignedTo === "customer" ? "bg-green-100 text-green-700" :
+                  "bg-gray-100 text-gray-600"
+                }`}>
+                  {step.assignedTo === "epc-partner" ? "⚡ EPC" : step.assignedTo === "customer" ? "👤 Customer" : "🏢 Admin"}
+                </span>
+              )}
+              
+              {step.completedAt && (
+                <p className="text-[10px] text-gray-500 mt-1">
+                  {new Date(step.completedAt).toLocaleDateString("en-IN", { day: '2-digit', month: 'short' })}
+                </p>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  );
+}const EpcProjectDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [project, setProject]       = useState(null);
@@ -108,6 +176,11 @@ const EpcProjectDetail = () => {
             : 'bg-red-50 border-red-200 text-red-700'
         }`}>{msg.text}</div>
       )}
+
+      {/* Horizontal Journey Tracker */}
+      <SectionCard title="Live Journey Tracking">
+        <HorizontalJourneyTracker steps={project.steps} />
+      </SectionCard>
 
       {/* Dynamic Project Steps */}
       <SectionCard title="Project Journey Tasks">

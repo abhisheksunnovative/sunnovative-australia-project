@@ -108,7 +108,7 @@ export default function DynamicWebsiteModule() {
       </div>
 
       <div className="flex gap-4 border-b mb-6">
-        {['general', 'landing', 'faqs', 'seo'].map(tab => (
+        {['general', 'landing', 'project-types', 'faqs', 'seo'].map(tab => (
           <button 
             key={tab} 
             onClick={() => setActiveTab(tab)}
@@ -140,6 +140,80 @@ export default function DynamicWebsiteModule() {
                 <input type="checkbox" checked={settings.isEnabled} onChange={e => updateNested(['isEnabled'], e.target.checked)} className="w-5 h-5"/>
                 <label className="font-semibold text-slate-700">Enable this country website</label>
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'project-types' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold">Project Types & Upgrade Limits</h2>
+              <button 
+                onClick={() => {
+                  const configs = settings.projectTypeConfigs || [];
+                  updateNested(['projectTypeConfigs'], [...configs, { type: 'New Project Type', maxKwLimit: 10 }]);
+                }} 
+                className="text-sm text-blue-600 font-semibold border border-blue-600 px-3 py-1 rounded-lg hover:bg-blue-50"
+              >
+                + Add Project Type
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {(settings.projectTypeConfigs || []).map((pt, idx) => (
+                  <div key={idx} className="p-4 border rounded-xl bg-slate-50 relative mb-4">
+                    <button 
+                      onClick={() => {
+                        const configs = [...settings.projectTypeConfigs];
+                        configs.splice(idx, 1);
+                        updateNested(['projectTypeConfigs'], configs);
+                      }}
+                      className="absolute top-2 right-2 text-red-500 hover:text-red-700 font-bold"
+                    >
+                      X
+                    </button>
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Project Type Name</label>
+                        <input type="text" value={pt.type} onChange={e => {
+                          const configs = [...settings.projectTypeConfigs];
+                          configs[idx].type = e.target.value;
+                          updateNested(['projectTypeConfigs'], configs);
+                        }} className="w-full border rounded-lg p-2 font-bold" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Max kW Limit (Upgrade)</label>
+                        <input type="number" value={pt.maxKwLimit || 10} onChange={e => {
+                          const configs = [...settings.projectTypeConfigs];
+                          configs[idx].maxKwLimit = Number(e.target.value);
+                          updateNested(['projectTypeConfigs'], configs);
+                        }} className="w-full border rounded-lg p-2" />
+                      </div>
+                    </div>
+                    
+                    <h3 className="font-bold text-sm text-slate-700 mt-2 mb-2 border-t pt-3">Landing Page Overrides</h3>
+                    <div className="grid grid-cols-1 gap-3">
+                      <input type="text" placeholder="Hero Title (e.g. Best Residential Solar)" value={pt.heroTitle || ''} onChange={e => {
+                          const configs = [...settings.projectTypeConfigs];
+                          configs[idx].heroTitle = e.target.value;
+                          updateNested(['projectTypeConfigs'], configs);
+                      }} className="w-full border rounded-lg p-2 text-sm" />
+                      <textarea placeholder="Hero Subtitle" value={pt.heroSubtitle || ''} onChange={e => {
+                          const configs = [...settings.projectTypeConfigs];
+                          configs[idx].heroSubtitle = e.target.value;
+                          updateNested(['projectTypeConfigs'], configs);
+                      }} className="w-full border rounded-lg p-2 text-sm h-16" />
+                      <input type="text" placeholder="Banner Image URL" value={pt.bannerImage || ''} onChange={e => {
+                          const configs = [...settings.projectTypeConfigs];
+                          configs[idx].bannerImage = e.target.value;
+                          updateNested(['projectTypeConfigs'], configs);
+                      }} className="w-full border rounded-lg p-2 text-sm" />
+                    </div>
+                  </div>
+              ))}
+              {(!settings.projectTypeConfigs || settings.projectTypeConfigs.length === 0) && (
+                <p className="text-slate-500 text-sm italic">No project types configured for {settings.countryName}.</p>
+              )}
             </div>
           </div>
         )}
@@ -212,3 +286,4 @@ export default function DynamicWebsiteModule() {
     </div>
   );
 }
+

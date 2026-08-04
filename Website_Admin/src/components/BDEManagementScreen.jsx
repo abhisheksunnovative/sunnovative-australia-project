@@ -18,7 +18,8 @@ export default function BDEManagementScreen() {
   const [formData, setFormData] = useState({
     name: "", email: "", mobile: "", isActive: true,
     assignedCountries: "", assignedStates: "", assignedDistricts: "", assignedRegions: "", assignedPincodes: "",
-    assignedProjectTypes: [], targetLeads: 0, targetConversions: 0
+    assignedProjectTypes: [], targetLeads: 0, targetConversions: 0,
+    bdeType: "Employee", commissionType: "Fixed", commissionAmount: 0, projectTypeCommissions: []
   });
 
   const projectTypeOptions = ["residential", "commercial", "group", "common-meter", "surya-ghar", "au-small-home", "au-standard-family", "au-large-home", "au-ev-owners", "au-solar-battery"];
@@ -58,6 +59,10 @@ export default function BDEManagementScreen() {
       assignedProjectTypes: bde.assignedProjectTypes || [],
       targetLeads: bde.targets?.leads || 0,
       targetConversions: bde.targets?.conversions || 0,
+      bdeType: bde.bdeType || "Employee",
+      commissionType: bde.freelancerSettings?.commissionType || "Fixed",
+      commissionAmount: bde.freelancerSettings?.commissionAmount || 0,
+      projectTypeCommissions: bde.freelancerSettings?.projectTypeCommissions || []
     });
   };
 
@@ -68,7 +73,8 @@ export default function BDEManagementScreen() {
       name: "", email: "", mobile: "", isActive: true,
       assignedCountries: selectedCountry || "india", assignedStates: "", 
       assignedDistricts: selectedDistrict || "", assignedRegions: "", assignedPincodes: "",
-      assignedProjectTypes: ["residential"], targetLeads: 0, targetConversions: 0
+      assignedProjectTypes: ["residential"], targetLeads: 0, targetConversions: 0,
+      bdeType: "Employee", commissionType: "Fixed", commissionAmount: 0, projectTypeCommissions: []
     });
   };
 
@@ -89,6 +95,12 @@ export default function BDEManagementScreen() {
         email: formData.email,
         mobile: formData.mobile,
         isActive: formData.isActive,
+        bdeType: formData.bdeType,
+        freelancerSettings: formData.bdeType === "Freelancer" ? {
+          commissionType: formData.commissionType,
+          commissionAmount: formData.commissionAmount,
+          projectTypeCommissions: formData.projectTypeCommissions
+        } : undefined,
         assignedCountries: formData.assignedCountries.split(",").map(s => s.trim().toLowerCase()).filter(Boolean),
         assignedStates: formData.assignedStates.split(",").map(s => s.trim()).filter(Boolean),
         assignedDistricts: formData.assignedDistricts.split(",").map(s => s.trim()).filter(Boolean),
@@ -399,6 +411,39 @@ export default function BDEManagementScreen() {
                   <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Mobile</label>
                   <input type="text" value={formData.mobile} onChange={e => setFormData({...formData, mobile: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-slate-800 focus:outline-none focus:border-blue-500" />
                 </div>
+
+                <div className="pt-4 border-t border-slate-100">
+                  <h3 className="font-bold text-blue-600 mb-3">Employment Details</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">BDE Type</label>
+                      <select value={formData.bdeType} onChange={e => setFormData({...formData, bdeType: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-slate-800 focus:outline-none focus:border-blue-500">
+                        <option value="Employee">Full-time Employee</option>
+                        <option value="Freelancer">Freelancer / Affiliate</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {formData.bdeType === "Freelancer" && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                    <h4 className="font-bold text-amber-800 mb-3 text-sm">Freelancer Commission Config</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-amber-700 uppercase mb-1">Commission Type</label>
+                        <select value={formData.commissionType} onChange={e => setFormData({...formData, commissionType: e.target.value})} className="w-full bg-white border border-amber-200 rounded-lg px-3 py-2 text-slate-800 focus:outline-none">
+                          <option value="Fixed">Fixed Amount per Conversion</option>
+                          <option value="Percentage">Percentage of System KW</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-amber-700 uppercase mb-1">Default Amount / %</label>
+                        <input type="number" value={formData.commissionAmount} onChange={e => setFormData({...formData, commissionAmount: Number(e.target.value)})} className="w-full bg-white border border-amber-200 rounded-lg px-3 py-2 text-slate-800 focus:outline-none" />
+                      </div>
+                    </div>
+                    <p className="text-xs text-amber-600 mt-2">Commission automatically calculates and credits when a lead converts to an active project.</p>
+                  </div>
+                )}
 
                 <div className="pt-4 border-t border-slate-100">
                   <h3 className="font-bold text-blue-600 mb-3 flex items-center gap-2"><MapPin className="w-4 h-4"/> Territories (Auto-assigned)</h3>

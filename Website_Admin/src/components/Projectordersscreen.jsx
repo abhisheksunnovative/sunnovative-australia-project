@@ -560,8 +560,16 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
       </div>
 
       {activeTab === "journey" ? (
-        {/* Steps Timeline */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
+            <HorizontalStepper 
+              steps={(order.steps || []).map(s => s.title)} 
+              currentStatus={order.currentStepTitle || order.steps?.find(s => s.status !== "completed")?.title}
+              theme="light"
+            />
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
           <div className="flex items-center gap-2 mb-5">
             <GitBranch className="w-4 h-4 text-yellow-500" />
             <h3 className="text-sm font-bold text-slate-800">Journey Timeline</h3>
@@ -580,6 +588,7 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
           ))}
         </div>
       </div>
+        </>
       ) : (
         {/* STC Tracking Tab */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -792,3 +801,5 @@ export const ProjectOrdersScreen = () => {
     </div>
   );
 };
+
+

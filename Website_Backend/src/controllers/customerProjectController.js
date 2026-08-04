@@ -1,3 +1,4 @@
+import { processStepCompletion } from "../utils/stepTrackingHelper.js";
 /**
  * customerProjectController.js
  * Customer project APIs â€” view, apply, track, upload documents
@@ -46,7 +47,7 @@ export const getProjectDetail = async (req, res) => {
         { customerId: req.customer._id.toString() },
         { customerMobile: req.customer.mobile },
       ],
-    }).lean();
+    }).populate("recommendedEpcs", "companyName rating totalInstallations contactPerson city state activeDistricts").lean();
     if (!project) return res.status(404).json({ message: 'Project not found' });
 
     // Fetch Enquiry to check token status
@@ -488,3 +489,43 @@ export const signStcForm = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+
+export const acceptEpcRecommendation = async (req, res) => {
+  try {
+    const { epcId, epcName } = req.body;
+    const project = await ProjectOrder.findOneAndUpdate(
+      { _id: req.params.id, customerId: req.customer._id.toString() },
+      { 
+        bdeRecommendationStatus: 'accepted',
+        assignedEPCId: epcId,
+        assignedEPCName: epcName,
+        status: 'EPC Accepted'
+      },
+      { new: true }
+    );
+    if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
+    res.json({ success: true, project });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const rejectEpcRecommendations = async (req, res) => {
+  try {
+    const project = await ProjectOrder.findOneAndUpdate(
+      { _id: req.params.id, customerId: req.customer._id.toString() },
+      { bdeRecommendationStatus: 'rejected' },
+      { new: true }
+    );
+    if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
+    res.json({ success: true, project });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+
+
+

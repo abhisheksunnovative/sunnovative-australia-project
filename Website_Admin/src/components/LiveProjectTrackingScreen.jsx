@@ -11,9 +11,79 @@ import {
   CheckCircle, Circle, Clock, AlertCircle, ChevronRight,
   Home, Building2, Users, Zap, Loader2, User, Calendar,
   Upload, ArrowLeft, IndianRupee, TrendingUp, ListFilter,
+  Check, XCircle
 } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
+
+// ── Shared Horizontal Tracker ──────────────────────────────────────────────────
+function HorizontalJourneyTracker({ steps }) {
+  const displaySteps = steps?.length > 0 ? steps : [
+    { stepNumber: 1, title: 'Lead Captured', status: 'completed' },
+    { stepNumber: 2, title: 'EPC Assigned', status: 'pending' },
+    { stepNumber: 3, title: 'Site Survey', status: 'pending' },
+    { stepNumber: 4, title: 'Installation', status: 'pending' },
+    { stepNumber: 5, title: 'Completed', status: 'pending' }
+  ];
+
+  return (
+    <div className="w-full overflow-x-auto pb-4 scrollbar-hide">
+      <div className="min-w-[600px] flex items-start justify-between relative mt-4 px-4">
+        <div className="absolute left-10 right-10 top-5 h-1 bg-slate-200 -z-10" />
+        
+        {displaySteps.map((step, i) => {
+          const done = step.status === "completed";
+          const active = step.status === "in-progress" || step.status === "pending";
+          const reallyActive = step.status === "in-progress" || (step.status === "pending" && (i === 0 || displaySteps[i-1]?.status === "completed"));
+          const blocked = step.status === "blocked";
+          
+          return (
+            <div key={i} className="flex flex-col items-center flex-1 relative group cursor-default">
+              {i > 0 && (done || reallyActive) && (
+                <div className={`absolute right-[50%] left-[-50%] top-5 h-1 -z-10 transition-all ${done || reallyActive ? 'bg-orange-400' : 'bg-slate-200'}`} />
+              )}
+              
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ring-4 ring-white mb-2 transition-all ${
+                done ? "bg-orange-500 text-white shadow-md" : 
+                reallyActive ? "bg-amber-400 text-white shadow-md ring-amber-50" : 
+                blocked ? "bg-red-500 text-white shadow-md" : 
+                "bg-slate-200 text-slate-400"
+              }`}>
+                {done ? <Check className="w-5 h-5" /> : 
+                 blocked ? <XCircle className="w-5 h-5" /> : 
+                 <span className={reallyActive ? "text-white" : ""}>{step.stepNumber || (i+1)}</span>}
+              </div>
+              
+              <p className={`text-xs text-center font-bold px-2 max-w-[120px] ${
+                done ? "text-slate-800" : 
+                reallyActive ? "text-amber-700" : 
+                "text-slate-400"
+              }`}>
+                {step.title}
+              </p>
+
+              {step.assignedTo && (
+                <span className={`text-[9px] font-bold mt-1 px-1.5 py-0.5 rounded-full ${
+                  step.assignedTo === "epc-partner" ? "bg-purple-100 text-purple-700" :
+                  step.assignedTo === "customer" ? "bg-blue-100 text-blue-700" :
+                  "bg-slate-100 text-slate-600"
+                }`}>
+                  {step.assignedTo === "epc-partner" ? "⚡ EPC" : step.assignedTo === "customer" ? "👤 Customer" : "🏢 Us"}
+                </span>
+              )}
+              
+              {step.completedAt && (
+                <p className="text-[10px] text-slate-500 mt-1">
+                  {new Date(step.completedAt).toLocaleDateString("en-IN", { day: '2-digit', month: 'short' })}
+                </p>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  );
+}
 
 // ── Static config ─────────────────────────────────────────────────────────────
 const PROJECT_TYPE_ICONS = {
@@ -73,9 +143,9 @@ const OrderRow = ({ order, onClick }) => {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-4 px-4 py-3.5 bg-white border border-slate-200 rounded-xl hover:border-yellow-300 hover:shadow-sm transition-all text-left"
+      className="w-full flex items-center gap-5 px-5 py-5 mb-1 bg-white border border-slate-200 rounded-2xl hover:border-yellow-400 hover:shadow-md transition-all text-left group"
     >
-      <ProgressRing percentage={order.completionPercentage || 0} />
+      <ProgressRing percentage={order.completionPercentage || 0} size={50} />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
@@ -112,9 +182,14 @@ const OrderRow = ({ order, onClick }) => {
 };
 
 // ── Step Timeline Item ────────────────────────────────────────────────────────
-const StepItem = ({ step, isLast, onComplete, completingId }) => {
+const StepItem = ({ step, order, isLast, onComplete, completingId, onApprove, onReject, isCurrentStep }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [file, setFile] = useState(null);
+  const [note, setNote] = useState("");
+  
   const assignedConfig = ASSIGNED_TO_CONFIG[step.assignedTo] || ASSIGNED_TO_CONFIG.company;
   const isCompleted = step.status === "completed";
+  const isAwaitingApproval = step.status === "awaiting-approval";
   const isCompleting = completingId === step.stepId;
 
   return (
@@ -122,7 +197,7 @@ const StepItem = ({ step, isLast, onComplete, completingId }) => {
       {/* Timeline marker */}
       <div className="flex flex-col items-center">
         <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-          isCompleted ? "bg-green-500" : "bg-slate-200"
+          isCompleted ? "bg-green-500" : isAwaitingApproval ? "bg-yellow-400" : "bg-slate-200"
         }`}>
           {isCompleted
             ? <CheckCircle className="w-4 h-4 text-white" />
@@ -133,21 +208,31 @@ const StepItem = ({ step, isLast, onComplete, completingId }) => {
 
       {/* Step content */}
       <div className="flex-1 pb-5">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <span className={`text-sm font-semibold ${isCompleted ? "text-slate-700" : "text-slate-500"}`}>
+        <div 
+          className="flex items-center justify-between gap-2 flex-wrap cursor-pointer group"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          <span className={`text-sm font-semibold group-hover:text-blue-600 transition ${isCompleted ? "text-slate-700" : "text-slate-500"}`}>
             {step.title}
           </span>
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${assignedConfig.color}`}>
             {assignedConfig.label}
           </span>
         </div>
+        {step.description && (
+          <p className="text-xs text-slate-500 mt-1">{step.description}</p>
+        )}
 
           {isCompleted ? (
             <div className="mt-2 bg-slate-50 p-3 rounded-lg border border-slate-100">
-              <div className="text-[11px] text-green-600 flex items-center gap-1 font-semibold mb-1">
-                <CheckCircle className="w-3 h-3" />
-                Completed on {step.completedAt ? new Date(step.completedAt).toLocaleString("en-IN") : ""}
-                {step.completedBy ? ` by ${step.completedBy}` : ""}
+              <div className="text-[11px] text-green-600 flex items-center gap-1.5 font-semibold mb-1">
+                <CheckCircle className="w-3.5 h-3.5" />
+                {step.completedBy === 'Customer' ? "Customer has completed this step" :
+                 step.completedBy === 'BDE' ? "On behalf of customer, BDE has completed this step" :
+                 step.completedBy === 'EPC' ? "EPC Partner has completed this step" :
+                 step.completedBy === 'Admin' ? "Admin has approved/completed this step" :
+                 `Completed by ${step.completedBy || 'System'}`}
+                <span className="text-slate-400 font-normal ml-1">({step.completedAt ? new Date(step.completedAt).toLocaleString("en-IN") : ""})</span>
               </div>
               {step.evidenceNote && (
                 <p className="text-[11px] text-slate-600 mt-1"><span className="font-semibold text-slate-700">Note:</span> {step.evidenceNote}</p>
@@ -165,24 +250,82 @@ const StepItem = ({ step, isLast, onComplete, completingId }) => {
                   <AlertCircle className="w-3 h-3" />{step.pendingActionAlert}
                 </p>
               )}
-              {step.assignedTo === 'company' || step.assignedTo === 'both' ? (
-                <button
-                  onClick={() => onComplete(step.stepId)}
-                  disabled={isCompleting}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-yellow-900 bg-yellow-400 rounded-lg hover:bg-amber-400 transition disabled:opacity-50"
-                >
-                  {isCompleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
-                  {isCompleting ? "Marking..." : "Mark Complete"}
-                </button>
+              {isCurrentStep ? (
+                <>
+                  {isAwaitingApproval ? (
+                    <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-yellow-800">Pending Review</p>
+                        <p className="text-[10px] text-yellow-700">Customer has submitted details. Please verify.</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => onReject(step.stepId)} disabled={isCompleting} className="px-3 py-1.5 bg-white border border-yellow-400 text-yellow-700 text-xs font-bold rounded-lg hover:bg-yellow-100 transition">
+                          {isCompleting ? "..." : "Reject & Re-upload"}
+                        </button>
+                        <button onClick={() => onApprove(step.stepId)} disabled={isCompleting} className="px-3 py-1.5 bg-yellow-400 text-yellow-900 text-xs font-bold rounded-lg hover:bg-yellow-500 transition">
+                          {isCompleting ? "Approving..." : "Approve & Move Forward"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : step.requiresAdminApproval ? (
+                    <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200 flex items-center justify-between mt-1">
+                      <div>
+                        <p className="text-xs font-bold text-yellow-800">Admin Action Required</p>
+                        <p className="text-[10px] text-yellow-700">This step requires manual admin approval.</p>
+                      </div>
+                      <button onClick={() => onComplete(step.stepId)} disabled={isCompleting} className="px-3 py-1.5 bg-yellow-400 text-yellow-900 text-xs font-bold rounded-lg hover:bg-yellow-500 transition">
+                        {isCompleting ? "Approving..." : "Approve Step"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="bg-blue-50 border border-blue-100 text-blue-700 text-[11px] px-3 py-2 rounded-lg flex items-start gap-2 mt-1">
+                      <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                      <p>
+                        <strong>Action Required by {assignedConfig.label}</strong><br/>
+                        This step will automatically mark as complete when the {assignedConfig.label} performs their task.
+                      </p>
+                    </div>
+                  )}
+                </>
               ) : (
-                <div className="bg-blue-50 border border-blue-100 text-blue-700 text-[11px] px-3 py-2 rounded-lg flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                  <p>
-                    <strong>Action Required by {assignedConfig.label}</strong><br/>
-                    This step will automatically mark as complete when the {assignedConfig.label} performs their task in their portal.
-                  </p>
+                <div className="text-[11px] font-medium text-slate-400 mt-1.5 flex items-center gap-1.5">
+                  <Clock className="w-3 h-3" /> Upcoming step
                 </div>
               )}
+            </div>
+          )}
+          {isExpanded && (
+            <div className="mt-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+              <h4 className="text-xs font-bold text-slate-700 mb-2 border-b border-slate-100 pb-2">Admin Options (Override & Edit)</h4>
+              
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  placeholder="Add or update note"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg outline-none focus:border-blue-400"
+                />
+                
+                {step.requiresDoc && (
+                  <div className="text-xs text-slate-500">
+                    <p className="mb-1 font-semibold">Upload/Update Evidence Document:</p>
+                    <input
+                      type="file"
+                      onChange={(e) => setFile(e.target.files[0])}
+                      className="w-full text-xs file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                  </div>
+                )}
+                
+                <button
+                  onClick={() => onComplete(step.stepId, file, note)}
+                  disabled={isCompleting}
+                  className="w-full px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg transition disabled:opacity-50"
+                >
+                  {isCompleting ? "Saving..." : isCompleted ? "Update Step Data (Override)" : "Force Complete Step"}
+                </button>
+              </div>
             </div>
           )}
       </div>
@@ -202,8 +345,8 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const fetchOrder = useCallback(async () => {
-    setLoading(true);
+  const fetchOrder = useCallback(async (background = false) => {
+    if (!background) setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/project-orders/${orderId}`);
       const data = await res.json();
@@ -211,19 +354,74 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
     } catch {
       showToast("error", "Order load nahi hua");
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   }, [orderId]);
 
-  useEffect(() => { fetchOrder(); }, [fetchOrder]);
+  useEffect(() => { 
+    fetchOrder(); 
+    const interval = setInterval(() => fetchOrder(true), 600000);
+    return () => clearInterval(interval);
+  }, [fetchOrder]);
 
-  const handleCompleteStep = async (stepId) => {
+  const handleApproveStep = async (stepId) => {
+    try {
+      setCompletingId(stepId);
+      const res = await fetch(API_BASE + `/api/project-orders/${order._id}/steps/${stepId}/approve`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+      const d = await res.json();
+      if(d.success) {
+        showToast("success", "Step approved successfully");
+        fetchOrder();
+        onRefreshList?.();
+      } else {
+        showToast("error", d.message || "Error approving step");
+      }
+    } catch(e) {
+      showToast("error", "Error approving step");
+    } finally {
+      setCompletingId(null);
+    }
+  };
+
+  const handleRejectStep = async (stepId) => {
+    try {
+      setCompletingId(stepId);
+      const res = await fetch(API_BASE + `/api/project-orders/${order._id}/steps/${stepId}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      const d = await res.json();
+      if(d.success) {
+        showToast("success", "Step rejected. Sent back to in-progress.");
+        fetchOrder();
+        onRefreshList?.();
+      } else {
+        showToast("error", d.message || "Error rejecting step");
+      }
+    } catch(e) {
+      showToast("error", "Error rejecting step");
+    } finally {
+      setCompletingId(null);
+    }
+  };
+
+  const handleCompleteStep = async (stepId, file = null, note = "") => {
     setCompletingId(stepId);
     try {
+      const formData = new FormData();
+      formData.append("stepId", stepId);
+      formData.append("completedBy", "Admin");
+      if (note) formData.append("note", note);
+      if (file) formData.append("evidence", file);
+
       const res = await fetch(`${API_BASE}/api/project-orders/${orderId}/complete-step`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stepId, completedBy: "Admin" }),
+        body: formData,
       });
       const data = await res.json();
       if (data.success) {
@@ -499,13 +697,20 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
           <span className="text-xs text-slate-400">({order.steps?.filter(s => s.status === "completed").length}/{order.steps?.length} steps)</span>
         </div>
 
-        <div>
+        {/* Visual Horizontal Tracker */}
+        <HorizontalJourneyTracker steps={order.steps} />
+
+        <div className="mt-8 border-t border-slate-100 pt-6">
+          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Detailed Step Actions</h4>
           {(order.steps || []).map((step, i) => (
             <StepItem
               key={step.stepId || i}
               step={step}
               isLast={i === order.steps.length - 1}
+              isCurrentStep={step.stepNumber === order.currentStepNumber}
               onComplete={handleCompleteStep}
+              onApprove={handleApproveStep}
+              onReject={handleRejectStep}
               completingId={completingId}
             />
           ))}
@@ -527,6 +732,7 @@ export const LiveProjectTrackingScreen = () => {
   const [filterDistrict, setFilterDistrict] = useState("");
   const [filterProjectType, setFilterProjectType] = useState("");
   const [availableDiscoms, setAvailableDiscoms] = useState([]);
+  const [availableProjectTypes, setAvailableProjectTypes] = useState([]);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
 
   // Predefined states for various countries
@@ -547,12 +753,26 @@ export const LiveProjectTrackingScreen = () => {
   const allStates = countryStatesMap[filterCountry] || [];
 
   const fetchDiscoms = useCallback(async () => {
-    if (!filterCountry) return;
+    if (!filterCountry) {
+      setAvailableDiscoms([]);
+      setAvailableProjectTypes([]);
+      return;
+    }
     try {
+      // Fetch Discoms for districts
       let url = `${API_BASE}/api/discoms?country=${filterCountry}`;
       const res = await fetch(url);
       const data = await res.json();
       if (data.success) setAvailableDiscoms(data.data || []);
+      
+      // Fetch Project Types for the country
+      const typeRes = await fetch(`${API_BASE}/api/order-journey-settings?country=${filterCountry}`);
+      const typeData = await typeRes.json();
+      if (typeData.success) {
+        // order-journey-settings returns { country: { projectType: { ... } } }
+        const countrySettings = typeData.settings?.[filterCountry] || {};
+        setAvailableProjectTypes(Object.keys(countrySettings));
+      }
     } catch { }
   }, [filterCountry]);
 
@@ -560,8 +780,8 @@ export const LiveProjectTrackingScreen = () => {
 
   const availableDistricts = [...new Set(availableDiscoms.filter(d => filterState === "" || d.state === filterState).flatMap(d => d.districts || []))].sort();
 
-  const fetchOrders = useCallback(async () => {
-    setLoading(true);
+  const fetchOrders = useCallback(async (background = false) => {
+    if (!background) setLoading(true);
     try {
       const params = new URLSearchParams();
       if (search) params.append("search", search);
@@ -580,13 +800,14 @@ export const LiveProjectTrackingScreen = () => {
     } catch {
       setOrders([]);
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   }, [search, statusFilter, filterCountry, filterState, filterDistrict, filterProjectType]);
 
   useEffect(() => {
-    const debounce = setTimeout(fetchOrders, 300);
-    return () => clearTimeout(debounce);
+    fetchOrders();
+    const interval = setInterval(() => fetchOrders(true), 600000);
+    return () => clearInterval(interval);
   }, [fetchOrders]);
 
   if (selectedOrderId) {
@@ -638,10 +859,25 @@ export const LiveProjectTrackingScreen = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-slate-800 p-4 rounded-2xl shadow-inner flex flex-wrap gap-4 overflow-x-auto items-end">
+      <div className="bg-slate-800 p-4 rounded-2xl shadow-inner flex flex-wrap gap-4 items-end">
+        {/* Search */}
+        <div className="flex flex-col flex-1 min-w-[200px]">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Search</label>
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="Search name, phone, order ID..." 
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full text-sm font-semibold text-white border border-slate-600 rounded-xl pl-10 pr-4 py-2.5 bg-slate-700 focus:outline-none focus:border-yellow-400 focus:bg-slate-800 transition"
+            />
+          </div>
+        </div>
+
         <div className="flex flex-col flex-1 min-w-[150px]">
           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Country</label>
-          <select value={filterCountry} onChange={e => { setFilterCountry(e.target.value); setFilterState(""); setFilterDistrict(""); }}
+          <select value={filterCountry} onChange={e => { setFilterCountry(e.target.value); setFilterState(""); setFilterDistrict(""); setFilterProjectType(""); }}
             className="text-sm font-bold text-white border border-slate-600 rounded-xl px-4 py-2.5 bg-slate-700 focus:outline-none focus:border-yellow-400 focus:bg-slate-800 transition">
             <option value="">🌍 All Countries</option>
             <option value="india">🇮🇳 India</option>
@@ -672,19 +908,16 @@ export const LiveProjectTrackingScreen = () => {
 
         <div className="flex flex-col flex-1 min-w-[150px]">
           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Project Type</label>
-          <select value={filterProjectType} onChange={e => setFilterProjectType(e.target.value)}
-            className="text-sm font-semibold text-white border border-slate-600 rounded-xl px-4 py-2.5 bg-slate-700 focus:outline-none focus:border-yellow-400">
+          <select value={filterProjectType} onChange={e => setFilterProjectType(e.target.value)} disabled={!filterCountry}
+            className="text-sm font-semibold text-white border border-slate-600 rounded-xl px-4 py-2.5 bg-slate-700 focus:outline-none focus:border-yellow-400 disabled:opacity-50">
             <option value="">All Types</option>
-            <option value="residential">Residential</option>
-            <option value="commercial">Commercial</option>
-            <option value="group">Group / Society</option>
-            <option value="common-meter">Common Meter</option>
+            {availableProjectTypes.map(pt => <option key={pt} value={pt} className="capitalize">{pt.replace(/-/g, ' ')}</option>)}
           </select>
         </div>
 
         {(statusFilter || search || filterCountry || filterState || filterDistrict || filterProjectType) && (
           <button onClick={() => { setStatusFilter(""); setSearch(""); setFilterCountry(""); setFilterState(""); setFilterDistrict(""); setFilterProjectType(""); }} className="flex items-center gap-1 px-4 py-2.5 text-xs font-bold text-red-400 bg-slate-700 border border-red-500/30 rounded-xl hover:bg-red-500/10 hover:text-red-300">
-            <X className="w-3.5 h-3.5" /> Clear Filter
+            <X className="w-3.5 h-3.5" /> Clear
           </button>
         )}
       </div>

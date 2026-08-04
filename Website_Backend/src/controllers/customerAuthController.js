@@ -10,28 +10,12 @@ import jwt from 'jsonwebtoken';
 import Customer from '../models/Customer.js';
 import {ProjectOrder} from '../models/ProjectModel.js';
 import Lead from '../models/Lead.js';
-import axios from 'axios';
+import { sendOTP } from '../utils/smsService.js';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const genOtp  = () => String(Math.floor(100000 + Math.random() * 900000));
 const otpExp  = () => new Date(Date.now() + 10 * 60 * 1000);
 const genTok  = (id) => jwt.sign({ id, type: 'customer' }, process.env.JWT_SECRET, { expiresIn: '30d' });
-
-const sendSms = async (mobile, otp) => {
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`[DEV OTP] ${mobile} → ${otp}`);
-    return true;
-  }
-  try {
-    await axios.get('https://www.fast2sms.com/dev/bulkV2', {
-      params: { authorization: process.env.FAST2SMS_KEY, variables_values: otp, route: 'otp', numbers: mobile },
-    });
-    return true;
-  } catch (err) {
-    console.error('SMS failed:', err.message);
-    return false;
-  }
-};
 
 const safeCustomer = (c) => ({
   _id: c._id, fullName: c.fullName, mobile: c.mobile,
@@ -67,7 +51,14 @@ export const sendOtp = async (req, res) => {
     customer.otpVerified = false;
     await customer.save();
 
-    await sendSms(mobile, otp);
+    try {
+      await sendOTP(mobile, otp);
+    } catch (smsErr) {
+      return res.status(500).json({ 
+        success: false, 
+        message: 'YourBulkSMS API Error: ' + smsErr.message 
+      });
+    }
 
     return res.json({
       success: true,

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { CheckCircle, Clock, Upload, Eye, Search, AlertCircle, FileText } from "lucide-react";
+import { CheckCircle, Clock, Upload, Eye, Search, AlertCircle, FileText, Check, XCircle } from "lucide-react";
+import HorizontalJourneyTracker from "../HorizontalJourneyTracker";
 
 export default function BDEProjectTracking({ bdeId }) {
   const [projects, setProjects] = useState([]);
@@ -216,7 +217,13 @@ export default function BDEProjectTracking({ bdeId }) {
                 </div>
               </div>
 
-              {/* Journey Steps */}
+              {/* Horizontal Journey Tracker */}
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <h3 className="text-sm font-bold text-slate-800 mb-2">Live Journey Tracking</h3>
+                <HorizontalJourneyTracker steps={project.steps} />
+              </div>
+
+              {/* Journey Steps Actions */}
               <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {project.steps?.map((step) => (
                   <div key={step.stepId} className={`p-3 rounded-lg border ${step.status === 'completed' ? 'bg-emerald-50/50 border-emerald-100' : 'bg-gray-50 border-gray-100'}`}>
@@ -241,19 +248,30 @@ export default function BDEProjectTracking({ bdeId }) {
                           </a>
                         )}
                       </div>
-                    ) : step.requiresDoc ? (
-                      <label className="flex items-center justify-center gap-2 w-full py-1.5 px-2 bg-white border border-gray-200 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-50 cursor-pointer transition">
-                        <Upload className="w-3 h-3" />
-                        Upload Document
-                        <input 
-                          type="file" 
-                          className="hidden" 
-                          onChange={(e) => handleUploadDoc(project._id, step.stepId, e.target.files[0])}
-                        />
-                      </label>
+                    ) : step.status === 'in-progress' && step.assignedTo === 'customer' ? (
+                      <div>
+                        {step.requiresDoc ? (
+                          <label className="flex items-center justify-center gap-2 w-full py-1.5 px-2 bg-white border border-gray-200 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-50 cursor-pointer transition">
+                            <Upload className="w-3 h-3" />
+                            Upload Document (Customer)
+                            <input 
+                              type="file" 
+                              className="hidden" 
+                              onChange={(e) => handleUploadDoc(project._id, step.stepId, e.target.files[0])}
+                            />
+                          </label>
+                        ) : (
+                          <button
+                            onClick={() => handleUploadDoc(project._id, step.stepId, null)}
+                            className="w-full py-1.5 px-2 bg-blue-50 text-blue-600 border border-blue-200 rounded-md text-xs font-bold hover:bg-blue-100 transition"
+                          >
+                            Mark Complete (For Customer)
+                          </button>
+                        )}
+                      </div>
                     ) : (
-                      <div className="text-xs font-medium text-amber-600 flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3"/> Pending EPC Action
+                      <div className="text-xs font-medium text-slate-500 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3"/> Pending {step.assignedTo === 'epc-partner' ? 'EPC' : 'Admin'} Action
                       </div>
                     )}
                   </div>

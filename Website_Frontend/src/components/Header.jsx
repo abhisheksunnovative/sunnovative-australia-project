@@ -32,8 +32,6 @@ export default function Header({
       href: "#eligibility-calculator",
       isPageLink: true,
     },
-    { label: "EPC Partners", href: "#epc-projects-stats", isPageLink: true },
-    { label: "GEDA Solar e-Shop", href: "#shop", isPageLink: false },
     { label: "Solar Blogs", href: "#blog", isPageLink: false },
     { label: "FAQs", href: "#faqs", isPageLink: true },
   ];
@@ -49,8 +47,8 @@ export default function Header({
       return;
     }
 
-    if (!isPageLink || href === "#shop") {
-      setViewMode("eshop");
+    if (!isPageLink) {
+      // Any other non-page link handles (like blog)
       return;
     }
 
@@ -145,19 +143,11 @@ export default function Header({
               key={item.label}
               href={item.href}
               onClick={(e) => handleNavClick(e, item.href, item.isPageLink)}
-              className="text-[14px] font-semibold text-slate-600 hover:text-solar-sky transition-colors cursor-pointer"
+              className="text-[14px] font-semibold text-slate-700 hover:text-solar-sky transition-colors px-1"
             >
               {item.label}
             </a>
           ))}
-
-          <button
-            onClick={onOpenEpcModal}
-            className="text-[14px] font-semibold text-solar-green hover:text-emerald-600 transition-colors px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100/50 cursor-pointer"
-            id="nav-epc-btn"
-          >
-            Become EPC Partner
-          </button>
         </nav>
 
         {/* Action Button & Menu Toggler */}
@@ -299,15 +289,6 @@ export default function Header({
             <User className="w-3.5 h-3.5" />
             {isCustomerLoggedIn ? `My Account (${customerName?.split(" ")[0]})` : "Customer Login"}
           </button>
-
-          <button
-            onClick={() => { setMobileMenuOpen(false); onOpenEpcModal(); }}
-            className="w-full py-3 px-4 text-center rounded-xl font-bold bg-emerald-50 text-solar-green text-xs uppercase tracking-wider hover:bg-emerald-100 transition border border-emerald-100/50 cursor-pointer"
-            id="mobile-nav-epc"
-          >
-            Become EPC Partner
-          </button>
-
           <button
             onClick={() => {
               setMobileMenuOpen(false);

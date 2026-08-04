@@ -320,18 +320,11 @@ export const uploadBDEProjectDoc = async (req, res) => {
     const fileUrl = `/uploads/bde-docs/${Date.now()}-${req.file.originalname}`;
     
     project.steps[stepIndex].evidenceUrl = fileUrl;
-    project.steps[stepIndex].status = 'completed'; // Auto complete step on upload
-    project.steps[stepIndex].completedAt = new Date();
     
-    // Recalculate percentage
-    const totalSteps = project.steps.length;
-    const completedSteps = project.steps.filter(s => s.status === 'completed').length;
-    project.completionPercentage = Math.round((completedSteps / totalSteps) * 100);
-
-    if (project.completionPercentage === 100) project.status = 'completed';
-    else project.status = 'in-progress';
-
-    await project.save();
+    // Use the shared helper to advance the journey correctly
+    const { processStepCompletion } = await import('../utils/stepTrackingHelper.js');
+    await processStepCompletion(project, stepId, 'BDE', fileUrl, null);
+    
     res.json({ success: true, project });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -387,3 +380,23 @@ export const getEpcCalendarForBde = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const recommendEpcs = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { epcIds } = req.body;
+    if (!epcIds || !Array.isArray(epcIds) || epcIds.length === 0 || epcIds.length > 5) {
+      return res.status(400).json({ success: false, message: 'Please provide between 1 and 5 EPC IDs' });
+    }
+    const project = await ProjectOrder.findByIdAndUpdate(
+      projectId,
+      { recommendedEpcs: epcIds, bdeRecommendationStatus: 'pending', pendingActionAlert: 'Review recommended EPC installers', pendingActionFor: 'customer' },
+      { new: true }
+    );
+    if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
+    res.json({ success: true, project });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+

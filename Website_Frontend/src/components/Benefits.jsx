@@ -13,7 +13,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-export default function Benefits({ onScrollToForm }) {
+export default function Benefits({ onScrollToForm, projectTypes, selectedPt }) {
   const benefitCards = [
     {
       icon: <Landmark className="w-8 h-8 text-amber-600" />,
@@ -146,3 +146,4 @@ export default function Benefits({ onScrollToForm }) {
     </section>
   );
 }
+

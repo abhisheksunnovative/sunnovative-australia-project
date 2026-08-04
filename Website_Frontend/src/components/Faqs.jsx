@@ -7,7 +7,7 @@ import React, { useState } from "react";
 import { HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { useWebsiteSettings } from "../hooks/useWebsiteSettings";
 
-export default function Faqs() {
+export default function Faqs({ projectTypes, selectedPt }) {
   const [openIndex, setOpenIndex] = useState(0);
   const settings = useWebsiteSettings();
   const faqsList = settings.faqs || [];
@@ -72,3 +72,4 @@ export default function Faqs() {
     </section>
   );
 }
+

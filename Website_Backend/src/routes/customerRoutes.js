@@ -1,6 +1,6 @@
 import express from 'express';
 import { sendOtp, verifyOtp, getMe, updateProfile, setPin, loginWithPin } from '../controllers/customerAuthController.js';
-import { getMyProjects, getProjectDetail, uploadDocument, applyForProject, payEscrow, payToken, getAvailableEpcs, completeStep, signStcForm } from '../controllers/customerProjectController.js';
+import { getMyProjects, getProjectDetail, uploadDocument, applyForProject, payEscrow, payToken, getAvailableEpcs, completeStep, signStcForm, acceptEpcRecommendation, rejectEpcRecommendations } from '../controllers/customerProjectController.js';
 import { protectCustomer } from '../middleware/protectCustomer.js';
 import upload from '../middleware/upload.js';
 import EpcPartner from '../models/EpcPartner.js';
@@ -30,6 +30,8 @@ router.post('/projects/:id/pay-token',            protectCustomer, payToken);
 router.post('/projects/:id/pay-escrow',           protectCustomer, payEscrow);
 router.post('/projects/:id/complete-step',        protectCustomer, upload.single('evidence'), completeStep);
 router.post('/projects/:id/sign-stc',             protectCustomer, signStcForm);
+router.post('/projects/:id/accept-epc',           protectCustomer, acceptEpcRecommendation);
+router.post('/projects/:id/reject-epcs',          protectCustomer, rejectEpcRecommendations);
 router.get ('/epcs',                              protectCustomer, getAvailableEpcs);
 
 // ── Public data (no auth needed) ─────────────────────────────────────────────

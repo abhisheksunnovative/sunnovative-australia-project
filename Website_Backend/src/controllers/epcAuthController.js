@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import axios from 'axios';
 import bcrypt from 'bcryptjs';
 import EpcPartner from '../models/EpcPartner.js';
+import { sendOTP } from '../utils/smsService.js';
 
 // Fresh Token Generator
 const generateToken = (id) => {
@@ -371,25 +372,14 @@ export const validateMobile = async (req, res) => {
     mobileOtpStore[mobile] = { otp, expiresAt, gstNumber: gstNumber.toUpperCase() };
 
     let smsSent = false;
-    if (process.env.FAST2SMS_KEY) {
-      try {
-        const smsResponse = await axios.get('https://www.fast2sms.com/dev/bulkV2', {
-          params: {
-            authorization: process.env.FAST2SMS_KEY,
-            route:         'q',
-            message:       `Your Sunnovative EPC OTP is ${otp}. Valid for 10 minutes. Do not share.`,
-            numbers:       mobile,
-            flash:         0,
-          },
-          timeout: 10000,
-        });
-        smsSent = smsResponse.data?.return === true;
-      } catch (e) {
-        console.error('SMS error:', e.response?.data || e.message);
-      }
+    try {
+      await sendOTP(mobile, otp);
+      smsSent = true;
+    } catch (e) {
+      console.error('SMS error:', e.message);
     }
 
-    // 🔴 FAST2SMS RECHARGE FAIL FALLBACK: SMS na jaane par testing bypass karega 
+    // 🔴 RECHARGE FAIL FALLBACK: SMS na jaane par testing bypass karega
     res.json({
       valid: true,
       message: smsSent ? `OTP has been sent to ${mobile.slice(0,3)}XXXXXXX` : `OTP generated (Use: ${otp})`,

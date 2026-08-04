@@ -645,6 +645,9 @@ export default function LeadForm({ initialMode = "calculator" }) {
 
           <div className="lg:col-span-7 glass-panel p-6 md:p-8 rounded-3xl">
             <div className="bg-[#0081C9]/5 rounded-2xl p-4 border border-[#0081C9]/15 mb-6">
+              <form onSubmit={handleFormSubmit} className="space-y-4" id="solar-lead-form">
+                <h3 className="text-sm font-bold text-slate-900 border-b pb-2 mb-3">Applicant & Survey Details</h3>
+
               <label className="block text-xs font-semibold text-slate-700 mb-1">Your State * (for {isAU ? 'STC zone estimation' : 'subsidy calculation'})</label>
               <select
                 value={customerState}
@@ -950,9 +953,8 @@ export default function LeadForm({ initialMode = "calculator" }) {
           </div>
         </div>
       </div>
+      </div>
     </section>
   );
 }
-
-
 

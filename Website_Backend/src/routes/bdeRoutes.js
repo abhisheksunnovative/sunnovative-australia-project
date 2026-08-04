@@ -4,7 +4,7 @@ import {
   createBDE, getAllBDEs, getBDEById, updateBDE, deleteBDE,
   bdeLogin, getBDEDashboard, getBDELeads, getDemandPool, assignLeadToBDE, updateBDELead,
   createBDELead, getBDEProjects, getBDEOverdueProjects, uploadBDEProjectDoc, updateBDELeadDetails,
-  requestBdeOtp, verifyOtpAndSetPassword, getEpcCalendarForBde
+  requestBdeOtp, verifyOtpAndSetPassword, getEpcCalendarForBde, recommendEpcs
 } from "../controllers/bdeController.js";
 
 const router = express.Router();
@@ -41,3 +41,4 @@ router.put("/leads/:leadId", updateBDELead);
 router.put("/leads/:leadId/details", updateBDELeadDetails);
 
 export default router;
+

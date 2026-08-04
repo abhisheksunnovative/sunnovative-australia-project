@@ -9,6 +9,7 @@ import { CustomerAuthProvider, useCustomerAuth } from "./customer/CustomerAuthCo
 import { CountryProvider } from "./context/CountryContext";
 import { BrowserRouter, Routes, Route, useParams, Navigate } from "react-router-dom";
 import { useCountry } from "./context/CountryContext";
+import { useWebsiteSettings } from "./hooks/useWebsiteSettings";
 
 // Lazy load components to minimize initial bundle size and speed up rendering
 const Header = lazy(() => import("./components/Header"));
@@ -31,16 +32,25 @@ function AppInner() {
   const { customer } = useCustomerAuth();
   const { country } = useCountry();
   const isAU = country === "AU";
-  const [isEpcOpen, setIsEpcOpen] = useState(false);
-  const [viewMode, setViewMode] = useState("home"); // home | eshop | blog | account
+  const [viewMode, setViewMode] = useState("home"); // home | blog | account
   const [showCustomerLogin, setShowCustomerLogin] = useState(false);
+  const settings = useWebsiteSettings();
+  const projectTypes = settings?.projectTypeConfigs?.length > 0 
+    ? settings.projectTypeConfigs 
+    : [{ type: "Residential" }, { type: "Commercial" }, { type: "Group" }];
+  const [selectedPt, setSelectedPt] = useState("");
+  
+  useEffect(() => {
+    if (projectTypes.length > 0 && !selectedPt) {
+      setSelectedPt(projectTypes[0].type);
+    }
+  }, [projectTypes, selectedPt]);
 
   // Hash routing
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash;
-      if (hash === "#shop" || hash === "#eshop") setViewMode("eshop");
-      else if (hash === "#blog" || hash.startsWith("#blog/")) setViewMode("blog");
+      if (hash === "#blog" || hash.startsWith("#blog/")) setViewMode("blog");
       else if (hash === "#account") {
         if (customer) setViewMode("account");
         else { setShowCustomerLogin(true); window.location.hash = ""; }
@@ -77,7 +87,7 @@ function AppInner() {
 
   const changeView = (view) => {
     setViewMode(view);
-    window.location.hash = view === "eshop" ? "shop" : view === "blog" ? "blog" : view === "account" ? "account" : "";
+    window.location.hash = view === "blog" ? "blog" : view === "account" ? "account" : "";
     window.scrollTo(0, 0);
   };
 
@@ -91,7 +101,7 @@ function AppInner() {
   return (
     <div className="min-h-screen bg-white font-sans antialiased text-slate-800 selection:bg-solar-yellow/30 selection:text-slate-900 leading-relaxed overflow-x-hidden">
       <Header
-        onOpenEpcModal={() => setIsEpcOpen(true)}
+        onOpenEpcModal={() => {}}
         onScrollToForm={scrollToForm}
         viewMode={viewMode}
         setViewMode={changeView}
@@ -116,29 +126,23 @@ function AppInner() {
       </div>
 
       <main>
-        {viewMode === "eshop" ? (
-          <div className="animate-fadeIn">
-            <EsopPanel viewMode={viewMode} setViewMode={(v) => { setViewMode(v); window.location.hash = v === "eshop" ? "shop" : ""; window.scrollTo(0, 0); }} />
-          </div>
-        ) : viewMode === "blog" ? (
+        {viewMode === "blog" ? (
           <div className="animate-fadeIn">
             <BlogPanel onBackToHome={() => { setViewMode("home"); window.location.hash = ""; window.scrollTo(0, 0); }} onScrollToForm={scrollToForm} />
           </div>
         ) : (
           <>
-            <Hero onScrollToForm={scrollToForm} />
-            <Benefits onScrollToForm={scrollToForm} />
+            <Hero onScrollToForm={scrollToForm} projectTypes={projectTypes} selectedPt={selectedPt} onSelectPt={setSelectedPt} />
+            <Benefits onScrollToForm={scrollToForm} projectTypes={projectTypes} selectedPt={selectedPt} />
             <HowItWorks onScrollToForm={scrollToForm} />
             <LeadForm />
             <TrustSection />
-            <EpcProjectsAndStats />
-            <Faqs />
+            <Faqs projectTypes={projectTypes} selectedPt={selectedPt} />
           </>
         )}
       </main>
 
       <Footer onScrollToForm={scrollToForm} />
-      <EpcPartnerModal isOpen={isEpcOpen} onClose={() => setIsEpcOpen(false)} />
 
       {showCustomerLogin && (
         <CustomerLogin

@@ -11,6 +11,11 @@ const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
 // ── Fallback defaults (shown until API loads) ─────────────────────────────────
 const DEFAULTS = {
+  projectTypeConfigs: [
+    { type: "Residential", isActive: true },
+    { type: "Commercial", isActive: true },
+    { type: "Group", isActive: true }
+  ],
   brand: {
     companyName: "SUNNOVATIVE",
     tagline: "SOLAR SYSTEM",

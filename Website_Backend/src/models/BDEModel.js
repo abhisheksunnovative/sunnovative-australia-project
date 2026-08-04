@@ -8,6 +8,26 @@ const bdeSchema = new mongoose.Schema(
     mobile: { type: String, required: true, trim: true },
     isActive: { type: Boolean, default: true },
     
+    bdeType: { type: String, enum: ['Employee', 'Freelancer'], default: 'Employee' },
+
+    // Freelancer Settings
+    freelancerSettings: {
+      commissionType: { type: String, enum: ['Fixed', 'Percentage'], default: 'Fixed' },
+      commissionAmount: { type: Number, default: 0 },
+      projectTypeCommissions: [{
+        projectType: { type: String },
+        amount: { type: Number, default: 0 }
+      }],
+      totalEarnings: { type: Number, default: 0 },
+      totalPaid: { type: Number, default: 0 }
+    },
+
+    // Employee Settings
+    employeeSettings: {
+      employeeId: { type: String, default: '' },
+      department: { type: String, default: 'Sales' }
+    },
+    
     // Auth / OTP for first-time login or password reset
     otp: { type: String, default: null },
     otpExpires: { type: Date, default: null },

@@ -11,6 +11,24 @@ const faqSchema = new mongoose.Schema({
   answer: { type: String, required: true },
 });
 
+const projectTypeConfigSchema = new mongoose.Schema({
+  type: { type: String, required: true }, // e.g., "Residential Solar", "Commercial Solar"
+  isActive: { type: Boolean, default: true },
+  bannerImage: { type: String, default: "" },
+  heroTitle: { type: String, default: "" },
+  heroSubtitle: { type: String, default: "" },
+  productInfo: { type: String, default: "" },
+  maxKwLimit: { type: Number, default: 10 }, // Admin limits max upgrade KW
+  benefits: [
+    {
+      title: { type: String },
+      description: { type: String }
+    }
+  ],
+  pricingInfo: { type: String, default: "" },
+  faqs: [faqSchema]
+});
+
 const countryWebsiteSettingsSchema = new mongoose.Schema({
   countryCode: { 
     type: String, 
@@ -44,7 +62,8 @@ const countryWebsiteSettingsSchema = new mongoose.Schema({
     footerText: { type: String, default: "" }
   },
 
-  projectTypes: { type: [String], default: [] },
+  projectTypes: { type: [String], default: [] }, // Legacy, keep for backward compatibility
+  projectTypeConfigs: { type: [projectTypeConfigSchema], default: [] },
   
   subsidyInfo: {
     schemeName: { type: String, default: "" },
@@ -96,3 +115,4 @@ const countryWebsiteSettingsSchema = new mongoose.Schema({
 
 const CountryWebsiteSettings = mongoose.model("CountryWebsiteSettings", countryWebsiteSettingsSchema);
 export default CountryWebsiteSettings;
+

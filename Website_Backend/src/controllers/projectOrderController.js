@@ -67,6 +67,7 @@ export const createProjectOrder = async (req, res) => {
         stepId: s.id,
         stepNumber: s.stepNumber,
         title: s.title,
+        description: s.description || "",
         assignedTo: s.assignedTo,
         milestoneType: s.milestoneType || 'standard',
         paymentPercentage: s.paymentPercentage || 0,
@@ -80,6 +81,8 @@ export const createProjectOrder = async (req, res) => {
         evidenceNote: "",
         pendingActionAlert: s.actionLabel || "",
         isMandatory: s.isMandatory,
+        requiresAdminApproval: s.requiresAdminApproval || false,
+        completionCondition: s.completionCondition || "manual",
       }));
 
     // First step auto-complete (Lead Captured)
@@ -218,35 +221,47 @@ export const completeStep = async (req, res) => {
       return res.status(400).json({ success: false, message: "Step already completed hai" });
     }
 
+    // Handle Admin Approval Flow
+    const requiresAdminApproval = step.requiresAdminApproval && completedBy !== "Admin";
+    const newStatus = requiresAdminApproval ? "awaiting-approval" : "completed";
+
     // Step complete karo
-    order.steps[stepIndex].status = "completed";
+    order.steps[stepIndex].status = newStatus;
     order.steps[stepIndex].completedAt = new Date();
     order.steps[stepIndex].completedBy = completedBy;
-    order.steps[stepIndex].evidenceUrl = finalUrl;
-    order.steps[stepIndex].evidenceNote = finalNote;
+    order.steps[stepIndex].evidenceUrl = finalUrl || order.steps[stepIndex].evidenceUrl;
+    order.steps[stepIndex].evidenceNote = finalNote || order.steps[stepIndex].evidenceNote;
     order.steps[stepIndex].pendingActionAlert = "";
 
-    // Next pending step dhundho
-    const nextStep = order.steps.find(
-      (s, i) => i > stepIndex && s.status === "pending"
-    );
-
-    // Update current step info
-    if (nextStep) {
-      // Find the index of nextStep to update the array
-      const nextStepIndex = order.steps.findIndex(s => s.stepId === nextStep.stepId);
-      if (nextStepIndex !== -1) {
-        order.steps[nextStepIndex].status = "in-progress";
-        order.steps[nextStepIndex].startedAt = new Date();
-      }
-
-      order.currentStepNumber = nextStep.stepNumber;
-      order.currentStepTitle = nextStep.title;
-      order.pendingActionAlert = nextStep.pendingActionAlert || `${nextStep.title} complete karo`;
-      order.pendingActionFor = nextStep.assignedTo;
+    // If awaiting approval, DO NOT activate the next step yet.
+    if (newStatus === "awaiting-approval") {
+      order.pendingActionAlert = `Waiting for Admin approval on ${step.title}`;
+      order.pendingActionFor = "company";
     } else {
-      order.pendingActionAlert = "";
-      order.pendingActionFor = "none";
+      // Next pending step dhundho
+      const nextStep = order.steps.find(
+        (s, i) => i > stepIndex && s.status === "pending"
+      );
+
+      // Update current step info
+      if (nextStep) {
+        // Find the index of nextStep to update the array
+        const nextStepIndex = order.steps.findIndex(s => s.stepId === nextStep.stepId);
+        if (nextStepIndex !== -1) {
+          order.steps[nextStepIndex].status = "in-progress";
+          order.steps[nextStepIndex].startedAt = new Date();
+        }
+
+        order.currentStepNumber = nextStep.stepNumber;
+        order.currentStepTitle = nextStep.title;
+        order.pendingActionAlert = nextStep.pendingActionAlert || `${nextStep.title} complete karo`;
+        order.pendingActionFor = nextStep.assignedTo;
+      } else {
+        order.status = "completed";
+        order.completionPercentage = 100;
+        order.pendingActionAlert = "";
+        order.pendingActionFor = "none";
+      }
     }
 
     // Recalculate completion %
@@ -275,6 +290,79 @@ export const completeStep = async (req, res) => {
   } catch (err) {
     console.error("completeStep error:", err);
     res.status(500).json({ success: false, message: "Server error: " + err.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// APPROVE STEP (Admin Only)
+// POST /api/project-orders/:id/steps/:stepId/approve
+// ═══════════════════════════════════════════════════════════════════════════════
+export const approveStep = async (req, res) => {
+  try {
+    const { id, stepId } = req.params;
+    const order = await ProjectOrder.findById(id);
+    if (!order) return res.status(404).json({ success: false, message: "Order nahi mila" });
+
+    const stepIndex = order.steps.findIndex((s) => s.stepId === stepId);
+    if (stepIndex === -1) return res.status(404).json({ success: false, message: "Step nahi mila" });
+
+    order.steps[stepIndex].status = "completed";
+    order.steps[stepIndex].completedBy = "Admin";
+    order.steps[stepIndex].completedAt = new Date();
+    order.steps[stepIndex].pendingActionAlert = "";
+
+    // Activate next step
+    const nextStep = order.steps.find((s, i) => i > stepIndex && s.status === "pending");
+    if (nextStep) {
+      const nextStepIndex = order.steps.findIndex(s => s.stepId === nextStep.stepId);
+      if (nextStepIndex !== -1) {
+        order.steps[nextStepIndex].status = "in-progress";
+        order.steps[nextStepIndex].startedAt = new Date();
+      }
+      order.currentStepNumber = nextStep.stepNumber;
+      order.currentStepTitle = nextStep.title;
+      order.pendingActionAlert = nextStep.pendingActionAlert || `${nextStep.title} complete karo`;
+      order.pendingActionFor = nextStep.assignedTo;
+    } else {
+      order.status = "completed";
+      order.completionPercentage = 100;
+      order.pendingActionAlert = "";
+      order.pendingActionFor = "none";
+    }
+
+    order.completionPercentage = calcCompletion(order.steps);
+    
+    await order.save();
+    res.json({ success: true, message: "Step approved successfully" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REJECT STEP (Admin Only - Revert to in-progress)
+// POST /api/project-orders/:id/steps/:stepId/reject
+// ═══════════════════════════════════════════════════════════════════════════════
+export const rejectStep = async (req, res) => {
+  try {
+    const { id, stepId } = req.params;
+    const order = await ProjectOrder.findById(id);
+    if (!order) return res.status(404).json({ success: false, message: "Order nahi mila" });
+
+    const stepIndex = order.steps.findIndex((s) => s.stepId === stepId);
+    if (stepIndex === -1) return res.status(404).json({ success: false, message: "Step nahi mila" });
+
+    order.steps[stepIndex].status = "in-progress";
+    order.steps[stepIndex].evidenceUrl = ""; // Clear evidence if desired
+    order.steps[stepIndex].pendingActionAlert = `Admin rejected previous upload. Re-upload required.`;
+    
+    order.pendingActionAlert = `${order.steps[stepIndex].title} needs to be re-done`;
+    order.pendingActionFor = order.steps[stepIndex].assignedTo;
+    
+    await order.save();
+    res.json({ success: true, message: "Step rejected and reverted to in-progress" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 

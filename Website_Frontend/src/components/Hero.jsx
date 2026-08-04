@@ -15,7 +15,7 @@ import { useWebsiteSettings } from "../hooks/useWebsiteSettings";
 
 const STAT_COLORS = ["text-solar-yellow", "text-solar-green", "text-solar-sky"];
 
-export default function Hero({ onScrollToForm }) {
+export default function Hero({ onScrollToForm, projectTypes, selectedPt, onSelectPt }) {
   const settings = useWebsiteSettings();
   const hero = settings.hero || {};
   const stats = settings.stats || [];
@@ -41,11 +41,29 @@ export default function Hero({ onScrollToForm }) {
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 z-10 w-full">
         <div className="max-w-2xl">
-          {/* Tagline Badge */}
           <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full glass-panel-dark text-solar-yellow font-bold uppercase tracking-wider mb-6 animate-pulse-subtle">
             <Sun className="w-3.5 h-3.5 fill-solar-yellow text-solar-yellow" />
             {hero.badge}
           </div>
+
+          {/* Dynamic Project Type Selector */}
+          {projectTypes && projectTypes.length > 1 && (
+            <div className="flex flex-wrap items-center gap-2 mb-6 bg-slate-800/50 p-2 rounded-2xl w-max backdrop-blur-sm border border-slate-700/50">
+              {projectTypes.map((pt) => (
+                <button
+                  key={pt.type}
+                  onClick={() => onSelectPt(pt.type)}
+                  className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 capitalize ${
+                    selectedPt === pt.type
+                      ? "bg-solar-yellow text-slate-900 shadow-md shadow-solar-yellow/20"
+                      : "text-slate-300 hover:text-white hover:bg-slate-700/50"
+                  }`}
+                >
+                  {pt.type.replace("-", " ")}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Majestic Hero Headline */}
           <h1 className="text-4.5xl sm:text-5xl lg:text-5.5xl font-display font-extrabold tracking-tight leading-[1.1] text-white">
@@ -131,3 +149,4 @@ export default function Hero({ onScrollToForm }) {
     </section>
   );
 }
+
