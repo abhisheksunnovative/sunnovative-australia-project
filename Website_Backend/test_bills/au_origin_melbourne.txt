@@ -1,0 +1,50 @@
+
+              Origin Energy
+
+        ELECTRICITY TAX INVOICE
+
+Account Number: 9876 5432 1098
+Issue Date: 22 April 2025
+Payment Due: 12 May 2025
+
+Customer Name: James Wilson
+Supply Address:
+  15 Collins Street
+  SOUTH YARRA VIC 3141
+
+Billing Period: 15 Jan 2025 to 14 Apr 2025
+Number of Days: 90
+
+NMI: 6305102948
+Meter Serial: VE3847201
+
+          Your Electricity Usage
+
+  General Usage (Single Rate)
+    1,587 kWh @ 28.60 c/kWh              $453.88
+
+  Controlled Load
+    245 kWh @ 18.20 c/kWh                 $44.59
+
+  Total kWh consumed: 1,832 kWh
+
+  Daily Supply Charge
+    90 days @ $1.2340/day                 $111.06
+
+  Solar Feed-in Credit
+    312 kWh exported @ 5.2 c/kWh          -$16.22
+
+  Subtotal                                $593.31
+  GST                                      $59.33
+
+  Total Amount Payable                    $652.64
+
+  Your average daily usage: 20.4 kWh/day
+
+Pay by:
+  BPAY Biller Code: 234892
+  Ref: 9876543210987
+
+  originenergy.com.au
+  Call us: 13 24 61
+  ABN: 25 000 742 311

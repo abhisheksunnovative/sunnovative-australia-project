@@ -1,0 +1,47 @@
+
+            Aurora Energy
+       Electricity Tax Invoice
+
+Account Number: TAS-6629481073
+Bill Number: AUR-2025-374829
+
+Date Issued: 18 May 2025
+Due Date: 08 June 2025
+
+Account Name: Emma Richards
+Supply Address:
+  56 Liverpool Street
+  HOBART TAS 7000
+
+Period: 15 Feb 2025 to 15 May 2025
+Days: 89
+
+NMI: 8001593847
+Meter Number: TS-2948371
+
+           Electricity Charges
+
+  Tariff 31 - Light & Power General
+    Total Consumption: 2,134 kWh
+
+    Peak (7am-10pm)    1,423 kWh @ 31.54 c/kWh    $448.80
+    Off-Peak (10pm-7am)  711 kWh @ 16.29 c/kWh    $115.84
+
+  Daily Supply Charge
+    89 days @ $0.9463/day                            $84.22
+
+  Subtotal                                         $648.86
+  GST (10%)                                          $64.89
+
+  Total Amount Payable                             $713.75
+
+  Average Daily Usage: 24.0 kWh
+  Estimated Annual Cost: $2,926
+
+  Note: Tasmania's cooler climate means higher
+  heating costs. Consider solar + battery to
+  reduce your winter bills.
+
+  Pay at auroraenergy.com.au
+  Call: 1300 132 003
+  ABN: 85 082 464 622

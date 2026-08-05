@@ -1,0 +1,47 @@
+
+                  Synergy
+           Electricity Account
+
+Account Number: WA-8827364510
+Tax Invoice
+
+Date of Issue: 28 May 2025
+Payment Due Date: 18 June 2025
+
+Account Holder: Michael Thompson
+Supply Address:
+  7 St Georges Terrace
+  PERTH WA 6000
+
+Read Period: 01 Mar 2025 to 31 May 2025
+Meter Read Type: Actual
+
+NMI: 8004729361
+Meter Number: WA-SM84729
+
+             Charges Detail
+
+  A1 Tariff - Home Plan
+    Units Consumed: 1,456 kWh
+
+    First 1380.4 kWh @ 30.69 c/kWh       $423.70
+    Remaining 75.6 kWh @ 37.74 c/kWh      $28.53
+
+  Daily Fixed Charge
+    92 days @ $1.0602/day                  $97.54
+
+  Subtotal (excl GST)                    $549.77
+  GST (10%)                               $54.98
+
+  Total Amount Due                       $604.75
+
+  Average Daily Consumption: 15.8 kWh
+
+  Distributed Solar (REBS) Feed-in:
+    187 kWh exported @ 10.00 c/kWh        -$18.70
+
+  Net Amount Payable                     $586.05
+
+  For payment options visit synergy.net.au
+  Enquiries: 13 13 53
+  ABN: 58 673 830 106

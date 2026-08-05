@@ -1,0 +1,48 @@
+
+                            AGL
+                    Your Electricity Bill
+
+Account Number: 1234 5678 9012
+Tax Invoice Number: 7483920156
+
+Bill Date: 15 May 2025
+Due Date: 05 Jun 2025
+
+Supply Address:
+42 George Street
+PARRAMATTA NSW 2150
+
+Billing Period: 01 Feb 2025 - 30 Apr 2025 (89 days)
+
+Meter Number: N4E829103
+NMI: 4102837465
+
+                    Electricity Charges
+
+Usage Charges
+  Peak Usage         623 kWh @ $0.3520/kWh         $219.30
+  Shoulder Usage     412 kWh @ $0.2890/kWh         $119.07
+  Off-Peak Usage     289 kWh @ $0.1950/kWh          $56.36
+
+  Total Usage: 1,324 kWh
+
+  Daily Supply Charge    89 days @ $1.1680/day      $103.95
+
+  Subtotal                                          $498.68
+  GST (10%)                                          $49.87
+
+Total Amount Due                                    $548.55
+
+  Average Daily Usage: 14.9 kWh
+
+Payment Options:
+  BPAY Biller Code: 87341
+  Reference: 1234567890123
+
+  Direct Debit | Credit Card | Post Office
+  Pay online at agl.com.au/pay
+
+  For enquiries call 131 245
+
+  ABN: 74 115 061 375
+  AGL Energy Limited

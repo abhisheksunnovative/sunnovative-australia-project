@@ -1,0 +1,49 @@
+
+              Ergon Energy
+        Electricity Bill / Tax Invoice
+
+Account Number: 7100 4829 3651
+Invoice Number: ERG-2025-928374
+
+Issue Date: 05 June 2025
+Due Date: 26 June 2025
+
+Customer Name: David Patel
+Supply Address:
+  23 Abbott Street
+  CAIRNS QLD 4870
+
+Billing Period: 01 Mar 2025 - 31 May 2025
+Number of Days: 92
+
+NMI: 3109584726
+Meter: QN-ER483920
+
+           Usage & Charges
+
+  Tariff 11 - Residential (Single Rate)
+    Total Usage: 1,890 kWh
+    Rate: 27.478 c/kWh                   $519.33
+
+  Daily Supply Charge
+    92 days @ $1.3190/day                 $121.35
+
+  Subtotal                               $640.68
+  GST                                      $64.07
+
+  Total Amount Due                       $704.75
+
+  Average Daily Usage: 20.5 kWh/day
+  Average Daily Cost: $7.66
+
+  Your home uses more energy than 65% of similar homes
+  in your area.
+
+Payment:
+  BPAY Biller Code: 76542
+  Ref: 71004829365123
+
+  ergon.com.au | 13 10 46
+  ABN: 50 087 995 224
+
+  Ergon Energy Queensland Pty Ltd

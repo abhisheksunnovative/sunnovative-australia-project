@@ -2,16 +2,15 @@
  * lightBillScanController.js
  * POST /api/light-bill/scan
  *
- * Updated to match ocrExtractor.js v4:
- *   - discomId + detectedState in response
- *   - solarEligible from resolveCat (via parseBillText)
- *   - kwRules passed to deriveRecommendedKw from DB settings
- *   - estimateSubsidy gets detectedState + stateOverrides
- *   - billingPeriodLabel replaced by billingPeriodFrom/To
- *   - tariffDesc added to response
+ * Country-aware bill scanner:
+ * - x-country: australia → uses parseAuBillText() — extracts retailer, suburb, postcode,
+ *   quarterly kWh, quarterly bill, solar export, tariff type, meter type + STC calculation
+ * - x-country: india (default) → uses parseBillText() — extracts DISCOM, meter category,
+ *   consumer number, subsidy estimate (existing India pipeline unchanged)
  */
 
 import EligibilitySettings from '../models/EligibilitySettings.js';
+import CountryWebsiteSettings from '../models/CountryWebsiteSettings.js';
 import fs from 'fs';
 import {
   runOcr,
@@ -20,6 +19,9 @@ import {
   parseBillText,
   deriveRecommendedKw,
   estimateSubsidy,
+  parseAuBillText,
+  getAuStcZone,
+  calcAuStcs,
 } from '../utils/Ocrextractor.js';
 
 export const scanLightBill = async (req, res) => {
@@ -37,8 +39,6 @@ export const scanLightBill = async (req, res) => {
     if (req.file.mimetype === 'application/pdf') {
       const { text, isScanned } = await extractPdfText(req.file.buffer);
       if (isScanned) {
-        // v5: Instead of rejecting, convert scanned PDF pages to images
-        // and run Tesseract OCR on each page
         try {
           const pageImages = await convertScannedPdfToImages(req.file.buffer);
           if (!pageImages || pageImages.length === 0) {
@@ -48,7 +48,6 @@ export const scanLightBill = async (req, res) => {
                 'Kripya bill ka clear JPG/PNG photo upload karo.',
             });
           }
-          // OCR each page and combine text (most bills are 1-2 pages)
           const pageTexts = [];
           for (const imgBuffer of pageImages) {
             const pageText = await runOcr(imgBuffer);
@@ -78,6 +77,9 @@ export const scanLightBill = async (req, res) => {
       }
     } else if (req.file.mimetype.startsWith('image/')) {
       rawText = await runOcr(req.file.buffer);
+    } else if (req.file.mimetype === 'text/plain') {
+      // Text files — for testing: read directly as UTF-8
+      rawText = req.file.buffer.toString('utf-8');
     } else {
       return res.status(400).json({
         message: 'Unsupported file type. Please upload JPG, PNG, or PDF.',
@@ -87,10 +89,132 @@ export const scanLightBill = async (req, res) => {
     // DEBUG: Save OCR output to file so AI can analyze it
     fs.writeFileSync('last_ocr_text.txt', rawText);
 
-    // ── 3. Parse bill text ─────────────────────────────────────────────────
+    // ── 3. Country detection ───────────────────────────────────────────────
+    const country = req.country || 'india'; // set by extractCountry middleware
+
+    // ══════════════════════════════════════════════════════════════════════
+    // ─── AUSTRALIA BILL SCAN PIPELINE ────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════════
+    if (country === 'australia') {
+      const parsed = parseAuBillText(rawText);
+
+      // Fetch AU STC settings from CountryWebsiteSettings
+      let deemingYears = 5;
+      let stcPrice = 38;
+      try {
+        const auSettings = await CountryWebsiteSettings.findOne({ countryCode: 'AU' }).lean();
+        if (auSettings?.stcSettings) {
+          deemingYears = auSettings.stcSettings.deemingYears || 5;
+          stcPrice     = auSettings.stcSettings.stcPrice || 38;
+        }
+      } catch (e) {
+        console.warn('AU CountryWebsiteSettings fetch failed (using defaults):', e.message);
+      }
+
+      // Recommended kW from quarterly usage
+      // AU average: 6.5 kWh/day per kW of solar at zone 3
+      const zone = getAuStcZone(parsed.postcode || '2000');
+      const zoneYieldPerKw = zone === 1 ? 7.5 : zone === 2 ? 7.0 : zone === 3 ? 6.5 : 5.8; // kWh/day/kW
+      let recommendedKw = 6.6; // default
+      if (parsed.dailyKwh) {
+        // Recommend enough solar to cover 80% of daily usage
+        recommendedKw = Math.ceil((parsed.dailyKwh * 0.8) / zoneYieldPerKw);
+        recommendedKw = Math.max(1.5, Math.min(20, recommendedKw));
+        // Round to nearest standard size: 3, 5, 6.6, 10, 13, 15
+        const standardSizes = [3, 5, 6.6, 10, 13, 15, 20];
+        recommendedKw = standardSizes.find(s => s >= recommendedKw) || 6.6;
+      } else if (parsed.monthlyBillEquivalent) {
+        // Rough: $100/month → ~1kW in zone 3
+        recommendedKw = Math.ceil(parsed.monthlyBillEquivalent / 100);
+        recommendedKw = Math.max(1.5, Math.min(20, recommendedKw));
+      }
+
+      // STC calculation
+      const stcCalc = calcAuStcs({ kw: recommendedKw, zone, deemingYears, stcPrice });
+
+      const confidence = parsed.confidence;
+      const response = {
+        success: true,
+        confidence,
+        country: 'australia',
+        message: confidence === 'low'
+          ? 'Some fields could not be clearly extracted. Please verify details below.'
+          : null,
+
+        // ── Extracted bill details (AU-specific) ──
+        extracted: {
+          // Identity
+          retailer:         parsed.retailer,
+          accountNumber:    parsed.accountNumber,
+          consumerName:     parsed.customerName,
+          consumerNumber:   parsed.accountNumber, // alias for frontend compatibility
+
+          // Location
+          suburb:           parsed.suburb,
+          state:            parsed.state,
+          postcode:         parsed.postcode,
+          detectedState:    parsed.state, // alias for frontend compatibility
+          district:         parsed.suburb, // alias for frontend compatibility
+
+          // Billing period
+          billingPeriodFrom: parsed.billingPeriodFrom,
+          billingPeriodTo:   parsed.billingPeriodTo,
+          billingDays:       parsed.billingDays,
+
+          // Usage
+          quarterlyKwh:          parsed.quarterlyKwh,
+          dailyKwh:              parsed.dailyKwh,
+          monthlyKwhEquivalent:  parsed.monthlyKwhEquivalent,
+          monthlyUnits:          parsed.monthlyKwhEquivalent, // alias for frontend compat
+
+          // Bill amounts (AU bills are quarterly)
+          quarterlyBillAmount:   parsed.quarterlyBillAmount,
+          monthlyBillEquivalent: parsed.monthlyBillEquivalent,
+          billAmount:            parsed.monthlyBillEquivalent, // alias: monthly equiv for slider
+
+          // Solar export
+          solarExportKwh:    parsed.solarExportKwh,
+          solarExportCredit: parsed.solarExportCredit,
+
+          // Meter & tariff
+          tariffType:   parsed.tariffType,
+          meterType:    parsed.meterType,
+          meterCategory: parsed.tariffType || 'Residential', // alias
+        },
+
+        // ── Solar recommendation ──
+        recommendedKw,
+        monthlyUnitsUsed: parsed.monthlyKwhEquivalent,
+
+        // ── STC calculation ──
+        stcInfo: {
+          zone,
+          zoneLabel: `Zone ${zone}`,
+          deemingYears,
+          stcPrice,
+          stcs:        stcCalc.stcs,
+          stcValue:    stcCalc.stcValue,
+          installCost: stcCalc.installCost,
+          netCost:     stcCalc.netCost,
+          multiplier:  stcCalc.multiplier,
+        },
+
+        // India-compat aliases (frontend may use these)
+        subsidyAmount: stcCalc.stcValue,
+        subsidyNote: `${stcCalc.stcs} STCs × $${stcPrice} = $${stcCalc.stcValue} rebate (Zone ${zone}, ${deemingYears}-yr deeming)`,
+      };
+
+      return res.json(response);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // ─── INDIA BILL SCAN PIPELINE (unchanged) ────────────────────────────
+    // ══════════════════════════════════════════════════════════════════════
+
+    // ── 4. Parse bill text ─────────────────────────────────────────────────
     const parsed = parseBillText(rawText);
 
-    // ── 4. Load eligibility settings for kwRules + stateOverrides ─────────
+    // ── 5. Load eligibility settings for kwRules + stateOverrides ─────────
     let kwRules = null;
     let stateOverrides = {};
     try {
@@ -100,32 +224,32 @@ export const scanLightBill = async (req, res) => {
         stateOverrides = settings.eligibilityRules.stateSubsidyOverrides || {};
       }
     } catch (dbErr) {
-      // DB error won't block scan — just use defaults
       console.warn('EligibilitySettings fetch failed (using defaults):', dbErr.message);
     }
 
-    // ── 5. KW recommendation ───────────────────────────────────────────────
+    // ── 6. KW recommendation ───────────────────────────────────────────────
     const { recommendedKw, monthlyUnitsUsed } = deriveRecommendedKw({
       monthlyUnits: parsed.monthlyUnits,
       billAmount: parsed.billAmount,
-      kwRules,                          // ← v4: passes DB-driven rules
+      kwRules,
     });
 
-    // ── 6. Subsidy estimate ────────────────────────────────────────────────
+    // ── 7. Subsidy estimate ────────────────────────────────────────────────
     const { subsidyAmount, note } = recommendedKw
       ? estimateSubsidy(
           recommendedKw,
           parsed.meterCategory,
-          parsed.detectedState,         // ← v4: state-aware subsidy
+          parsed.detectedState,
           stateOverrides,
         )
       : { subsidyAmount: null, note: null };
 
-    // ── 7. Low confidence — still return data, warn user ──────────────────
+    // ── 8. Low confidence — still return data, warn user ──────────────────
     if (parsed.confidence === 'low') {
       return res.json({
         success: true,
         confidence: 'low',
+        country: 'india',
         message:
           'Bill se poori jaankari clearly nahi mil payi. ' +
           'Kripya neeche diye fields manually check/edit kar lo.',
@@ -137,49 +261,36 @@ export const scanLightBill = async (req, res) => {
       });
     }
 
-    // ── 8. Success response ────────────────────────────────────────────────
+    // ── 9. Success response ────────────────────────────────────────────────
     res.json({
       success: true,
-      confidence: parsed.confidence,   // 'high' | 'medium'
+      confidence: parsed.confidence,
+      country: 'india',
 
-      // ── Bill details ───────────────────────────────────────────────────
       extracted: {
-        // Identity
         discomId:           parsed.discomId,
         detectedState:      parsed.detectedState,
         billFormat:         parsed.billFormat,
-
-        // Consumer
         consumerNumber:     parsed.consumerNumber,
         consumerName:       parsed.consumerName,
         district:           parsed.district,
-
-        // Meter / Tariff
         tariffCode:         parsed.tariffCode,
-        tariffDesc:         parsed.tariffDesc,        // ← v4 new field
+        tariffDesc:         parsed.tariffDesc,
         meterCategory:      parsed.meterCategory,
-        solarEligible:      parsed.solarEligible,     // ← v4 new field
+        solarEligible:      parsed.solarEligible,
         sanctionedLoad:     parsed.sanctionedLoad,
-
-        // Consumption
         monthlyUnits:       parsed.monthlyUnits,
-
-        // Amounts
         billAmount:         parsed.billAmount,
         dueAmount:          parsed.dueAmount,
         billStatus:         parsed.billStatus,
         monthsOverdue:      parsed.monthsOverdue,
-
-        // Dates
         billDate:           parsed.billDate,
         dueDate:            parsed.dueDate,
-        billingPeriodFrom:  parsed.billingPeriodFrom, // ← v4: replaces billingPeriodLabel
-        billingPeriodTo:    parsed.billingPeriodTo,   // ← v4: replaces billingPeriodLabel
-
+        billingPeriodFrom:  parsed.billingPeriodFrom,
+        billingPeriodTo:    parsed.billingPeriodTo,
         rawTextPreview:     parsed.rawTextPreview,
       },
 
-      // ── Solar recommendation ─────────────────────────────────────────
       recommendedKw,
       monthlyUnitsUsed,
       subsidyAmount,
@@ -194,3 +305,4 @@ export const scanLightBill = async (req, res) => {
     });
   }
 };
+

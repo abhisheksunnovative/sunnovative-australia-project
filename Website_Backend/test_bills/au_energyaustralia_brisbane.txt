@@ -1,0 +1,48 @@
+
+            EnergyAustralia
+         Electricity Bill
+
+Tax Invoice Number: EA-2025-0483721
+Account Number: 5551 2233 4455
+ABN: 99 086 014 968
+
+Bill Issued: 10 June 2025
+Due Date: 01 July 2025
+
+Customer: Sarah Chen
+Service Address:
+  88 Queen Street
+  BRISBANE CITY QLD 4000
+
+Billing Period: 01 Mar 2025 - 31 May 2025
+Days in Period: 92
+
+NMI: 3102958476
+Meter Number: QE19284756
+
+        Usage Summary
+
+  Time of Use - Peak
+    534 kWh @ $0.3890/kWh                $207.73
+
+  Time of Use - Off Peak
+    721 kWh @ $0.2150/kWh                $155.02
+
+  Total Electricity Used: 1,255 kWh
+
+  Supply Charge
+    92 days @ $0.9870/day                 $90.80
+
+  Subtotal                               $453.55
+  GST (10%)                               $45.36
+
+  Balance Due                            $498.91
+
+  Daily Average: 13.6 kWh
+
+  Your estimated annual usage: 5,020 kWh
+
+How to Pay:
+  BPAY: Biller Code 54637
+  energyaustralia.com.au
+  Phone: 133 466

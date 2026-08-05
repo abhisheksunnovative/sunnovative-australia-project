@@ -6,6 +6,7 @@ import upload from '../middleware/upload.js';
 import EpcPartner from '../models/EpcPartner.js';
 import EligibilitySettings  from '../models/EligibilitySettings.js';
 import { OrderJourneySettings } from '../models/OrderJourneySettings.js';
+import CountryWebsiteSettings from '../models/CountryWebsiteSettings.js';
 import { extractCountry } from '../middleware/countryMiddleware.js';
 
 const router = express.Router();
@@ -57,47 +58,111 @@ router.get('/public/epc-partners', async (req, res) => {
   }
 });
 
-// Eligibility settings public (categories, subsidy) for solar packages display
+// ── DYNAMIC Solar Packages — built from OrderJourneySettings + CountryWebsiteSettings + EligibilitySettings ──
 router.get('/public/solar-packages', async (req, res) => {
   try {
-    let settings = await EligibilitySettings.findOne();
-    
-    // We can fetch dynamic base rates or stick to predefined ones for packages.
-    // Let's use the DB's centralSubsidyTiers if available
-    const tiers = settings?.eligibilityRules?.centralSubsidyTiers || [];
-    
-    // Helper to calculate central subsidy for a given kW
-    const calcPackageCentralSubsidy = (kw) => {
+    const country = req.country || 'india'; // e.g. 'australia', 'india'
+
+    // Map country string to countryCode for CountryWebsiteSettings
+    const countryCodeMap = { australia: 'AU', india: 'IN', new_zealand: 'NZ', uk: 'UK', us: 'US' };
+    const countryCode = countryCodeMap[country] || 'IN';
+
+    // 1. Fetch country-specific settings in parallel
+    const [eligibilitySettings, journeySettings, countryWebSettings] = await Promise.all([
+      EligibilitySettings.findOne({ country }).lean(),
+      OrderJourneySettings.findOne({ country }).lean(),
+      CountryWebsiteSettings.findOne({ countryCode }).lean()
+    ]);
+
+    // 2. Subsidy helpers — country-specific tiers
+    const tiers = eligibilitySettings?.eligibilityRules?.centralSubsidyTiers || [];
+    const calcCentralSubsidy = (kw) => {
+      if (tiers.length === 0) return 0; // Australia etc. — no subsidy tiers
       let subsidy = 0;
-      let remainingKw = kw;
-      for (const tier of tiers.sort((a, b) => a.maxKW - b.maxKW)) {
-        if (remainingKw <= 0) break;
-        const kwInTier = Math.min(remainingKw, tier.maxKW);
-        subsidy += kwInTier * tier.ratePerKW + tier.fixedBaseAmount;
-        remainingKw -= kwInTier;
+      let remaining = kw;
+      for (const tier of [...tiers].sort((a, b) => a.maxKW - b.maxKW)) {
+        if (remaining <= 0) break;
+        const kwInTier = Math.min(remaining, tier.maxKW);
+        subsidy += kwInTier * (tier.ratePerKW || 0) + (tier.fixedBaseAmount || 0);
+        remaining -= kwInTier;
       }
-      return subsidy || (kw === 1 ? 30000 : kw === 2 ? 60000 : kw === 3 ? 78000 : kw > 3 ? 78000 : 0); // Fallback
+      return subsidy;
     };
 
-    const packages = [
-      { id: "1kw",  kw: 1,  name: "Starter Solar",   desc: "Small households ke liye — 1-2 BHK apartments",  centralSubsidy: calcPackageCentralSubsidy(1), installCost: 65000, units: 90,  suitable: ["Residential Solar"], badge: null },
-      { id: "2kw",  kw: 2,  name: "Family Solar",    desc: "Average family homes ke liye — 2-3 BHK",          centralSubsidy: calcPackageCentralSubsidy(2), installCost: 115000, units: 180, suitable: ["Residential Solar"], badge: "Popular" },
-      { id: "3kw",  kw: 3,  name: "Premium Solar",   desc: "Large homes ke liye — 3-4 BHK, AC wale ghar",     centralSubsidy: calcPackageCentralSubsidy(3), installCost: 155000, units: 270, suitable: ["Residential Solar", "Group Solar"], badge: "Max Subsidy" },
-      { id: "5kw",  kw: 5,  name: "Business Solar",  desc: "Small shops, offices, clinics ke liye",             centralSubsidy: 0,     installCost: 230000, units: 450, suitable: ["Commercial Solar"], badge: null },
-      { id: "10kw", kw: 10, name: "Commercial Pro",  desc: "Factories, large offices, warehouses ke liye",      centralSubsidy: 0,     installCost: 420000, units: 900, suitable: ["Commercial Solar"], badge: "Best ROI" },
-    ];
-    
+    // 3. State-subsidy overrides (India specific)
     const stateOverrides = {};
-    if (settings?.eligibilityRules?.stateSubsidies) {
-      settings.eligibilityRules.stateSubsidies.forEach(ss => {
-        stateOverrides[ss.state] = ss.stateSubsidyMax; // E.g. Gujarat max subsidy
+    if (eligibilitySettings?.eligibilityRules?.stateSubsidies) {
+      eligibilitySettings.eligibilityRules.stateSubsidies.forEach(ss => {
+        stateOverrides[ss.state] = ss.stateSubsidyMax;
       });
     }
 
-    let journeySettings = await OrderJourneySettings.findOne();
-    const minBookingDays = journeySettings?.globalSettings?.minBookingDays || 5;
+    // 4. Build packages from enabled OrderJourney project types
+    const enabledJourneys = (journeySettings?.journeys || []).filter(j => j.enabled !== false);
 
-    res.json({ success: true, packages, stateOverrides, minBookingDays });
+    const isAustralia = country === 'australia';
+    const isIndia = country === 'india';
+    // Base cost per kW in local currency (AUD or INR)
+    const baseRatePerKw = isAustralia ? 1200 : isIndia ? 60000 : 1000;
+    const unitsPerKwPerMonth = eligibilitySettings?.eligibilityRules?.kwDerivationRules?.unitsPerKW || (isAustralia ? 130 : 90);
+
+    const packages = [];
+
+    for (const journey of enabledJourneys) {
+      const { projectType, projectTypeLabel } = journey;
+      const ptConfig = countryWebSettings?.projectTypeConfigs?.find(c => c.type === projectType);
+      const maxKwLimit = ptConfig?.maxKwLimit || 10;
+
+      const typeLower = (projectType || '').toLowerCase();
+      const isCommercial = ['commercial', 'industrial', 'group', 'common-meter'].includes(typeLower);
+      const isResidential = ['residential', 'apartment', 'society'].includes(typeLower);
+
+      let kwOptions = [];
+      if (isResidential) {
+        kwOptions = [1, 2, 3].filter(k => k <= maxKwLimit);
+        if (maxKwLimit >= 5) kwOptions.push(5);
+      } else if (isCommercial) {
+        kwOptions = [5, 10].filter(k => k <= maxKwLimit);
+        if (maxKwLimit >= 20) kwOptions.push(20);
+        if (maxKwLimit >= 50) kwOptions.push(50);
+      } else {
+        kwOptions = [3, 10].filter(k => k <= maxKwLimit);
+      }
+
+      const badgeMap = { 0: null, 1: 'Popular', 2: 'Max Subsidy' };
+
+      kwOptions.forEach((kw, idx) => {
+        packages.push({
+          id: `${projectType}-${kw}kw`,
+          kw,
+          name: `${ptConfig?.heroTitle || (projectTypeLabel || projectType)} ${kw}kW`,
+          desc: ptConfig?.heroSubtitle || (isResidential
+            ? `${kw <= 2 ? 'Small home' : kw <= 3 ? 'Medium home' : 'Large property'} ke liye ideal`
+            : `${projectTypeLabel || projectType} solar — ${kw}kW`),
+          centralSubsidy: calcCentralSubsidy(kw),
+          installCost: Math.round(kw * baseRatePerKw),
+          units: Math.round(kw * unitsPerKwPerMonth),
+          suitable: [projectTypeLabel || projectType],
+          projectType,
+          badge: badgeMap[idx] || null,
+        });
+      });
+    }
+
+    // 5. Fallback: no journeys configured → legacy India hardcoded packages
+    if (packages.length === 0 && isIndia) {
+      const cf = (kw) => { let s = 0, r = kw; for (const t of [...tiers].sort((a, b) => a.maxKW - b.maxKW)) { if (r <= 0) break; s += Math.min(r, t.maxKW) * t.ratePerKW + t.fixedBaseAmount; r -= t.maxKW; } return s || (kw === 1 ? 30000 : kw === 2 ? 60000 : 78000); };
+      packages.push(
+        { id: '1kw',  kw: 1,  name: 'Starter Solar',  desc: '1-2 BHK apartments ke liye', centralSubsidy: cf(1), installCost: 65000,  units: 90,  suitable: ['Residential Solar'], projectType: 'residential', badge: null },
+        { id: '2kw',  kw: 2,  name: 'Family Solar',   desc: '2-3 BHK homes ke liye',      centralSubsidy: cf(2), installCost: 115000, units: 180, suitable: ['Residential Solar'], projectType: 'residential', badge: 'Popular' },
+        { id: '3kw',  kw: 3,  name: 'Premium Solar',  desc: '3-4 BHK, AC wale ghar',       centralSubsidy: cf(3), installCost: 155000, units: 270, suitable: ['Residential Solar'], projectType: 'residential', badge: 'Max Subsidy' },
+        { id: '5kw',  kw: 5,  name: 'Business Solar', desc: 'Shops, offices, clinics',     centralSubsidy: 0,     installCost: 230000, units: 450, suitable: ['Commercial Solar'],  projectType: 'commercial',  badge: null },
+        { id: '10kw', kw: 10, name: 'Commercial Pro', desc: 'Factories, warehouses',        centralSubsidy: 0,     installCost: 420000, units: 900, suitable: ['Commercial Solar'],  projectType: 'commercial',  badge: 'Best ROI' },
+      );
+    }
+
+    const minBookingDays = journeySettings?.globalSettings?.minBookingDays || 5;
+    res.json({ success: true, packages, stateOverrides, minBookingDays, country, countryCode });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

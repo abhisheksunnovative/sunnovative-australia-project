@@ -647,3 +647,242 @@ export const estimateSubsidy = (kw, meterCategory, detectedState, rules) => {
       : 'PM Surya Ghar Yojana estimate — final amount confirmed post site survey',
   };
 };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── AUSTRALIA ELECTRICITY BILL PARSER ────────────────────────────────────
+// Supports: AGL, Origin Energy, EnergyAustralia, Synergy, AusGrid,
+//           Ergon Energy, Powercor, ActewAGL, Aurora Energy, SA Power Networks
+// ═══════════════════════════════════════════════════════════════════════════
+
+const AU_RETAILERS = [
+  { id: 'AGL',             pattern: /\bAGL\b|AGL\s*Energy/i },
+  { id: 'Origin Energy',   pattern: /Origin\s*Energy/i },
+  { id: 'EnergyAustralia', pattern: /Energy\s*Australia/i },
+  { id: 'Synergy',         pattern: /\bSynergy\b/i },
+  { id: 'ActewAGL',        pattern: /ActewAGL/i },
+  { id: 'Aurora Energy',   pattern: /Aurora\s*Energy/i },
+  { id: 'Ergon Energy',    pattern: /Ergon\s*Energy/i },
+  { id: 'Powercor',        pattern: /Powercor/i },
+  { id: 'CitiPower',       pattern: /CitiPower/i },
+  { id: 'Jemena',          pattern: /Jemena/i },
+  { id: 'Lumo Energy',     pattern: /Lumo\s*Energy/i },
+  { id: 'Red Energy',      pattern: /Red\s*Energy/i },
+  { id: 'Simply Energy',   pattern: /Simply\s*Energy/i },
+  { id: 'Momentum Energy', pattern: /Momentum\s*Energy/i },
+  { id: 'Alinta Energy',   pattern: /Alinta\s*Energy/i },
+  { id: 'Horizon Power',   pattern: /Horizon\s*Power/i },
+  { id: 'SA Power Networks',pattern: /SA\s*Power\s*Networks?/i },
+  { id: 'Ausgrid',         pattern: /Ausgrid/i },
+  { id: 'Endeavour Energy',pattern: /Endeavour\s*Energy/i },
+];
+
+// AU State code → full state name
+const AU_STATE_MAP = {
+  NSW: 'New South Wales',
+  VIC: 'Victoria',
+  QLD: 'Queensland',
+  WA:  'Western Australia',
+  SA:  'South Australia',
+  TAS: 'Tasmania',
+  ACT: 'Australian Capital Territory',
+  NT:  'Northern Territory',
+};
+
+/**
+ * parseAuBillText — parse raw OCR text from an Australian electricity bill
+ * Returns structured data: retailer, accountNumber, customerName, suburb,
+ * state, postcode, quarterlyKwh, quarterlyBillAmount, solarExportKwh,
+ * solarExportCredit, tariffType, meterType, billingPeriod, balance
+ */
+export const parseAuBillText = (text) => {
+  const t = text; // raw text (keep case for name extraction)
+  const TU = t.toUpperCase();
+
+  // ── 1. Retailer detection ─────────────────────────────────────────────────
+  let retailer = null;
+  for (const r of AU_RETAILERS) {
+    if (r.pattern.test(t)) { retailer = r.id; break; }
+  }
+
+  // ── 2. Account / NMI Number ───────────────────────────────────────────────
+  let accountNumber = null;
+  const acctMatch = t.match(/(?:Account\s*(?:Number|No\.?|#)?|NMI|Meter\s*No\.?)[\s:]*([A-Z0-9]{6,20})/i);
+  if (acctMatch) accountNumber = acctMatch[1].trim();
+
+  // ── 3. Customer Name ──────────────────────────────────────────────────────
+  let customerName = null;
+  const namePatterns = [
+    /(?:Customer|Account\s*Holder|Name)\s*[:\-]\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})/i,
+    /Dear\s+(?:Mr\.?\s*|Ms\.?\s*|Mrs\.?\s*)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3}),?/i,
+  ];
+  for (const p of namePatterns) {
+    const m = t.match(p);
+    if (m) { customerName = m[1].trim(); break; }
+  }
+
+  // ── 4. Address — Suburb, State, Postcode ──────────────────────────────────
+  let suburb = null, state = null, postcode = null;
+
+  // Australian postcode: 4 digits, 2000-9999
+  const postcodeMatch = t.match(/\b([2-9]\d{3})\b/);
+  if (postcodeMatch) postcode = postcodeMatch[1];
+
+  // State code (NSW, VIC, QLD, WA, SA, TAS, ACT, NT)
+  const stateMatch = t.match(/\b(NSW|VIC|QLD|WA|SA|TAS|ACT|NT)\b/);
+  if (stateMatch) state = AU_STATE_MAP[stateMatch[1]] || stateMatch[1];
+
+  // Suburb: word(s) before STATE CODE or before postcode
+  if (stateMatch) {
+    const beforeState = t.substring(0, stateMatch.index).trim();
+    const words = beforeState.split(/[\s,\n]+/).filter(Boolean);
+    // Last 1-3 uppercase/titlecase words before state = suburb
+    const suburbWords = [];
+    for (let i = words.length - 1; i >= 0 && suburbWords.length < 3; i--) {
+      if (/^[A-Z][a-zA-Z]+$/.test(words[i])) suburbWords.unshift(words[i]);
+      else break;
+    }
+    if (suburbWords.length > 0) suburb = suburbWords.join(' ');
+  }
+
+  // ── 5. Billing Period ─────────────────────────────────────────────────────
+  let billingPeriodFrom = null, billingPeriodTo = null, billingDays = null;
+
+  // "1 January 2025 to 31 March 2025" or "01/01/2025 - 31/03/2025"
+  const periodMatch = t.match(
+    /(?:Bill(?:ing)?\s*Period|Period|From|service\s*period)[\s:]*([0-9]{1,2}[\s\/\-][A-Za-z0-9]+[\s\/\-][0-9]{2,4})\s*(?:to|–|-)\s*([0-9]{1,2}[\s\/\-][A-Za-z0-9]+[\s\/\-][0-9]{2,4})/i
+  );
+  if (periodMatch) {
+    billingPeriodFrom = periodMatch[1].trim();
+    billingPeriodTo   = periodMatch[2].trim();
+  }
+  const daysMatch = t.match(/(\d+)\s*(?:days?|day\s*period)/i);
+  if (daysMatch) billingDays = parseInt(daysMatch[1], 10);
+
+  // ── 6. kWh Usage (quarterly or whatever billing period) ───────────────────
+  let quarterlyKwh = null, dailyKwh = null;
+
+  // "Total Usage: 1,234 kWh" or "Electricity Used 987.5 kWh"
+  const usagePatterns = [
+    /(?:Total\s*)?(?:Electricity\s*)?(?:Usage|Used|Consumption|kWh\s*Used|Units\s*Used)\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*kWh/i,
+    /([\d,]+(?:\.\d+)?)\s*kWh\s*(?:used|consumed|usage)/i,
+    /(?:Peak\s*\+\s*Off.?Peak|Total)\s*(?:Usage)?\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*kWh/i,
+  ];
+  for (const p of usagePatterns) {
+    const m = t.match(p);
+    if (m) {
+      quarterlyKwh = parseFloat(m[1].replace(/,/g, ''));
+      if (billingDays && billingDays > 0) dailyKwh = +(quarterlyKwh / billingDays).toFixed(2);
+      break;
+    }
+  }
+
+  // ── 7. Daily average kWh (some bills show this directly) ─────────────────
+  if (!dailyKwh) {
+    const dailyMatch = t.match(/(?:Daily\s*Average|Avg\.?\s*Daily\s*Usage)\s*[:\-]?\s*([\d.]+)\s*kWh/i);
+    if (dailyMatch) dailyKwh = parseFloat(dailyMatch[1]);
+  }
+
+  // ── 8. Bill Amount ────────────────────────────────────────────────────────
+  let quarterlyBillAmount = null;
+
+  // "Total Amount Due: $1,234.56" or "Amount Payable $456.78"
+  const amountPatterns = [
+    /(?:Total\s*Amount\s*(?:Due|Payable|Outstanding)|Amount\s*(?:Due|Payable)|Balance\s*Due|Please\s*Pay)\s*[:\-]?\s*\$\s*([\d,]+(?:\.\d{2})?)/i,
+    /(?:Total\s*(?:Current\s*)?Bill|Bill\s*Total)\s*[:\-]?\s*\$\s*([\d,]+(?:\.\d{2})?)/i,
+    /\$\s*([\d,]+\.\d{2})\s*(?:is\s*due|payable|due\s*by)/i,
+  ];
+  for (const p of amountPatterns) {
+    const m = t.match(p);
+    if (m) {
+      quarterlyBillAmount = parseFloat(m[1].replace(/,/g, ''));
+      break;
+    }
+  }
+
+  // ── 9. Solar Export (Feed-in) ─────────────────────────────────────────────
+  let solarExportKwh = null, solarExportCredit = null;
+
+  const exportKwhMatch = t.match(/(?:Solar\s*Export|Feed.?in\s*(?:Credit|Tariff)?|Exported\s*(?:Energy)?)\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*kWh/i);
+  if (exportKwhMatch) solarExportKwh = parseFloat(exportKwhMatch[1].replace(/,/g, ''));
+
+  const exportCreditMatch = t.match(/(?:Solar\s*Export\s*Credit|Feed.?in\s*Credit|FiT\s*Credit)\s*[:\-]?\s*-?\s*\$\s*([\d,]+(?:\.\d{2})?)/i);
+  if (exportCreditMatch) solarExportCredit = parseFloat(exportCreditMatch[1].replace(/,/g, ''));
+
+  // ── 10. Tariff type ───────────────────────────────────────────────────────
+  let tariffType = null;
+  if (/Time\s*of\s*Use|TOU/i.test(t)) tariffType = 'Time of Use (TOU)';
+  else if (/Single\s*Rate|Flat\s*Rate/i.test(t)) tariffType = 'Single Rate';
+  else if (/Controlled\s*Load|Off.?Peak/i.test(t)) tariffType = 'Controlled Load';
+
+  // ── 11. Meter type ────────────────────────────────────────────────────────
+  let meterType = null;
+  if (/Smart\s*Meter|Interval\s*Meter/i.test(t)) meterType = 'Smart Meter';
+  else if (/Basic\s*Meter|Accumulation\s*Meter/i.test(t)) meterType = 'Basic Meter';
+
+  // ── 12. Estimated monthly equivalent ─────────────────────────────────────
+  // AU bills are quarterly (90 days). Monthly equivalent = quarterlyKwh / 3
+  const monthlyKwhEquivalent = quarterlyKwh ? Math.round(quarterlyKwh / 3) : null;
+  const monthlyBillEquivalent = quarterlyBillAmount ? Math.round(quarterlyBillAmount / 3) : null;
+
+  // ── 13. Confidence scoring ────────────────────────────────────────────────
+  let score = 0;
+  if (retailer)             score += 25;
+  if (quarterlyKwh)         score += 25;
+  if (quarterlyBillAmount)  score += 20;
+  if (postcode)             score += 10;
+  if (state)                score += 10;
+  if (customerName)         score += 10;
+  const confidence = score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low';
+
+  return {
+    country: 'australia',
+    confidence,
+    retailer,
+    accountNumber,
+    customerName,
+    suburb,
+    state,
+    postcode,
+    billingPeriodFrom,
+    billingPeriodTo,
+    billingDays,
+    quarterlyKwh,
+    dailyKwh,
+    monthlyKwhEquivalent,
+    monthlyBillEquivalent,
+    quarterlyBillAmount,
+    solarExportKwh,
+    solarExportCredit,
+    tariffType,
+    meterType,
+  };
+};
+
+// ── AU STC Zone calculator ────────────────────────────────────────────────────
+// Returns zone 1-4 based on 4-digit AU postcode (approximation)
+export const getAuStcZone = (postcode) => {
+  const code = parseInt(postcode, 10);
+  if (!code) return 3;
+  // Zone 1: NT (0800-0899) + North QLD (4700-4899) + North WA (6700-6799)
+  if ((code >= 800 && code <= 899) || (code >= 4700 && code <= 4899) || (code >= 6700 && code <= 6799)) return 1;
+  // Zone 2: Central QLD (4300-4699) + Central WA (6600-6699)
+  if ((code >= 4300 && code <= 4699) || (code >= 6600 && code <= 6699)) return 2;
+  // Zone 4: Tasmania (7000-7999) + Alpine ACT
+  if ((code >= 7000 && code <= 7999) || code === 2627 || code === 2628) return 4;
+  // Zone 3: default (Sydney, Melbourne, Brisbane, Adelaide, Perth metro)
+  return 3;
+};
+
+// ── AU STC calculator ─────────────────────────────────────────────────────────
+// zone multipliers per CEC/ORER deeming table
+const AU_ZONE_MULTIPLIERS = { 1: 1.622, 2: 1.536, 3: 1.382, 4: 1.185 };
+
+export const calcAuStcs = ({ kw, zone, deemingYears = 5, stcPrice = 38 }) => {
+  const multiplier = AU_ZONE_MULTIPLIERS[zone] || 1.382;
+  const stcs = Math.floor(kw * multiplier * deemingYears);
+  const stcValue = Math.round(stcs * stcPrice);
+  const installCost = Math.round(kw * 1100); // ~$1100/kW typical AU
+  const netCost = Math.max(500, installCost - stcValue);
+  return { zone, multiplier, deemingYears, stcPrice, stcs, stcValue, installCost, netCost };
+};
+

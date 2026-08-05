@@ -232,25 +232,32 @@ function SolarPackages({ onApply, preselectedType }) {
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-yellow-400" /></div>;
 
+  const isIndia = country === "IN" || !country;
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="font-black text-slate-800 text-lg">Solar System Packages</h2>
-          <p className="text-xs text-slate-500 mt-0.5">Apni zaroorat ke hisaab se package chunko</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {isIndia ? "Apni zaroorat ke hisaab se package chunko" : "Choose a solar package that suits your property"}
+          </p>
         </div>
-        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2">
-          <MapPin className="w-3.5 h-3.5 text-slate-400" />
-          <select value={selectedState} onChange={e => setSelectedState(e.target.value)}
-            className="text-xs font-bold text-slate-700 focus:outline-none bg-transparent">
-            {["Gujarat","Maharashtra","Rajasthan","Uttar Pradesh","Delhi","Karnataka","Tamil Nadu","Kerala"].map(s => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
-        </div>
+        {/* State selector only for India — AU/NZ don't have state-based subsidies */}
+        {isIndia && (
+          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2">
+            <MapPin className="w-3.5 h-3.5 text-slate-400" />
+            <select value={selectedState} onChange={e => setSelectedState(e.target.value)}
+              className="text-xs font-bold text-slate-700 focus:outline-none bg-transparent">
+              {["Gujarat","Maharashtra","Rajasthan","Uttar Pradesh","Delhi","Karnataka","Tamil Nadu","Kerala"].map(s => (
+                <option key={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
-      {stateSubsidy > 0 && (
+      {isIndia && stateSubsidy > 0 && (
         <div className="flex items-center gap-2 px-4 py-2.5 bg-green-50 border border-green-200 rounded-xl">
           <Leaf className="w-4 h-4 text-green-600 shrink-0" />
           <p className="text-xs font-bold text-green-700">
@@ -308,7 +315,7 @@ function SolarPackages({ onApply, preselectedType }) {
                 ))}
               </div>
 
-              {/* Subsidy breakdown */}
+              {/* Subsidy / Cost breakdown */}
               {pkg.centralSubsidy > 0 ? (
                 <div className="bg-white rounded-xl border border-slate-100 p-3 space-y-1.5">
                   <div className="flex justify-between text-xs">
@@ -319,7 +326,7 @@ function SolarPackages({ onApply, preselectedType }) {
                     <span className="text-blue-600">− Central Subsidy</span>
                     <span className="font-bold text-blue-600">−{fmt(pkg.centralSubsidy)}</span>
                   </div>
-                  {stateSubsidy > 0 && (
+                  {isIndia && stateSubsidy > 0 && (
                     <div className="flex justify-between text-xs">
                       <span className="text-green-600">− {selectedState} State</span>
                       <span className="font-bold text-green-600">−{fmt(stateSubsidy)}</span>
@@ -331,8 +338,16 @@ function SolarPackages({ onApply, preselectedType }) {
                   </div>
                 </div>
               ) : (
-                <div className="bg-slate-50 rounded-xl border border-slate-100 p-3 text-center">
-                  <p className="text-xs text-slate-500">Central subsidy applicable nahi — custom quote ke liye apply karo</p>
+                <div className="bg-slate-50 rounded-xl border border-slate-100 p-3 space-y-1.5">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-500">Estimated Cost</span>
+                    <span className="font-bold text-slate-700">{fmt(pkg.installCost)}</span>
+                  </div>
+                  <div className="border-t border-slate-100 pt-1.5">
+                    <p className="text-[10px] text-slate-400 text-center">
+                      {isIndia ? "Subsidy applicable nahi — custom quote ke liye apply karo" : "Feed-in tariff eligible · No upfront government subsidy"}
+                    </p>
+                  </div>
                 </div>
               )}
 

@@ -68,6 +68,13 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
   const [projectTypeConfigs, setProjectTypeConfigs] = useState([]);
   const [selectedUpgradeKw, setSelectedUpgradeKw] = useState(0);
   const [selectedKw, setSelectedKw] = useState(3);
+  // Section 4: Customer-chosen kW (may differ from recommended)
+  const [customKw, setCustomKw] = useState(null); // null = not yet chosen (shows recommended)
+  // AU Bill Scan — STC info returned from backend
+  const [scannedStcInfo, setScannedStcInfo] = useState(null);
+  const [scannedRetailer, setScannedRetailer] = useState(null);
+  const [scannedBillingPeriod, setScannedBillingPeriod] = useState(null);
+  const [scannedQuarterlyKwh, setScannedQuarterlyKwh] = useState(null);
 
   // Dynamic form settings from backend
   const [formSettings, setFormSettings] = useState(null);
@@ -215,54 +222,82 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
     }
   };
 
-  // Task 1: Real OCR bill scan — chains into Task 2 automatically
+  // Bill scan — routes to AU or India pipeline based on country
   const handleScanBill = async (file) => {
     setScanError("");
     setScanConfidence(null);
     setEligibilityResult(null);
+    setScannedStcInfo(null);
+    setScannedRetailer(null);
+    setScannedBillingPeriod(null);
+    setScannedQuarterlyKwh(null);
     setIsScanning(true);
 
     try {
       const formData = new FormData();
       formData.append("billFile", file);
 
-      // 🔴 FIX: Content-Type header REMOVE kiya — FormData ke saath axios
-      // khud sahi boundary generate karta hai. Manually set karne se boundary
-      // missing ho jaata tha aur backend (multer) file parse nahi kar pa raha tha.
-      const { data } = await billScanApi.post("/api/light-bill/scan", formData, { headers: { "x-country": getCountryCode() } });
+      const { data } = await billScanApi.post("/api/light-bill/scan", formData, {
+        headers: { "x-country": getCountryCode() }
+      });
 
       setScanConfidence(data.confidence);
       const ex = data.extracted;
 
+      // ── Common fields ─────────────────────────────────────────────────────
+      if (ex.consumerName)   setFullName(ex.consumerName);
       if (ex.consumerNumber) setConsumerNumber(ex.consumerNumber);
-      if (ex.consumerName) setFullName(ex.consumerName);
-      if (ex.billAmount) setMonthlyBill(ex.billAmount);
-      if (ex.meterCategory) setMeterCategory(ex.meterCategory);
-      if (ex.discomId) setDiscom(ex.discomId);
-      if (ex.tariffDesc) setTariffDesc(ex.tariffDesc);
-      if (ex.billStatus) setBillStatus(ex.billStatus);
-      if (ex.dueAmount) setDueAmount(ex.dueAmount);
-      
-      const currentStates = countryStatesMap[country] || countryStatesMap["IN"];
-      if (ex.detectedState && currentStates.includes(ex.detectedState)) setCustomerState(ex.detectedState);
-      
-      if (ex.district) setCity(ex.district);
-      const units = data.monthlyUnitsUsed || ex.monthlyUnits || null;
-      setOcrMonthlyUnits(units);
+      if (ex.meterCategory)  setMeterCategory(ex.meterCategory);
 
       if (data.confidence === "low") {
-        setScanError(data.message || "Kuch fields clearly nahi mile — kripya manually verify kar lo.");
+        setScanError(data.message || "Some fields could not be clearly extracted. Please verify manually.");
       }
 
-      if (ex.billAmount) {
-        await handleCheckEligibility({
-          meterCategory: ex.meterCategory,
-          billAmount: ex.billAmount,
-          monthlyUnits: units,
-          dueAmount: ex.dueAmount || 0,
-          billStatus: ex.billStatus,
-          monthsOverdue: ex.monthsOverdue || 0,
-        });
+      // ── AUSTRALIA: populate AU-specific fields ────────────────────────────
+      if (data.country === "australia") {
+        if (ex.suburb)        setCity(ex.suburb);
+        if (ex.postcode)      setPostcode(ex.postcode);
+        if (ex.retailer)      setScannedRetailer(ex.retailer);
+        if (ex.state) {
+          const auStates = countryStatesMap["AU"] || [];
+          if (auStates.includes(ex.state)) setCustomerState(ex.state);
+        }
+        if (ex.monthlyBillEquivalent) {
+          setMonthlyBill(ex.monthlyBillEquivalent); // monthly equiv of quarterly bill
+        }
+        if (ex.quarterlyKwh) setScannedQuarterlyKwh(ex.quarterlyKwh);
+        if (ex.billingPeriodFrom && ex.billingPeriodTo) {
+          setScannedBillingPeriod(`${ex.billingPeriodFrom} → ${ex.billingPeriodTo}`);
+        }
+        if (data.stcInfo) setScannedStcInfo(data.stcInfo);
+        // Update kW slider from scan recommendation
+        if (data.recommendedKw) setSelectedKw(data.recommendedKw);
+
+      } else {
+        // ── INDIA: populate India-specific fields ─────────────────────────────
+        if (ex.billAmount)   setMonthlyBill(ex.billAmount);
+        if (ex.discomId)     setDiscom(ex.discomId);
+        if (ex.tariffDesc)   setTariffDesc(ex.tariffDesc);
+        if (ex.billStatus)   setBillStatus(ex.billStatus);
+        if (ex.dueAmount)    setDueAmount(ex.dueAmount);
+        if (ex.district)     setCity(ex.district);
+
+        const currentStates = countryStatesMap[country] || countryStatesMap["IN"];
+        if (ex.detectedState && currentStates.includes(ex.detectedState)) setCustomerState(ex.detectedState);
+
+        const units = data.monthlyUnitsUsed || ex.monthlyUnits || null;
+        setOcrMonthlyUnits(units);
+
+        if (ex.billAmount) {
+          await handleCheckEligibility({
+            meterCategory: ex.meterCategory,
+            billAmount: ex.billAmount,
+            monthlyUnits: units,
+            dueAmount: ex.dueAmount || 0,
+            billStatus: ex.billStatus,
+            monthsOverdue: ex.monthsOverdue || 0,
+          });
+        }
       }
     } catch (err) {
       console.error("scan error:", err.response?.data || err.message);
@@ -427,66 +462,90 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
     setTariffDesc(null);
     setPreferredSolarBrand("");
     setPreferredInverterBrand("");
+    setCustomKw(null);
+    // AU scan state
+    setScannedStcInfo(null);
+    setScannedRetailer(null);
+    setScannedBillingPeriod(null);
+    setScannedQuarterlyKwh(null);
   };
 
   const isAU = country === "AU";
-  let sliderUnits, sliderKw, sliderSubsidy, sliderCost, sliderNet, sliderPaybackMonths, sliderTreesPlanted;
 
+  // ── Max kW limit from admin projectTypeConfigs (or default 15) ───────────
+  const maxKwLimit = (() => {
+    if (!projectTypeConfigs || projectTypeConfigs.length === 0) return isAU ? 20 : 10;
+    const matchSlug = selectedProjectType || (isAU ? 'residential' : 'surya-ghar');
+    const cfg = projectTypeConfigs.find(c => c.slug === matchSlug);
+    return cfg?.maxKwLimit || (isAU ? 20 : 10);
+  })();
+
+  // ── STC zone helper (reuse frontend version for live calculation) ────────
   const getStcZone = (pc) => {
     const code = parseInt(pc, 10);
-    if (!code) return 3; 
-    // Basic mapping: NT and North WA/QLD -> Zone 1
+    if (!code) return 3;
     if ((code >= 800 && code <= 899) || (code >= 6700 && code <= 6799) || (code >= 4700 && code <= 4899)) return 1;
-    // Central AU -> Zone 2
     if ((code >= 4600 && code <= 4699) || (code >= 4300 && code <= 4499) || (code >= 6600 && code <= 6699)) return 2;
-    // Tasmania and Alpine -> Zone 4
     if ((code >= 7000 && code <= 7999) || code === 2627 || code === 2628) return 4;
-    // Default major cities -> Zone 3
     return 3;
   };
 
-  // Effect to auto-update selectedKw when monthly bill or scan results change
-  useEffect(() => {
-    if (isAU) {
-      setSelectedKw(Math.max(3, Math.min(15, Math.ceil(monthlyBill / 100))));
-    } else {
-      const units = Math.round(monthlyBill / 7.2);
-      setSelectedKw(Math.max(1, Math.min(15, Math.ceil(units / 115))));
-    }
-  }, [monthlyBill, isAU]);
+  // ── India subsidy table (PM Surya Ghar Yojana) ───────────────────────────
+  const getIndiaSubsidy = (kw) => {
+    if (kw <= 0) return 0;
+    if (kw <= 1) return 30000;
+    if (kw <= 2) return 60000;
+    return 78000; // capped at 3kW for central subsidy
+  };
+  const getIndiaCost = (kw) => {
+    if (kw <= 1) return 60000;
+    if (kw <= 2) return 120000;
+    return 120000 + (kw - 2) * 40000;
+  };
+
+  // ── AU STC calculation for any kW ────────────────────────────────────────
+  const calcStcForKw = (kw) => {
+    const zone = getStcZone(postcode);
+    const multiplier = zone === 1 ? 1.622 : zone === 2 ? 1.536 : zone === 3 ? 1.382 : 1.185;
+    const deemingYears = stcSettings?.deemingYears || 5;
+    const stcPrice = stcSettings?.stcPrice || 38;
+    const stcs = Math.floor(kw * multiplier * deemingYears);
+    const stcValue = Math.round(stcs * stcPrice);
+    const installCost = Math.round(kw * 1100);
+    const netCost = Math.max(500, installCost - stcValue);
+    return { zone, multiplier, deemingYears, stcPrice, stcs, stcValue, installCost, netCost };
+  };
+
+  // ── Recommended kW (from bill, scan, or estimate) ────────────────────────
+  let sliderUnits, sliderKw, sliderSubsidy, sliderCost, sliderNet, sliderPaybackMonths;
 
   if (isAU) {
-    sliderKw = selectedKw || Math.max(3, Math.min(15, Math.ceil(monthlyBill / 100))); // e.g. $400/qtr = 4kW
-    sliderUnits = Math.round(sliderKw * 115); 
-    
-    const zone = getStcZone(postcode);
-    const multiplier = zone === 1 ? 1.62 : zone === 2 ? 1.53 : zone === 3 ? 1.38 : 1.18;
-    const deemingYears = stcSettings?.deemingYears || 5; 
-    const stcPrice = stcSettings?.stcPrice || 38;
-    
-    const stcs = Math.floor(sliderKw * multiplier * deemingYears);
-    sliderSubsidy = stcs * stcPrice; 
-    
-    sliderCost = sliderKw * 1100;
-    sliderNet = Math.max(1000, sliderCost - sliderSubsidy);
-    sliderPaybackMonths = Math.round(sliderNet / (monthlyBill * 0.85 / 3)); 
-    sliderTreesPlanted = sliderKw * 35;
+    sliderKw = selectedKw || Math.max(3, Math.min(maxKwLimit, Math.ceil(monthlyBill / 100)));
+    sliderUnits = Math.round(sliderKw * 115);
+    const stcCalc = calcStcForKw(sliderKw);
+    sliderSubsidy = stcCalc.stcValue;
+    sliderCost = stcCalc.installCost;
+    sliderNet = stcCalc.netCost;
+    sliderPaybackMonths = Math.round(sliderNet / (monthlyBill * 0.85 / 3));
   } else {
-    // For IN: monthlyBill is Monthly Bill in INR
     sliderUnits = Math.round(monthlyBill / 7.2);
-    sliderKw = Math.max(1, Math.min(15, Math.ceil(sliderUnits / 115)));
-    if (sliderKw === 1) sliderSubsidy = 33000;
-    else if (sliderKw === 2) sliderSubsidy = 66000;
-    else sliderSubsidy = 78000;
-    
-    if (sliderKw === 1) sliderCost = 59000;
-    else if (sliderKw === 2) sliderCost = 112000;
-    else sliderCost = 112000 + (sliderKw - 2) * 38000;
-    
+    sliderKw = Math.max(1, Math.min(maxKwLimit, Math.ceil(sliderUnits / 115)));
+    sliderSubsidy = getIndiaSubsidy(sliderKw);
+    sliderCost = getIndiaCost(sliderKw);
     sliderNet = Math.max(10000, sliderCost - sliderSubsidy);
     sliderPaybackMonths = Math.round(sliderNet / (monthlyBill * 0.85));
-    sliderTreesPlanted = sliderKw * 35;
   }
+
+  // ── Custom kW chosen by user in Section 4 ────────────────────────────────
+  const effectiveCustomKw = customKw !== null ? customKw : sliderKw;
+  const customStcCalc = isAU ? calcStcForKw(effectiveCustomKw) : null;
+  const customIndiaSubsidy = !isAU ? getIndiaSubsidy(effectiveCustomKw) : 0;
+  const customIndiaCost = !isAU ? getIndiaCost(effectiveCustomKw) : 0;
+  const customIndiaNet = !isAU ? Math.max(10000, customIndiaCost - customIndiaSubsidy) : 0;
+
+  // AU standard system sizes for quick-select buttons
+  const AU_QUICK_SIZES = [3, 5, 6.6, 10, 13, 15, 20].filter(s => s <= maxKwLimit);
+  const IN_QUICK_SIZES = [1, 2, 3, 5, 6, 8, 10].filter(s => s <= maxKwLimit);
 
   // Helper: render a single dynamic form field
   const renderDynamicField = (field, idx) => {
@@ -668,7 +727,9 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-2">Upload Light Bill for Auto-Scan</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-2">
+                    {isAU ? "Upload Electricity Bill (AGL / Origin / EnergyAustralia etc.)" : "Upload Light Bill for Auto-Scan"}
+                  </label>
                   <div
                     onDragEnter={handleDrag} onDragOver={handleDrag} onDragLeave={handleDrag} onDrop={handleDrop}
                     onClick={handleTriggerFileInput}
@@ -718,52 +779,243 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
               </div>
             </div>
 
-            {/* 3. Subsidy Rules & kW Scale Selector (Appears BELOW the bill fetch) */}
+            {/* 3. Recommended System & Subsidy (Auto-calculated, read-only) */}
             <div className="bg-amber-50/50 rounded-2xl border border-amber-100 p-5 mt-6">
-              <h3 className="text-sm font-bold text-slate-900 border-b border-amber-200/50 pb-2 mb-4">3. Recommended System & Expected Subsidy</h3>
-              
-              <div className="mb-6">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs text-slate-600 font-bold">Select System Size (kW):</span>
-                  <span className="text-lg font-black text-solar-sky">{selectedKw} kW</span>
-                </div>
-                <input
-                  type="range" min="1" max="15" step="1" value={selectedKw}
-                  onChange={(e) => setSelectedKw(Number(e.target.value))}
-                  className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-solar-sky focus:outline-none"
-                />
-                <div className="flex justify-between text-[10px] text-slate-400 px-1 mt-1">
-                  <span>1 kW</span>
-                  <span>15 kW</span>
-                </div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-slate-900">
+                  3. {isAU ? "Recommended System & STC Rebate" : "Recommended System & Subsidy"}
+                </h3>
+                <span className="text-xs bg-amber-100 text-amber-700 font-bold px-2.5 py-1 rounded-full">
+                  🤖 Auto from your bill
+                </span>
               </div>
+
+              {/* AU: Bill scan STC detail banner */}
+              {isAU && scannedStcInfo && (
+                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-xl flex flex-wrap gap-3 items-center text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-[9px] font-black">Z{scannedStcInfo.zone}</span>
+                    <span className="font-bold text-blue-800">STC Zone {scannedStcInfo.zone} detected</span>
+                  </div>
+                  <span className="text-blue-600">{scannedStcInfo.stcs} STCs × ${scannedStcInfo.stcPrice}/STC</span>
+                  <span className="font-black text-emerald-700">${scannedStcInfo.stcValue.toLocaleString()} rebate</span>
+                  <span className="text-slate-500">({scannedStcInfo.deemingYears}-yr deeming)</span>
+                  {scannedRetailer && <span className="ml-auto bg-white border border-slate-200 rounded-lg px-2 py-0.5 text-slate-600 font-medium">{scannedRetailer}</span>}
+                </div>
+              )}
+              {/* AU: Scanned usage info */}
+              {isAU && scannedQuarterlyKwh && (
+                <div className="mb-3 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-600 flex flex-wrap gap-3">
+                  <span>📊 <strong>Quarterly Usage:</strong> {scannedQuarterlyKwh.toLocaleString()} kWh</span>
+                  {scannedBillingPeriod && <span>📅 <strong>Period:</strong> {scannedBillingPeriod}</span>}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                 <div className="p-3 bg-white rounded-xl border border-slate-100 text-center">
-                  <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-tight">Est. Generation</span>
-                  <span className="text-sm font-extrabold text-slate-900 mt-0.5 block">{sliderUnits} Units<span className="text-[9px] text-slate-400">/mo</span></span>
+                  <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-tight">Recommended Size</span>
+                  <span className="text-sm font-extrabold text-slate-900 mt-0.5 block">{sliderKw} kW</span>
+                  <span className="text-[9px] text-slate-400">{sliderUnits} kWh/mo est.</span>
                 </div>
                 <div className="p-3 bg-[#10B981]/10 rounded-xl border border-[#10B981]/20 text-center">
-                  <span className="text-[10px] text-emerald-600 block uppercase font-bold tracking-tight">Govt Subsidy</span>
-                  <span className="text-sm font-black text-solar-green mt-0.5 block">{isAU ? "$" : "₹"}{sliderSubsidy.toLocaleString("en-IN")}</span>
+                  <span className="text-[10px] text-emerald-600 block uppercase font-bold tracking-tight">
+                    {isAU ? `STC Rebate${scannedStcInfo ? ` (Zone ${scannedStcInfo.zone})` : ""}` : "Govt Subsidy"}
+                  </span>
+                  <span className="text-sm font-black text-solar-green mt-0.5 block">
+                    {isAU ? `$${sliderSubsidy.toLocaleString()}` : `₹${sliderSubsidy.toLocaleString("en-IN")}`}
+                  </span>
+                  {isAU && <span className="text-[9px] text-emerald-700 block">{Math.floor(sliderKw * (getStcZone(postcode) === 1 ? 1.622 : getStcZone(postcode) === 2 ? 1.536 : getStcZone(postcode) === 4 ? 1.185 : 1.382) * (stcSettings?.deemingYears || 5))} STCs</span>}
                 </div>
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-center">
-                  <span className="text-[10px] text-slate-500 block uppercase font-bold tracking-tight">Setup Cost</span>
-                  <span className="text-sm font-bold text-slate-700 mt-0.5 block">{isAU ? "$" : "₹"}{sliderCost.toLocaleString("en-IN")}</span>
+                  <span className="text-[10px] text-slate-500 block uppercase font-bold tracking-tight">Install Cost</span>
+                  <span className="text-sm font-bold text-slate-700 mt-0.5 block">{isAU ? "$" : "₹"}{sliderCost.toLocaleString()}</span>
                 </div>
                 <div className="p-3 bg-blue-50 rounded-xl border border-blue-200 text-center">
                   <span className="text-[10px] text-blue-600 block uppercase font-bold tracking-tight">Net Investment</span>
-                  <span className="text-sm font-black text-blue-900 mt-0.5 block">{isAU ? "$" : "₹"}{sliderNet.toLocaleString("en-IN")}</span>
+                  <span className="text-sm font-black text-blue-900 mt-0.5 block">{isAU ? "$" : "₹"}{sliderNet.toLocaleString()}</span>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 p-3 bg-white rounded-xl border border-slate-100 text-[11px] text-slate-600">
                 <Award className="w-4 h-4 text-solar-sky shrink-0" />
                 <p>
-                  By installing a <strong>{selectedKw} kW</strong> system, you will generate approx <strong>{sliderUnits} units</strong> monthly, saving {isAU ? "$" : "₹"}{(sliderUnits * (isAU ? 0.3 : 7.2)).toFixed(0)} on your bill. 
-                  ROI is estimated at <strong>{sliderPaybackMonths} months</strong>.
+                  A <strong>{sliderKw} kW</strong> system generates ~<strong>{sliderUnits} kWh</strong> monthly, saving {isAU ? "$" : "₹"}{(sliderUnits * (isAU ? 0.3 : 7.2)).toFixed(0)} on your bill.
+                  Estimated ROI: <strong>{sliderPaybackMonths} months</strong>.
+                  {isAU && <> STC rebate applied upfront — <strong>no wait for government refund</strong>.</>}
                 </p>
               </div>
+            </div>
+
+            {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+            {/* 4. Customize Your System Size (customer-chosen kW) */}
+            {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+            <div className="rounded-2xl border-2 border-solar-sky/30 bg-gradient-to-br from-sky-50/60 to-blue-50/40 p-5 mt-4" id="section-customize-kw">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-slate-900">4. Customize Your System Size</h3>
+                <span className="text-xs bg-sky-100 text-sky-700 font-bold px-2.5 py-1 rounded-full">
+                  🔧 Optional upgrade
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 mb-4">
+                {isAU
+                  ? `We recommend ${sliderKw} kW. Want more panels? Choose your preferred size below — up to ${maxKwLimit} kW.`
+                  : `Our AI recommends ${sliderKw} kW for your usage. You can choose a larger system (up to ${maxKwLimit} kW) — subsidies apply as per PM Surya Ghar Yojana.`}
+              </p>
+
+              {/* Quick-select kW preset buttons */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {(isAU ? AU_QUICK_SIZES : IN_QUICK_SIZES).map(size => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => setCustomKw(size)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                      effectiveCustomKw === size
+                        ? "bg-solar-sky text-white border-solar-sky shadow-md shadow-sky-200"
+                        : size === sliderKw
+                          ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                          : "bg-white text-slate-600 border-slate-200 hover:border-solar-sky hover:text-solar-sky"
+                    }`}
+                  >
+                    {size} kW{size === sliderKw ? " ★" : ""}
+                  </button>
+                ))}
+              </div>
+
+              {/* Fine-tune slider */}
+              <div className="mb-5">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs text-slate-500">Drag to fine-tune:</span>
+                  <span className="text-lg font-black text-solar-sky">{effectiveCustomKw} kW</span>
+                </div>
+                <input
+                  type="range"
+                  min={isAU ? 1.5 : 1}
+                  max={maxKwLimit}
+                  step={isAU ? 0.5 : 1}
+                  value={effectiveCustomKw}
+                  onChange={(e) => setCustomKw(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-solar-sky focus:outline-none"
+                  id="custom-kw-slider"
+                />
+                <div className="flex justify-between text-[10px] text-slate-400 px-0.5 mt-1">
+                  <span>{isAU ? "1.5" : "1"} kW</span>
+                  <span>{maxKwLimit} kW (max)</span>
+                </div>
+              </div>
+
+              {/* ─── AUSTRALIA: Live STC Breakdown ─── */}
+              {isAU && customStcCalc && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                    <div className="p-3 bg-white rounded-xl border border-slate-100 text-center">
+                      <span className="text-[9px] text-slate-400 block uppercase font-bold tracking-tight">System Size</span>
+                      <span className="text-base font-black text-slate-900 mt-0.5 block">{effectiveCustomKw} kW</span>
+                    </div>
+                    <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-center">
+                      <span className="text-[9px] text-emerald-600 block uppercase font-bold tracking-tight">STC Rebate</span>
+                      <span className="text-base font-black text-solar-green mt-0.5 block">${customStcCalc.stcValue.toLocaleString()}</span>
+                      <span className="text-[9px] text-emerald-600">{customStcCalc.stcs} STCs × ${customStcCalc.stcPrice}</span>
+                    </div>
+                    <div className="p-3 bg-white rounded-xl border border-slate-100 text-center">
+                      <span className="text-[9px] text-slate-400 block uppercase font-bold tracking-tight">Install Cost</span>
+                      <span className="text-base font-bold text-slate-700 mt-0.5 block">${customStcCalc.installCost.toLocaleString()}</span>
+                    </div>
+                    <div className="p-3 bg-blue-50 rounded-xl border border-blue-200 text-center">
+                      <span className="text-[9px] text-blue-600 block uppercase font-bold tracking-tight">You Pay</span>
+                      <span className="text-base font-black text-blue-900 mt-0.5 block">${customStcCalc.netCost.toLocaleString()}</span>
+                    </div>
+                  </div>
+                  {/* STC breakdown explainer */}
+                  <div className="p-3 bg-white rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1.5">
+                    <div className="flex items-center gap-2 font-semibold text-blue-700">
+                      <span className="w-4 h-4 rounded-full bg-blue-500 text-white flex items-center justify-center text-[8px] font-black">Z{customStcCalc.zone}</span>
+                      STC Zone {customStcCalc.zone} — How your rebate is calculated:
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-500">
+                      <span>System size: <strong className="text-slate-700">{effectiveCustomKw} kW</strong></span>
+                      <span>Zone multiplier: <strong className="text-slate-700">{customStcCalc.multiplier.toFixed(3)}</strong></span>
+                      <span>Deeming period: <strong className="text-slate-700">{customStcCalc.deemingYears} years</strong></span>
+                      <span>STC price: <strong className="text-slate-700">${customStcCalc.stcPrice}/certificate</strong></span>
+                      <span className="col-span-2 mt-1 pt-1 border-t border-slate-100">
+                        STCs = {effectiveCustomKw} kW × {customStcCalc.multiplier.toFixed(3)} × {customStcCalc.deemingYears} yrs
+                        = <strong className="text-emerald-700">{customStcCalc.stcs} certificates</strong>
+                        &nbsp;× ${customStcCalc.stcPrice} = <strong className="text-emerald-700">${customStcCalc.stcValue.toLocaleString()} rebate</strong>
+                      </span>
+                    </div>
+                    <div className="mt-1.5 text-[10px] text-slate-400 italic">
+                      💡 STC rebate is deducted upfront from your installation cost. No waiting for government refund.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ─── INDIA: PM Surya Ghar Subsidy Table ─── */}
+              {!isAU && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                    <div className="p-3 bg-white rounded-xl border border-slate-100 text-center">
+                      <span className="text-[9px] text-slate-400 block uppercase font-bold tracking-tight">Your Choice</span>
+                      <span className="text-base font-black text-slate-900 mt-0.5 block">{effectiveCustomKw} kW</span>
+                    </div>
+                    <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-center">
+                      <span className="text-[9px] text-emerald-600 block uppercase font-bold tracking-tight">Govt Subsidy</span>
+                      <span className="text-base font-black text-solar-green mt-0.5 block">₹{customIndiaSubsidy.toLocaleString("en-IN")}</span>
+                      <span className="text-[9px] text-emerald-600">PM Surya Ghar</span>
+                    </div>
+                    <div className="p-3 bg-white rounded-xl border border-slate-100 text-center">
+                      <span className="text-[9px] text-slate-400 block uppercase font-bold tracking-tight">Total Cost</span>
+                      <span className="text-base font-bold text-slate-700 mt-0.5 block">₹{customIndiaCost.toLocaleString("en-IN")}</span>
+                    </div>
+                    <div className="p-3 bg-blue-50 rounded-xl border border-blue-200 text-center">
+                      <span className="text-[9px] text-blue-600 block uppercase font-bold tracking-tight">Net Cost</span>
+                      <span className="text-base font-black text-blue-900 mt-0.5 block">₹{customIndiaNet.toLocaleString("en-IN")}</span>
+                    </div>
+                  </div>
+
+                  {/* PM Surya Ghar subsidy rules table */}
+                  <div className="rounded-xl border border-amber-200 overflow-hidden">
+                    <div className="bg-amber-100 px-3 py-2 text-[10px] font-bold text-amber-800 uppercase tracking-wide">
+                      ☀️ PM Surya Ghar Yojana — Subsidy Slabs
+                    </div>
+                    <div className="divide-y divide-amber-100">
+                      {[
+                        { kw: "Up to 1 kW", subsidy: "₹30,000", note: "₹30,000/kW" },
+                        { kw: "1 kW – 2 kW", subsidy: "₹60,000", note: "₹30,000/kW" },
+                        { kw: "2 kW – 3 kW", subsidy: "₹78,000", note: "₹18,000 for 3rd kW" },
+                        { kw: "Above 3 kW", subsidy: "₹78,000", note: "Capped — additional kW no subsidy" },
+                      ].map((row, i) => (
+                        <div
+                          key={i}
+                          className={`grid grid-cols-3 px-3 py-2 text-xs ${
+                            (effectiveCustomKw <= 1 && i === 0) ||
+                            (effectiveCustomKw > 1 && effectiveCustomKw <= 2 && i === 1) ||
+                            (effectiveCustomKw > 2 && effectiveCustomKw <= 3 && i === 2) ||
+                            (effectiveCustomKw > 3 && i === 3)
+                              ? "bg-emerald-50 font-bold text-emerald-800"
+                              : "bg-white text-slate-600"
+                          }`}
+                        >
+                          <span>{row.kw}</span>
+                          <span className="text-center font-bold">{row.subsidy}</span>
+                          <span className="text-right text-slate-400 text-[10px]">{row.note}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-slate-400 italic px-1">
+                    * Central subsidy capped at 3 kW. State subsidies (if any) added separately. Final amount confirmed post site survey.
+                  </div>
+                </div>
+              )}
+
+              {customKw !== null && customKw !== sliderKw && (
+                <div className="mt-3 p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800 flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 shrink-0 text-amber-500" />
+                  You've upgraded from our recommended <strong>{sliderKw} kW</strong> to <strong>{customKw} kW</strong>.
+                  Our team will confirm final pricing and availability.
+                </div>
+              )}
             </div>
 
             <div className="pt-4 border-t border-slate-100 mt-6">
