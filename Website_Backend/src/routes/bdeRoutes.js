@@ -4,10 +4,12 @@ import {
   createBDE, getAllBDEs, getBDEById, updateBDE, deleteBDE,
   bdeLogin, getBDEDashboard, getBDELeads, getDemandPool, assignLeadToBDE, updateBDELead,
   createBDELead, getBDEProjects, getBDEOverdueProjects, uploadBDEProjectDoc, updateBDELeadDetails,
-  requestBdeOtp, verifyOtpAndSetPassword, getEpcCalendarForBde, recommendEpcs
+  requestBdeOtp, verifyOtpAndSetPassword, getEpcCalendarForBde, recommendEpcs, scheduleAndQualifyLead, getAustralianEpcsForBde
 } from "../controllers/bdeController.js";
 
 const router = express.Router();
+
+router.get("/epcs", getAustralianEpcsForBde);
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
@@ -35,10 +37,12 @@ router.post("/:bdeId/leads", createBDELead);
 router.get("/:bdeId/projects", getBDEProjects);
 router.get("/:bdeId/overdue-projects", getBDEOverdueProjects);
 router.post("/projects/:projectId/step/:stepId/upload", upload.single('file'), uploadBDEProjectDoc);
+router.post("/projects/:projectId/recommend-epcs", recommendEpcs);
 router.get("/:bdeId/demand-pool", getDemandPool);
 router.post("/assign-lead", assignLeadToBDE);
 router.put("/leads/:leadId", updateBDELead);
 router.put("/leads/:leadId/details", updateBDELeadDetails);
+router.post("/leads/:leadId/schedule", scheduleAndQualifyLead);
 
 export default router;
 

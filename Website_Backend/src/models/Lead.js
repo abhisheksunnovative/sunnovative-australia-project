@@ -19,7 +19,7 @@ const leadSchema = new mongoose.Schema(
     solarType: {
       type: String,
       default: 'general',
-      enum: ['surya-ghar', 'group-solar', 'rwa-society', 'commercial', 'village', 'msme', 'general', 'au-small-home', 'au-standard-family', 'au-large-home', 'au-ev-owners', 'au-solar-battery'],
+      enum: ['surya-ghar', 'group-solar', 'rwa-society', 'commercial', 'village', 'msme', 'general', 'residential', 'au-small-home', 'au-standard-family', 'au-large-home', 'au-ev-owners', 'au-solar-battery', 'other'],
     },
     kw: { type: String, default: '0' },
     billAmount: { type: Number, default: 0 },

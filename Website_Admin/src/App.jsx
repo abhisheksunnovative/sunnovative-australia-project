@@ -485,7 +485,7 @@ export default function App() {
           <BDEDashboard bdeId={userId} />
         );
       case "bde-leads":
-        return <BDELeadManagement bdeId={userId} />;
+        return <BDELeadManagement bdeId={userId} country={userCountry} />;
       case "bde-projects":
         return <BDEProjectTracking bdeId={userId} />;
       case "bde-demand":

@@ -655,25 +655,29 @@ export const estimateSubsidy = (kw, meterCategory, detectedState, rules) => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const AU_RETAILERS = [
-  { id: 'AGL',             pattern: /\bAGL\b|AGL\s*Energy/i },
-  { id: 'Origin Energy',   pattern: /Origin\s*Energy/i },
-  { id: 'EnergyAustralia', pattern: /Energy\s*Australia/i },
-  { id: 'Synergy',         pattern: /\bSynergy\b/i },
-  { id: 'ActewAGL',        pattern: /ActewAGL/i },
-  { id: 'Aurora Energy',   pattern: /Aurora\s*Energy/i },
-  { id: 'Ergon Energy',    pattern: /Ergon\s*Energy/i },
-  { id: 'Powercor',        pattern: /Powercor/i },
-  { id: 'CitiPower',       pattern: /CitiPower/i },
-  { id: 'Jemena',          pattern: /Jemena/i },
-  { id: 'Lumo Energy',     pattern: /Lumo\s*Energy/i },
-  { id: 'Red Energy',      pattern: /Red\s*Energy/i },
-  { id: 'Simply Energy',   pattern: /Simply\s*Energy/i },
-  { id: 'Momentum Energy', pattern: /Momentum\s*Energy/i },
-  { id: 'Alinta Energy',   pattern: /Alinta\s*Energy/i },
-  { id: 'Horizon Power',   pattern: /Horizon\s*Power/i },
-  { id: 'SA Power Networks',pattern: /SA\s*Power\s*Networks?/i },
-  { id: 'Ausgrid',         pattern: /Ausgrid/i },
-  { id: 'Endeavour Energy',pattern: /Endeavour\s*Energy/i },
+  { id: 'AGL',               pattern: /\bAGL\b|AGL\s*Energy/i },
+  { id: 'Origin Energy',     pattern: /Origin\s*Energy/i },
+  { id: 'EnergyAustralia',   pattern: /Energy\s*Australia/i },
+  { id: 'Synergy',           pattern: /\bSynergy\b/i },
+  { id: 'ActewAGL',          pattern: /ActewAGL/i },
+  { id: 'Aurora Energy',     pattern: /Aurora\s*Energy/i },
+  { id: 'Ergon Energy',      pattern: /Ergon\s*Energy/i },
+  { id: 'Powercor',          pattern: /Powercor/i },
+  { id: 'CitiPower',         pattern: /CitiPower/i },
+  { id: 'Jemena',            pattern: /Jemena/i },
+  { id: 'Lumo Energy',       pattern: /Lumo\s*Energy/i },
+  { id: 'Red Energy',        pattern: /Red\s*Energy/i },
+  { id: 'Simply Energy',     pattern: /Simply\s*Energy/i },
+  { id: 'Momentum Energy',   pattern: /Momentum\s*Energy/i },
+  { id: 'Alinta Energy',     pattern: /Alinta\s*Energy/i },
+  { id: 'Horizon Power',     pattern: /Horizon\s*Power/i },
+  { id: 'SA Power Networks', pattern: /SA\s*Power\s*Networks?/i },
+  { id: 'Ausgrid',           pattern: /Ausgrid/i },
+  { id: 'Endeavour Energy',  pattern: /Endeavour\s*Energy/i },
+  { id: 'Essential Energy',  pattern: /Essential\s*Energy/i },
+  { id: 'Energex',           pattern: /Energex/i },
+  { id: 'AusNet Services',   pattern: /AusNet\s*(?:Services)?/i },
+  { id: 'Evoenergy',         pattern: /Evoenergy/i },
 ];
 
 // AU State code → full state name
@@ -723,13 +727,26 @@ export const parseAuBillText = (text) => {
   // ── 4. Address — Suburb, State, Postcode ──────────────────────────────────
   let suburb = null, state = null, postcode = null;
 
-  // Australian postcode: 4 digits, 2000-9999
-  const postcodeMatch = t.match(/\b([2-9]\d{3})\b/);
+  // Australian postcode: 4 digits, 2000-9999 or 0800-0999
+  const postcodeMatch = t.match(/\b(0[89]\d{2}|[2-9]\d{3})\b/);
   if (postcodeMatch) postcode = postcodeMatch[1];
 
   // State code (NSW, VIC, QLD, WA, SA, TAS, ACT, NT)
   const stateMatch = t.match(/\b(NSW|VIC|QLD|WA|SA|TAS|ACT|NT)\b/);
   if (stateMatch) state = AU_STATE_MAP[stateMatch[1]] || stateMatch[1];
+
+  // Postcode to State Fallback (if state not explicitly written)
+  if (!state && postcode) {
+    const pc = parseInt(postcode, 10);
+    if ((pc >= 1000 && pc <= 2599) || (pc >= 2619 && pc <= 2899) || (pc >= 2921 && pc <= 2999)) state = 'New South Wales';
+    else if ((pc >= 2600 && pc <= 2618) || (pc >= 2900 && pc <= 2920)) state = 'Australian Capital Territory';
+    else if (pc >= 3000 && pc <= 3999) state = 'Victoria';
+    else if (pc >= 4000 && pc <= 4999) state = 'Queensland';
+    else if (pc >= 5000 && pc <= 5799) state = 'South Australia';
+    else if (pc >= 6000 && pc <= 6797) state = 'Western Australia';
+    else if (pc >= 7000 && pc <= 7799) state = 'Tasmania';
+    else if (pc >= 800 && pc <= 999) state = 'Northern Territory';
+  }
 
   // Suburb: word(s) before STATE CODE or before postcode
   if (stateMatch) {
@@ -742,6 +759,19 @@ export const parseAuBillText = (text) => {
       else break;
     }
     if (suburbWords.length > 0) suburb = suburbWords.join(' ');
+  }
+
+  // Suburb fallback based on Postcode Capital City
+  if (!suburb && postcode) {
+    const pc = parseInt(postcode, 10);
+    if (pc >= 2000 && pc <= 2234) suburb = 'Sydney';
+    else if (pc >= 3000 && pc <= 3207) suburb = 'Melbourne';
+    else if (pc >= 4000 && pc <= 4207) suburb = 'Brisbane';
+    else if (pc >= 5000 && pc <= 5199) suburb = 'Adelaide';
+    else if (pc >= 6000 && pc <= 6199) suburb = 'Perth';
+    else if (pc >= 7000 && pc <= 7099) suburb = 'Hobart';
+    else if (pc >= 2600 && pc <= 2618) suburb = 'Canberra';
+    else if (pc >= 800 && pc <= 899) suburb = 'Darwin';
   }
 
   // ── 5. Billing Period ─────────────────────────────────────────────────────

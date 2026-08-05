@@ -47,8 +47,7 @@ export default function CustomerLogin({ onClose, onSuccess }) {
   // Step 1: Check mobile
   const handleMobileNext = async () => {
     clear();
-    if (isAU && mobile.length < 9) return err("Valid 9-digit Australian mobile (e.g. 412345678) daalo");
-    if (!isAU && !/^[6-9]\d{9}$/.test(mobile)) return err("Valid 10-digit mobile number daalo");
+    if (mobile.length < 9 || mobile.length > 10) return err("Valid 9 or 10-digit mobile number daalo");
     setLoading(true);
     // Quick check — try send-otp to see if user exists and if PIN is set
     try {
@@ -272,13 +271,13 @@ export default function CustomerLogin({ onClose, onSuccess }) {
                   <span className="px-3 py-3 bg-slate-50 text-sm font-black text-slate-500 border-r border-slate-200">
                     {isAU ? "+61" : "+91"}
                   </span>
-                  <input type="tel" value={mobile} onChange={e => setMobile(e.target.value.replace(/\D/g,"").slice(0, isAU ? 9 : 10))}
-                    placeholder={isAU ? "412345678" : "98765 43210"} autoFocus
+                  <input type="tel" value={mobile} onChange={e => setMobile(e.target.value.replace(/\D/g,"").slice(0, 10))}
+                    placeholder={isAU ? "0412345678" : "9876543210"} autoFocus maxLength={10}
                     className="flex-1 px-3 py-3 text-sm font-bold focus:outline-none tracking-widest"
                     onKeyDown={e => e.key === "Enter" && handleMobileNext()} />
                 </div>
               </div>
-              <button onClick={handleMobileNext} disabled={loading || (isAU ? mobile.length < 9 : mobile.length !== 10)}
+              <button onClick={handleMobileNext} disabled={loading || mobile.length < 9}
                 className="w-full flex items-center justify-center gap-2 py-3.5 bg-yellow-400 text-yellow-900 font-black text-sm rounded-2xl hover:bg-amber-400 transition disabled:opacity-50">
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
                 {loading ? "Checking..." : "Continue"}

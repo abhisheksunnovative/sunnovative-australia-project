@@ -1,18 +1,82 @@
 import EpcCalendar from '../models/EpcCalender.js';
+import { ProjectOrder } from '../models/ProjectModel.js';
 
 export const getCalendarSlots = async (req, res) => {
   try {
     const { projectType, district, month, year } = req.query;
+    const epcId = req.epc._id.toString();
     const filter = { epcPartner: req.epc._id };
+    
     if (projectType) filter.projectType = projectType;
     if (district)    filter.district    = district;
-    if (month && year) {
-      const start = new Date(year, month - 1, 1);
-      const end   = new Date(year, month, 0, 23, 59, 59);
-      filter.date = { $gte: start, $lte: end };
+
+    let slots = await EpcCalendar.find(filter).sort({ date: 1 });
+
+    // Fetch assigned project orders for this EPC
+    const assignedOrders = await ProjectOrder.find({
+      $or: [
+        { assignedEPCId: epcId },
+        { assignedEPCId: req.epc._id }
+      ]
+    });
+
+    // Auto-generate daily slots if none exist
+    if (slots.length === 0) {
+      const activeDistrict = district || req.epc.activeDistricts?.[0] || 'Sydney';
+      const targetType = projectType || 'residential';
+      const now = new Date();
+      const currentYear = year ? parseInt(year) : now.getFullYear();
+      const currentMonth = month ? parseInt(month) - 1 : now.getMonth();
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+      const newSlots = [];
+      for (let day = 1; day <= daysInMonth; day++) {
+        const slotDate = new Date(currentYear, currentMonth, day);
+        newSlots.push({
+          epcPartner: req.epc._id,
+          projectType: targetType,
+          district: activeDistrict,
+          date: slotDate,
+          maxBookings: 1,
+          currentBookings: 0,
+          isAvailable: true,
+          isBlocked: false,
+          notes: 'Open Slot'
+        });
+      }
+      try {
+        slots = await EpcCalendar.insertMany(newSlots, { ordered: false });
+      } catch (e) {
+        slots = await EpcCalendar.find(filter).sort({ date: 1 });
+      }
     }
-    const slots = await EpcCalendar.find(filter).sort({ date: 1 });
-    res.json(slots);
+
+    // Merge active project order bookings into slot list
+    const enrichedSlots = slots.map(slot => {
+      const slotObj = slot.toObject ? slot.toObject() : { ...slot };
+      const slotDateStr = new Date(slot.date).toISOString().split('T')[0];
+
+      const matchingOrder = assignedOrders.find(o => {
+        if (!o.preferredInstallDate) return false;
+        const oDateStr = new Date(o.preferredInstallDate).toISOString().split('T')[0];
+        return oDateStr === slotDateStr;
+      });
+
+      if (matchingOrder) {
+        slotObj.isBlocked = true;
+        slotObj.isAvailable = false;
+        slotObj.currentBookings = Math.max(slotObj.currentBookings || 1, 1);
+        slotObj.bookedOrder = {
+          orderNumber: matchingOrder.orderNumber,
+          customerName: matchingOrder.customerName,
+          systemSizeKW: matchingOrder.systemSizeKW
+        };
+        slotObj.notes = `🔴 Booked - Order #${matchingOrder.orderNumber} (${matchingOrder.customerName})`;
+      }
+      return slotObj;
+    });
+
+    res.json(enrichedSlots);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }

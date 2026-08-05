@@ -9,7 +9,7 @@ import {
   Users, Plus, RefreshCw, Search, Filter, Trash2, Eye,
   CheckCircle, AlertCircle, Loader2, ChevronLeft, ChevronRight,
   Upload, TrendingUp, Phone, Mail, MapPin, Zap, X, ArrowRight,
-  UserCheck, BarChart2, Download, Calendar,
+  UserCheck, BarChart2, Download, Calendar, Clock
 } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
@@ -183,22 +183,31 @@ const LeadDetailModal = ({ lead, onClose, onUpdate, onConvert }) => {
             {[
               { icon: <Phone className="w-3.5 h-3.5" />, label: "Mobile", value: lead.mobile },
               { icon: <Mail className="w-3.5 h-3.5" />, label: "Email", value: lead.email || "—" },
-              { icon: <MapPin className="w-3.5 h-3.5" />, label: "Location", value: [lead.city, lead.district, lead.state].filter(Boolean).join(", ") || "—" },
+              { icon: <MapPin className="w-3.5 h-3.5" />, label: "Location", value: [lead.address, lead.city, lead.district, lead.state, lead.country].filter(Boolean).join(", ") || "—" },
               { icon: <Zap className="w-3.5 h-3.5" />, label: "Solar Type", value: SOLAR_TYPES.find(t => t.value === lead.solarType)?.label || lead.solarType },
               { icon: <Zap className="w-3.5 h-3.5" />, label: "System Size", value: lead.kw ? `${lead.kw} kW` : "—" },
-              { icon: <Zap className="w-3.5 h-3.5" />, label: "Bill Amount", value: lead.billAmount ? `₹${lead.billAmount}` : "—" },
-              { icon: <Zap className="w-3.5 h-3.5" />, label: "Consumer No", value: lead.consumerNumber || "—" },
-              { icon: <Zap className="w-3.5 h-3.5" />, label: "DISCOM", value: lead.discom || "—" },
-              { icon: <Zap className="w-3.5 h-3.5" />, label: "Meter Cat", value: lead.meterCategory || "—" },
-              { icon: <Zap className="w-3.5 h-3.5" />, label: "Tariff", value: lead.tariff || "—" },
-              { icon: <Calendar className="w-3.5 h-3.5" />, label: "Date", value: new Date(lead.createdAt).toLocaleDateString("en-IN") },
+              { icon: <Zap className="w-3.5 h-3.5" />, label: "Bill Amount", value: lead.billAmount ? (lead.country?.toLowerCase() === 'australia' ? `$${lead.billAmount} AUD` : `₹${lead.billAmount}`) : "—" },
+              { icon: <Zap className="w-3.5 h-3.5" />, label: "NMI / Consumer", value: lead.consumerNumber || "—" },
+              { icon: <Zap className="w-3.5 h-3.5" />, label: "Retailer/DNSP", value: lead.discom || lead.retailer || "—" },
+              { icon: <Calendar className="w-3.5 h-3.5" />, label: "Install Date", value: lead.preferredInstallDate ? new Date(lead.preferredInstallDate).toLocaleDateString("en-IN") : "Not Selected Yet" },
+              { icon: <Clock className="w-3.5 h-3.5" />, label: "5-Day EPC Target", value: lead.preferredInstallDate ? `${new Date(new Date(lead.preferredInstallDate).setDate(new Date(lead.preferredInstallDate).getDate() + 5)).toLocaleDateString("en-IN")} (Assign EPC & Start)` : "Awaiting Customer Date" },
+              { icon: <Calendar className="w-3.5 h-3.5" />, label: "Lead Created", value: new Date(lead.createdAt).toLocaleDateString("en-IN") },
             ].map((row, i) => (
               <div key={i} className="flex items-center gap-2">
                 <span className="text-slate-400 shrink-0">{row.icon}</span>
-                <span className="text-slate-500 w-24 shrink-0 text-xs font-semibold uppercase tracking-wider">{row.label}</span>
-                <span className="text-slate-700 font-medium">{row.value}</span>
+                <span className="text-slate-500 w-28 shrink-0 text-xs font-semibold uppercase tracking-wider">{row.label}</span>
+                <span className="text-slate-800 font-bold">{row.value}</span>
               </div>
             ))}
+            {lead.rooftopPhoto && (
+              <div className="flex items-center gap-2 pt-1 border-t border-slate-200">
+                <span className="text-slate-400 shrink-0"><Eye className="w-3.5 h-3.5" /></span>
+                <span className="text-slate-500 w-28 shrink-0 text-xs font-semibold uppercase tracking-wider">Terrace Photo</span>
+                <a href={`${API_BASE}${lead.rooftopPhoto}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 underline font-bold hover:text-blue-800">
+                  📷 Open Terrace Image
+                </a>
+              </div>
+            )}
           </div>
 
           {lead.notes && (
@@ -222,12 +231,20 @@ const LeadDetailModal = ({ lead, onClose, onUpdate, onConvert }) => {
 
           <div className="flex gap-2 pt-2">
             <button onClick={onClose} className="flex-1 border border-slate-200 text-slate-600 py-2 rounded-xl text-sm font-semibold hover:bg-slate-50">Close</button>
-            {lead.status !== "Converted" && (
+            {lead.convertedProjectId ? (
+              <div className="flex-1 bg-emerald-50 text-emerald-700 border border-emerald-200 py-2.5 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-1">
+                <CheckCircle className="w-4 h-4 text-emerald-600"/> Order Approved & Created
+              </div>
+            ) : lead.status === "Converted" ? (
               <button onClick={handleConvert} disabled={converting}
-                className="flex-1 bg-green-500 text-white py-2 rounded-xl text-sm font-bold hover:bg-green-600 disabled:opacity-50 flex items-center justify-center gap-1">
-                {converting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
-                Convert to Order
+                className="flex-1 bg-emerald-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-sm">
+                {converting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                Confirm & Approve Order
               </button>
+            ) : (
+              <div className="flex-1 bg-slate-100 text-slate-500 border border-slate-200 py-2.5 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-1">
+                <Clock className="w-3.5 h-3.5 text-amber-500" /> Waiting for BDE Conversion
+              </div>
             )}
           </div>
         </div>
@@ -318,6 +335,7 @@ export const LeadsScreen = () => {
   const [filterCountry, setFilterCountry] = useState("");
   const [filterState, setFilterState] = useState("");
   const [filterDistrict, setFilterDistrict] = useState("");
+  const [cardFilter, setCardFilter] = useState("all");
   const [showCreate, setShowCreate] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
@@ -337,6 +355,7 @@ export const LeadsScreen = () => {
       if (filterCountry) params.append("country", filterCountry);
       if (filterState) params.append("state", filterState);
       if (filterDistrict) params.append("district", filterDistrict);
+      if (cardFilter && cardFilter !== "all") params.append("cardFilter", cardFilter);
 
       const [leadsRes, statsRes] = await Promise.all([
         fetch(`${API_BASE}/api/leads?${params}`).then(r => r.json()),
@@ -348,10 +367,12 @@ export const LeadsScreen = () => {
         setTotal(leadsRes.total);
         setTotalPages(Math.ceil(leadsRes.total / 25));
       }
-      if (statsRes.success) setStats(statsRes.data);
-    } catch { showToast("error", "Leads load nahi hue"); }
+      if (statsRes.success && statsRes.data) {
+        setStats(statsRes.data);
+      }
+    } catch (e) { console.error(e); showToast("error", "Leads load nahi hue"); }
     finally { setLoading(false); }
-  }, [search, statusFilter, typeFilter, filterCountry, filterState, filterDistrict]);
+  }, [search, statusFilter, typeFilter, filterCountry, filterState, filterDistrict, cardFilter]);
 
   useEffect(() => {
     const t = setTimeout(() => { fetchLeads(1); setPage(1); }, 300);
@@ -379,6 +400,23 @@ export const LeadsScreen = () => {
     finally { setDeletingId(null); }
   };
 
+  const handleExportUnassigned = () => {
+    const params = new URLSearchParams();
+    if (filterCountry) params.append("country", filterCountry);
+    if (filterState) params.append("state", filterState);
+    if (filterDistrict) params.append("district", filterDistrict);
+    if (statusFilter) params.append("status", statusFilter);
+    if (search) params.append("search", search);
+    window.open(`${API_BASE}/api/leads/export-unassigned?${params.toString()}`, "_blank");
+  };
+
+  const cardConfig = [
+    { key: "all", label: "Total Leads", value: stats.total || 0, color: "text-slate-700", bg: "hover:bg-slate-50" },
+    { key: "today", label: "New Today", value: stats.today || 0, color: "text-amber-600", bg: "hover:bg-amber-50/50" },
+    { key: "unassigned", label: "New (Unworked)", value: stats.newLeads || 0, color: "text-blue-600", bg: "hover:bg-blue-50/50" },
+    { key: "converted", label: "Converted", value: stats.converted || 0, color: "text-emerald-600", bg: "hover:bg-emerald-50/50" },
+  ];
+
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <Toast toast={toast} />
@@ -395,6 +433,9 @@ export const LeadsScreen = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={handleExportUnassigned} className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl hover:bg-emerald-100 transition cursor-pointer shadow-sm">
+            <Download className="w-3.5 h-3.5" /> Export Unassigned CSV
+          </button>
           <button onClick={() => fetchLeads(page)} className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">
             <RefreshCw className="w-3.5 h-3.5" /> Refresh
           </button>
@@ -407,19 +448,29 @@ export const LeadsScreen = () => {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Interactive Metric Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: "Total Leads", value: stats.total, color: "text-slate-700" },
-          { label: "New Today", value: stats.today, color: "text-yellow-600" },
-          { label: "New (Unworked)", value: stats.newLeads, color: "text-blue-600" },
-          { label: "Converted", value: stats.converted, color: "text-green-600" },
-        ].map((s, i) => (
-          <div key={i} className="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">
-            <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
-            <p className="text-xs text-slate-400 font-medium mt-0.5">{s.label}</p>
-          </div>
-        ))}
+        {cardConfig.map((s) => {
+          const isActive = cardFilter === s.key;
+          return (
+            <button
+              key={s.key}
+              onClick={() => {
+                setCardFilter(s.key);
+                setPage(1);
+              }}
+              className={`rounded-xl border p-4 text-center transition-all cursor-pointer ${s.bg} ${
+                isActive
+                  ? "bg-amber-50/80 border-amber-300 ring-2 ring-yellow-400 shadow-md scale-[1.02]"
+                  : "bg-white border-slate-200 shadow-sm"
+              }`}
+            >
+              <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
+              <p className="text-xs text-slate-500 font-bold mt-0.5">{s.label}</p>
+              {isActive && <span className="text-[10px] text-amber-700 font-extrabold uppercase mt-1 block">Active Filter</span>}
+            </button>
+          );
+        })}
       </div>
 
       {/* Filters */}
@@ -427,33 +478,33 @@ export const LeadsScreen = () => {
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Name, mobile ya district se search..."
-            className="w-full pl-9 pr-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/40" />
+            className="w-full pl-9 pr-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium" />
         </div>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400/40">
+        <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setCardFilter("all"); }}
+          className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium">
           <option value="">All Status</option>
           {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-          className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400/40">
+          className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium">
           <option value="">All Solar Types</option>
           {SOLAR_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
         <select value={filterCountry} onChange={e => setFilterCountry(e.target.value)}
-          className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400/40">
+          className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium">
           <option value="">All Countries</option>
           <option value="India">India</option>
           <option value="Australia">Australia</option>
           <option value="New Zealand">New Zealand</option>
         </select>
         <input type="text" value={filterState} onChange={e => setFilterState(e.target.value)} placeholder="Filter State"
-            className="w-32 px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/40" />
+            className="w-32 px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium" />
         <input type="text" value={filterDistrict} onChange={e => setFilterDistrict(e.target.value)} placeholder="Filter District"
-            className="w-32 px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/40" />
-        {(statusFilter || typeFilter || search || filterCountry || filterState || filterDistrict) && (
-          <button onClick={() => { setStatusFilter(""); setTypeFilter(""); setSearch(""); setFilterCountry(""); setFilterState(""); setFilterDistrict(""); }}
-            className="flex items-center gap-1 px-3 py-2.5 text-xs font-semibold text-red-500 bg-red-50 rounded-xl hover:bg-red-100">
-            <X className="w-3.5 h-3.5" /> Clear
+            className="w-32 px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium" />
+        {(statusFilter || typeFilter || search || filterCountry || filterState || filterDistrict || cardFilter !== "all") && (
+          <button onClick={() => { setStatusFilter(""); setTypeFilter(""); setSearch(""); setFilterCountry(""); setFilterState(""); setFilterDistrict(""); setCardFilter("all"); }}
+            className="flex items-center gap-1 px-3 py-2.5 text-xs font-semibold text-red-500 bg-red-50 rounded-xl hover:bg-red-100 cursor-pointer">
+            <X className="w-3.5 h-3.5" /> Clear Filters
           </button>
         )}
       </div>
@@ -514,12 +565,40 @@ export const LeadsScreen = () => {
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-400">{new Date(lead.createdAt).toLocaleDateString("en-IN")}</td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => setSelectedLead(lead)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition">
-                          <Eye className="w-3.5 h-3.5" />
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => setSelectedLead(lead)} className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Show Details">
+                          <Eye className="w-4 h-4" />
                         </button>
+
+                        {lead.convertedProjectId ? (
+                          <span className="px-2 py-1 bg-emerald-50 text-emerald-700 font-bold text-[10px] rounded-lg border border-emerald-200 flex items-center gap-1">
+                            <CheckCircle className="w-3 h-3 text-emerald-600"/> Approved
+                          </span>
+                        ) : lead.status === "Converted" ? (
+                          <button 
+                            onClick={async () => {
+                              if (!window.confirm(`Confirm & approve order for "${lead.name}"?`)) return;
+                              try {
+                                const res = await fetch(`${API_BASE}/api/leads/${lead._id}/convert`, { method: "POST" });
+                                const data = await res.json();
+                                if (data.success) {
+                                  alert(`🎉 Order Confirmed & Approved for "${lead.name}"!\n\n${lead.country?.toLowerCase() === 'australia' ? 'BDE has been enabled to suggest EPC installers to customer.' : 'Lead has been broadcasted to all Indian EPC partners on First-Come, First-Served basis.'}`);
+                                  fetchLeads(page);
+                                } else { alert(data.message); }
+                              } catch { alert("Network error"); }
+                            }}
+                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition flex items-center gap-1 shadow-xs cursor-pointer"
+                          >
+                            <CheckCircle className="w-3.5 h-3.5" /> Confirm Order
+                          </button>
+                        ) : (
+                          <span className="px-2 py-1 bg-slate-100 text-slate-500 font-semibold text-[10px] rounded-lg border border-slate-200 flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-amber-500"/> Pending BDE
+                          </span>
+                        )}
+
                         <button onClick={() => handleDelete(lead._id, lead.name)} disabled={deletingId === lead._id}
-                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-40">
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-40" title="Delete Lead">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>

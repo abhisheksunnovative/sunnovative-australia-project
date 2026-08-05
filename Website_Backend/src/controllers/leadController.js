@@ -62,11 +62,15 @@ export const createLead = async (req, res) => {
       }
     }
 
+    const countryHeader = req.headers['x-country'] || req.body.country || 'india';
+    const leadCountry = countryHeader.toLowerCase() === 'australia' ? 'australia' : (req.body.country || 'india').toLowerCase();
+
     const lead = await Lead.create({
       name: name.trim(),
       mobile: resolvedMobile.trim(),
       whatsapp: whatsapp || resolvedMobile.trim(),
       email: email || undefined,
+      country: leadCountry,
       state, district, city, pincode, address,
       solarType: resolvedSolarType,
       kw: resolvedKw,
@@ -86,33 +90,230 @@ export const createLead = async (req, res) => {
   }
 };
 
-// ─── GET ALL LEADS ────────────────────────────────────────────────────────────
+// ─── EXPORT UNASSIGNED LEADS (CSV FOR BDE DISTRIBUTION) ─────────────────────
+export const exportUnassignedLeads = async (req, res) => {
+  try {
+    const { country, state, district, status, search } = req.query;
+
+    const query = { isActive: true, assignedBde: null };
+
+    if (status && status !== 'All') {
+      query.status = status;
+    } else {
+      query.status = { $ne: 'Converted' };
+    }
+
+    if (country && country !== 'All') {
+      query.country = { $regex: new RegExp(country.trim(), 'i') };
+    }
+    if (state && state !== 'All') {
+      query.state = { $regex: new RegExp(state.trim(), 'i') };
+    }
+    if (district && district !== 'All') {
+      const dRegex = new RegExp(district.trim(), 'i');
+      query.$or = [{ district: dRegex }, { city: dRegex }, { address: dRegex }, { pincode: dRegex }, { postcode: dRegex }];
+    }
+    if (search && search.trim()) {
+      const sRegex = new RegExp(search.trim(), 'i');
+      const searchOr = [
+        { name: sRegex },
+        { mobile: sRegex },
+        { email: sRegex },
+        { district: sRegex },
+        { city: sRegex },
+        { address: sRegex },
+        { consumerNumber: sRegex }
+      ];
+      if (query.$or) {
+        query.$and = [{ $or: query.$or }, { $or: searchOr }];
+        delete query.$or;
+      } else {
+        query.$or = searchOr;
+      }
+    }
+
+    const leads = await Lead.find(query).sort({ createdAt: -1 });
+
+    const headers = [
+      "Lead ID",
+      "Customer Name",
+      "Mobile",
+      "Email",
+      "Country",
+      "State",
+      "District / Suburb",
+      "Postcode",
+      "Address",
+      "Solar Type",
+      "System Size (kW)",
+      "Bill Amount",
+      "Consumer / NMI Number",
+      "Retailer / DISCOM",
+      "Status",
+      "Date Created",
+      "Notes"
+    ];
+
+    const escapeCsv = (val) => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val).replace(/"/g, '""');
+      return `"${str}"`;
+    };
+
+    const csvRows = [
+      headers.join(','),
+      ...leads.map(l => [
+        escapeCsv(l.orderNumber || l._id),
+        escapeCsv(l.name),
+        escapeCsv(l.mobile),
+        escapeCsv(l.email),
+        escapeCsv(l.country || 'India'),
+        escapeCsv(l.state),
+        escapeCsv(l.district || l.city),
+        escapeCsv(l.postcode || l.pincode),
+        escapeCsv(l.address),
+        escapeCsv(l.solarType),
+        escapeCsv(l.kw || '0'),
+        escapeCsv(l.billAmount || 0),
+        escapeCsv(l.consumerNumber),
+        escapeCsv(l.discom || l.retailer),
+        escapeCsv(l.status),
+        escapeCsv(l.createdAt ? new Date(l.createdAt).toLocaleDateString("en-IN") : ''),
+        escapeCsv(l.notes)
+      ].join(','))
+    ];
+
+    const csvContent = csvRows.join('\n');
+    const filename = `unassigned_leads_${Date.now()}.csv`;
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.status(200).send('\uFEFF' + csvContent);
+  } catch (err) {
+    console.error('exportUnassignedLeads error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ─── GET LEAD STATS ───────────────────────────────────────────────────────────
+export const getLeadStats = async (req, res) => {
+  try {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [total, today, newLeads, converted] = await Promise.all([
+      Lead.countDocuments({ isActive: true }),
+      Lead.countDocuments({ isActive: true, createdAt: { $gte: todayStart } }),
+      Lead.countDocuments({ isActive: true, $or: [{ status: 'New' }, { assignedBde: null }] }),
+      Lead.countDocuments({ isActive: true, status: 'Converted' }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        total,
+        today,
+        newLeads,
+        converted
+      }
+    });
+  } catch (err) {
+    console.error('getLeadStats error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ─── GET ALL LEADS (WITH PAGINATION & FILTERS) ──────────────────────────────
 export const getAllLeads = async (req, res) => {
   try {
     const {
-      status, search, country, district, city, project,
-      startDate, endDate,
-      page = 1, limit = 50,
+      page = 1,
+      limit = 25,
+      status,
+      country,
+      district,
+      city,
+      state,
+      project,
+      solarType,
+      search,
+      cardFilter,
+      startDate,
+      endDate,
     } = req.query;
 
     const query = { isActive: true };
 
-    if (status && status !== 'All') query.status = status;
-    if (country && country !== 'All') query.country = country;
-    if (district && district !== 'All') query.district = district;
-    if (city && city !== 'All') query.city = city;
-    if (project && project !== 'All') query.solarType = project;
+    // Card filter overrides
+    if (cardFilter === 'today') {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      query.createdAt = { $gte: todayStart };
+    } else if (cardFilter === 'newLeads' || cardFilter === 'unassigned') {
+      query.$or = [{ status: 'New' }, { assignedBde: null }];
+    } else if (cardFilter === 'converted') {
+      query.status = 'Converted';
+    }
+
+    if (status && status !== 'All' && !cardFilter) {
+      if (status === 'Unassigned') {
+        query.assignedBde = null;
+      } else {
+        query.status = status;
+      }
+    }
+
+    const typeToMatch = solarType || project;
+    if (typeToMatch && typeToMatch !== 'All') {
+      query.solarType = typeToMatch;
+    }
+
+    if (country && country !== 'All') {
+      query.country = { $regex: new RegExp(country.trim(), 'i') };
+    }
+
+    if (state && state !== 'All') {
+      query.state = { $regex: new RegExp(state.trim(), 'i') };
+    }
+
+    const distToMatch = district || city;
+    if (distToMatch && distToMatch !== 'All') {
+      const distRegex = new RegExp(distToMatch.trim(), 'i');
+      query.$or = [
+        { district: distRegex },
+        { city: distRegex },
+        { address: distRegex },
+        { pincode: distRegex },
+        { postcode: distRegex }
+      ];
+    }
+
     if (startDate || endDate) {
-      query.createdAt = {};
+      if (!query.createdAt) query.createdAt = {};
       if (startDate) query.createdAt.$gte = new Date(startDate);
       if (endDate) query.createdAt.$lte = new Date(endDate);
     }
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { mobile: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
+
+    if (search && search.trim()) {
+      const sRegex = new RegExp(search.trim(), 'i');
+      const searchOr = [
+        { name: sRegex },
+        { mobile: sRegex },
+        { email: sRegex },
+        { district: sRegex },
+        { city: sRegex },
+        { address: sRegex },
+        { consumerNumber: sRegex },
+        { pincode: sRegex },
+        { postcode: sRegex }
       ];
+
+      if (query.$or) {
+        query.$and = [{ $or: query.$or }, { $or: searchOr }];
+        delete query.$or;
+      } else {
+        query.$or = searchOr;
+      }
     }
 
     const skip = (Number(page) - 1) * Number(limit);

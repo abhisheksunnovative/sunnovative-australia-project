@@ -6,6 +6,8 @@ const bdeSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, default: null }, // Optional since BDE sets it via OTP
     mobile: { type: String, required: true, trim: true },
+    country: { type: String, trim: true, default: 'india' },
+    region: { type: String, trim: true, default: '' },
     isActive: { type: Boolean, default: true },
     
     bdeType: { type: String, enum: ['Employee', 'Freelancer'], default: 'Employee' },

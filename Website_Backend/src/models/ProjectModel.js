@@ -122,6 +122,8 @@ const ProjectOrderSchema = new mongoose.Schema(
     currentStepTitle: { type: String, default: "Lead Captured" },
     completionPercentage: { type: Number, default: 0 },
     customerRating: { type: Number, default: 0 },
+    customerReviewComment: { type: String, default: "" },
+    customerRatedAt: { type: Date, default: null },
     steps: { type: [StepCompletionSchema], default: [] },
 
     // ── Overall Status ────────────────────────────────────────
@@ -171,7 +173,7 @@ const ProjectOrderSchema = new mongoose.Schema(
     pendingActionAlert: { type: String, default: "" },
     pendingActionFor: {
       type: String,
-      enum: ["company", "epc-partner", "customer", "none"],
+      enum: ["company", "epc-partner", "customer", "bde", "admin", "none"],
       default: "company",
     },
     // --- OVERDUE TRACKING (Root level for quick query) ---

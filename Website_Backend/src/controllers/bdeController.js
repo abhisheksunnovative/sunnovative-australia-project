@@ -8,7 +8,16 @@ import { ProjectOrder } from "../models/ProjectModel.js";
 
 export const createBDE = async (req, res) => {
   try {
-    const bde = new BDE(req.body);
+    const payload = { ...req.body };
+    if (payload.assignedCountries && payload.assignedCountries.length > 0) {
+      payload.country = payload.assignedCountries[0].toLowerCase();
+    } else if (payload.country) {
+      payload.assignedCountries = [payload.country.toLowerCase()];
+    }
+    if (payload.assignedRegions && payload.assignedRegions.length > 0) {
+      payload.region = payload.assignedRegions[0];
+    }
+    const bde = new BDE(payload);
     await bde.save();
     res.status(201).json({ success: true, bde });
   } catch (error) {
@@ -37,7 +46,14 @@ export const getBDEById = async (req, res) => {
 
 export const updateBDE = async (req, res) => {
   try {
-    const bde = await BDE.findByIdAndUpdate(req.params.id, req.body, { new: true }).select("-password");
+    const payload = { ...req.body };
+    if (payload.assignedCountries && payload.assignedCountries.length > 0) {
+      payload.country = payload.assignedCountries[0].toLowerCase();
+    }
+    if (payload.assignedRegions && payload.assignedRegions.length > 0) {
+      payload.region = payload.assignedRegions[0];
+    }
+    const bde = await BDE.findByIdAndUpdate(req.params.id, payload, { new: true }).select("-password");
     if (!bde) return res.status(404).json({ success: false, message: "BDE not found" });
     res.json({ success: true, bde });
   } catch (error) {
@@ -63,14 +79,31 @@ export const deleteBDE = async (req, res) => {
 export const bdeLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const bde = await BDE.findOne({ email, isActive: true });
+    const bde = await BDE.findOne({ email: email ? email.toLowerCase().trim() : '', isActive: true });
     
     if (!bde || bde.password !== password) {
       return res.status(401).json({ success: false, message: "Invalid credentials or account inactive" });
     }
     
-    // Simplistic auth token approach for the example
-    res.json({ success: true, bde: { _id: bde._id, name: bde.name, email: bde.email }, token: bde._id });
+    let country = 'india';
+    if (bde.assignedCountries && bde.assignedCountries.length > 0) {
+      country = bde.assignedCountries[0].toLowerCase();
+    } else if (bde.country) {
+      country = bde.country.toLowerCase();
+    }
+
+    res.json({ 
+      success: true, 
+      bde: { 
+        _id: bde._id, 
+        name: bde.name, 
+        email: bde.email, 
+        country: country,
+        assignedCountries: bde.assignedCountries || [country],
+        assignedDistricts: bde.assignedDistricts || []
+      }, 
+      token: bde._id 
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -136,10 +169,33 @@ export const getBDELeads = async (req, res) => {
       if (lead.convertedProjectId) {
         const po = await ProjectOrder.findById(lead.convertedProjectId);
         if (po) {
-          const enquiry = await EpcEnquiry.findOne({ orderNumber: po.orderNumber }).populate('epcPartner', 'companyName contactPerson mobile email');
-          if (enquiry && enquiry.epcPartner) {
-            lead.epcDetails = enquiry.epcPartner;
-            lead.enquiryStatus = enquiry.status;
+          lead.bdeRecommendationStatus = po.bdeRecommendationStatus || lead.bdeRecommendationStatus;
+          lead.recommendedEpcs = po.recommendedEpcs || lead.recommendedEpcs;
+          lead.isInstallDateFixed = po.isInstallDateFixed || lead.isInstallDateFixed;
+          lead.preferredInstallDate = po.preferredInstallDate || lead.preferredInstallDate;
+
+          if (po.assignedEPCId) {
+            try {
+              const { default: EpcPartner } = await import('../models/EpcPartner.js');
+              const epc = await EpcPartner.findById(po.assignedEPCId).select('companyName ownerName contactPerson mobile email').lean();
+              if (epc) {
+                lead.epcDetails = {
+                  companyName: epc.companyName,
+                  contactPerson: epc.ownerName || epc.contactPerson || "Installer Representative",
+                  mobile: epc.mobile || "0412345671",
+                  email: epc.email
+                };
+                lead.enquiryStatus = "EPC Accepted";
+              }
+            } catch (epcErr) {
+              console.error('Error populating epcDetails in getBDELeads:', epcErr);
+            }
+          } else {
+            const enquiry = await EpcEnquiry.findOne({ orderNumber: po.orderNumber }).populate('epcPartner', 'companyName contactPerson mobile email');
+            if (enquiry && enquiry.epcPartner) {
+              lead.epcDetails = enquiry.epcPartner;
+              lead.enquiryStatus = enquiry.status;
+            }
           }
         }
       }
@@ -155,32 +211,58 @@ export const getDemandPool = async (req, res) => {
   try {
     const bde = await BDE.findById(req.params.bdeId);
     if (!bde) return res.status(404).json({ success: false, message: "BDE not found" });
-    
-    // Strict requirement: BDE must match country AND district of the lead
-    if (!bde.assignedCountries || bde.assignedCountries.length === 0 || 
-        !bde.assignedDistricts || bde.assignedDistricts.length === 0) {
-      return res.json({ success: true, leads: [] });
+
+    // 1. Determine BDE Countries
+    let bdeCountries = bde.assignedCountries || [];
+    if (bdeCountries.length === 0 && bde.country) {
+      bdeCountries = [bde.country];
+    }
+    if (bdeCountries.length === 0) {
+      bdeCountries = ['australia', 'india']; // default fallback
     }
 
-    let query = { assignedBde: null };
+    // Country conditions (flexible matching for australia/au or india/in)
+    const countryConditions = bdeCountries.map(c => {
+      const code = c.trim().toLowerCase();
+      if (code === 'australia' || code === 'au') return { country: { $regex: /australia|au/i } };
+      if (code === 'india' || code === 'in') return { country: { $regex: /india|in/i } };
+      return { country: { $regex: new RegExp(code, 'i') } };
+    });
 
-    // Country Condition (AND)
-    const countryRegexes = bde.assignedCountries
-      .filter(t => t.trim())
-      .map(t => new RegExp('^' + t.trim() + '$', 'i'));
-    if (countryRegexes.length > 0) {
-      query.country = { $in: countryRegexes };
+    let baseQuery = { assignedBde: null };
+
+    // 2. Active Territories (Region, Assigned Districts, Assigned States)
+    const activeTerritories = [
+      ...(bde.region ? [bde.region] : []),
+      ...(bde.assignedRegions || []),
+      ...(bde.assignedDistricts || []),
+      ...(bde.assignedStates || [])
+    ].filter(t => t && t.trim() && t.trim().toLowerCase() !== 'all' && t.trim().toLowerCase() !== 'unassigned');
+
+    let andConditions = [baseQuery];
+
+    // Add country filter
+    if (countryConditions.length > 0) {
+      andConditions.push({ $or: countryConditions });
     }
 
-    // District Condition (AND)
-    const distRegexes = bde.assignedDistricts
-      .filter(t => t.trim())
-      .map(t => new RegExp('^' + t.trim() + '$', 'i'));
-    if (distRegexes.length > 0) {
-      query.district = { $in: distRegexes };
+    // Add territory filter (substring match so "Sydney" matches "Wattle Crescent Sydney")
+    if (activeTerritories.length > 0) {
+      const terrRegexes = activeTerritories.map(t => new RegExp(t.trim(), 'i'));
+      andConditions.push({
+        $or: [
+          { district: { $in: terrRegexes } },
+          { city: { $in: terrRegexes } },
+          { state: { $in: terrRegexes } },
+          { pincode: { $in: terrRegexes } },
+          { address: { $in: terrRegexes } }
+        ]
+      });
     }
 
-    const demandLeads = await Lead.find(query).limit(100);
+    const query = andConditions.length > 1 ? { $and: andConditions } : baseQuery;
+
+    const demandLeads = await Lead.find(query).sort({ createdAt: -1 }).limit(100);
     res.json({ success: true, leads: demandLeads });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -190,16 +272,55 @@ export const getDemandPool = async (req, res) => {
 export const assignLeadToBDE = async (req, res) => {
   try {
     const { leadId, bdeId } = req.body;
-    const lead = await Lead.findById(leadId);
-    if (!lead) return res.status(404).json({ success: false, message: "Lead not found" });
-    if (lead.assignedBde) return res.status(400).json({ success: false, message: "Lead already assigned" });
+    if (!leadId || !bdeId) {
+      return res.status(400).json({ success: false, message: "leadId and bdeId are required" });
+    }
 
-    lead.assignedBde = bdeId;
-    lead.history.push({ action: "Assigned to BDE", date: new Date() });
-    await lead.save();
+    // Atomic claim check: Only update if assignedBde is currently null
+    const lead = await Lead.findOneAndUpdate(
+      { _id: leadId, assignedBde: null },
+      { 
+        $set: { 
+          assignedBde: bdeId, 
+          status: 'Contacted' 
+        },
+        $push: { 
+          history: { action: "Claimed by BDE from Demand Pool", date: new Date() } 
+        }
+      },
+      { new: true }
+    );
+
+    if (!lead) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "This lead has already been claimed by another BDE or is no longer available in the Demand Pool!" 
+      });
+    }
     
-    res.json({ success: true, lead });
+    res.json({ success: true, message: "Lead qualified and scheduled successfully", lead });
   } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getAustralianEpcsForBde = async (req, res) => {
+  try {
+    const { default: EpcPartner } = await import('../models/EpcPartner.js');
+    const { country = 'australia' } = req.query;
+    
+    let query = { isActive: true };
+    if (country.toLowerCase() === 'australia') {
+      query.$or = [{ country: 'australia' }, { state: { $regex: /new south wales|nsw|queensland|qld|victoria|vic/i } }];
+    }
+
+    const epcs = await EpcPartner.find(query)
+      .select('companyName ownerName contactPerson email mobile phone rating totalRatings totalInstallations city state country kycDocuments')
+      .lean();
+
+    res.json({ success: true, count: epcs.length, data: epcs });
+  } catch (error) {
+    console.error('getAustralianEpcsForBde error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -210,7 +331,26 @@ export const updateBDELead = async (req, res) => {
     if (!lead) return res.status(404).json({ success: false, message: "Lead not found" });
     
     if (req.body.nextFollowUp) lead.nextFollowUp = req.body.nextFollowUp;
-    if (req.body.status) lead.status = req.body.status;
+    if (req.body.status) {
+      lead.status = req.body.status;
+      lead.history.push({ action: `Status updated to ${req.body.status} by BDE`, date: new Date() });
+
+      if (req.body.status === 'Converted') {
+        try {
+          const Notification = (await import('../models/Notification.js')).default;
+          await Notification.create({
+            role: 'Admin',
+            title: `⚡ Customer ${lead.name} Ready for Installation!`,
+            message: `Customer ${lead.name} (${lead.mobile}) is ready to be converted into an active installation order. Preferred Date: ${lead.preferredInstallDate ? new Date(lead.preferredInstallDate).toLocaleDateString("en-IN") : 'Pending'}.`,
+            leadId: lead._id
+          });
+          console.log(`[Notification Created] Admin alerted for converted lead: ${lead.name}`);
+        } catch (nErr) {
+          console.error("Failed creating admin notification:", nErr);
+        }
+      }
+    }
+    if (req.body.preferredInstallDate) lead.preferredInstallDate = new Date(req.body.preferredInstallDate);
     if (req.body.notes) {
       lead.notes = req.body.notes;
       lead.history.push({ action: "BDE Followup: " + req.body.notes, date: new Date() });
@@ -376,12 +516,42 @@ export const verifyOtpAndSetPassword = async (req, res) => {
 
 export const getEpcCalendarForBde = async (req, res) => {
   try {
-    const { district, projectType } = req.query;
-    if (!district || !projectType) return res.status(400).json({ success: false, message: 'District and projectType are required' });
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    const slots = await EpcCalendar.find({ district, projectType, date: { $gte: today } }).populate('epcPartner', 'companyName contactPerson mobile email').sort({ date: 1 });
-    res.json({ success: true, slots });
+    const { district } = req.query;
+    const startDate = new Date();
+    startDate.setHours(0,0,0,0);
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 45); // Next 45 days
+
+    const queryFilter = { date: { $gte: startDate, $lte: endDate } };
+    if (district) {
+      queryFilter.district = { $regex: new RegExp(district, 'i') };
+    }
+
+    const calendarEntries = await EpcCalendar.find(queryFilter).populate('epcPartner', 'companyName rating contactPerson').sort({ date: 1 });
+
+    const { default: EpcPartner } = await import('../models/EpcPartner.js');
+    const epcCount = await EpcPartner.countDocuments({ isActive: true });
+
+    const dayAvailabilityMap = {};
+    const d = new Date(startDate);
+    while (d <= endDate) {
+      const dateStr = d.toISOString().split('T')[0];
+      const dayEntries = calendarEntries.filter(e => e.date && e.date.toISOString().split('T')[0] === dateStr);
+      
+      const isBlockedOrFull = dayEntries.length > 0 && dayEntries.every(e => e.isBlocked || e.currentBookings >= e.maxBookings);
+      
+      dayAvailabilityMap[dateStr] = {
+        date: dateStr,
+        isFullyBooked: isBlockedOrFull, // 🔴 Red if full/blocked, 🟢 Green if free
+        color: isBlockedOrFull ? 'red' : 'green',
+        statusText: isBlockedOrFull ? '🔴 All EPCs Booked' : '🟢 EPC Available',
+        totalEpcs: epcCount || dayEntries.length || 1,
+        entries: dayEntries
+      };
+      d.setDate(d.getDate() + 1);
+    }
+
+    res.json({ success: true, availability: dayAvailabilityMap, slots: calendarEntries });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -396,11 +566,72 @@ export const recommendEpcs = async (req, res) => {
     }
     const project = await ProjectOrder.findByIdAndUpdate(
       projectId,
-      { recommendedEpcs: epcIds, bdeRecommendationStatus: 'pending', pendingActionAlert: 'Review recommended EPC installers', pendingActionFor: 'customer' },
+      { 
+        recommendedEpcs: epcIds, 
+        bdeRecommendationStatus: 'recommended', 
+        pendingActionAlert: 'Select your preferred installer from BDE recommended top installers', 
+        pendingActionFor: 'customer' 
+      },
       { new: true }
     );
     if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
-    res.json({ success: true, project });
+
+    // Update Lead model
+    await Lead.updateOne(
+      { $or: [{ _id: project._id }, { convertedProjectId: project._id }, { mobile: project.customerMobile }] },
+      { recommendedEpcs: epcIds, bdeRecommendationStatus: 'recommended', enquiryStatus: 'EPC Recommended' }
+    );
+
+    // Trigger Notification for Customer
+    try {
+      const Notification = (await import('../models/Notification.js')).default;
+      await Notification.create({
+        role: 'Customer',
+        recipientId: project.customerId ? project.customerId : null,
+        title: '🎉 Installer Suggestions Received!',
+        message: `Your BDE has recommended top certified solar installers for your area. Please log into Customer Portal to select your preferred installer.`,
+        projectId: project._id
+      });
+    } catch (nErr) {
+      console.error('Customer notification error:', nErr);
+    }
+
+    res.json({ success: true, project, message: 'EPC recommendations successfully sent to customer!' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const scheduleAndQualifyLead = async (req, res) => {
+  try {
+    const { leadId } = req.params;
+    const { scheduledDate, notes } = req.body;
+    const lead = await Lead.findById(leadId);
+    if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
+
+    lead.status = 'Qualified & Scheduled';
+    if (scheduledDate) lead.scheduledInstallDate = new Date(scheduledDate);
+    if (notes) lead.notes = notes;
+    lead.history.push({ 
+      action: `Qualified & Scheduled for ${scheduledDate ? new Date(scheduledDate).toLocaleDateString() : 'Installation'} by BDE`, 
+      date: new Date() 
+    });
+    await lead.save();
+
+    // Trigger Admin Notification for Order Conversion
+    try {
+      const { default: Notification } = await import('../models/Notification.js');
+      await Notification.create({
+        role: 'Admin',
+        title: '🔔 Lead Scheduled - Convert to Order',
+        message: `Lead ${lead.name} (${lead.district || lead.state || 'Australia'}) was scheduled by BDE. Please convert to Order & assign EPC.`,
+        leadId: lead._id
+      });
+    } catch (notifErr) {
+      console.error("Failed to create admin notification:", notifErr);
+    }
+
+    res.json({ success: true, lead, message: 'Lead scheduled & qualified successfully! Admin has been notified.' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

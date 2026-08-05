@@ -537,7 +537,7 @@ export const confirmInstallDate = async (req, res) => {
     const projectOrder = await ProjectOrder.findById(req.params.id);
     if (!projectOrder) return res.status(404).json({ success: false, message: 'Order not found' });
     
-    const { epcCalendarSlotId } = req.body || {};
+    const { epcCalendarSlotId, preferredDate } = req.body || {};
     
     if (epcCalendarSlotId) {
       const slot = await EpcCalendar.findById(epcCalendarSlotId).populate('epcPartner');
@@ -549,24 +549,91 @@ export const confirmInstallDate = async (req, res) => {
         projectOrder.assignedEPCId = (slot.epcPartner?._id || slot.epcPartner).toString();
         projectOrder.assignedEPCName = slot.epcPartner?.companyName || "";
         projectOrder.preferredInstallDate = slot.date;
-        console.log(`Assigned EPC ${projectOrder.assignedEPCId} for date ${slot.date}`);
-      } else {
-        return res.status(400).json({ success: false, message: 'Selected slot is no longer available' });
       }
+    } else if (preferredDate) {
+      projectOrder.preferredInstallDate = new Date(preferredDate);
     }
 
     projectOrder.isInstallDateFixed = true;
+    projectOrder.pendingActionAlert = `🎉 Installation date confirmed & locked for ${new Date(projectOrder.preferredInstallDate).toLocaleDateString("en-IN")} with ${projectOrder.assignedEPCName || 'certified EPC installer'}!`;
+    projectOrder.pendingActionFor = 'none';
     await projectOrder.save();
     
-    // Also update Lead
-    await Lead.updateOne({ convertedProjectId: projectOrder._id }, { isInstallDateFixed: true });
+    // Also update Lead model
+    await Lead.updateOne(
+      { $or: [{ convertedProjectId: projectOrder._id }, { mobile: projectOrder.customerMobile }] },
+      { isInstallDateFixed: true, preferredInstallDate: projectOrder.preferredInstallDate, status: 'Converted' }
+    );
 
-    // Fake SMS/Email triggers
-    console.log('[SMS/Email Trigger] Send to Customer: Installation date confirmed on ' + projectOrder.preferredInstallDate);
-    console.log('[SMS/Email Trigger] Send to EPC: Installation date confirmed on ' + projectOrder.preferredInstallDate);
+    // Create In-App Bell Notifications
+    try {
+      const Notification = (await import('../models/Notification.js')).default;
+      
+      // Customer Notification
+      let targetCustId = projectOrder.customerId;
+      if (!targetCustId && projectOrder.customerMobile) {
+        try {
+          const { default: CustomerModel } = await import('../models/CustomerModel.js');
+          const foundCust = await CustomerModel.findOne({ mobile: projectOrder.customerMobile });
+          if (foundCust) targetCustId = foundCust._id.toString();
+        } catch (cErr) { console.error('Customer lookup error:', cErr); }
+      }
+
+      await Notification.create({
+        role: 'Customer',
+        recipientId: targetCustId || null,
+        title: '🎉 Solar Installation Date Confirmed!',
+        message: `Your solar installation for ${projectOrder.orderNumber} is officially confirmed for ${new Date(projectOrder.preferredInstallDate).toLocaleDateString("en-IN")} with ${projectOrder.assignedEPCName || 'your certified EPC installer'}.`,
+        projectId: projectOrder._id
+      });
+
+      // EPC Partner Notification
+      if (projectOrder.assignedEPCId) {
+        await Notification.create({
+          role: 'EpcPartner',
+          recipientId: projectOrder.assignedEPCId,
+          title: '⚡ Installation Order Confirmed & Locked!',
+          message: `Order #${projectOrder.orderNumber} for ${projectOrder.customerName} is scheduled for installation on ${new Date(projectOrder.preferredInstallDate).toLocaleDateString("en-IN")}.`,
+          projectId: projectOrder._id
+        });
+      }
+
+      // Admin Notification
+      await Notification.create({
+        role: 'Admin',
+        title: `✅ Installation Confirmed for Order #${projectOrder.orderNumber}`,
+        message: `BDE & EPC confirmed installation for ${projectOrder.customerName} on ${new Date(projectOrder.preferredInstallDate).toLocaleDateString("en-IN")}.`,
+        projectId: projectOrder._id
+      });
+    } catch (notifErr) {
+      console.error('Notification creation error:', notifErr);
+    }
+
+    // Trigger SMS & Email Notifications
+    const dateFormatted = new Date(projectOrder.preferredInstallDate).toLocaleDateString("en-IN");
+    try {
+      const { sendNotificationSMS } = await import('../utils/smsService.js');
+      
+      // Customer SMS/Email
+      await sendNotificationSMS(
+        projectOrder.customerMobile, 
+        `Dear ${projectOrder.customerName}, your solar installation with ${projectOrder.assignedEPCName || 'Sunnovative EPC Partner'} is CONFIRMED for ${dateFormatted}. Thank you for choosing Sunnovative!`
+      );
+
+      // EPC Partner SMS/Email
+      if (projectOrder.assignedEPCId) {
+        await sendNotificationSMS(
+          projectOrder.assignedEPCId,
+          `Attention EPC Partner (${projectOrder.assignedEPCName}), Order #${projectOrder.orderNumber} for ${projectOrder.customerName} is CONFIRMED to be installed on ${dateFormatted}.`
+        );
+      }
+    } catch (smsErr) {
+      console.error('SMS/Email dispatch error:', smsErr);
+    }
     
-    res.json({ success: true, message: 'Installation date confirmed successfully!' });
+    res.json({ success: true, message: 'Installation date confirmed and notifications sent successfully!' });
   } catch (error) {
+    console.error("confirmInstallDate error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

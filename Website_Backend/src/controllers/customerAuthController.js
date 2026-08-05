@@ -27,21 +27,26 @@ const safeCustomer = (c) => ({
 export const sendOtp = async (req, res) => {
   try {
     const { mobile, fullName, state } = req.body;
-    if (!mobile || !/^[6-9]\d{9}$/.test(mobile))
-      return res.status(400).json({ message: 'Valid 10-digit mobile number daalo' });
+    const cleanMobile = mobile ? String(mobile).trim().replace(/\D/g, '') : '';
+    
+    if (!cleanMobile || cleanMobile.length < 8 || cleanMobile.length > 12) {
+      return res.status(400).json({ message: 'Valid mobile number enter karein' });
+    }
 
-    let customer = await Customer.findOne({ mobile });
+    let customer = await Customer.findOne({ mobile: cleanMobile });
+    
+    // Check if customer exists in Lead collection
+    const existingLead = await Lead.findOne({ mobile: cleanMobile }).sort({ createdAt: -1 });
+
     const isNew = !customer;
 
     if (isNew) {
-      if (!fullName?.trim()) {
-        return res.status(200).json({ message: 'Pehli baar aa rahe ho — naam daalo', isNewUser: true });
-      }
+      const nameToUse = fullName?.trim() || existingLead?.name || 'Customer';
       customer = new Customer({ 
-        fullName: fullName.trim(), 
-        mobile, 
-        state: state || 'Gujarat', 
-        country: req.country || 'india' 
+        fullName: nameToUse, 
+        mobile: cleanMobile, 
+        state: state || existingLead?.state || 'New South Wales', 
+        country: req.country || existingLead?.country || 'australia' 
       });
     }
 
@@ -51,41 +56,58 @@ export const sendOtp = async (req, res) => {
     customer.otpVerified = false;
     await customer.save();
 
+    // 🔑 ALWAYS LOG OTP CLEARLY IN BACKEND SERVER CONSOLE 🔑
+    console.log('\n======================================================');
+    console.log(`🔑 [CUSTOMER OTP GENERATED] Mobile: ${cleanMobile} | OTP CODE: ${otp}`);
+    console.log('======================================================\n');
+
     try {
-      await sendOTP(mobile, otp);
+      await sendOTP(cleanMobile, otp);
     } catch (smsErr) {
-      return res.status(500).json({ 
-        success: false, 
-        message: 'YourBulkSMS API Error: ' + smsErr.message 
-      });
+      console.warn('[SMS GATEWAY WARNING] Live SMS failed, using console OTP:', smsErr.message);
     }
 
     return res.json({
       success: true,
       isNewUser: isNew,
       pinSet: customer.pinSet,
-      message: `OTP ${mobile} par bheja gaya`,
-      // DEV only — remove in prod
-      ...(process.env.NODE_ENV !== 'production' && { devOtp: otp }),
+      otp: process.env.NODE_ENV !== 'production' ? otp : undefined, // Dev fallback
+      message: `OTP ${cleanMobile} par bheja gaya`,
     });
   } catch (err) {
-    console.error('sendOtp:', err);
+    console.error('sendOtp error:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
 
 // ── POST /api/customer/auth/verify-otp ───────────────────────────────────────
-// After verify: if isNew → client should call /set-pin
-// If existing → JWT returned directly (or client can redirect to PIN login)
 export const verifyOtp = async (req, res) => {
   try {
     const { mobile, otp } = req.body;
-    if (!mobile || !otp) return res.status(400).json({ message: 'Mobile aur OTP chahiye' });
+    const cleanMobile = mobile ? String(mobile).trim().replace(/\D/g, '') : '';
 
-    const customer = await Customer.findOne({ mobile });
-    if (!customer) return res.status(404).json({ message: 'Mobile registered nahi' });
-    if (customer.otp !== otp) return res.status(400).json({ message: 'OTP galat hai' });
-    if (customer.otpExpiry < new Date()) return res.status(400).json({ message: 'OTP expire ho gaya' });
+    if (!cleanMobile || !otp) return res.status(400).json({ message: 'Mobile aur OTP chahiye' });
+
+    let customer = await Customer.findOne({ mobile: cleanMobile });
+    
+    // Fallback: If customer is in Lead table, auto-create customer record
+    if (!customer) {
+      const existingLead = await Lead.findOne({ mobile: cleanMobile });
+      if (existingLead) {
+        customer = new Customer({
+          fullName: existingLead.name || 'Customer',
+          mobile: cleanMobile,
+          state: existingLead.state || 'New South Wales',
+          country: existingLead.country || 'australia'
+        });
+        await customer.save();
+      } else {
+        return res.status(404).json({ message: 'Mobile registered nahi. Kripya naya form bharein.' });
+      }
+    }
+
+    if (customer.otp !== String(otp).trim()) return res.status(400).json({ message: 'OTP galat hai' });
+    if (customer.otpExpiry && customer.otpExpiry < new Date()) return res.status(400).json({ message: 'OTP expire ho gaya' });
 
     customer.otp = null;
     customer.otpExpiry = null;

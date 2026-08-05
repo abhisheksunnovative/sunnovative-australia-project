@@ -1,6 +1,7 @@
 import express from 'express';
 import { sendOtp, verifyOtp, getMe, updateProfile, setPin, loginWithPin } from '../controllers/customerAuthController.js';
-import { getMyProjects, getProjectDetail, uploadDocument, applyForProject, payEscrow, payToken, getAvailableEpcs, completeStep, signStcForm, acceptEpcRecommendation, rejectEpcRecommendations, rateEpc, updateProjectDetail } from '../controllers/customerProjectController.js';
+import { getMyProjects, getProjectDetail, uploadDocument, applyForProject, payEscrow, payToken, getAvailableEpcs, completeStep, signStcForm, acceptEpcRecommendation, rejectEpcRecommendations, rateEpc, updateProjectDetail, selectRecommendedEpc } from '../controllers/customerProjectController.js';
+import { getCustomerNotifications } from '../controllers/notificationController.js';
 import { protectCustomer } from '../middleware/protectCustomer.js';
 import upload from '../middleware/upload.js';
 import EpcPartner from '../models/EpcPartner.js';
@@ -34,8 +35,10 @@ router.post('/projects/:id/complete-step',        protectCustomer, upload.single
 router.post('/projects/:id/sign-stc',             protectCustomer, signStcForm);
 router.post('/projects/:id/accept-epc',           protectCustomer, acceptEpcRecommendation);
 router.post('/projects/:id/reject-epcs',          protectCustomer, rejectEpcRecommendations);
+router.post('/projects/:id/select-epc',           protectCustomer, selectRecommendedEpc);
 router.post('/projects/:id/rate-epc',             protectCustomer, rateEpc);
 router.get ('/epcs',                              protectCustomer, getAvailableEpcs);
+router.get ('/notifications',                     protectCustomer, getCustomerNotifications);
 
 // ── Public data (no auth needed) ─────────────────────────────────────────────
 

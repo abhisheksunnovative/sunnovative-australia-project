@@ -30,7 +30,7 @@ export const getMyProjects = async (req, res) => {
       .select(
         'orderNumber projectType projectTypeLabel status completionPercentage ' +
         'createdAt systemSizeKW estimatedSubsidy totalProjectCost location ' +
-        'pendingActionAlert pendingActionFor assignedEPCName steps'
+        'pendingActionAlert pendingActionFor assignedEPCName steps isInstallDateFixed preferredInstallDate'
       );
     res.json({ success: true, count: projects.length, data: projects });
   } catch (err) {
@@ -64,7 +64,15 @@ export const getProjectDetail = async (req, res) => {
     if (project.assignedEPCId) {
       try {
         const { default: EpcPartner } = await import('../models/EpcPartner.js');
-        epcDetails = await EpcPartner.findById(project.assignedEPCId).select("companyName rating totalInstallations contactPerson contactPersonMobile contactPersonEmail city state activeDistricts").lean();
+        const epc = await EpcPartner.findById(project.assignedEPCId).select("companyName ownerName contactPerson email mobile phone rating totalInstallations city state address kycDocuments").lean();
+        if (epc) {
+          epcDetails = {
+            ...epc,
+            contactPerson: epc.ownerName || epc.contactPerson || "Installer Representative",
+            contactPersonMobile: epc.mobile || epc.phone || "Not Shared",
+            contactPersonEmail: epc.email || "Not Shared"
+          };
+        }
       } catch (err) {
         console.error("Failed to fetch epcDetails:", err);
       }
@@ -93,6 +101,23 @@ export const applyForProject = async (req, res) => {
 
     if (!projectType)
       return res.status(400).json({ message: 'Project type required' });
+
+    // Enforce 1 active project per project type per customer constraint
+    const existingProject = await ProjectOrder.findOne({
+      $or: [
+        { customerId: req.customer._id.toString() },
+        { customerMobile: req.customer.mobile }
+      ],
+      projectType: projectType || 'residential',
+      status: { $nin: ['cancelled', 'closed', 'rejected'] }
+    });
+
+    if (existingProject) {
+      return res.status(400).json({
+        success: false,
+        message: `Aapka ${existingProject.orderNumber} project pehle se active hai. Har project type ke liye sirf 1 baar hi apply kar sakte hain.`
+      });
+    }
 
     let journeySettings = await OrderJourneySettings.findOne({
       country: req.country || 'india',
@@ -186,14 +211,23 @@ export const applyForProject = async (req, res) => {
     // Link this project creation back to the BDE's Lead model if exists
     try {
       const LeadModel = (await import('../models/Lead.js')).default;
-      await LeadModel.findOneAndUpdate(
-        { mobile: req.customer.mobile },
+      const cleanMobile = req.customer.mobile.replace(/\D/g, '').slice(-10);
+      const mobileRegex = new RegExp(cleanMobile + '$', 'i');
+
+      const updatedLead = await LeadModel.findOneAndUpdate(
+        { $or: [{ mobile: req.customer.mobile }, { mobile: mobileRegex }, { customerId: req.customer._id }] },
         { 
-          preferredInstallDate: preferredInstallDate || null,
-          status: 'Converted',
+          preferredInstallDate: preferredInstallDate ? new Date(preferredInstallDate) : null,
+          consumerNumber: payload.consumerNumber || undefined,
+          rooftopPhoto: rooftopPhotoUrl || undefined,
+          kw: systemSizeKW || undefined,
+          solarType: projectType || undefined,
+          billAmount: monthlyBillAmount || undefined,
           convertedProjectId: order._id,
-        }
+        },
+        { new: true }
       );
+      console.log(`[Sync] Successfully updated Lead (${updatedLead?._id}) with preferredInstallDate: ${preferredInstallDate}`);
     } catch (e) {
       console.error('Error linking project to lead:', e);
     }
@@ -479,18 +513,65 @@ export const signStcForm = async (req, res) => {
 export const acceptEpcRecommendation = async (req, res) => {
   try {
     const { epcId, epcName } = req.body;
-    const project = await ProjectOrder.findOneAndUpdate(
-      { _id: req.params.id, customerId: req.customer._id.toString() },
-      { 
-        bdeRecommendationStatus: 'accepted',
-        assignedEPCId: epcId,
-        assignedEPCName: epcName,
-        status: 'EPC Accepted'
-      },
-      { new: true }
-    );
+    
+    // Find project flexibly matching customerId or mobile
+    const project = await ProjectOrder.findOne({
+      _id: req.params.id,
+      $or: [
+        { customerId: req.customer._id.toString() },
+        { customerMobile: req.customer.mobile }
+      ]
+    });
     if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
-    res.json({ success: true, project });
+
+    const { default: EpcPartner } = await import('../models/EpcPartner.js');
+    const epc = await EpcPartner.findById(epcId);
+    
+    project.assignedEPCId = epcId;
+    project.assignedEPCName = epcName || epc?.companyName || "Australian Certified Installer";
+    project.bdeRecommendationStatus = 'accepted';
+    project.status = 'EPC Accepted';
+    project.pendingActionAlert = 'Installer accepted! BDE will now lock your installation date.';
+    project.pendingActionFor = 'bde';
+    await project.save();
+
+    // Sync Lead model
+    try {
+      const LeadModel = (await import('../models/Lead.js')).default;
+      await LeadModel.updateOne(
+        { $or: [{ convertedProjectId: project._id }, { mobile: project.customerMobile }] },
+        { 
+          assignedEPCId: epcId, 
+          assignedEPCName: project.assignedEPCName, 
+          enquiryStatus: 'EPC Accepted',
+          epcDetails: {
+            companyName: project.assignedEPCName,
+            contactPerson: epc?.ownerName || epc?.contactPerson || "Installer Representative",
+            mobile: epc?.mobile || epc?.phone || "0412345671",
+            email: epc?.email || "",
+            rating: epc?.rating || 4.9
+          }
+        }
+      );
+    } catch (lErr) {
+      console.error('Lead update error:', lErr);
+    }
+
+    // Trigger Notification for BDE
+    try {
+      const Notification = (await import('../models/Notification.js')).default;
+      await Notification.create({
+        role: 'BDE',
+        recipientId: project.assignedBde ? project.assignedBde : null,
+        title: '⚡ Customer Accepted EPC Installer!',
+        message: `Customer ${project.customerName} has accepted ${project.assignedEPCName}. Please confirm and lock the final installation date!`,
+        projectId: project._id
+      });
+    } catch (nErr) {
+      console.error('Notification error:', nErr);
+    }
+
+    res.json({ success: true, project, message: `Successfully accepted ${project.assignedEPCName}!` });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -512,7 +593,7 @@ export const rejectEpcRecommendations = async (req, res) => {
 
 export const rateEpc = async (req, res) => {
   try {
-    const { rating } = req.body;
+    const { rating, reviewComment, comment, feedback } = req.body;
     if (!rating || rating < 1 || rating > 5) {
       return res.status(400).json({ success: false, message: 'Invalid rating. Must be between 1 and 5.' });
     }
@@ -559,9 +640,16 @@ export const rateEpc = async (req, res) => {
     }
 
     project.customerRating = Number(rating);
+    project.customerReviewComment = reviewComment || comment || feedback || "";
+    project.customerRatedAt = new Date();
     await project.save();
 
-    res.json({ success: true, message: 'Thank you for your rating!', customerRating: project.customerRating });
+    res.json({ 
+      success: true, 
+      message: 'Thank you for your rating and feedback!', 
+      customerRating: project.customerRating,
+      customerReviewComment: project.customerReviewComment
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -603,6 +691,77 @@ export const updateProjectDetail = async (req, res) => {
 
     await project.save();
     res.json({ success: true, message: "Project details updated successfully", data: project });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const selectRecommendedEpc = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { epcId } = req.body;
+    if (!epcId) return res.status(400).json({ success: false, message: 'Please select an EPC Partner' });
+
+    const project = await ProjectOrder.findOne({
+      _id: id,
+      $or: [
+        { customerId: req.customer._id.toString() },
+        { customerMobile: req.customer.mobile }
+      ]
+    });
+
+    if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
+
+    const { default: EpcPartner } = await import('../models/EpcPartner.js');
+    const epc = await EpcPartner.findById(epcId);
+    if (!epc) return res.status(404).json({ success: false, message: 'EPC Partner not found' });
+
+    project.assignedEPCId = epc._id;
+    project.assignedEPCName = epc.companyName;
+    project.bdeRecommendationStatus = 'accepted';
+    project.status = 'EPC Accepted';
+    project.pendingActionAlert = 'EPC Accepted your project! Site survey scheduled.';
+    project.pendingActionFor = 'epc-partner';
+
+    await project.save();
+
+    // Sync Lead model
+    try {
+      const LeadModel = (await import('../models/Lead.js')).default;
+      await LeadModel.updateOne(
+        { $or: [{ convertedProjectId: project._id }, { mobile: project.customerMobile }] },
+        { 
+          assignedEPCId: epc._id, 
+          assignedEPCName: epc.companyName, 
+          enquiryStatus: 'EPC Accepted',
+          epcDetails: {
+            companyName: epc.companyName,
+            contactPerson: epc.ownerName || epc.contactPerson,
+            mobile: epc.mobile,
+            email: epc.email,
+            rating: epc.rating
+          }
+        }
+      );
+    } catch (lErr) {
+      console.error('Lead update error:', lErr);
+    }
+
+    // Trigger Notification for BDE & Admin
+    try {
+      const Notification = (await import('../models/Notification.js')).default;
+      await Notification.create({
+        role: 'BDE',
+        recipientId: project.assignedBde ? project.assignedBde : null,
+        title: '⚡ Customer Accepted EPC Installer!',
+        message: `Customer ${project.customerName} has accepted ${epc.companyName}. You can now align and confirm the final installation date!`,
+        projectId: project._id
+      });
+    } catch (nErr) {
+      console.error('BDE notification error:', nErr);
+    }
+
+    res.json({ success: true, project, message: `Successfully accepted ${epc.companyName} as your EPC installer!` });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

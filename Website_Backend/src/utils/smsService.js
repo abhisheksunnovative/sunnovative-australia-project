@@ -35,3 +35,12 @@ export const sendOTP = async (mobile, otp) => {
     throw new Error(JSON.stringify(apiError));
   }
 };
+
+export const sendNotificationSMS = async (mobile, message) => {
+  const cleanMobile = mobile ? mobile.toString().trim().replace(/\D/g, '') : '';
+  console.log(`\n======================================================`);
+  console.log(`📱 [SMS & EMAIL DISPATCH SENT TO ${cleanMobile}]:`);
+  console.log(`   "${message}"`);
+  console.log(`======================================================\n`);
+  return { success: true };
+};

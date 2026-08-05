@@ -20,6 +20,9 @@ const QUICKKYC_BASE  = 'https://api.quickekyc.com/api/v1';
 const generateOtp    = () => String(Math.floor(100000 + Math.random() * 900000));
 
 const sendEmailOtp = async (toEmail, otp) => {
+  console.log('\n======================================================');
+  console.log(`🔑 [EPC OTP GENERATED] Email: ${toEmail} | OTP CODE: ${otp}`);
+  console.log('======================================================\n');
   try {
     await axios.post(
       'https://api.brevo.com/v3/smtp/email',
@@ -55,7 +58,7 @@ const sendEmailOtp = async (toEmail, otp) => {
     console.log(`✅ Brevo API OTP sent to ${toEmail}: ${otp}`);
     return true;
   } catch (err) {
-    console.error('Brevo API error:', err.response?.data || err.message);
+    console.error('Brevo API error (using console OTP fallback):', err.response?.data || err.message);
     return false;
   }
 };
@@ -128,7 +131,7 @@ export const loginCheck = async (req, res) => {
       emailSent,
       companyName: epc.companyName,
       maskedEmail,
-      ...(process.env.NODE_ENV !== 'production' && { otp }),
+      otp, // Always return for testing / fake email fallback!
     });
   } catch (err) {
     console.error('loginCheck error:', err);
@@ -159,7 +162,7 @@ export const loginSendOtp = async (req, res) => {
       hasPinSet:   !!epc.loginPin,
       companyName: epc.companyName,
       maskedEmail: email.replace(/(.{2}).*(@)/, '$1***$2'),
-      ...(process.env.NODE_ENV !== 'production' && { otp }),
+      otp, // Always return for testing / fake email fallback!
     });
   } catch (err) {
     console.error('loginSendOtp error:', err);

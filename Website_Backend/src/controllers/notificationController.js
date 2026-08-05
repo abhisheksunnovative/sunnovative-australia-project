@@ -45,6 +45,26 @@ export const markNotificationRead = async (req, res) => {
   }
 };
 
+// @desc    Get Customer Notifications
+// @route   GET /api/notifications/customer
+// @access  Customer
+export const getCustomerNotifications = async (req, res) => {
+  try {
+    const custId = req.customer?._id?.toString();
+    const custMobile = req.customer?.mobile;
+    const notifications = await Notification.find({
+      role: 'Customer',
+      $or: [
+        { recipientId: custId },
+        { recipientId: custMobile }
+      ]
+    }).sort({ createdAt: -1 }).limit(50);
+    res.json({ success: true, data: notifications });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // Utility function to create a notification (not a route)
 export const createNotification = async (role, title, message, recipientId = null) => {
   try {

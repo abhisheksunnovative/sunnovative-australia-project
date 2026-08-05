@@ -386,8 +386,10 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
         name: fullName || extraFromDynamic.fullName,
         mobile: mobileNumber || extraFromDynamic.mobileNumber,
         email: extraFromDynamic.email,
+        country: isAU ? 'australia' : 'india',
         city: city || extraFromDynamic.city,
         state: customerState || extraFromDynamic.customerState,
+        district: city || extraFromDynamic.district || customerState,
         consumerNumber: consumerNumber || extraFromDynamic.consumerNumber || "",
         meterCategory: meterCategory || "Not detected",
         discom: discom || "Not detected",
@@ -401,7 +403,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
         ownsProperty: ownsProperty !== undefined ? ownsProperty : extraFromDynamic.ownsProperty,
         preferredSolarBrand: preferredSolarBrand || undefined,
         preferredInverterBrand: preferredInverterBrand || undefined,
-        notes: `Estimated Subsidy: ${subsidy}, Net Cost: ${net}`,
+        notes: `Estimated Subsidy / STC Rebate: ${subsidy}, Net Cost: ${net}`,
       };
 
       try {
@@ -409,6 +411,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "x-country": isAU ? "australia" : "india",
           },
           body: JSON.stringify(submission),
         });
@@ -569,7 +572,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
 
     return (
       <div key={idx}>
-        <label className="block text-xs font-semibold text-slate-700 mb-1">
+        <label className="block text-[11px] font-bold text-slate-700 mb-0.5 truncate">
           {field.label}{field.required && " *"}
         </label>
         {field.type === "select" ? (
@@ -577,7 +580,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
             value={value}
             onChange={(e) => onChange(e.target.value)}
             required={field.required}
-            className="w-full px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all cursor-pointer"
+            className="w-full px-2.5 py-1.5 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all cursor-pointer font-medium"
           >
             <option value="">Select...</option>
             {(field.options || []).map((opt, oi) => <option key={oi} value={opt}>{opt}</option>)}
@@ -587,8 +590,8 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
             value={value}
             onChange={(e) => onChange(e.target.value)}
             required={field.required}
-            rows={3}
-            className="w-full px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all"
+            rows={1}
+            className="w-full px-2.5 py-1.5 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium"
           />
         ) : (
           <input
@@ -596,7 +599,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
             value={value}
             onChange={(e) => onChange(e.target.value)}
             required={field.required}
-            className="w-full px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all"
+            className="w-full px-2.5 py-1.5 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium"
           />
         )}
       </div>
@@ -607,37 +610,34 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
   const hasDynamicFields = formSettings?.fields && formSettings.fields.length > 0;
 
   return (
-    <section id="eligibility-calculator" className="py-20 solar-gradient relative">
+    <section id="eligibility-calculator" className="py-6 md:py-8 solar-gradient relative">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-14">
-          <span className="text-xs font-bold uppercase tracking-widest text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+        <div className="text-center max-w-3xl mx-auto mb-5">
+          <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
             {formSettings?.title || "Apply for Solar"}
           </span>
-          <h2 className="text-3xl md:text-4xl font-display font-extrabold text-slate-900 mt-3 leading-tight">
+          <h2 className="text-2xl md:text-3xl font-display font-extrabold text-slate-900 mt-1.5 leading-tight">
             {formSettings?.subtitle || "Check Your Subsidy & Rooftop Solar Estimate"}
           </h2>
-          <p className="text-slate-600 mt-3 text-xs md:text-sm">
-            Select your state, then upload a photo of your latest light bill —
-            we'll scan it and instantly tell you your recommended capacity,
-            subsidy, and eligibility.
+          <p className="text-slate-600 mt-1 text-xs">
+            Select your state or upload your electricity bill for instant capacity recommendation.
           </p>
         </div>
 
         {submitSuccess && (
-          <div className="max-w-3xl mx-auto glass-panel rounded-3xl p-8 mb-12 relative overflow-hidden" id="lead-success-receipt">
-            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-solar-yellow via-solar-green to-solar-sky"></div>
+          <div className="max-w-3xl mx-auto glass-panel rounded-2xl p-5 mb-6 relative overflow-hidden" id="lead-success-receipt">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-solar-yellow via-solar-green to-solar-sky"></div>
             <div className="flex flex-col items-center text-center">
-              <div className="w-14 h-14 bg-emerald-50 text-solar-green rounded-full flex items-center justify-center mb-4 border border-emerald-250">
-                <CheckCircle2 className="w-8 h-8" />
+              <div className="w-10 h-10 bg-emerald-50 text-solar-green rounded-full flex items-center justify-center mb-2 border border-emerald-250">
+                <CheckCircle2 className="w-6 h-6" />
               </div>
-              <h3 className="text-2xl font-display font-bold text-slate-900">Rooftop Solar Enquiry Submitted!</h3>
-              <p className="text-slate-500 text-xs mt-1">
+              <h3 className="text-lg font-display font-bold text-slate-900">Rooftop Solar Enquiry Submitted!</h3>
+              <p className="text-slate-500 text-xs mt-0.5">
                 Your application ID is <strong className="text-slate-800 font-mono">{submitSuccess.id}</strong>.
-                A dedicated Sunnovative solar consultant is processing your file.
               </p>
               
-              <div className="mt-6 flex gap-3">
-                <button onClick={() => setSubmitSuccess(null)} className="px-5 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl text-center">
+              <div className="mt-4 flex gap-3">
+                <button onClick={() => setSubmitSuccess(null)} className="px-4 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl text-center">
                   Enquire for another home
                 </button>
               </div>
@@ -645,46 +645,46 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
           </div>
         )}
 
-        <div className="glass-panel p-6 md:p-8 rounded-3xl max-w-3xl mx-auto">
-          <form onSubmit={handleFormSubmit} className="space-y-6" id="solar-lead-form">
+        <div className="glass-panel p-4 md:p-5 rounded-2xl max-w-3xl mx-auto shadow-lg border border-slate-200">
+          <form onSubmit={handleFormSubmit} className="space-y-3.5" id="solar-lead-form">
             
             {/* --- DYNAMIC FIELDS (from Admin Panel Form Builder) --- */}
             {hasDynamicFields ? (
               <div>
-                <h3 className="text-sm font-bold text-slate-900 border-b pb-2 mb-4">1. Your Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-1 mb-2">1. Your Details</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
                   {formSettings.fields.filter(f => f.key !== "billFile").map((field, idx) => renderDynamicField(field, idx))}
                 </div>
               </div>
             ) : (
             /* --- DEFAULT FIELDS (fallback) --- */
             <div>
-              <h3 className="text-sm font-bold text-slate-900 border-b pb-2 mb-4">1. Applicant & Location Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-1.5 mb-2.5">1. Applicant & Location Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2.5">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">State *</label>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">State *</label>
                   <select
                     value={customerState}
                     onChange={(e) => { setCustomerState(e.target.value); setEligibilityResult(null); }}
-                    className="w-full px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all cursor-pointer"
+                    className="w-full px-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all cursor-pointer font-medium"
                   >
                     {(countryStatesMap[country] || countryStatesMap["IN"]).map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">{isAU ? "Suburb / City *" : "District / City *"}</label>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">{isAU ? "Suburb / City *" : "District / City *"}</label>
                   {isAU ? (
                     <div className="flex gap-2">
                       <input type="text" required value={city} onChange={(e) => setCity(e.target.value)}
                         placeholder="e.g. Parramatta"
-                        className="w-2/3 px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all" />
+                        className="w-2/3 px-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium" />
                       <input type="text" required value={postcode} onChange={(e) => setPostcode(e.target.value.replace(/\D/g, ""))} maxLength={4}
                         placeholder="Postcode"
-                        className="w-1/3 px-3 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all" />
+                        className="w-1/3 px-2.5 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium" />
                     </div>
                   ) : (
                     <select value={city} onChange={(e) => setCity(e.target.value)}
-                      className="w-full px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all cursor-pointer">
+                      className="w-full px-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all cursor-pointer font-medium">
                       {!["Rajkot", "Morbi", "Jamnagar", "Gondal", "Jetpur", "Jasdan", "Wankaner"].includes(city) && (
                         <option value={city}>{city}</option>
                       )}
@@ -700,21 +700,21 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name (Owner Name) *</label>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Full Name (Owner Name) *</label>
                   <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)}
                     placeholder="e.g. Rajeshbhai Kunjibhai Patel"
-                    className="w-full px-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all" />
+                    className="w-full px-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Mobile Number (WhatsApp) *</label>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Mobile Number (WhatsApp) *</label>
                   <div className="relative">
-                    {isAU && <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs">+61</span>}
+                    {isAU && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold">+61</span>}
                     <input type="tel" required maxLength={10} value={mobileNumber}
                       onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, ""))}
                       placeholder={isAU ? "412 345 678" : "e.g. 98982 12345"}
-                      className={`w-full ${isAU ? 'pl-10' : 'px-4'} pr-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all`} />
+                      className={`w-full ${isAU ? 'pl-9' : 'px-3'} pr-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium`} />
                   </div>
                 </div>
               </div>
@@ -723,70 +723,68 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
 
             {/* 2. Bill Fetch / Upload Section */}
             <div>
-              <h3 className="text-sm font-bold text-slate-900 border-b pb-2 mb-4 mt-6">2. Electricity Bill Check</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-1 mb-2 mt-1">2. Electricity Bill Check</h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-2">
-                    {isAU ? "Upload Electricity Bill (AGL / Origin / EnergyAustralia etc.)" : "Upload Light Bill for Auto-Scan"}
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    {isAU ? "Upload Electricity Bill (AGL / Origin etc.)" : "Upload Light Bill for Auto-Scan"}
                   </label>
                   <div
                     onDragEnter={handleDrag} onDragOver={handleDrag} onDragLeave={handleDrag} onDrop={handleDrop}
                     onClick={handleTriggerFileInput}
-                    className={`border-2 border-dashed rounded-2xl p-5 text-center cursor-pointer transition-all ${
-                      dragActive ? "border-solar-sky bg-sky-50/50" : uploadedFile ? "border-solar-green bg-emerald-50/20" : "border-slate-200 bg-slate-50/50 hover:bg-slate-50"
+                    className={`border border-dashed rounded-xl p-2.5 text-center cursor-pointer transition-all ${
+                      dragActive ? "border-solar-sky bg-sky-50/50" : uploadedFile ? "border-solar-green bg-emerald-50/20" : "border-slate-300 bg-slate-50/50 hover:bg-slate-100/80"
                     }`}
                     id="drag-drop-container"
                   >
                     <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*,application/pdf" className="hidden" id="bill-file-input" />
                     {isScanning ? (
-                      <div className="flex flex-col items-center">
-                        <ScanLine className="w-8 h-8 text-solar-sky mb-2 animate-pulse" />
-                        <p className="text-xs font-bold text-slate-800">Scanning your bill...</p>
+                      <div className="flex items-center justify-center gap-2 py-0.5">
+                        <ScanLine className="w-4 h-4 text-solar-sky animate-pulse" />
+                        <p className="text-xs font-bold text-slate-800">Scanning bill...</p>
                       </div>
                     ) : uploadedFile ? (
-                      <div className="flex flex-col items-center">
-                        <div className="w-10 h-10 rounded-full bg-emerald-100 text-solar-green flex items-center justify-center mb-2">
-                          <FileCheck className="w-5 h-5 animate-pulse-subtle" />
-                        </div>
-                        <p className="text-xs font-bold text-slate-800 tracking-tight">{uploadedFile.name}</p>
+                      <div className="flex items-center justify-center gap-2 py-0.5">
+                        <FileCheck className="w-4 h-4 text-solar-green" />
+                        <p className="text-xs font-bold text-slate-800 truncate max-w-[200px]">{uploadedFile.name}</p>
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center">
-                        <UploadCloud className="w-8 h-8 text-slate-400 mb-2" />
-                        <p className="text-xs font-semibold text-slate-700">Drag & drop bill photo</p>
+                      <div className="flex items-center justify-center gap-2 py-0.5">
+                        <UploadCloud className="w-4 h-4 text-slate-400" />
+                        <p className="text-xs font-semibold text-slate-700">Drag & drop or click to upload bill</p>
                       </div>
                     )}
                   </div>
                   {scanError && (
-                    <div className="text-[11px] text-red-500 font-semibold mt-2 flex items-center gap-1">
-                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> {scanError}
+                    <div className="text-[10px] text-red-500 font-semibold mt-1 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3 shrink-0" /> {scanError}
                     </div>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-2">Or Enter Average Bill Manually</label>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Or Enter Average Bill Manually</label>
                   <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs">{isAU ? "$" : "₹"}</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">{isAU ? "$" : "₹"}</span>
                     <input type="number" required value={monthlyBill}
                       onChange={(e) => setMonthlyBill(Number(e.target.value))}
                       placeholder="e.g. 2150"
-                      className="w-full pl-7 pr-4 py-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all mb-2" />
+                      className="w-full pl-7 pr-3 py-1.5 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium" />
                   </div>
-                  <p className="text-[10px] text-slate-400 italic">This helps us calculate your required solar system size.</p>
+                  <p className="text-[9px] text-slate-400 italic mt-0.5">Used for calculating system size.</p>
                 </div>
               </div>
             </div>
 
             {/* 3. Recommended System & Subsidy (Auto-calculated, read-only) */}
-            <div className="bg-amber-50/50 rounded-2xl border border-amber-100 p-5 mt-6">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-slate-900">
+            <div className="bg-amber-50/40 rounded-xl border border-amber-200/60 p-3 mt-2">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-bold text-slate-900">
                   3. {isAU ? "Recommended System & STC Rebate" : "Recommended System & Subsidy"}
                 </h3>
-                <span className="text-xs bg-amber-100 text-amber-700 font-bold px-2.5 py-1 rounded-full">
-                  🤖 Auto from your bill
+                <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">
+                  🤖 Auto-calculated
                 </span>
               </div>
 

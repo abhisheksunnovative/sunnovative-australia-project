@@ -1,10 +1,12 @@
 import mongoose from 'mongoose';
 
 const NotificationSchema = new mongoose.Schema({
-  role: { type: String, enum: ['Admin', 'EpcPartner'], required: true },
-  recipientId: { type: mongoose.Schema.Types.ObjectId, ref: 'EpcPartner', default: null }, // Null if role is Admin
+  role: { type: String, enum: ['Admin', 'EpcPartner', 'BDE', 'Customer'], required: true },
+  recipientId: { type: mongoose.Schema.Types.ObjectId, default: null }, // Null if role is Admin
   title: { type: String, required: true },
   message: { type: String, required: true },
+  leadId: { type: mongoose.Schema.Types.ObjectId, ref: 'Lead', default: null },
+  projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'ProjectOrder', default: null },
   isRead: { type: Boolean, default: false },
 }, { timestamps: true });
 
