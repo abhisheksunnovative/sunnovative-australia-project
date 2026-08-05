@@ -6,7 +6,8 @@ const StepCompletionSchema = new mongoose.Schema({
   stepNumber: { type: Number, required: true },
   title: { type: String, required: true },
   description: { type: String, default: "" },
-  assignedTo: { type: String, enum: ['customer', 'epc-partner', 'company'], default: "company" },
+  assignedTo: { type: String, enum: ['customer', 'epc-partner', 'company', 'bde'], default: "company" },
+  allowedRoles: { type: [String], default: [] },
   milestoneType: { 
     type: String, 
     enum: ['standard', 'customer_payment', 'epc_advance', 'rating', 'stc_minting', 'doc_upload'], 
@@ -39,6 +40,14 @@ const StepCompletionSchema = new mongoose.Schema({
   isCritical: { type: Boolean, default: false }, // If past redAlertDays
   overdueNotifiedAt: { type: Date, default: null },
   escalatedToAdminAt: { type: Date, default: null },
+  // --- ADMIN CONTROL & REUPLOAD FIELDS ---
+  adminNote: { type: String, default: "" },
+  adminNoteBy: { type: String, default: "" },
+  adminNoteAt: { type: Date, default: null },
+  reuploadRequested: { type: Boolean, default: false },
+  reuploadReason: { type: String, default: "" },
+  canBeCompletedByBDE: { type: Boolean, default: false },
+  externalParty: { type: String, default: "" },
 }, { _id: false });
 
 // Geo location schema
@@ -204,7 +213,21 @@ const ProjectOrderSchema = new mongoose.Schema(
       stcsTraded: { type: Boolean, default: false },
       stcsTradedDate: Date,
       amountRecovered: { type: Number, default: 0 }
-    }
+    },
+    // EPC Payout Flow (Customer -> Admin -> EPC)
+    epcPayout: {
+      percentage: { type: Number, default: 90 },
+      amount: { type: Number, default: 0 },
+      qrCodeUrl: { type: String, default: "" },
+      status: { 
+        type: String, 
+        enum: ["not-started", "qr-shared", "epc-marked-received", "admin-confirmed"], 
+        default: "not-started" 
+      },
+      epcProofUrl: { type: String, default: "" },
+      epcMarkedAt: { type: Date, default: null },
+      adminConfirmedAt: { type: Date, default: null },
+    },
   },
   { timestamps: true }
 );

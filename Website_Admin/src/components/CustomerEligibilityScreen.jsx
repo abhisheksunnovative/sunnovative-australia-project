@@ -150,11 +150,11 @@ export const CustomerEligibilityScreen = ({ section = null }) => {
           ]
         : selectedCountry === 'australia'
         ? [
-            { id: "residential", name: "Residential Solar", enabled: true, minKW: 1, maxKW: 10, subsidyEligible: true, maxSubsidyAmount: 0, description: "Residential solar systems (CEC)" },
-            { id: "commercial", name: "Commercial Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Commercial rooftop solar" },
-            { id: "ppa", name: "Solar Power Purchase Agreement (PPA)", enabled: true, minKW: 30, maxKW: 1000, subsidyEligible: false, maxSubsidyAmount: 0, description: "Zero upfront PPA solar solution" },
-            { id: "microgrid", name: "Embedded Network & Microgrid", enabled: true, minKW: 50, maxKW: 2000, subsidyEligible: false, maxSubsidyAmount: 0, description: "Multi-tenant embedded network solar microgrid" },
-            { id: "battery-storage", name: "Commercial & Grid Battery Storage", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "BESS energy storage for peak shaving & backup" }
+            { id: "residential", name: "Residential Solar", enabled: true, minKW: 1, maxKW: 10, subsidyEligible: true, maxSubsidyAmount: 0, description: "Residential solar systems (CEC 12 Steps)" },
+            { id: "commercial", name: "Commercial Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Commercial rooftop solar (14 Steps)" },
+            { id: "solar-battery", name: "Solar + Battery", enabled: true, minKW: 5, maxKW: 50, subsidyEligible: true, maxSubsidyAmount: 0, description: "Solar PV + BESS battery storage (13 Steps)" },
+            { id: "farm-rural", name: "Farm / Rural Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Agricultural, rural & off-grid solar (14 Steps)" },
+            { id: "community-strata", name: "Community / Strata Solar", enabled: true, minKW: 20, maxKW: 1000, subsidyEligible: false, maxSubsidyAmount: 0, description: "Multi-tenant body corporate embedded network (15 Steps)" }
           ]
         : clone(DEFAULT_SETTINGS.projectCategories);
 
@@ -184,11 +184,11 @@ export const CustomerEligibilityScreen = ({ section = null }) => {
             { id: "commercial", name: "Commercial Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Shops, offices, factories" }
           ]
         : [
-            { id: "residential", name: "Residential Solar", enabled: true, minKW: 1, maxKW: 10, subsidyEligible: true, maxSubsidyAmount: 0, description: "Residential solar systems (CEC)" },
-            { id: "commercial", name: "Commercial Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Commercial rooftop solar" },
-            { id: "ppa", name: "Solar Power Purchase Agreement (PPA)", enabled: true, minKW: 30, maxKW: 1000, subsidyEligible: false, maxSubsidyAmount: 0, description: "Zero upfront PPA solar solution" },
-            { id: "microgrid", name: "Embedded Network & Microgrid", enabled: true, minKW: 50, maxKW: 2000, subsidyEligible: false, maxSubsidyAmount: 0, description: "Multi-tenant embedded network solar microgrid" },
-            { id: "battery-storage", name: "Commercial & Grid Battery Storage", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "BESS energy storage for peak shaving & backup" }
+            { id: "residential", name: "Residential Solar", enabled: true, minKW: 1, maxKW: 10, subsidyEligible: true, maxSubsidyAmount: 0, description: "Residential solar systems (CEC 12 Steps)" },
+            { id: "commercial", name: "Commercial Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Commercial rooftop solar (14 Steps)" },
+            { id: "solar-battery", name: "Solar + Battery", enabled: true, minKW: 5, maxKW: 50, subsidyEligible: true, maxSubsidyAmount: 0, description: "Solar PV + BESS battery storage (13 Steps)" },
+            { id: "farm-rural", name: "Farm / Rural Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Agricultural, rural & off-grid solar (14 Steps)" },
+            { id: "community-strata", name: "Community / Strata Solar", enabled: true, minKW: 20, maxKW: 1000, subsidyEligible: false, maxSubsidyAmount: 0, description: "Multi-tenant body corporate embedded network (15 Steps)" }
           ];
       setSettings(fallback);
       setUsingFallback(true);

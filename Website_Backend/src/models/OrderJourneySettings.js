@@ -7,9 +7,14 @@ const JourneyStepSchema = new mongoose.Schema({
   description: { type: String, default: "" },
   assignedTo: {
     type: String,
-    enum: ["company", "epc-partner", "customer", "both"],
+    enum: ["company", "epc-partner", "customer", "bde", "both"],
     default: "company",
   },
+  allowedRoles: {
+    type: [String],
+    default: ["company"],
+  },
+  canBeCompletedByBDE: { type: Boolean, default: false },
   enabled: { type: Boolean, default: true },
   estimatedDays: { type: Number, default: 1 }, // Legacy field, keeping for compatibility
   slaDays: { type: Number, default: 1 }, // New SLA field

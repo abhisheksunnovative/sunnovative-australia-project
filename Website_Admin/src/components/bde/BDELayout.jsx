@@ -3,7 +3,7 @@ import { LayoutDashboard, Users, Map, LogOut, Sun, ClipboardList, AlertTriangle 
 
 export default function BDELayout({ children, currentTab, onTabChange, onLogout, bdeName }) {
   const navItems = [
-    { id: "bde-aust", name: "Australian BDE Dashboard", icon: <LayoutDashboard className="w-5 h-5 text-emerald-400" /> },
+    { id: "bde-aust", name: "Dashboard", icon: <LayoutDashboard className="w-5 h-5 text-emerald-400" /> },
     { id: "bde-leads", name: "My Leads", icon: <Users className="w-5 h-5" /> },
     { id: "bde-projects", name: "My Projects", icon: <ClipboardList className="w-5 h-5" /> },
     { id: "bde-demand", name: "Demand Pool", icon: <Map className="w-5 h-5" /> }

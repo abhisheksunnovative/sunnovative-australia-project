@@ -62,32 +62,32 @@ function StarRating({ rating, count }) {
 function ProgressTracker({ status, pct }) {
   // Ultra-thin & compact line tracker UI matching screenshot
   return (
-    <div className="w-full bg-slate-50 border border-slate-200/90 rounded-2xl p-3 shadow-inner overflow-x-auto scrollbar-hide">
-      <div className="flex items-center justify-between mb-2 px-1">
-        <h3 className="font-black text-xs text-slate-800 uppercase tracking-wider">Project Journey Timeline</h3>
+    <div className="w-full bg-white/90 backdrop-blur-md border border-white/20 rounded-xl p-2 shadow-sm overflow-x-auto scrollbar-hide">
+      <div className="flex items-center justify-between mb-1.5 px-1">
+        <h3 className="font-black text-[10px] text-slate-800 uppercase tracking-wider">PROJECT JOURNEY TIMELINE</h3>
         <Badge status={status} />
       </div>
 
-      <div className="min-w-[700px] flex items-start justify-between relative px-2 py-1">
+      <div className="min-w-[680px] flex items-start justify-between relative px-2 py-0.5">
         {/* Connecting track line */}
-        <div className="absolute left-6 right-6 top-3.5 h-0.5 bg-slate-200 -z-10" />
+        <div className="absolute left-5 right-5 top-3 h-0.5 bg-slate-200 -z-10" />
 
-        {["Lead Captured", "Submit Bill", "Upload Details", "Verify Eligibility", "Document Check", "Select Date", "Payment", "Allocate EPC", "Accept Project", "Site Survey", "Proposal", "Installation", "Upload Docs", "Net Metering", "Subsidy Claim", "Progress Monitor"].map((title, i) => {
+        {["Lead...", "Submit...", "Upload...", "Verify...", "Docum...", "Select...", "Payment", "Allocat...", "Accept...", "Site...", "Proposal", "Installation", "Upload...", "Net...", "Subsid...", "Progres..."].map((title, i) => {
           const done = i < 2;
           const active = i === 2;
           return (
             <div key={i} className="flex flex-col items-center flex-1 relative group cursor-pointer">
               {i > 0 && (done || active) && (
-                <div className={`absolute right-[50%] left-[-50%] top-3.5 h-0.5 -z-10 transition-all ${done ? 'bg-orange-500' : 'bg-amber-400'}`} />
+                <div className={`absolute right-[50%] left-[-50%] top-3 h-0.5 -z-10 transition-all ${done ? 'bg-orange-500' : 'bg-amber-400'}`} />
               )}
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black ring-2 ring-white mb-1 transition-all ${
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black ring-2 ring-white mb-0.5 transition-all ${
                 done ? "bg-orange-500 text-white shadow-sm" : 
                 active ? "bg-amber-400 text-white shadow-md ring-amber-100 animate-pulse" : 
                 "bg-slate-200 text-slate-500"
               }`}>
-                {done ? <CheckCircle2 className="w-3.5 h-3.5" /> : (i + 1)}
+                {done ? <CheckCircle2 className="w-3 h-3" /> : (i + 1)}
               </div>
-              <p className={`text-[9px] text-center font-bold px-0.5 line-clamp-1 max-w-[75px] ${
+              <p className={`text-[8px] text-center font-bold px-0.5 line-clamp-1 max-w-[65px] ${
                 done ? "text-slate-800" : active ? "text-amber-700 font-extrabold" : "text-slate-400"
               }`}>
                 {title}
@@ -116,7 +116,8 @@ function ProjectJourneyTracker({ steps }) {
       {displaySteps.map((step, i) => {
         const done = step.status === "completed";
         const blocked = step.status === "blocked";
-        const active = step.status === "in-progress" || (step.status === "pending" && (i === 0 || displaySteps[i-1]?.status === "completed"));
+        const isAwaitingApproval = step.status === "awaiting-approval";
+        const active = step.status === "in-progress" || isAwaitingApproval || (step.status === "pending" && (i === 0 || displaySteps[i-1]?.status === "completed"));
         const isExpanded = expandedStep === i;
 
         // Role-based colors
@@ -137,34 +138,40 @@ function ProjectJourneyTracker({ steps }) {
         }
 
         return (
-          <div key={i} className={`border rounded-xl transition-all ${active ? 'border-amber-300 bg-amber-50/30' : 'border-slate-200 bg-white'}`}>
+          <div key={i} className={`border rounded-lg transition-all ${isAwaitingApproval ? 'border-yellow-400 bg-yellow-50/70 shadow-sm' : active ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200/80 bg-white'}`}>
             <div 
-              className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 rounded-xl"
+              className="flex items-center justify-between py-1.5 px-3 cursor-pointer hover:bg-slate-50 rounded-lg"
               onClick={() => setExpandedStep(isExpanded ? null : i)}
             >
-              <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm ${
+              <div className="flex items-center gap-2.5">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
                   done ? "bg-green-500 text-white" : 
                   blocked ? "bg-red-500 text-white" :
-                  active ? "bg-amber-400 text-white ring-4 ring-amber-100" : 
-                  "bg-slate-100 text-slate-400"
+                  isAwaitingApproval ? "bg-yellow-400 text-yellow-950 ring-2 ring-yellow-200 animate-pulse" :
+                  active ? "bg-amber-400 text-white ring-2 ring-amber-100 animate-pulse" : 
+                  "bg-slate-100 text-slate-500"
                 }`}>
-                  {done ? <Check className="w-5 h-5" /> : 
-                   blocked ? <XCircle className="w-5 h-5" /> : 
+                  {done ? <Check className="w-3.5 h-3.5" /> : 
+                   blocked ? <XCircle className="w-3.5 h-3.5" /> : 
+                   isAwaitingApproval ? <Clock className="w-3.5 h-3.5 text-yellow-950" /> :
                    <span>{step.stepNumber || (i+1)}</span>}
                 </div>
                 <div>
-                  <h4 className={`font-bold text-sm ${done ? 'text-slate-800' : active ? 'text-amber-800' : 'text-slate-500'}`}>
+                  <h4 className={`font-bold text-xs ${done ? 'text-slate-800' : isAwaitingApproval ? 'text-yellow-900 font-black' : active ? 'text-amber-800 font-extrabold' : 'text-slate-600'}`}>
                     {step.title}
                   </h4>
-                  {step.completedAt && <p className="text-[10px] text-slate-400 mt-0.5">Completed: {fmtDate(step.completedAt)}</p>}
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${roleColor}`}>
+              <div className="flex items-center gap-2">
+                {isAwaitingApproval && (
+                  <span className="text-[9px] font-black px-2 py-0.5 rounded bg-yellow-400 text-yellow-950 border border-yellow-500 flex items-center gap-1 shadow-sm">
+                    ⏳ Admin Approval Pending
+                  </span>
+                )}
+                <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded ${roleColor}`}>
                   {roleLabel}
                 </span>
-                {isExpanded ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+                {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
               </div>
             </div>
 
@@ -488,6 +495,12 @@ function ProjectDetail({ projectId, onBack, authFetch }) {
 
   useEffect(() => {
     fetchProject();
+    const interval = setInterval(() => {
+      authFetch(`/api/customer/projects/${projectId}`)
+        .then(r => r.json())
+        .then(d => { if (d.success) setProject(d.data); });
+    }, 8000);
+    return () => clearInterval(interval);
   }, [projectId]);
 
   const fetchProject = () => {
@@ -529,58 +542,41 @@ function ProjectDetail({ projectId, onBack, authFetch }) {
   const isAU = country === "AU";
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] md:h-[calc(100vh-80px)] overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-120px)] md:h-[calc(100vh-70px)] overflow-hidden -mt-2">
       {/* Top Fixed Area */}
-      <div className="shrink-0 space-y-4 pb-2">
-        {/* Back Button and Header */}
-        <div className="flex items-center gap-3">
-          <button onClick={onBack} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h1 className="text-base font-black text-slate-800">Project Details</h1>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">SUN-ACCOUNT</p>
-          </div>
-        </div>
-
-        {/* Hero card */}
-        <div className={`bg-gradient-to-br ${
-          project?.projectType?.toLowerCase().includes("commercial") || project?.projectType?.toLowerCase().includes("industrial")
-            ? "from-amber-600 via-orange-500 to-amber-700" 
-            : project?.projectType?.toLowerCase().includes("agri")
-              ? "from-emerald-700 via-green-600 to-emerald-800"
-              : project?.projectType?.toLowerCase().includes("off-grid") || project?.projectType?.toLowerCase().includes("off grid")
-                ? "from-violet-700 via-purple-600 to-violet-800"
-                : "from-solar-navy via-slate-800 to-slate-900"
-        } rounded-3xl p-5 text-white relative overflow-hidden`}>
-          <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400/5 rounded-full -translate-y-8 translate-x-8" />
-          <div className="absolute bottom-0 left-0 w-20 h-20 bg-blue-400/5 rounded-full translate-y-4 -translate-x-4" />
-
-          <div className="flex items-start justify-between mb-4 relative z-10">
-            <div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{project.orderNumber}</p>
-              <h2 className="text-lg font-black mt-0.5">{project.projectTypeLabel || project.projectType} Solar</h2>
-              {project.location?.city && (
-                <p className="text-xs text-slate-300 mt-0.5 flex items-center gap-1"><MapPin className="w-3 h-3" />{project.location.city}</p>
-              )}
+      <div className="shrink-0 space-y-1.5 pb-1">
+        {/* Ultra-Thin Hero Card with Back Button Inside Top Left */}
+        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-3 text-white relative overflow-hidden shadow-md">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={onBack} 
+                className="p-1 bg-white/10 hover:bg-white/20 text-white rounded-lg transition border border-white/10 flex items-center gap-1 shadow-sm"
+                title="Go Back"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span className="text-[10px] font-bold">Back</span>
+              </button>
+              <span className="text-[11px] font-bold text-slate-300 tracking-wider font-mono ml-1">{project.orderNumber}</span>
             </div>
             <Badge status={project.status} />
           </div>
 
-          {/* Progress tracker */}
-          <div className="relative z-10 mb-4">
+          {/* Slim Progress Tracker Line */}
+          <div className="relative z-10 mb-2">
             <ProgressTracker status={project.status} pct={project.completionPercentage} />
           </div>
 
-          <div className="grid grid-cols-3 gap-2.5 relative z-10 mt-3">
+          {/* 3 Compact Metric Badges */}
+          <div className="grid grid-cols-3 gap-2 relative z-10">
             {[
               { l: "SYSTEM", v: project.systemSizeKW ? `${project.systemSizeKW} kW` : "—" },
               { l: "TOTAL COST", v: project.totalProjectCost ? `${country === "AU" ? "$" : "₹"}${project.totalProjectCost.toLocaleString('en-IN')}` : "—" },
               { l: country === "AU" ? "STC REBATE" : "SUBSIDY", v: project.estimatedSubsidy ? `${country === "AU" ? "$" : "₹"}${project.estimatedSubsidy.toLocaleString('en-IN')}` : "—" },
             ].map(s => (
-              <div key={s.l} className="bg-slate-950/60 rounded-xl p-2.5 text-center backdrop-blur-md border border-white/10 shadow-sm">
-                <p className="text-[9px] text-slate-400 uppercase font-black tracking-wider">{s.l}</p>
-                <p className="text-xs sm:text-sm font-black text-white mt-0.5">{s.v}</p>
+              <div key={s.l} className="bg-slate-950/70 rounded-lg py-1.5 px-2 text-center backdrop-blur-md border border-white/10 shadow-sm">
+                <p className="text-[8px] text-slate-400 uppercase font-black tracking-wider">{s.l}</p>
+                <p className="text-xs font-black text-white mt-0.5">{s.v}</p>
               </div>
             ))}
           </div>
@@ -628,16 +624,21 @@ function ProjectDetail({ projectId, onBack, authFetch }) {
           </div>
         )}
 
-        {/* Pending action banner */}
-        {project.pendingActionAlert && project.pendingActionFor === "customer" && (
-          <div className="flex items-start gap-3 p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl">
-            <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center shrink-0">
-              <Bell className="w-5 h-5 text-amber-900" />
+        {/* 🎯 YOUR TURN BANNER (When customer action is required) */}
+        {project.pendingActionFor === "customer" && (
+          <div className="bg-gradient-to-r from-green-500 via-emerald-500 to-green-600 text-white rounded-2xl p-4 shadow-md flex items-center justify-between gap-4 animate-pulse">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center font-black text-lg shadow-inner">
+                🎯
+              </div>
+              <div>
+                <p className="font-black text-sm uppercase tracking-wider">YOUR TURN / AAPKA TURN</p>
+                <p className="text-xs text-green-100 font-bold mt-0.5">{project.pendingActionAlert || "Please complete your pending step below."}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-black text-amber-800">Action Required — Aapki Taraf Se</p>
-              <p className="text-xs text-amber-700 mt-0.5">{project.pendingActionAlert}</p>
-            </div>
+            <span className="text-[11px] font-black bg-white text-green-900 px-3 py-1.5 rounded-xl uppercase shadow-sm">
+              Action Needed
+            </span>
           </div>
         )}
 
@@ -706,6 +707,15 @@ function ProjectDetail({ projectId, onBack, authFetch }) {
           </div>
         )}
 
+        {/* ── PROGRESS TRACKER (VERTICAL) ── */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart3 className="w-4 h-4 text-yellow-500" />
+            <h3 className="font-black text-slate-800">Installation Journey</h3>
+          </div>
+          <ProjectJourneyTracker steps={project.steps} />
+        </div>
+
         {/* EPC Partner */}
         {project.assignedEPCName && (
           <div className="bg-white border border-slate-200 rounded-2xl p-5">
@@ -729,15 +739,6 @@ function ProjectDetail({ projectId, onBack, authFetch }) {
             </div>
           </div>
         )}
-
-        {/* ── PROGRESS TRACKER (VERTICAL) ── */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="w-4 h-4 text-yellow-500" />
-            <h3 className="font-black text-slate-800">Installation Journey</h3>
-          </div>
-          <ProjectJourneyTracker steps={project.steps} />
-        </div>
 
         {/* Documents */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
@@ -1306,8 +1307,19 @@ export default function CustomerPortal({ onClose }) {
 
           <div className="hidden md:block my-2 border-t border-white/10" />
 
-          <p className="text-[10px] font-black uppercase text-white/40 tracking-wider mb-2 hidden md:block px-3 mt-2">Services</p>
-          
+          {/* Notifications Center Tab */}
+          <button onClick={() => { setTab("notifications"); setProjectView("list"); }}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all whitespace-nowrap md:whitespace-normal text-left ${tab === "notifications" ? "bg-amber-400 text-yellow-950 shadow-md font-bold" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}>
+            <div className="relative shrink-0">
+              <Bell className="w-5 h-5" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full animate-ping" />
+            </div>
+            <div>
+              <p className="font-bold text-sm leading-tight">Notifications</p>
+              <p className="text-[10px] opacity-80">Activity & Updates</p>
+            </div>
+          </button>
+
           {/* Start Another Project Tab */}
           <button onClick={() => { setTab("new-project"); setProjectView("list"); }}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all whitespace-nowrap md:whitespace-normal text-left ${tab === "new-project" ? "bg-white/20 text-white shadow-md" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}>
@@ -1359,6 +1371,103 @@ export default function CustomerPortal({ onClose }) {
                   <p className="text-xs text-green-700 mt-0.5">Central ₹78,000 + Gujarat state ₹40,000 = total ₹1,18,000 tak subsidy milti hai 3kW system pe! PM Surya Ghar Yojana ke under.</p>
                 </div>
               </div>
+          )}
+
+          {/* ── NOTIFICATIONS CENTER ── */}
+          {tab === "notifications" && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-black text-slate-800 text-lg flex items-center gap-2">
+                    <Bell className="w-5 h-5 text-amber-500" /> Notifications & Activity Log
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Real-time status updates, payment confirmations, and admin notices</p>
+                </div>
+                <span className="text-xs font-bold bg-amber-100 text-amber-800 px-3 py-1 rounded-full border border-amber-200">
+                  LIVE HUB
+                </span>
+              </div>
+
+              {projects.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+                  <Bell className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm font-bold text-slate-600">No notifications yet</p>
+                  <p className="text-xs text-slate-400 mt-1">Submit an application to start receiving status updates.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {projects.flatMap(p => {
+                    const logs = [];
+                    // Add project creation notification
+                    logs.push({
+                      id: `${p._id}-created`,
+                      title: `Project Registered: ${p.projectTypeLabel || p.projectType} Solar`,
+                      desc: `Order #${p.orderNumber} successfully captured. System size: ${p.systemSizeKW || 1} kW.`,
+                      time: p.createdAt ? new Date(p.createdAt).toLocaleString("en-IN") : "Recent",
+                      type: "success",
+                      orderId: p._id,
+                      orderNumber: p.orderNumber
+                    });
+
+                    // Add pending action notice if exists
+                    if (p.pendingActionAlert) {
+                      logs.push({
+                        id: `${p._id}-action`,
+                        title: `⚠️ Action Required on Order #${p.orderNumber}`,
+                        desc: p.pendingActionAlert,
+                        time: "Action Pending",
+                        type: "warning",
+                        orderId: p._id,
+                        orderNumber: p.orderNumber
+                      });
+                    }
+
+                    // Add step completion logs
+                    (p.steps || []).filter(s => s.status === "completed").forEach(s => {
+                      logs.push({
+                        id: `${p._id}-${s.stepId || s.stepNumber}`,
+                        title: `✓ Step Completed: ${s.title}`,
+                        desc: `Step #${s.stepNumber} was completed by ${s.completedBy || "System"}.`,
+                        time: s.completedAt ? new Date(s.completedAt).toLocaleString("en-IN") : "Completed",
+                        type: "info",
+                        orderId: p._id,
+                        orderNumber: p.orderNumber
+                      });
+                    });
+
+                    return logs;
+                  }).map(item => (
+                    <div 
+                      key={item.id}
+                      onClick={() => { setProjectView("detail"); setSelectedProjectId(item.orderId); setTab("projects"); }}
+                      className={`p-4 rounded-2xl border transition-all cursor-pointer hover:shadow-md flex items-start gap-3.5 ${
+                        item.type === "warning" ? "bg-amber-50/60 border-amber-200 hover:border-amber-400" :
+                        item.type === "success" ? "bg-emerald-50/50 border-emerald-200 hover:border-emerald-400" :
+                        "bg-white border-slate-200 hover:border-yellow-300"
+                      }`}
+                    >
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${
+                        item.type === "warning" ? "bg-amber-400 text-yellow-950" :
+                        item.type === "success" ? "bg-emerald-500 text-white" :
+                        "bg-blue-500 text-white"
+                      }`}>
+                        {item.type === "warning" ? <AlertCircle className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className="text-xs font-black text-slate-800 truncate">{item.title}</h4>
+                          <span className="text-[10px] text-slate-400 shrink-0 font-medium">{item.time}</span>
+                        </div>
+                        <p className="text-xs text-slate-600 mt-0.5">{item.desc}</p>
+                        <p className="text-[10px] font-bold text-yellow-600 mt-1 flex items-center gap-1 hover:underline">
+                          View Project Details #{item.orderNumber} →
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
 
           {/* ── APPLY ── */}

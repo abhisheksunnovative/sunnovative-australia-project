@@ -323,7 +323,7 @@ export const uploadBDEProjectDoc = async (req, res) => {
     
     // Use the shared helper to advance the journey correctly
     const { processStepCompletionEngine } = await import('../utils/stepEngine.js');
-    const result = await processStepCompletionEngine(project, stepId, 'BDE', fileUrl, null);
+    const result = await processStepCompletionEngine(project, stepId, 'BDE', fileUrl, null, "bde");
     
     if (!result.success) {
       return res.status(400).json({ success: false, message: result.message });

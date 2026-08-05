@@ -593,3 +593,112 @@ export const updateStcStatus = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// ── Admin Add Note ─────────────────────────────────────────────────────────────
+export const addAdminNote = async (req, res) => {
+  try {
+    const { id, stepId } = req.params;
+    const { note, adminName } = req.body;
+    const order = await ProjectOrder.findById(id);
+    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+
+    const { addAdminNoteToStep } = await import('../utils/stepEngine.js');
+    const result = await addAdminNoteToStep(order, stepId, note, adminName || "Admin");
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ── Admin Request Reupload ─────────────────────────────────────────────────────
+export const requestReupload = async (req, res) => {
+  try {
+    const { id, stepId } = req.params;
+    const { reason, adminName } = req.body;
+    const order = await ProjectOrder.findById(id);
+    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+
+    const { requestStepReupload } = await import('../utils/stepEngine.js');
+    const result = await requestStepReupload(order, stepId, reason || "Document quality issue", adminName || "Admin");
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ── BDE Complete on Behalf of Customer ─────────────────────────────────────────
+export const completeStepOnBehalf = async (req, res) => {
+  try {
+    const { id, stepId } = req.params;
+    const { bdeName, evidenceUrl, note } = req.body;
+    const order = await ProjectOrder.findById(id);
+    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+
+    const { completeStepOnBehalfOfCustomer } = await import('../utils/stepEngine.js');
+    const result = await completeStepOnBehalfOfCustomer(order, stepId, bdeName || "BDE", evidenceUrl || "", note || "");
+    if (result.success) await order.save();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ── EPC Payout Flow ────────────────────────────────────────────────────────────
+export const shareEpcPayoutQr = async (req, res) => {
+  try {
+    const { percentage, qrCodeUrl } = req.body;
+    const order = await ProjectOrder.findById(req.params.id);
+    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+
+    const total = order.totalProjectCost || 0;
+    const pct = percentage || 90;
+    order.epcPayout = {
+      percentage: pct,
+      amount: Math.round((total * pct) / 100),
+      qrCodeUrl: qrCodeUrl || "",
+      status: "qr-shared",
+      epcProofUrl: "",
+      epcMarkedAt: null,
+      adminConfirmedAt: null,
+    };
+
+    await order.save();
+    res.json({ success: true, message: "EPC Payout QR shared", epcPayout: order.epcPayout });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const markEpcPayoutReceived = async (req, res) => {
+  try {
+    const { proofUrl } = req.body;
+    const order = await ProjectOrder.findById(req.params.id);
+    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+
+    if (!order.epcPayout) order.epcPayout = {};
+    order.epcPayout.status = "epc-marked-received";
+    order.epcPayout.epcProofUrl = proofUrl || "";
+    order.epcPayout.epcMarkedAt = new Date();
+
+    await order.save();
+    res.json({ success: true, message: "EPC marked payment received", epcPayout: order.epcPayout });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const confirmEpcPayout = async (req, res) => {
+  try {
+    const order = await ProjectOrder.findById(req.params.id);
+    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+
+    if (!order.epcPayout) order.epcPayout = {};
+    order.epcPayout.status = "admin-confirmed";
+    order.epcPayout.adminConfirmedAt = new Date();
+
+    await order.save();
+    res.json({ success: true, message: "Admin confirmed EPC payment payout", epcPayout: order.epcPayout });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

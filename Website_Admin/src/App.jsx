@@ -69,15 +69,22 @@ export default function App() {
     return localStorage.getItem("sunnovative_user_id") || null;
   });
 
-  const handleLoginSuccess = (email, role = "admin", loginUserId = null) => {
+  const [userCountry, setUserCountry] = useState(() => {
+    return localStorage.getItem("sunnovative_user_country") || "";
+  });
+
+  const handleLoginSuccess = (email, role = "admin", loginUserId = null, country = "") => {
     setIsAuthenticated(true);
     setAdminEmail(email);
     setUserRole(role);
     setUserId(loginUserId);
+    if (country) setUserCountry(country);
+
     localStorage.setItem("sunnovative_admin_authenticated", "true");
     localStorage.setItem("sunnovative_admin_email", email);
     localStorage.setItem("sunnovative_user_role", role);
     if (loginUserId) localStorage.setItem("sunnovative_user_id", loginUserId);
+    if (country) localStorage.setItem("sunnovative_user_country", country);
     
     if (role === "BDE") {
       setCurrentTab("bde-aust");
@@ -90,10 +97,12 @@ export default function App() {
     setIsAuthenticated(false);
     setUserRole("admin");
     setUserId(null);
+    setUserCountry("");
     localStorage.removeItem("sunnovative_admin_authenticated");
     localStorage.removeItem("sunnovative_admin_email");
     localStorage.removeItem("sunnovative_user_role");
     localStorage.removeItem("sunnovative_user_id");
+    localStorage.removeItem("sunnovative_user_country");
   };
 
   // Navigation states
@@ -470,7 +479,11 @@ export default function App() {
       // ── BDE Overrides ───────────────────────────────────────
       case "bde-dashboard":
       case "bde-aust":
-        return <BDEAustDashboard bdeId={userId} />;
+        return userCountry?.toLowerCase() === "australia" ? (
+          <BDEAustDashboard bdeId={userId} />
+        ) : (
+          <BDEDashboard bdeId={userId} />
+        );
       case "bde-leads":
         return <BDELeadManagement bdeId={userId} />;
       case "bde-projects":

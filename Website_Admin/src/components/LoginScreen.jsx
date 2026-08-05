@@ -115,7 +115,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
         if (data.success) {
           setSuccess(true);
           setTimeout(() => {
-            onLoginSuccess(data.bde.email, "BDE", data.bde._id);
+            onLoginSuccess(data.bde.email, "BDE", data.bde._id, data.bde.country);
           }, 800);
         } else {
           setError(data.message || "Invalid BDE credentials");

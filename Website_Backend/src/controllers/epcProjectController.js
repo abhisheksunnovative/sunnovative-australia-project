@@ -75,33 +75,26 @@ export const completeStep = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to complete this step' });
     }
 
-    project.steps[stepIndex].status = 'completed';
-    project.steps[stepIndex].completedAt = new Date();
-    project.steps[stepIndex].completedBy = req.epc.companyName || 'EPC Partner';
-    
-    if (note) project.steps[stepIndex].evidenceNote = note;
-    
+    let evidenceUrl = "";
     if (req.file) {
-      project.steps[stepIndex].evidenceUrl = `/${req.file.path.replace(/\\/g, '/')}`;
+      evidenceUrl = `/${req.file.path.replace(/\\/g, '/')}`;
     }
 
-    // Update overall current step
-    const nextStep = project.steps.find(s => s.status !== 'completed');
-    if (nextStep) {
-      project.currentStepNumber = nextStep.stepNumber;
-      project.currentStepTitle = nextStep.title;
-      project.status = 'in-progress';
-    } else {
-      project.status = 'completed';
-      project.completionPercentage = 100;
-    }
+    const result = await processStepCompletionEngine(
+      project,
+      stepId,
+      req.epc.companyName || 'EPC Partner',
+      evidenceUrl,
+      note || "",
+      "epc-partner"
+    );
 
-    const totalSteps = project.steps.length;
-    const completedSteps = project.steps.filter(s => s.status === 'completed').length;
-    project.completionPercentage = Math.round((completedSteps / totalSteps) * 100);
+    if (!result.success) {
+      return res.status(400).json({ message: result.message });
+    }
 
     await project.save();
-    res.json({ message: `Step completed successfully`, project });
+    res.json({ message: 'Step updated successfully', project });
   } catch (err) {
     console.error('Complete step error:', err);
     res.status(500).json({ message: 'Server error', error: err.message });

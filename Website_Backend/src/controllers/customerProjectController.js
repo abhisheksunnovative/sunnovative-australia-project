@@ -281,44 +281,24 @@ export const payToken = async (req, res) => {
     if (!project) return res.status(404).json({ message: 'Project not found' });
 
     const enquiry = await EpcEnquiry.findOne({ orderNumber: project.orderNumber });
-    if (!enquiry) return res.status(404).json({ message: 'Enquiry not found for this project' });
-
-    if (enquiry.tokenPaid) {
-      return res.status(400).json({ message: 'Token is already paid' });
+    if (enquiry) {
+      enquiry.tokenPaid = true;
+      enquiry.tokenPaidAt = new Date();
+      enquiry.status = 'Open For EPC';
+      await enquiry.save();
     }
 
-    // 1. Update Enquiry
-    enquiry.tokenPaid = true;
-    enquiry.tokenPaidAt = new Date();
-    enquiry.status = 'Open For EPC';
-    await enquiry.save();
-
-    // 2. Update ProjectOrder Journey
-    // We clear the pending alert and auto-complete the token step if any
-    project.pendingActionAlert = '';
-    project.pendingActionFor = 'company';
-    if (project.steps && project.steps.length > 0) {
-      const tStep = project.steps.find(s => s.title.toLowerCase().includes("token"));
-      if (tStep && tStep.status === "pending") {
-        tStep.status = "completed";
-        tStep.completedAt = new Date();
-        tStep.completedBy = "Customer";
-        tStep.pendingActionAlert = "";
-        
-        // Mark next step as pending
-        const idx = project.steps.findIndex(s => s.stepId === tStep.stepId);
-        if (idx < project.steps.length - 1) {
-          project.steps[idx + 1].status = "pending";
-          project.steps[idx + 1].pendingActionAlert = "Awaiting EPC Assignment";
-        }
-      }
-      
-      const done = project.steps.filter((s) => s.status === "completed" || s.status === "skipped").length;
-      project.completionPercentage = Math.round((done / project.steps.length) * 100);
+    // Find and complete payment step using processStepCompletionEngine
+    let targetStep = project.steps?.find(s => s.milestoneType === 'customer_payment' || s.title.toLowerCase().includes("pay") || s.title.toLowerCase().includes("token"));
+    if (!targetStep && project.steps?.length > 0) {
+      targetStep = project.steps.find(s => s.status === 'in-progress' || s.status === 'pending');
     }
-    
+
+    if (targetStep) {
+      await processStepCompletionEngine(project, targetStep.stepId, 'Customer', '', 'Token payment completed');
+    }
+
     await project.save();
-
     res.json({ success: true, message: 'Token paid successfully. Order is now Open for EPCs.' });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });

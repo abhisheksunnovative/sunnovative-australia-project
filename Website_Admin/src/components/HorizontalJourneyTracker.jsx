@@ -4,6 +4,7 @@ import { Check, XCircle, Clock, Upload, Eye, FileText, X, AlertCircle, ShieldAle
 export default function HorizontalJourneyTracker({ 
   steps, 
   userRole = "customer",
+  showGridCards = true,
   onExecuteStep,
   onRequestReupload,
   qrCodeUrl = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=SUNNOVATIVE_PAYMENT_AU",
@@ -119,7 +120,8 @@ export default function HorizontalJourneyTracker({
       </div>
 
       {/* ── 2. 4-COLUMN STEP CARDS GRID (EXACT SCREENSHOT LAYOUT) ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      {showGridCards && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {displaySteps.map((step, idx) => {
           const done = step.status === "completed";
           const active = step.status === "in-progress" || (step.status === "pending" && (idx === 0 || displaySteps[idx-1]?.status === "completed"));
@@ -154,7 +156,7 @@ export default function HorizontalJourneyTracker({
                     <p className="text-[10px] font-bold text-emerald-600 mt-0.5">✓ Done</p>
                   ) : (
                     <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider mt-0.5">
-                      {step.assignedTo === "customer" ? "PENDING CUSTOMER" : step.assignedTo === "epc-partner" ? "PENDING EPC" : "PENDING COMPANY"}
+                      {step.assignedTo === "customer" ? "PENDING CUSTOMER" : step.assignedTo === "epc-partner" ? "PENDING EPC" : step.assignedTo === "bde" ? "PENDING BDE" : "PENDING ADMIN"}
                     </p>
                   )}
                 </div>
@@ -163,6 +165,7 @@ export default function HorizontalJourneyTracker({
           );
         })}
       </div>
+      )}
 
       {/* ── 3. STEP DETAIL & ON-BEHALF EXECUTION MODAL ── */}
       {selectedStep && (

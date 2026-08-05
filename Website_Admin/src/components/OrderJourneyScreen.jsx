@@ -177,10 +177,68 @@ const StepCard = ({ step, index, totalSteps, onUpdate, onRemove, onMoveUp, onMov
             />
           </div>
 
+          {/* Allowed Executor Roles (Multi-Select Configuration) */}
+          <div className="bg-white p-3 border border-slate-200 rounded-xl space-y-2">
+            <div className="flex justify-between items-center">
+              <label className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                ⚡ Allowed Executor Roles (Kaun Kaun Step Execute Kar Sakta Hai)
+              </label>
+              <span className="text-[10px] text-slate-400 font-bold">Multiple Select Allowed</span>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Sirf jin roles ko admin allow karega, unhi roles ke portal me button active show hoga aur step execute ho sakega:
+            </p>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1">
+              {[
+                { role: "customer", label: "👤 Customer", desc: "Customer portal se execute kar sakta hai" },
+                { role: "epc-partner", label: "⚡ EPC Partner", desc: "EPC Installer execute kar sakta hai" },
+                { role: "company", label: "🏢 Admin / Company", desc: "Sunnovative Admin approval/execution" },
+                { role: "bde", label: "💼 BDE Executive", desc: "BDE customer ke behalf par execute kar sakta hai" }
+              ].map(({ role, label, desc }) => {
+                const currentRoles = step.allowedRoles && step.allowedRoles.length > 0 
+                  ? step.allowedRoles 
+                  : (step.assignedTo === 'customer' ? ['customer', 'bde'] : [step.assignedTo || 'company']);
+                const isSelected = currentRoles.includes(role);
+
+                const toggleRole = () => {
+                  let updated = [...currentRoles];
+                  if (isSelected) {
+                    updated = updated.filter(r => r !== role);
+                  } else {
+                    updated.push(role);
+                  }
+                  onUpdate("allowedRoles", updated);
+                };
+
+                return (
+                  <button
+                    type="button"
+                    key={role}
+                    onClick={toggleRole}
+                    className={`p-2.5 rounded-xl border text-left transition text-xs font-bold flex flex-col justify-between ${
+                      isSelected 
+                        ? "bg-amber-50 border-amber-400 text-amber-950 shadow-sm ring-1 ring-amber-300" 
+                        : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full mb-1">
+                      <span>{label}</span>
+                      <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[9px] ${isSelected ? "bg-amber-500 text-white border-amber-500" : "border-slate-300"}`}>
+                        {isSelected ? "✓" : ""}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-normal leading-tight">{desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-white p-3 border border-slate-200 rounded-xl">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Assigned To</label>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Primary Assigned To</label>
                 <select
                   className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400/40 bg-white"
                   value={step.assignedTo}
@@ -189,6 +247,7 @@ const StepCard = ({ step, index, totalSteps, onUpdate, onRemove, onMoveUp, onMov
                   <option value="company">Platform Admin (Company)</option>
                   <option value="epc-partner">EPC Partner</option>
                   <option value="customer">Customer</option>
+                  <option value="bde">BDE Executive</option>
                   <option value="both">Company + EPC Both</option>
                 </select>
               </div>

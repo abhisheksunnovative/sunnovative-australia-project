@@ -4,65 +4,72 @@ import { Check, XCircle } from 'lucide-react';
 import epcApi from '../../../api/epcApi';
 
 // ── Shared Horizontal Tracker ──────────────────────────────────────────────────
+// ── Shared Horizontal Tracker ──────────────────────────────────────────────────
 function HorizontalJourneyTracker({ steps }) {
-  const displaySteps = steps?.length > 0 ? steps : [
-    { stepNumber: 1, title: 'Lead Captured', status: 'completed' },
-    { stepNumber: 2, title: 'EPC Assigned', status: 'pending' },
-    { stepNumber: 3, title: 'Site Survey', status: 'pending' },
-    { stepNumber: 4, title: 'Installation', status: 'pending' },
-    { stepNumber: 5, title: 'Completed', status: 'pending' }
-  ];
+  const displaySteps = steps?.length > 0 ? steps : [];
+
+  if (displaySteps.length === 0) {
+    return (
+      <div className="p-6 text-center text-gray-400 text-sm">
+        No journey steps initialized for this project.
+      </div>
+    );
+  }
 
   return (
     <div className="w-full overflow-x-auto pb-4 scrollbar-hide">
-      <div className="min-w-[600px] flex items-start justify-between relative mt-4 px-4">
+      <div className="min-w-[700px] flex items-start justify-between relative mt-4 px-4">
         <div className="absolute left-10 right-10 top-5 h-1 bg-gray-200 -z-10" />
         
         {displaySteps.map((step, i) => {
           const done = step.status === "completed";
-          const active = step.status === "in-progress" || step.status === "pending";
-          const reallyActive = step.status === "in-progress" || (step.status === "pending" && (i === 0 || displaySteps[i-1]?.status === "completed"));
+          const isAwaitingApproval = step.status === "awaiting-approval";
+          const reallyActive = step.status === "in-progress" || isAwaitingApproval || (step.status === "pending" && (i === 0 || displaySteps[i-1]?.status === "completed"));
           const blocked = step.status === "blocked";
+          const isEpcTurn = reallyActive && step.assignedTo === "epc-partner";
           
           return (
-            <div key={i} className="flex flex-col items-center flex-1 relative group cursor-default">
+            <div key={step.stepId || i} className="flex flex-col items-center flex-1 relative group cursor-default">
               {i > 0 && (done || reallyActive) && (
-                <div className={`absolute right-[50%] left-[-50%] top-5 h-1 -z-10 transition-all ${done || reallyActive ? 'bg-blue-400' : 'bg-gray-200'}`} />
+                <div className={`absolute right-[50%] left-[-50%] top-5 h-1 -z-10 transition-all ${done ? 'bg-green-500' : isAwaitingApproval ? 'bg-yellow-400' : 'bg-blue-400'}`} />
               )}
               
               <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ring-4 ring-white mb-2 transition-all ${
-                done ? "bg-blue-600 text-white shadow-md" : 
-                reallyActive ? "bg-blue-400 text-white shadow-md ring-blue-50" : 
+                done ? "bg-green-500 text-white shadow-md" : 
+                isAwaitingApproval ? "bg-yellow-400 text-yellow-950 shadow-md ring-yellow-200 animate-pulse" :
+                isEpcTurn ? "bg-orange-500 text-white shadow-md ring-orange-200 animate-bounce" :
+                reallyActive ? "bg-blue-500 text-white shadow-md ring-blue-100" : 
                 blocked ? "bg-red-500 text-white shadow-md" : 
                 "bg-gray-200 text-gray-400"
               }`}>
                 {done ? <Check className="w-5 h-5" /> : 
                  blocked ? <XCircle className="w-5 h-5" /> : 
-                 <span className={reallyActive ? "text-white" : ""}>{step.stepNumber || (i+1)}</span>}
+                 <span>{step.stepNumber || (i+1)}</span>}
               </div>
               
-              <p className={`text-xs text-center font-bold px-2 max-w-[120px] ${
+              <p className={`text-xs text-center font-bold px-1 max-w-[110px] ${
                 done ? "text-gray-800" : 
+                isEpcTurn ? "text-orange-600 font-extrabold" :
                 reallyActive ? "text-blue-700" : 
                 "text-gray-400"
               }`}>
                 {step.title}
               </p>
 
-              {step.assignedTo && (
+              {isEpcTurn && (
+                <span className="text-[9px] font-black mt-1 px-2 py-0.5 rounded-full bg-orange-500 text-white animate-pulse shadow-sm">
+                  🎯 YOUR TURN
+                </span>
+              )}
+
+              {step.assignedTo && !isEpcTurn && (
                 <span className={`text-[9px] font-bold mt-1 px-1.5 py-0.5 rounded-full ${
-                  step.assignedTo === "epc-partner" ? "bg-purple-100 text-purple-700" :
+                  step.assignedTo === "epc-partner" ? "bg-orange-100 text-orange-700" :
                   step.assignedTo === "customer" ? "bg-green-100 text-green-700" :
                   "bg-gray-100 text-gray-600"
                 }`}>
                   {step.assignedTo === "epc-partner" ? "⚡ EPC" : step.assignedTo === "customer" ? "👤 Customer" : "🏢 Admin"}
                 </span>
-              )}
-              
-              {step.completedAt && (
-                <p className="text-[10px] text-gray-500 mt-1">
-                  {new Date(step.completedAt).toLocaleDateString("en-IN", { day: '2-digit', month: 'short' })}
-                </p>
               )}
             </div>
           )
@@ -70,7 +77,9 @@ function HorizontalJourneyTracker({ steps }) {
       </div>
     </div>
   );
-}const EpcProjectDetail = () => {
+}
+
+const EpcProjectDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [project, setProject]       = useState(null);
@@ -84,7 +93,6 @@ function HorizontalJourneyTracker({ steps }) {
   const fileRef = useRef();
 
   const load = async () => {
-    setLoading(true);
     try {
       const { data } = await epcApi.get(`/api/epc/projects/${id}`);
       setProject(data);
@@ -95,7 +103,11 @@ function HorizontalJourneyTracker({ steps }) {
     }
   };
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => { 
+    load();
+    const interval = setInterval(() => load(), 8000);
+    return () => clearInterval(interval);
+  }, [id]);
 
   const showMsg = (text, type = 'success') => {
     setMsg({ text, type });
@@ -141,7 +153,7 @@ function HorizontalJourneyTracker({ steps }) {
     </div>
   );
 
-  const isCompleted  = project.status === 'completed' || project.status === 'closed';
+  const activeEpcStep = project.steps?.find(s => s.assignedTo === 'epc-partner' && (s.status === 'in-progress' || s.status === 'pending'));
 
   const SectionCard = ({ title, children }) => (
     <div className="bg-white border border-gray-200 rounded-xl p-5">
@@ -161,8 +173,8 @@ function HorizontalJourneyTracker({ steps }) {
           </svg>
         </button>
         <div className="flex-1">
-          <h2 className="text-gray-800 text-xl font-bold">Project Detail</h2>
-          <p className="text-gray-400 text-xs font-mono">#{project.orderNumber}</p>
+          <h2 className="text-gray-800 text-xl font-bold">{project.customerName}</h2>
+          <p className="text-gray-400 text-xs font-mono">#{project.orderNumber} • {project.projectTypeLabel || project.projectType}</p>
         </div>
         <span className="text-sm font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg">
           {project.completionPercentage || 0}% Complete
@@ -177,8 +189,32 @@ function HorizontalJourneyTracker({ steps }) {
         }`}>{msg.text}</div>
       )}
 
+      {/* 🎯 YOUR TURN BANNER (When current active step is assigned to EPC) */}
+      {activeEpcStep && (
+        <div className="bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-2xl p-4 shadow-md flex items-center justify-between gap-4 animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center font-black text-lg">
+              🎯
+            </div>
+            <div>
+              <p className="font-black text-sm uppercase tracking-wider">YOUR TURN / AAPKA TURN</p>
+              <p className="text-xs text-orange-100 font-medium mt-0.5">Step #{activeEpcStep.stepNumber}: {activeEpcStep.title} is awaiting your action!</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => {
+              const el = document.getElementById(`step-${activeEpcStep.stepId}`);
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="px-4 py-2 bg-white text-orange-900 rounded-xl font-extrabold text-xs hover:bg-orange-100 transition shadow-sm shrink-0"
+          >
+            Execute Step Now →
+          </button>
+        </div>
+      )}
+
       {/* Horizontal Journey Tracker */}
-      <SectionCard title="Live Journey Tracking">
+      <SectionCard title="Live Journey Tracking Engine">
         <HorizontalJourneyTracker steps={project.steps} />
       </SectionCard>
 
@@ -189,36 +225,51 @@ function HorizontalJourneyTracker({ steps }) {
             const isEPC = step.assignedTo === 'epc-partner';
             const isActive = step.status === 'pending' || step.status === 'in-progress';
             const isCompleted = step.status === 'completed';
+            const isAwaitingApproval = step.status === 'awaiting-approval';
             
             return (
-              <div key={step.stepId} className={`p-4 rounded-xl border ${isCompleted ? 'bg-green-50/50 border-green-100' : isActive && isEPC ? 'bg-blue-50/50 border-blue-200' : 'bg-gray-50 border-gray-100'}`}>
+              <div id={`step-${step.stepId}`} key={step.stepId} className={`p-4 rounded-xl border ${isCompleted ? 'bg-green-50/50 border-green-100' : isAwaitingApproval ? 'bg-yellow-50 border-yellow-200' : isActive && isEPC ? 'bg-orange-50/60 border-orange-200 shadow-sm' : 'bg-gray-50 border-gray-100'}`}>
                 <div className="flex items-start justify-between">
                   <div>
-                    <h4 className={`text-sm font-bold ${isCompleted ? 'text-green-700' : 'text-gray-800'}`}>
-                      {i + 1}. {step.title}
-                    </h4>
-                    <p className="text-xs text-gray-500 mt-1">Assigned to: {step.assignedTo}</p>
+                    <div className="flex items-center gap-2">
+                      <h4 className={`text-sm font-bold ${isCompleted ? 'text-green-700' : isEPC && isActive ? 'text-orange-950 font-black' : 'text-gray-800'}`}>
+                        {step.stepNumber || (i + 1)}. {step.title}
+                      </h4>
+                      {isActive && isEPC && (
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded bg-orange-500 text-white">
+                          🎯 YOUR TURN
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Assigned to: <strong className="capitalize">{step.assignedTo}</strong></p>
+                    {step.description && <p className="text-xs text-gray-600 mt-1">{step.description}</p>}
                   </div>
-                  <span className={`text-xs px-2 py-1 rounded-full font-bold ${isCompleted ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}>
-                    {step.status}
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${isCompleted ? 'bg-green-100 text-green-700' : isAwaitingApproval ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-200 text-gray-700'}`}>
+                    {isAwaitingApproval ? "⏳ Admin Approval Pending" : step.status}
                   </span>
                 </div>
+
+                {step.adminNote && (
+                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800 font-medium">
+                    📌 <strong>Admin Note:</strong> {step.adminNote}
+                  </div>
+                )}
                 
                 {isCompleted && (
-                  <div className="mt-3 text-xs text-gray-500 flex items-center gap-2">
-                    <span>Completed at: {new Date(step.completedAt).toLocaleDateString()} by {step.completedBy}</span>
-                    {step.evidenceUrl && <a href={step.evidenceUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline">View Evidence</a>}
+                  <div className="mt-3 text-xs text-gray-500 flex items-center gap-2 border-t border-green-100 pt-2">
+                    <span>Completed at: {new Date(step.completedAt).toLocaleDateString()} by {step.completedBy || "EPC"}</span>
+                    {step.evidenceUrl && <a href={step.evidenceUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline font-bold">View Evidence</a>}
                   </div>
                 )}
                 
                 {isActive && isEPC && (
-                  <div className="mt-4 pt-4 border-t border-blue-100">
-                    <p className="text-xs font-semibold text-blue-800 mb-2">{step.pendingActionAlert}</p>
+                  <div className="mt-4 pt-4 border-t border-orange-200">
+                    <p className="text-xs font-semibold text-orange-900 mb-2">{step.pendingActionAlert || `Complete ${step.title}`}</p>
                     <div className="space-y-3">
                       <input 
                         type="text" 
                         placeholder="Add a note (optional)..."
-                        className="w-full text-sm border border-gray-300 rounded p-2 focus:ring-1 focus:ring-blue-500"
+                        className="w-full text-sm border border-gray-300 rounded p-2 focus:ring-1 focus:ring-orange-500"
                         value={evidenceNote}
                         onChange={e => setEvidenceNote(e.target.value)}
                       />
@@ -232,9 +283,9 @@ function HorizontalJourneyTracker({ steps }) {
                         <button 
                           onClick={() => completeStep(step.stepId)}
                           disabled={stageLoading}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors ml-auto"
+                          className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-colors ml-auto shadow-sm"
                         >
-                          {stageLoading ? 'Saving...' : 'Complete Step'}
+                          {stageLoading ? 'Saving...' : 'Submit & Complete Step'}
                         </button>
                       </div>
                     </div>

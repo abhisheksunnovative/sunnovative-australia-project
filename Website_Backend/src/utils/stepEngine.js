@@ -13,30 +13,38 @@ export const calcCompletion = (steps) => {
 export const mapJourneyStepsToProjectSteps = (journeySteps = []) => {
   return journeySteps
     .filter((s) => s.enabled)
-    .map((s) => ({
-      stepId: s.id,
-      stepNumber: s.stepNumber,
-      title: s.title,
-      description: s.description || "",
-      assignedTo: s.assignedTo || 'company',
-      milestoneType: s.milestoneType || 'standard',
-      paymentPercentage: s.paymentPercentage || 0,
-      slaDays: s.slaDays || 2,
-      visibleToCustomer: s.visibleToCustomer !== false,
-      visibleToEpc: s.visibleToEpc !== false,
-      status: "pending",
-      completedAt: null,
-      completedBy: "",
-      evidenceUrl: "",
-      evidenceNote: "",
-      pendingActionAlert: s.actionLabel || `Complete ${s.title}`,
-      isMandatory: s.isMandatory || false,
-      requiresAdminApproval: s.requiresAdminApproval || false,
-      completionCondition: s.completionCondition || "manual",
-      requiresDoc: !!s.requiresDocumentUpload,
-      documentRequirements: s.documentRequirements || [],
-      notificationMedium: s.notificationMedium || ['email']
-    }));
+    .map((s) => {
+      const allowedRoles = s.allowedRoles && s.allowedRoles.length > 0 
+        ? s.allowedRoles 
+        : (s.assignedTo === 'customer' ? ['customer', 'bde'] : [s.assignedTo || 'company']);
+      
+      return {
+        stepId: s.id,
+        stepNumber: s.stepNumber,
+        title: s.title,
+        description: s.description || "",
+        assignedTo: s.assignedTo || 'company',
+        allowedRoles,
+        canBeCompletedByBDE: s.canBeCompletedByBDE !== false && (s.assignedTo === 'customer' || allowedRoles.includes('bde')),
+        milestoneType: s.milestoneType || 'standard',
+        paymentPercentage: s.paymentPercentage || 0,
+        slaDays: s.slaDays || 2,
+        visibleToCustomer: s.visibleToCustomer !== false,
+        visibleToEpc: s.visibleToEpc !== false,
+        status: "pending",
+        completedAt: null,
+        completedBy: "",
+        evidenceUrl: "",
+        evidenceNote: "",
+        pendingActionAlert: s.actionLabel || `Complete ${s.title}`,
+        isMandatory: s.isMandatory || false,
+        requiresAdminApproval: s.requiresAdminApproval || false,
+        completionCondition: s.completionCondition || "manual",
+        requiresDoc: !!s.requiresDocumentUpload,
+        documentRequirements: s.documentRequirements || [],
+        notificationMedium: s.notificationMedium || ['email']
+      };
+    });
 };
 
 export const getStatusFromSteps = (steps, completionPercentage) => {
@@ -55,6 +63,7 @@ export const getStatusFromSteps = (steps, completionPercentage) => {
  * @param {String} completedBy - Who is completing this (Customer, BDE, Admin, etc.)
  * @param {String} finalUrl - Evidence URL (if any)
  * @param {String} finalNote - Evidence Note (if any)
+ * @param {String} executorRole - Role of the executor ('customer', 'epc-partner', 'company', 'bde')
  * @returns {Object} { success, message, order, nextStep }
  */
 export const processStepCompletionEngine = async (
@@ -62,7 +71,8 @@ export const processStepCompletionEngine = async (
   stepId,
   completedBy = "System",
   finalUrl = "",
-  finalNote = ""
+  finalNote = "",
+  executorRole = ""
 ) => {
   // Step dhundho
   const stepIndex = order.steps.findIndex((s) => s.stepId === stepId);
@@ -74,6 +84,20 @@ export const processStepCompletionEngine = async (
 
   if (step.status === "completed") {
     return { success: false, message: "Step already completed hai" };
+  }
+
+  // Strict Role Check Enforcement
+  if (executorRole && executorRole !== "company" && executorRole !== "Admin") {
+    const roles = step.allowedRoles?.length > 0 ? step.allowedRoles : [step.assignedTo];
+    const isBdeAllowed = executorRole === "bde" && (step.assignedTo === "customer" || step.canBeCompletedByBDE || roles.includes("bde"));
+    const isDirectAllowed = roles.includes(executorRole) || step.assignedTo === executorRole;
+
+    if (!isDirectAllowed && !isBdeAllowed) {
+      return {
+        success: false,
+        message: `Permission Denied: Step "${step.title}" is restricted. Only [${roles.join(', ')}] are authorized to execute this step.`
+      };
+    }
   }
 
   // Handle Admin Approval Flow
@@ -128,4 +152,50 @@ export const processStepCompletionEngine = async (
   order.lastActivityAt = new Date();
 
   return { success: true, message: `Step "${step.title}" updated`, order, nextStep, newStatus };
+};
+
+// 1. Admin note add/update karo — step complete kiye bina
+export const addAdminNoteToStep = async (order, stepId, note, adminName = "Admin") => {
+  const step = order.steps.find(s => s.stepId === stepId);
+  if (!step) return { success: false, message: "Step nahi mila" };
+  step.adminNote = note;
+  step.adminNoteBy = adminName;
+  step.adminNoteAt = new Date();
+  await order.save();
+  return { success: true, order };
+};
+
+// 2. Admin reupload request kare (doc reject)
+export const requestStepReupload = async (order, stepId, reason, adminName = "Admin") => {
+  const step = order.steps.find(s => s.stepId === stepId);
+  if (!step) return { success: false, message: "Step nahi mila" };
+  step.reuploadRequested = true;
+  step.reuploadReason = reason;
+  step.status = "in-progress";
+  step.completedAt = null;
+  step.evidenceUrl = "";
+  order.pendingActionAlert = `Reupload needed: ${step.title} — ${reason}`;
+  order.pendingActionFor = step.assignedTo;
+  await order.save();
+  return { success: true, order };
+};
+
+// 3. Admin step edit kare (sla/assignedTo/title jaisi cheezein)
+export const editStepDetails = async (order, stepId, updates, adminName = "Admin") => {
+  const step = order.steps.find(s => s.stepId === stepId);
+  if (!step) return { success: false, message: "Step nahi mila" };
+  const allowedFields = ["title", "description", "assignedTo", "slaDays", "requiresAdminApproval", "isMandatory", "canBeCompletedByBDE"];
+  allowedFields.forEach(f => { if (updates[f] !== undefined) step[f] = updates[f]; });
+  step.adminNote = (step.adminNote ? step.adminNote + " | " : "") + `Edited by ${adminName}`;
+  await order.save();
+  return { success: true, order };
+};
+
+// 4. BDE customer ki taraf se step complete kare (sirf allowed steps)
+export const completeStepOnBehalfOfCustomer = async (order, stepId, bdeName = "BDE", evidenceUrl = "", note = "") => {
+  const step = order.steps.find(s => s.stepId === stepId);
+  if (!step) return { success: false, message: "Step nahi mila" };
+  if (step.assignedTo !== "customer") return { success: false, message: "Ye customer ka step nahi hai" };
+  if (!step.canBeCompletedByBDE) return { success: false, message: "Is step ko BDE customer ki taraf se nahi kar sakta" };
+  return processStepCompletionEngine(order, stepId, `BDE (on behalf of customer) — ${bdeName}`, evidenceUrl, note);
 };

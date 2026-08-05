@@ -8,7 +8,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   GitBranch, Search, RefreshCw, X, MapPin, Phone, Mail,
-  CheckCircle, Circle, Clock, AlertCircle, ChevronRight,
+  CheckCircle, Circle, Clock, AlertCircle, ChevronRight, ChevronDown, ChevronUp,
   Home, Building2, Users, Zap, Loader2, User, Calendar,
   Upload, ArrowLeft, IndianRupee, TrendingUp, ListFilter,
   Check, XCircle
@@ -37,10 +37,11 @@ const STATUS_CONFIG = {
 };
 
 const ASSIGNED_TO_CONFIG = {
-  company: { label: "Sunnovative", color: "text-blue-600 bg-blue-50 border-blue-200" },
+  company: { label: "Admin", color: "text-blue-600 bg-blue-50 border-blue-200" },
   "epc-partner": { label: "EPC Partner", color: "text-purple-600 bg-purple-50 border-purple-200" },
   customer: { label: "Customer", color: "text-green-600 bg-green-50 border-green-200" },
-  both: { label: "Company + EPC", color: "text-orange-600 bg-orange-50 border-orange-200" },
+  bde: { label: "BDE", color: "text-amber-600 bg-amber-50 border-amber-200" },
+  both: { label: "Admin + EPC", color: "text-orange-600 bg-orange-50 border-orange-200" },
 };
 
 // ── Progress Ring ─────────────────────────────────────────────────────────────
@@ -139,20 +140,23 @@ const StepItem = ({ step, order, isLast, onComplete, completingId, onApprove, on
       </div>
 
       {/* Step content */}
-      <div className="flex-1 pb-5">
+      <div className="flex-1 pb-1.5">
         <div 
-          className="flex items-center justify-between gap-2 flex-wrap cursor-pointer group"
+          className="flex items-center justify-between gap-2 flex-wrap cursor-pointer group py-1 border-b border-slate-100/70"
           onClick={() => setIsExpanded(!isExpanded)}
         >
-          <span className={`text-sm font-semibold group-hover:text-blue-600 transition ${isCompleted ? "text-slate-700" : "text-slate-500"}`}>
-            {step.title}
+          <span className={`text-xs font-bold group-hover:text-blue-600 transition ${isCompleted ? "text-slate-800" : "text-slate-600"}`}>
+            {step.stepNumber}. {step.title}
           </span>
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${assignedConfig.color}`}>
-            {assignedConfig.label}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded border shrink-0 ${assignedConfig.color}`}>
+              {assignedConfig.label}
+            </span>
+            {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-slate-400" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400" />}
+          </div>
         </div>
-        {step.description && (
-          <p className="text-xs text-slate-500 mt-1">{step.description}</p>
+        {step.description && isExpanded && (
+          <p className="text-[11px] text-slate-500 mt-1">{step.description}</p>
         )}
 
           {isCompleted ? (
@@ -292,7 +296,7 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
 
   useEffect(() => { 
     fetchOrder(); 
-    const interval = setInterval(() => fetchOrder(true), 600000);
+    const interval = setInterval(() => fetchOrder(true), 8000);
     return () => clearInterval(interval);
   }, [fetchOrder]);
 
