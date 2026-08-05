@@ -12,7 +12,7 @@ const bdeSchema = new mongoose.Schema(
 
     // Freelancer Settings
     freelancerSettings: {
-      commissionType: { type: String, enum: ['Fixed', 'Percentage'], default: 'Fixed' },
+      commissionType: { type: String, enum: ['Fixed', 'Percentage', 'PerKW', 'Per KW'], default: 'Fixed' },
       commissionAmount: { type: Number, default: 0 },
       projectTypeCommissions: [{
         projectType: { type: String },

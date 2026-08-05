@@ -319,49 +319,80 @@ export default function BDEManagementScreen() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {filteredBDEs.map(bde => (
-            <div key={bde._id} className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="font-bold text-lg text-slate-800">{bde.name}</h3>
-                  <p className="text-sm text-slate-500">{bde.email}</p>
-                  <p className="text-xs text-slate-500">{bde.mobile}</p>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => handleEdit(bde)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100">
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => handleDelete(bde._id)} className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-              
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-1">
-                  {bde.assignedProjectTypes?.map(pt => (
-                    <span key={pt} className="px-2 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-600 text-[10px] uppercase rounded-full">
-                      {pt}
-                    </span>
-                  ))}
-                  {(!bde.assignedProjectTypes || bde.assignedProjectTypes.length === 0) && (
-                    <span className="text-[10px] text-slate-500">No project types</span>
-                  )}
+          {filteredBDEs.map(bde => {
+            const isAU = selectedCountry === "australia" || bde.assignedCountries?.includes("australia");
+            const currencySymbol = isAU ? "AUD $" : "₹";
+            const isFreelancer = bde.bdeType === "Freelancer";
+            const commType = bde.freelancerSettings?.commissionType || "Fixed";
+            const commAmt = bde.freelancerSettings?.commissionAmount || 0;
+            const totalEarned = bde.freelancerSettings?.totalEarnings || 0;
+
+            return (
+              <div key={bde._id} className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-bold text-lg text-slate-800">{bde.name}</h3>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                        isFreelancer ? "bg-amber-100 text-amber-800 border border-amber-200" : "bg-blue-100 text-blue-800 border border-blue-200"
+                      }`}>
+                        {isFreelancer ? "Freelancer" : "Employee"}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-500">{bde.email}</p>
+                    <p className="text-xs text-slate-500">{bde.mobile}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleEdit(bde)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDelete(bde._id)} className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
-                  <div>
-                    <p className="text-xs text-slate-500">Leads</p>
-                    <p className="font-bold text-slate-800">{bde.performance?.leadsAcquired || 0} / {bde.targets?.leads || 0}</p>
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-1">
+                    {bde.assignedProjectTypes?.map(pt => (
+                      <span key={pt} className="px-2 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-600 text-[10px] uppercase rounded-full">
+                        {pt}
+                      </span>
+                    ))}
+                    {(!bde.assignedProjectTypes || bde.assignedProjectTypes.length === 0) && (
+                      <span className="text-[10px] text-slate-500">No project types</span>
+                    )}
                   </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Converted</p>
-                    <p className="font-bold text-slate-800">{bde.performance?.leadsConverted || 0} / {bde.targets?.conversions || 0}</p>
+
+                  {isFreelancer && (
+                    <div className="p-2.5 bg-amber-50/80 border border-amber-200/80 rounded-lg text-xs space-y-1">
+                      <div className="flex justify-between text-amber-900 font-medium">
+                        <span>Config:</span>
+                        <span className="font-bold">
+                          {commType === "PerKW" ? `${currencySymbol}${commAmt} / kW` : `${currencySymbol}${commAmt} / conv`}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-amber-900 border-t border-amber-200/60 pt-1 font-bold">
+                        <span>Accrued Earnings:</span>
+                        <span className="text-emerald-700 text-sm font-black">{currencySymbol}{totalEarned.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+                    <div>
+                      <p className="text-xs text-slate-500">Leads</p>
+                      <p className="font-bold text-slate-800">{bde.performance?.leadsAcquired || 0} / {bde.targets?.leads || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Converted</p>
+                      <p className="font-bold text-slate-800">{bde.performance?.leadsConverted || 0} / {bde.targets?.conversions || 0}</p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );
@@ -431,17 +462,29 @@ export default function BDEManagementScreen() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs font-semibold text-amber-700 uppercase mb-1">Commission Type</label>
-                        <select value={formData.commissionType} onChange={e => setFormData({...formData, commissionType: e.target.value})} className="w-full bg-white border border-amber-200 rounded-lg px-3 py-2 text-slate-800 focus:outline-none">
+                        <select value={formData.commissionType} onChange={e => setFormData({...formData, commissionType: e.target.value})} className="w-full bg-white border border-amber-200 rounded-lg px-3 py-2 text-slate-800 focus:outline-none font-bold text-xs">
                           <option value="Fixed">Fixed Amount per Conversion</option>
-                          <option value="Percentage">Percentage of System KW</option>
+                          <option value="PerKW">Pay per kW</option>
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-amber-700 uppercase mb-1">Default Amount / %</label>
-                        <input type="number" value={formData.commissionAmount} onChange={e => setFormData({...formData, commissionAmount: Number(e.target.value)})} className="w-full bg-white border border-amber-200 rounded-lg px-3 py-2 text-slate-800 focus:outline-none" />
+                        <label className="block text-xs font-semibold text-amber-700 uppercase mb-1">
+                          {formData.commissionType === "PerKW" ? "Amount per kW" : "Amount per Conversion"}
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                            {selectedCountry === "australia" ? "AUD $" : "₹"}
+                          </span>
+                          <input type="number" value={formData.commissionAmount} onChange={e => setFormData({...formData, commissionAmount: Number(e.target.value)})} className="w-full bg-white border border-amber-200 rounded-lg pl-14 pr-3 py-2 text-slate-800 focus:outline-none font-bold text-sm" />
+                        </div>
                       </div>
                     </div>
-                    <p className="text-xs text-amber-600 mt-2">Commission automatically calculates and credits when a lead converts to an active project.</p>
+                    <p className="text-xs text-amber-600 mt-2">
+                      {formData.commissionType === "PerKW" 
+                        ? `Commission will credit ${selectedCountry === "australia" ? "AUD $" : "₹"}${formData.commissionAmount} × System kW for every confirmed conversion.`
+                        : `Commission will credit fixed ${selectedCountry === "australia" ? "AUD $" : "₹"}${formData.commissionAmount} for every confirmed conversion.`
+                      }
+                    </p>
                   </div>
                 )}
 

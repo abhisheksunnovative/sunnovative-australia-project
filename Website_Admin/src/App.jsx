@@ -469,15 +469,14 @@ export default function App() {
 
       // ── BDE Overrides ───────────────────────────────────────
       case "bde-dashboard":
-        return <BDEDashboard bdeId={userId} />;
+      case "bde-aust":
+        return <BDEAustDashboard bdeId={userId} />;
       case "bde-leads":
         return <BDELeadManagement bdeId={userId} />;
       case "bde-projects":
         return <BDEProjectTracking bdeId={userId} />;
       case "bde-demand":
         return <BDEDemandPool bdeId={userId} />;
-      case "bde-aust":
-        return <BDEAustDashboard bdeId={userId} />;
 
       default:
         return (

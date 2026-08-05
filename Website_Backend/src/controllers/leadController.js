@@ -463,6 +463,33 @@ export const convertLeadToProject = async (req, res) => {
     lead.history.push({ action: 'Converted to Project', date: new Date() });
     await lead.save();
 
+    // Accrue Freelancer BDE earnings & update conversion stats
+    if (lead.assignedBde) {
+      try {
+        const bde = await BDE.findById(lead.assignedBde);
+        if (bde) {
+          if (!bde.performance) bde.performance = { leadsAcquired: 0, leadsConverted: 0 };
+          bde.performance.leadsConverted = (bde.performance.leadsConverted || 0) + 1;
+          
+          if (bde.bdeType === 'Freelancer' && bde.freelancerSettings) {
+            const commType = bde.freelancerSettings.commissionType;
+            const commAmt = bde.freelancerSettings.commissionAmount || 0;
+            let earned = 0;
+            if (commType === 'Fixed') {
+              earned = commAmt;
+            } else if (commType === 'PerKW' || commType === 'Per KW' || commType === 'Percentage') {
+              const systemKw = po.systemSizeKW || lead.systemKw || 3;
+              earned = systemKw * commAmt;
+            }
+            bde.freelancerSettings.totalEarnings = (bde.freelancerSettings.totalEarnings || 0) + earned;
+          }
+          await bde.save();
+        }
+      } catch (bdeErr) {
+        console.error('Error updating BDE earnings:', bdeErr);
+      }
+    }
+
     res.json({ success: true, message: 'Lead converted successfully', projectOrder: po });
   } catch (error) {
     console.error('convertLeadToProject error:', error);

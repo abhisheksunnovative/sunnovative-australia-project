@@ -18,12 +18,26 @@ export const CustomerAuthProvider = ({ children }) => {
 
   useEffect(() => {
     if (!token) { setLoading(false); return; }
-    fetch(`${API}/api/customer/auth/me`, { headers: { Authorization: `Bearer ${token}`, 'x-country': getCountryCode() } })
-      .then(r => r.json())
-      .then(d => { if (d.success) setCustomer(d.customer); else logout(); })
-      .catch(() => logout())
+    fetch(`${API}/api/customer/auth/me`, { 
+      headers: { Authorization: `Bearer ${token}`, 'x-country': getCountryCode() } 
+    })
+      .then(r => {
+        if (r.status === 401) {
+          logout();
+          return null;
+        }
+        return r.json();
+      })
+      .then(d => { 
+        if (d && d.success) {
+          setCustomer(d.customer); 
+        }
+      })
+      .catch((err) => {
+        console.warn("Customer auth check network error, keeping token:", err);
+      })
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [token, country]);
 
   const login = (tok, cust) => {
     localStorage.setItem("customer_token", tok);

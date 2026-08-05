@@ -143,12 +143,26 @@ export const CustomerEligibilityScreen = ({ section = null }) => {
         headers: { 'x-country': selectedCountry }
       });
       const data = await res.json();
+      const countryCategories = selectedCountry === 'india' 
+        ? [
+            { id: "residential", name: "Residential Solar", enabled: true, minKW: 1, maxKW: 10, subsidyEligible: true, maxSubsidyAmount: 78000, description: "Single family homes, apartments" },
+            { id: "commercial", name: "Commercial Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Shops, offices, factories" }
+          ]
+        : selectedCountry === 'australia'
+        ? [
+            { id: "residential", name: "Residential Solar", enabled: true, minKW: 1, maxKW: 10, subsidyEligible: true, maxSubsidyAmount: 0, description: "Residential solar systems (CEC)" },
+            { id: "commercial", name: "Commercial Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Commercial rooftop solar" },
+            { id: "ppa", name: "Solar Power Purchase Agreement (PPA)", enabled: true, minKW: 30, maxKW: 1000, subsidyEligible: false, maxSubsidyAmount: 0, description: "Zero upfront PPA solar solution" },
+            { id: "microgrid", name: "Embedded Network & Microgrid", enabled: true, minKW: 50, maxKW: 2000, subsidyEligible: false, maxSubsidyAmount: 0, description: "Multi-tenant embedded network solar microgrid" },
+            { id: "battery-storage", name: "Commercial & Grid Battery Storage", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "BESS energy storage for peak shaving & backup" }
+          ]
+        : clone(DEFAULT_SETTINGS.projectCategories);
+
       if (data.success) {
-        // Deep merge: backend data ko defaults ke saath merge karo
-        // Taaki koi bhi nested field undefined na rahe
         const merged = {
           ...clone(DEFAULT_SETTINGS),
           ...data.data,
+          projectCategories: countryCategories,
           eligibilityRules: {
             ...clone(DEFAULT_SETTINGS.eligibilityRules),
             ...(data.data?.eligibilityRules || {}),
@@ -157,11 +171,26 @@ export const CustomerEligibilityScreen = ({ section = null }) => {
         setSettings(merged);
         setUsingFallback(false);
       } else {
-        setSettings(clone(DEFAULT_SETTINGS));
+        const fallback = clone(DEFAULT_SETTINGS);
+        fallback.projectCategories = countryCategories;
+        setSettings(fallback);
         setUsingFallback(true);
       }
     } catch {
-      setSettings(clone(DEFAULT_SETTINGS));
+      const fallback = clone(DEFAULT_SETTINGS);
+      fallback.projectCategories = selectedCountry === 'india' 
+        ? [
+            { id: "residential", name: "Residential Solar", enabled: true, minKW: 1, maxKW: 10, subsidyEligible: true, maxSubsidyAmount: 78000, description: "Single family homes, apartments" },
+            { id: "commercial", name: "Commercial Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Shops, offices, factories" }
+          ]
+        : [
+            { id: "residential", name: "Residential Solar", enabled: true, minKW: 1, maxKW: 10, subsidyEligible: true, maxSubsidyAmount: 0, description: "Residential solar systems (CEC)" },
+            { id: "commercial", name: "Commercial Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Commercial rooftop solar" },
+            { id: "ppa", name: "Solar Power Purchase Agreement (PPA)", enabled: true, minKW: 30, maxKW: 1000, subsidyEligible: false, maxSubsidyAmount: 0, description: "Zero upfront PPA solar solution" },
+            { id: "microgrid", name: "Embedded Network & Microgrid", enabled: true, minKW: 50, maxKW: 2000, subsidyEligible: false, maxSubsidyAmount: 0, description: "Multi-tenant embedded network solar microgrid" },
+            { id: "battery-storage", name: "Commercial & Grid Battery Storage", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "BESS energy storage for peak shaving & backup" }
+          ];
+      setSettings(fallback);
       setUsingFallback(true);
     }
     finally { setLoading(false); }
@@ -244,8 +273,33 @@ export const CustomerEligibilityScreen = ({ section = null }) => {
   const pageTitle = section ? SECTION_TITLES[section] || "Customer Eligibility" : "Customer Eligibility Settings";
   const preview = getSubsidyPreview();
 
+  const countries = [
+    { code: "india", label: "IN India" },
+    { code: "australia", label: "AU Australia" },
+    { code: "new_zealand", label: "NZ New Zealand" },
+    { code: "united_kingdom", label: "GB United Kingdom" },
+    { code: "usa", label: "US USA" },
+  ];
+
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
+
+      {/* ── Country Pill Selector Bar (Matching Image 2) ────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2 bg-slate-100/80 p-2 rounded-2xl border border-slate-200">
+        {countries.map((c) => (
+          <button
+            key={c.code}
+            onClick={() => setSelectedCountry(c.code)}
+            className={`px-5 py-2.5 rounded-xl font-black text-xs transition-all flex items-center gap-2 ${
+              selectedCountry === c.code
+                ? "bg-slate-900 text-white shadow-md shadow-slate-900/20 scale-[1.02]"
+                : "bg-white text-slate-700 hover:bg-slate-200/80 border border-slate-200/60"
+            }`}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
@@ -254,23 +308,17 @@ export const CustomerEligibilityScreen = ({ section = null }) => {
             <Zap className="w-5 h-5 text-yellow-500" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-slate-800">{pageTitle}</h1>
-            <p className="text-xs text-slate-500">{section ? `Customer Eligibility → ${SECTION_TITLES[section]}` : "Bill ranges, state subsidies, aur eligibility rules configure karo"}</p>
+            <h1 className="text-lg font-bold text-slate-800">{pageTitle} — {selectedCountry.toUpperCase()}</h1>
+            <p className="text-xs text-slate-500">{section ? `Customer Eligibility → ${SECTION_TITLES[section]}` : `Configure solar recommendation, kW derivation & ${selectedCountry === 'australia' ? 'STC rebate' : 'subsidy'} rules`}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <select value={selectedCountry} onChange={(e) => setSelectedCountry(e.target.value)}
-            className="text-sm font-semibold border border-slate-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400/40">
-            <option value="india">India</option>
-            <option value="australia">Australia</option>
-            <option value="new_zealand">New Zealand</option>
-          </select>
           <button onClick={fetchSettings} className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition">
             <RefreshCw className="w-3.5 h-3.5" /> Refresh
           </button>
           <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-slate-900 bg-yellow-400 rounded-xl hover:bg-amber-400 transition shadow-sm disabled:opacity-50">
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            {saving ? "Saving..." : "Save Changes"}
+            {saving ? "Saving..." : `Save ${selectedCountry.toUpperCase()} Settings`}
           </button>
         </div>
       </div>
@@ -332,6 +380,57 @@ export const CustomerEligibilityScreen = ({ section = null }) => {
           <p className="text-[11px] text-slate-500 mt-2">
             <span className="font-semibold">{previewState}:</span> {preview.stateData.stateScheme} • Agency: {preview.stateData.agency} • {preview.stateData.notes}
           </p>
+        </div>
+      )}
+
+      {/* ── LIVE STC REBATE PREVIEW CARD FOR AUSTRALIA ────────────────── */}
+      {selectedCountry === "australia" && (
+        <div className="bg-gradient-to-br from-sky-50 to-blue-50 border border-sky-200 rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Zap className="w-5 h-5 text-sky-600" />
+            <h3 className="text-sm font-bold text-slate-800">Australia STC Rebate Config & Live Preview</h3>
+            <span className="text-[10px] bg-sky-200 text-sky-800 px-2 py-0.5 rounded-full font-bold">AUSTRALIA LIVE</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <Field label="STC Price per Certificate ($)" value={settings.stcRules?.stcPrice || 38} onChange={(v) => updatePath(["stcRules", "stcPrice"], v)} type="number" hint="Current market STC price (default $38)" />
+            <Field label="Deeming Period (Years)" value={settings.stcRules?.deemingYears || 5} onChange={(v) => updatePath(["stcRules", "deemingYears"], v)} type="number" hint="Remaining STC deeming years" />
+            <Field label="System Cost per kW ($)" value={settings.stcRules?.systemCostPerKw || 1100} onChange={(v) => updatePath(["stcRules", "systemCostPerKw"], v)} type="number" hint="Base install cost per kW (default $1,100)" />
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-4 rounded-xl border border-sky-100 mb-4">
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase">Zone 1 Rating</label>
+              <input type="number" step="0.001" value={settings.stcRules?.zones?.zone1 || 1.622} onChange={(v) => updatePath(["stcRules", "zones", "zone1"], Number(v.target.value))} className="w-full text-xs font-bold border border-slate-200 rounded-lg px-2.5 py-1.5 mt-1" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase">Zone 2 Rating</label>
+              <input type="number" step="0.001" value={settings.stcRules?.zones?.zone2 || 1.536} onChange={(v) => updatePath(["stcRules", "zones", "zone2"], Number(v.target.value))} className="w-full text-xs font-bold border border-slate-200 rounded-lg px-2.5 py-1.5 mt-1" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase">Zone 3 Rating</label>
+              <input type="number" step="0.001" value={settings.stcRules?.zones?.zone3 || 1.382} onChange={(v) => updatePath(["stcRules", "zones", "zone3"], Number(v.target.value))} className="w-full text-xs font-bold border border-slate-200 rounded-lg px-2.5 py-1.5 mt-1" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase">Zone 4 Rating</label>
+              <input type="number" step="0.001" value={settings.stcRules?.zones?.zone4 || 1.185} onChange={(v) => updatePath(["stcRules", "zones", "zone4"], Number(v.target.value))} className="w-full text-xs font-bold border border-slate-200 rounded-lg px-2.5 py-1.5 mt-1" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-white rounded-xl p-3 border border-sky-100 text-center">
+              <p className="text-[10px] text-slate-500 font-semibold uppercase mb-1">Example 6.6 kW System</p>
+              <p className="text-xl font-black text-sky-600">6.6 kW</p>
+            </div>
+            <div className="bg-white rounded-xl p-3 border border-emerald-100 text-center">
+              <p className="text-[10px] text-slate-500 font-semibold uppercase mb-1">Zone 3 STC Count</p>
+              <p className="text-xl font-black text-emerald-600">{Math.floor(6.6 * (settings.stcRules?.zones?.zone3 || 1.382) * (settings.stcRules?.deemingYears || 5))} STCs</p>
+            </div>
+            <div className="bg-white rounded-xl p-3 border border-blue-100 text-center">
+              <p className="text-[10px] text-slate-500 font-semibold uppercase mb-1">Est. STC Rebate Value</p>
+              <p className="text-xl font-black text-blue-700">${(Math.floor(6.6 * (settings.stcRules?.zones?.zone3 || 1.382) * (settings.stcRules?.deemingYears || 5)) * (settings.stcRules?.stcPrice || 38)).toLocaleString()}</p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -459,6 +558,10 @@ export const CustomerEligibilityScreen = ({ section = null }) => {
       {show("projectCategories") && (
         <SectionCard title="Project Category Configuration" icon={<SlidersHorizontal className="w-5 h-5" />} badge={`${settings.projectCategories?.length || 0} Categories`}>
           <div className="space-y-4 pt-4">
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs flex items-center justify-between text-blue-800">
+              <span className="font-bold">⚡ AUTO-SYNC CONNECTED:</span>
+              <span className="text-[11px]">Yhan naye project categories add/edit karne par vo automatically <strong className="underline">Order Journey Settings</strong> aur <strong className="underline">Website CMS</strong> me ({selectedCountry.toUpperCase()}) sync ho jayenge.</span>
+            </div>
             {(settings.projectCategories || []).map((cat, i) => (
               <div key={cat.id || i} className="border border-slate-100 rounded-xl p-4 space-y-3 bg-slate-50">
                 <div className="flex justify-between items-center">

@@ -94,23 +94,30 @@ export default function DynamicPageRenderer({ onScrollToForm, selectedProjectTyp
                    </div>
                 )}
 
-                {/* Section Type: Journey Snap (Customer Journey Timeline) */}
+                {/* Section Type: Journey Snap (Customer Journey Timeline / Flowchart) */}
                 {sec.type === "snap" && (
                   <div className="max-w-5xl mx-auto">
-                     <div className="relative border-l-4 border-emerald-500 ml-6 md:ml-12 pl-8 py-4 space-y-12">
-                       {settings?.customerJourney?.steps?.map((step, sIdx) => (
-                          <div key={sIdx} className="relative">
-                            <div className="absolute -left-[45px] bg-emerald-500 w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-4 border-white text-white font-bold text-sm">
-                              {sIdx + 1}
-                            </div>
-                            <h3 className="text-2xl font-black text-slate-800 mb-2">{step.title}</h3>
-                            <p className="text-lg text-slate-600">{step.description}</p>
-                          </div>
-                       ))}
-                       {(!settings?.customerJourney?.steps || settings?.customerJourney?.steps?.length === 0) && (
-                         <p className="text-slate-500">Journey steps not configured.</p>
-                       )}
-                     </div>
+                     {(() => {
+                       const ptConfig = settings?.websiteContent?.projectTypeConfigs?.find(c => c.type === selectedProjectType) || settings?.projectTypeConfigs?.find(c => c.type === selectedProjectType);
+                       const steps = ptConfig?.journeyFlowchart || settings?.customerJourney?.steps || [
+                         { title: "Lead Captured", description: "Submit your basic details or upload bill for auto-scan" },
+                         { title: "Site Survey & Proposal", description: "Engineering assessment and custom system design" },
+                         { title: "Installation & Grid Connect", description: "CEC-approved installation & net metering approval" }
+                       ];
+                       return (
+                         <div className="relative border-l-4 border-emerald-500 ml-6 md:ml-12 pl-8 py-4 space-y-12">
+                           {steps.map((step, sIdx) => (
+                             <div key={sIdx} className="relative">
+                               <div className="absolute -left-[45px] bg-emerald-500 w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-4 border-white text-white font-bold text-sm">
+                                 {sIdx + 1}
+                               </div>
+                               <h3 className="text-2xl font-black text-slate-800 mb-2">{step.title}</h3>
+                               <p className="text-lg text-slate-600">{step.desc || step.description}</p>
+                             </div>
+                           ))}
+                         </div>
+                       );
+                     })()}
                   </div>
                 )}
 

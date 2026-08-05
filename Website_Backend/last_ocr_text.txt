@@ -1,38 +1,47 @@
-AGL Energy
-Tax Invoice / Electricity Bill
-ABN 74 115 061 375
-Account Name
-Michael Thompson
-Supply Address
-24 Wattle Crescent, Sydney NSW 2145
-NMI
-5260181590D
-Account Number
-140260662
-Distributor (DNSP)
-Ausgrid
-Tariff
-Time of Use (Residential TOU1)
-Bill Issue Date
-01 Aug 2026
-Billing Period
-29 Apr – 28 Jul 2026
-Payment Due Date
-15 Aug 2026
-Read Type
-Actual
-Electricity Usage & Charges
-ChargeUsage (kWh)Rate (c/kWh)Amount
-Peak Usage28745.21$129.75
-Shoulder Usage13027.65$35.95
-Off-Peak Usage23718.92$44.84
-Supply Charge90 days110.23 c/day$99.21
-Total electricity usage this period: 654 kWh  |  Average daily usage: 7.27 kWh/day
-Solar Feed-in Credit
-Feed-in Tariff Rate: 5.0 c/kWh  |  Exported this period: 0 kWh (no solar system connected to this NMI)  |  Credit: $0.00
-Bill Summary
-Total Charges (excl. GST)$309.75
-GST (10%)$30.97
-Total Amount Due$340.72
-This is a MOCK / SAMPLE bill generated for software testing purposes only. All names, addresses, NMI, account numbers and usage figures
-are fictional and randomly generated. It is not an official AGL Energy document and carries no billing validity.
+
+            Aurora Energy
+       Electricity Tax Invoice
+
+Account Number: TAS-6629481073
+Bill Number: AUR-2025-374829
+
+Date Issued: 18 May 2025
+Due Date: 08 June 2025
+
+Account Name: Emma Richards
+Supply Address:
+  56 Liverpool Street
+  HOBART TAS 7000
+
+Period: 15 Feb 2025 to 15 May 2025
+Days: 89
+
+NMI: 8001593847
+Meter Number: TS-2948371
+
+           Electricity Charges
+
+  Tariff 31 - Light & Power General
+    Total Consumption: 2,134 kWh
+
+    Peak (7am-10pm)    1,423 kWh @ 31.54 c/kWh    $448.80
+    Off-Peak (10pm-7am)  711 kWh @ 16.29 c/kWh    $115.84
+
+  Daily Supply Charge
+    89 days @ $0.9463/day                            $84.22
+
+  Subtotal                                         $648.86
+  GST (10%)                                          $64.89
+
+  Total Amount Payable                             $713.75
+
+  Average Daily Usage: 24.0 kWh
+  Estimated Annual Cost: $2,926
+
+  Note: Tasmania's cooler climate means higher
+  heating costs. Consider solar + battery to
+  reduce your winter bills.
+
+  Pay at auroraenergy.com.au
+  Call: 1300 132 003
+  ABN: 85 082 464 622

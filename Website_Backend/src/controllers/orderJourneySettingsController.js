@@ -112,6 +112,46 @@ const USA_RESIDENTIAL = {
   ],
 };
 
+const AUSTRALIA_COMMERCIAL = {
+  projectType: "commercial",
+  projectTypeLabel: "Commercial Solar",
+  enabled: true,
+  description: "High capacity commercial rooftop solar installation for business premises",
+  steps: AUSTRALIA_RESIDENTIAL.steps
+};
+
+const AUSTRALIA_PPA = {
+  projectType: "ppa",
+  projectTypeLabel: "Solar Power Purchase Agreement (PPA)",
+  enabled: true,
+  description: "Zero upfront capital cost solar PPA solution for commercial enterprises",
+  steps: AUSTRALIA_RESIDENTIAL.steps
+};
+
+const AUSTRALIA_MICROGRID = {
+  projectType: "microgrid",
+  projectTypeLabel: "Embedded Network & Microgrid",
+  enabled: true,
+  description: "Multi-tenant embedded network solar microgrid system",
+  steps: AUSTRALIA_RESIDENTIAL.steps
+};
+
+const AUSTRALIA_BATTERY = {
+  projectType: "battery-storage",
+  projectTypeLabel: "Commercial & Grid Battery Storage",
+  enabled: true,
+  description: "Battery energy storage systems (BESS) for peak shaving & backup",
+  steps: AUSTRALIA_RESIDENTIAL.steps
+};
+
+const INDIA_COMMERCIAL = {
+  projectType: "commercial",
+  projectTypeLabel: "Commercial Solar",
+  enabled: true,
+  description: "Industrial & commercial rooftop solar for businesses in India",
+  steps: INDIA_RESIDENTIAL.steps
+};
+
 const DEFAULT_GLOBAL_SETTINGS = {
   autoProgressOnCompletion: true,
   requireEvidenceAtEachStep: false,
@@ -122,7 +162,7 @@ const DEFAULT_GLOBAL_SETTINGS = {
   minBookingDays: 5,
 };
 
-const initializeCountry = async (countryName, journey) => {
+const initializeCountry = async (countryName, journeysArray) => {
   await OrderJourneySettings.findOneAndUpdate(
     { country: countryName, state: "all", district: "all" },
     {
@@ -131,7 +171,7 @@ const initializeCountry = async (countryName, journey) => {
       district: "all",
       discom: "all",
       _settingsKey: Math.random().toString(),
-      journeys: [journey],
+      journeys: journeysArray,
       globalSettings: DEFAULT_GLOBAL_SETTINGS
     },
     { upsert: true }
@@ -147,19 +187,41 @@ export const getOrderJourneySettings = async (req, res) => {
 
     let settings = await OrderJourneySettings.findOne({ country, state, district, discom });
 
-    if (!settings) {
-      // Initialize seed data for all countries if this is the first run
-      const count = await OrderJourneySettings.countDocuments();
-      if (count === 0 || !settings) {
-        // Wipe and re-seed
-        await OrderJourneySettings.deleteMany({});
-        await initializeCountry("india", INDIA_RESIDENTIAL);
-        await initializeCountry("australia", AUSTRALIA_RESIDENTIAL);
-        await initializeCountry("newzealand", NZ_RESIDENTIAL);
-        await initializeCountry("uk", UK_RESIDENTIAL);
-        await initializeCountry("usa", USA_RESIDENTIAL);
-        
-        settings = await OrderJourneySettings.findOne({ country, state, district, discom });
+    if (!settings || !settings.journeys || settings.journeys.length === 0) {
+      if (country === 'india') {
+        await initializeCountry("india", [INDIA_RESIDENTIAL, INDIA_COMMERCIAL]);
+      } else if (country === 'australia') {
+        await initializeCountry("australia", [
+          AUSTRALIA_RESIDENTIAL,
+          AUSTRALIA_COMMERCIAL,
+          AUSTRALIA_PPA,
+          AUSTRALIA_MICROGRID,
+          AUSTRALIA_BATTERY
+        ]);
+      } else {
+        await initializeCountry(country, [NZ_RESIDENTIAL]);
+      }
+      settings = await OrderJourneySettings.findOne({ country, state, district, discom });
+    } else {
+      // ── MIGRATION CHECK: Ensure country has correct project types ──
+      if (country === 'india') {
+        const types = settings.journeys.map(j => j.projectType);
+        if (types.includes('group') || types.includes('common-meter') || settings.journeys.length !== 2) {
+          settings.journeys = [INDIA_RESIDENTIAL, INDIA_COMMERCIAL];
+          await settings.save();
+        }
+      } else if (country === 'australia') {
+        const types = settings.journeys.map(j => j.projectType);
+        if (!types.includes('ppa') || !types.includes('microgrid') || !types.includes('battery-storage') || settings.journeys.length < 5) {
+          settings.journeys = [
+            AUSTRALIA_RESIDENTIAL,
+            AUSTRALIA_COMMERCIAL,
+            AUSTRALIA_PPA,
+            AUSTRALIA_MICROGRID,
+            AUSTRALIA_BATTERY
+          ];
+          await settings.save();
+        }
       }
     }
 
@@ -202,8 +264,14 @@ export const resetOrderJourneySettings = async (req, res) => {
     // Wipe all and re-seed to get fresh defaults for the requested country
     await OrderJourneySettings.deleteMany({ country });
     
-    if (country === 'india') await initializeCountry("india", INDIA_RESIDENTIAL);
-    if (country === 'australia') await initializeCountry("australia", AUSTRALIA_RESIDENTIAL);
+    if (country === 'india') await initializeCountry("india", [INDIA_RESIDENTIAL, INDIA_COMMERCIAL]);
+    if (country === 'australia') await initializeCountry("australia", [
+      AUSTRALIA_RESIDENTIAL,
+      AUSTRALIA_COMMERCIAL,
+      AUSTRALIA_PPA,
+      AUSTRALIA_MICROGRID,
+      AUSTRALIA_BATTERY
+    ]);
     if (country === 'newzealand') await initializeCountry("newzealand", NZ_RESIDENTIAL);
     if (country === 'uk') await initializeCountry("uk", UK_RESIDENTIAL);
     if (country === 'usa') await initializeCountry("usa", USA_RESIDENTIAL);

@@ -47,21 +47,28 @@ export default function Hero({ onScrollToForm, projectTypes, selectedPt, onSelec
           </div>
 
           {/* Dynamic Project Type Selector */}
-          {projectTypes && projectTypes.length > 1 && (
-            <div className="flex flex-wrap items-center gap-2 mb-6 bg-slate-800/50 p-2 rounded-2xl w-max backdrop-blur-sm border border-slate-700/50">
-              {projectTypes.map((pt) => (
-                <button
-                  key={pt.type}
-                  onClick={() => onSelectPt(pt.type)}
-                  className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 capitalize ${
-                    selectedPt === pt.type
-                      ? "bg-solar-yellow text-slate-900 shadow-md shadow-solar-yellow/20"
-                      : "text-slate-300 hover:text-white hover:bg-slate-700/50"
-                  }`}
-                >
-                  {pt.type.replace("-", " ")}
-                </button>
-              ))}
+          {projectTypes && projectTypes.length > 0 && (
+            <div className="mb-6 bg-slate-800/80 p-3 rounded-2xl backdrop-blur-md border border-slate-700/80 shadow-xl max-w-xl">
+              <div className="text-[11px] font-black uppercase tracking-wider text-solar-yellow mb-2 flex items-center gap-1.5">
+                <Sun className="w-3.5 h-3.5 fill-solar-yellow text-solar-yellow" />
+                Select Project Type:
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {projectTypes.map((pt) => (
+                  <button
+                    key={pt.type}
+                    onClick={() => onSelectPt(pt.type)}
+                    className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 capitalize flex items-center gap-1.5 ${
+                      selectedPt === pt.type
+                        ? "bg-solar-yellow text-slate-900 shadow-lg shadow-solar-yellow/20 scale-105"
+                        : "text-slate-300 hover:text-white hover:bg-slate-700/60"
+                    }`}
+                  >
+                    {selectedPt === pt.type && <span className="w-2 h-2 rounded-full bg-slate-900" />}
+                    {pt.projectTypeLabel || pt.type.replace("-", " ")}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 

@@ -60,46 +60,41 @@ function StarRating({ rating, count }) {
 }
 
 function ProgressTracker({ status, pct }) {
-  // E-Commerce Style Tracker UI
+  // Ultra-thin & compact line tracker UI matching screenshot
   return (
-    <div className="w-full bg-white rounded-2xl border border-slate-200 p-6 shadow-sm mb-6">
-      <div className="flex items-center justify-between mb-8">
-        <h3 className="font-black text-lg text-slate-800">Project Journey Timeline</h3>
+    <div className="w-full bg-slate-50 border border-slate-200/90 rounded-2xl p-3 shadow-inner overflow-x-auto scrollbar-hide">
+      <div className="flex items-center justify-between mb-2 px-1">
+        <h3 className="font-black text-xs text-slate-800 uppercase tracking-wider">Project Journey Timeline</h3>
         <Badge status={status} />
       </div>
 
-      <div className="relative">
-        {/* Progress Line */}
-        <div className="absolute top-5 left-0 w-full h-1 bg-slate-100 rounded-full" />
-        
-        <div className="flex justify-between relative z-10 overflow-x-auto pb-4 snap-x">
-          {/* Mocked steps for display representation */}
-          {["Lead", "Qualified", "Surveyed", "Installed", "Completed"].map((title, i) => {
-            const done = i < 2;
-            const active = i === 2;
-            return (
-              <div key={i} className="flex flex-col items-center min-w-[140px] px-2 snap-center cursor-pointer group">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-3 transition-transform ${active ? 'scale-110' : 'group-hover:scale-105'}`}>
-                  {done ? (
-                    <CheckCircle2 className="w-10 h-10 text-green-500 fill-white" />
-                  ) : active ? (
-                    <div className="w-10 h-10 rounded-full bg-white border-4 border-yellow-400 flex items-center justify-center shadow-lg shadow-yellow-100">
-                      <div className="w-3 h-3 bg-yellow-500 rounded-full animate-ping" />
-                    </div>
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-white border-4 border-slate-200" />
-                  )}
-                </div>
-                <p className={`text-[11px] font-black uppercase tracking-wider text-center ${done ? 'text-green-700' : active ? 'text-yellow-700' : 'text-slate-400'} mb-1`}>
-                  Step {i + 1}
-                </p>
-                <p className={`text-xs font-bold text-center ${active ? 'text-slate-800' : 'text-slate-500'} max-w-[120px] leading-tight`}>
-                  {title}
-                </p>
+      <div className="min-w-[700px] flex items-start justify-between relative px-2 py-1">
+        {/* Connecting track line */}
+        <div className="absolute left-6 right-6 top-3.5 h-0.5 bg-slate-200 -z-10" />
+
+        {["Lead Captured", "Submit Bill", "Upload Details", "Verify Eligibility", "Document Check", "Select Date", "Payment", "Allocate EPC", "Accept Project", "Site Survey", "Proposal", "Installation", "Upload Docs", "Net Metering", "Subsidy Claim", "Progress Monitor"].map((title, i) => {
+          const done = i < 2;
+          const active = i === 2;
+          return (
+            <div key={i} className="flex flex-col items-center flex-1 relative group cursor-pointer">
+              {i > 0 && (done || active) && (
+                <div className={`absolute right-[50%] left-[-50%] top-3.5 h-0.5 -z-10 transition-all ${done ? 'bg-orange-500' : 'bg-amber-400'}`} />
+              )}
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black ring-2 ring-white mb-1 transition-all ${
+                done ? "bg-orange-500 text-white shadow-sm" : 
+                active ? "bg-amber-400 text-white shadow-md ring-amber-100 animate-pulse" : 
+                "bg-slate-200 text-slate-500"
+              }`}>
+                {done ? <CheckCircle2 className="w-3.5 h-3.5" /> : (i + 1)}
               </div>
-            );
-          })}
-        </div>
+              <p className={`text-[9px] text-center font-bold px-0.5 line-clamp-1 max-w-[75px] ${
+                done ? "text-slate-800" : active ? "text-amber-700 font-extrabold" : "text-slate-400"
+              }`}>
+                {title}
+              </p>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -577,15 +572,15 @@ function ProjectDetail({ projectId, onBack, authFetch }) {
             <ProgressTracker status={project.status} pct={project.completionPercentage} />
           </div>
 
-          <div className="grid grid-cols-3 gap-2 relative z-10">
+          <div className="grid grid-cols-3 gap-2.5 relative z-10 mt-3">
             {[
-              { l: "System", v: project.systemSizeKW ? `${project.systemSizeKW} kW` : "—" },
-              { l: "Total Cost", v: project.totalProjectCost ? fmt(project.totalProjectCost) : "—" },
-              { l: "Subsidy", v: project.estimatedSubsidy ? fmt(project.estimatedSubsidy) : "—" },
+              { l: "SYSTEM", v: project.systemSizeKW ? `${project.systemSizeKW} kW` : "—" },
+              { l: "TOTAL COST", v: project.totalProjectCost ? `${country === "AU" ? "$" : "₹"}${project.totalProjectCost.toLocaleString('en-IN')}` : "—" },
+              { l: country === "AU" ? "STC REBATE" : "SUBSIDY", v: project.estimatedSubsidy ? `${country === "AU" ? "$" : "₹"}${project.estimatedSubsidy.toLocaleString('en-IN')}` : "—" },
             ].map(s => (
-              <div key={s.l} className="bg-white/8 rounded-xl p-2 text-center backdrop-blur-sm border border-white/5">
-                <p className="text-[9px] text-slate-300 uppercase font-bold">{s.l}</p>
-                <p className="text-xs font-black text-white mt-0.5">{s.v}</p>
+              <div key={s.l} className="bg-slate-950/60 rounded-xl p-2.5 text-center backdrop-blur-md border border-white/10 shadow-sm">
+                <p className="text-[9px] text-slate-400 uppercase font-black tracking-wider">{s.l}</p>
+                <p className="text-xs sm:text-sm font-black text-white mt-0.5">{s.v}</p>
               </div>
             ))}
           </div>

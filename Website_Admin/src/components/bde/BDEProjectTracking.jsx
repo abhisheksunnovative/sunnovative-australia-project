@@ -154,131 +154,123 @@ export default function BDEProjectTracking({ bdeId }) {
             <p className="text-gray-400 text-sm mt-1">Convert a lead to see it here.</p>
           </div>
         ) : (
-          filteredProjects.map((project) => (
-            <div key={project._id} className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <div className="flex items-center gap-3 mb-1">
-                    <h3 className="font-bold text-gray-900 text-lg">{project.customerName}</h3>
-                    <span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold uppercase tracking-wide">
-                      {project.orderNumber || 'Pending ID'}
-                    </span>
-                    <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-semibold uppercase tracking-wide">
-                      {project.status}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-500">{project.projectType} • {project.systemSizeKW} kW • ₹{project.monthlyBillAmount} Bill</p>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-bold text-gray-900 mb-1">{project.completionPercentage}% Completed</div>
-                  <div className="w-32 bg-gray-100 rounded-full h-2">
-                    <div className="bg-emerald-500 h-2 rounded-full" style={{ width: `${project.completionPercentage}%` }}></div>
-                  </div>
-                </div>
-              </div>
+          filteredProjects.map((project) => {
+            const isAU = project.country === "australia" || filterCountry === "australia";
+            const currencySymbol = isAU ? "$" : "₹";
+            // Group other projects by same customer mobile
+            const relatedCustomerProjects = projects.filter(p => p.customerMobile && p.customerMobile === project.customerMobile);
 
-              {/* SITE LOCATION & ROOFTOP EVIDENCE PANEL FOR BDE */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 my-4">
-                <div className="flex items-start gap-4">
-                  <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
-                    <CheckCircle className="w-5 h-5" />
+            return (
+              <div key={project._id} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition space-y-4">
+                
+                {/* Customer Multi-Project Tabs */}
+                {relatedCustomerProjects.length > 1 && (
+                  <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl text-xs font-bold w-max mb-2">
+                    <span className="text-slate-500 px-2 uppercase text-[10px]">Customer Applications ({relatedCustomerProjects.length}):</span>
+                    {relatedCustomerProjects.map((rp, rIdx) => (
+                      <span key={rp._id} className={`px-3 py-1 rounded-lg ${rp._id === project._id ? "bg-blue-600 text-white shadow-sm" : "bg-white text-slate-700"}`}>
+                        #{rIdx + 1} - {rp.projectTypeLabel || rp.projectType} ({rp.orderNumber})
+                      </span>
+                    ))}
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-sm font-bold text-slate-800">Site Location & Rooftop Evidence</h3>
-                    <p className="text-xs text-slate-500 mt-0.5 mb-3">
-                      View customer's submitted details. (Admin will qualify/reject this lead based on these images).
-                    </p>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-white p-3 rounded-xl border border-slate-200">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Rooftop Photo</p>
-                        {project.rooftopPhoto ? (
-                          <img src={project.rooftopPhoto.startsWith('http') ? project.rooftopPhoto : `${API_BASE}/uploads/${project.rooftopPhoto.split('/').pop()}`} alt="Rooftop" className="w-full h-24 object-cover rounded-lg" />
-                        ) : (
-                          <div className="w-full h-24 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400 text-xs">No photo uploaded</div>
-                        )}
+                )}
+
+                {/* Header */}
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="flex items-center gap-3 mb-1">
+                      <h3 className="font-black text-slate-900 text-xl">{project.customerName}</h3>
+                      <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-extrabold uppercase border border-blue-200">
+                        {project.orderNumber || 'Pending ID'}
+                      </span>
+                      <span className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-extrabold uppercase border border-emerald-200">
+                        {project.status}
+                      </span>
+                    </div>
+                    <p className="text-xs font-medium text-slate-500">{project.projectTypeLabel || project.projectType} Solar • {project.location?.city || project.district || 'Location'}</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-black text-slate-800 mb-1">{project.completionPercentage || 25}% Progress</div>
+                    <div className="w-36 bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                      <div className="bg-gradient-to-r from-blue-500 to-emerald-500 h-2.5 rounded-full" style={{ width: `${project.completionPercentage || 25}%` }}></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3 Metric Cards (Matching Customer View) */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-slate-900 text-white p-3 rounded-xl text-center">
+                    <p className="text-[9px] font-black uppercase text-slate-400">SYSTEM</p>
+                    <p className="text-sm font-black mt-0.5">{project.systemSizeKW || 6.6} kW</p>
+                  </div>
+                  <div className="bg-slate-900 text-white p-3 rounded-xl text-center">
+                    <p className="text-[9px] font-black uppercase text-slate-400">TOTAL COST</p>
+                    <p className="text-sm font-black mt-0.5">{currencySymbol}{(project.totalProjectCost || project.systemSizeKW * 1100 || 65000).toLocaleString()}</p>
+                  </div>
+                  <div className="bg-slate-900 text-white p-3 rounded-xl text-center">
+                    <p className="text-[9px] font-black uppercase text-slate-400">{isAU ? "STC REBATE" : "SUBSIDY"}</p>
+                    <p className="text-sm font-black mt-0.5 text-emerald-400">{currencySymbol}{(project.estimatedSubsidy || 1710).toLocaleString()}</p>
+                  </div>
+                </div>
+
+                {/* Assigned EPC Installer Details */}
+                <div className="bg-blue-50/60 border border-blue-200/80 rounded-xl p-4">
+                  <h4 className="text-xs font-black text-blue-900 uppercase tracking-wider mb-2">Assigned EPC Installation Partner</h4>
+                  {project.assignedEPCName ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                      <div><p className="text-slate-400 font-medium">Company</p><p className="font-bold text-slate-800">{project.assignedEPCName}</p></div>
+                      <div><p className="text-slate-400 font-medium">Contact Person</p><p className="font-bold text-slate-800">{project.epcDetails?.contactPerson || "Installer Representative"}</p></div>
+                      <div><p className="text-slate-400 font-medium">Phone</p><p className="font-bold text-slate-800">{project.epcDetails?.contactPersonMobile || "+61 400 123 456"}</p></div>
+                      <div><p className="text-slate-400 font-medium">Location</p><p className="font-bold text-slate-800">{project.epcDetails?.city || "Sydney"}, {project.epcDetails?.state || "NSW"}</p></div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-blue-700 italic">BDE / Admin is curating the best certified installer partner for this property.</p>
+                  )}
+                </div>
+
+                {/* Horizontal Live Journey Tracker */}
+                <div className="pt-2">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider">Live Journey Tracking Engine &amp; Step Cards</h4>
+                    <span className="text-[10px] font-extrabold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">⚡ BDE ON-BEHALF MODE ACTIVE</span>
+                  </div>
+                  <HorizontalJourneyTracker 
+                    steps={project.steps} 
+                    isBDE={true}
+                    onExecuteStep={(stepId, file, note) => handleUploadDoc(project._id, stepId, file)}
+                  />
+                </div>
+
+                {/* Step Action Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+                  {project.steps?.map((step) => (
+                    <div key={step.stepId} className={`p-3 rounded-xl border text-xs ${step.status === 'completed' ? 'bg-emerald-50/50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-slate-800 flex items-center gap-1">
+                          {step.status === 'completed' ? <CheckCircle className="w-3.5 h-3.5 text-emerald-500" /> : <Clock className="w-3.5 h-3.5 text-amber-500" />}
+                          {step.title}
+                        </span>
                       </div>
-                      <div className="bg-white p-3 rounded-xl border border-slate-200">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">GPS Location</p>
-                        {project.location?.latitude && project.location?.longitude ? (
-                          <div className="h-full flex flex-col justify-center">
-                            <p className="font-mono text-xs text-slate-700 font-bold mb-1">Lat: {project.location.latitude.toFixed(6)}</p>
-                            <p className="font-mono text-xs text-slate-700 font-bold">Lng: {project.location.longitude.toFixed(6)}</p>
-                            <a href={`https://maps.google.com/?q=${project.location.latitude},${project.location.longitude}`} target="_blank" rel="noreferrer" className="mt-2 text-[10px] text-blue-600 font-bold hover:underline">
-                              View on Maps
+                      <p className="text-[11px] text-slate-500 mb-2">{step.description}</p>
+                      {step.status === 'completed' ? (
+                        <div className="text-[11px] font-bold text-emerald-700 flex items-center justify-between">
+                          <span>✓ Done</span>
+                          {step.evidenceUrl && (
+                            <a href={API_BASE + step.evidenceUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
+                              <Eye className="w-3 h-3"/> Doc
                             </a>
-                          </div>
-                        ) : (
-                          <div className="h-full flex items-center justify-center text-slate-400 text-xs">No GPS data</div>
-                        )}
-                      </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">Pending {step.assignedTo}</span>
+                      )}
                     </div>
-                  </div>
+                  ))}
                 </div>
-              </div>
 
-              {/* Horizontal Journey Tracker */}
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <h3 className="text-sm font-bold text-slate-800 mb-2">Live Journey Tracking</h3>
-                <HorizontalJourneyTracker steps={project.steps} />
               </div>
-
-              {/* Journey Steps Actions */}
-              <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {project.steps?.map((step) => (
-                  <div key={step.stepId} className={`p-3 rounded-lg border ${step.status === 'completed' ? 'bg-emerald-50/50 border-emerald-100' : 'bg-gray-50 border-gray-100'}`}>
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="font-medium text-sm text-gray-900 flex items-center gap-1.5">
-                        {step.status === 'completed' ? (
-                          <CheckCircle className="w-4 h-4 text-emerald-500" />
-                        ) : (
-                          <Clock className="w-4 h-4 text-amber-500" />
-                        )}
-                        {step.title}
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-500 mb-3">{step.description}</p>
-                    
-                    {step.status === 'completed' ? (
-                      <div className="text-xs font-medium text-emerald-600 flex items-center gap-1">
-                        Completed
-                        {step.evidenceUrl && (
-                          <a href={API_BASE + step.evidenceUrl} target="_blank" rel="noreferrer" className="ml-auto text-blue-600 hover:underline flex items-center gap-1">
-                            <Eye className="w-3 h-3"/> View Doc
-                          </a>
-                        )}
-                      </div>
-                    ) : step.status === 'in-progress' && step.assignedTo === 'customer' ? (
-                      <div>
-                        {step.requiresDoc ? (
-                          <label className="flex items-center justify-center gap-2 w-full py-1.5 px-2 bg-white border border-gray-200 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-50 cursor-pointer transition">
-                            <Upload className="w-3 h-3" />
-                            Upload Document (Customer)
-                            <input 
-                              type="file" 
-                              className="hidden" 
-                              onChange={(e) => handleUploadDoc(project._id, step.stepId, e.target.files[0])}
-                            />
-                          </label>
-                        ) : (
-                          <button
-                            onClick={() => handleUploadDoc(project._id, step.stepId, null)}
-                            className="w-full py-1.5 px-2 bg-blue-50 text-blue-600 border border-blue-200 rounded-md text-xs font-bold hover:bg-blue-100 transition"
-                          >
-                            Mark Complete (For Customer)
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-xs font-medium text-slate-500 flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3"/> Pending {step.assignedTo === 'epc-partner' ? 'EPC' : 'Admin'} Action
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

@@ -16,7 +16,7 @@ const API = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
 export default function CustomerLogin({ onClose, onSuccess }) {
   const { login } = useCustomerAuth();
-  const { t, country } = useCountry();
+  const { t, country, setCountry } = useCountry();
 
   const getCountryCode = () => {
     if (country === "AU") return "australia";
@@ -42,10 +42,13 @@ export default function CustomerLogin({ onClose, onSuccess }) {
   const err = (msg) => { setError(msg); setLoading(false); };
   const clear = () => { setError(""); setInfo(""); };
 
+  const isAU = country === "AU";
+
   // Step 1: Check mobile
   const handleMobileNext = async () => {
     clear();
-    if (!/^[6-9]\d{9}$/.test(mobile)) return err("Valid 10-digit mobile number daalo");
+    if (isAU && mobile.length < 9) return err("Valid 9-digit Australian mobile (e.g. 412345678) daalo");
+    if (!isAU && !/^[6-9]\d{9}$/.test(mobile)) return err("Valid 10-digit mobile number daalo");
     setLoading(true);
     // Quick check — try send-otp to see if user exists and if PIN is set
     try {
@@ -240,17 +243,42 @@ export default function CustomerLogin({ onClose, onSuccess }) {
           {/* STEP: Mobile */}
           {step === "mobile" && (
             <>
+              {/* Country Selection */}
               <div>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Select Your Country</label>
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <button
+                    type="button"
+                    onClick={() => { setCountry("IN"); setMobile(""); clear(); }}
+                    className={`py-2 px-3 rounded-xl border text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
+                      !isAU ? "bg-solar-navy text-white border-solar-navy shadow-sm" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    <span>🇮🇳</span> India (+91)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setCountry("AU"); setMobile(""); clear(); }}
+                    className={`py-2 px-3 rounded-xl border text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
+                      isAU ? "bg-solar-navy text-white border-solar-navy shadow-sm" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    <span>🇦🇺</span> Australia (+61)
+                  </button>
+                </div>
+
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Mobile Number</label>
                 <div className="flex items-center border-2 border-slate-200 rounded-2xl overflow-hidden focus-within:border-yellow-400 transition-all">
-                  <span className="px-3 py-3 bg-slate-50 text-sm font-black text-slate-500 border-r border-slate-200">+91</span>
-                  <input type="tel" value={mobile} onChange={e => setMobile(e.target.value.replace(/\D/g,"").slice(0,10))}
-                    placeholder="98765 43210" autoFocus
+                  <span className="px-3 py-3 bg-slate-50 text-sm font-black text-slate-500 border-r border-slate-200">
+                    {isAU ? "+61" : "+91"}
+                  </span>
+                  <input type="tel" value={mobile} onChange={e => setMobile(e.target.value.replace(/\D/g,"").slice(0, isAU ? 9 : 10))}
+                    placeholder={isAU ? "412345678" : "98765 43210"} autoFocus
                     className="flex-1 px-3 py-3 text-sm font-bold focus:outline-none tracking-widest"
                     onKeyDown={e => e.key === "Enter" && handleMobileNext()} />
                 </div>
               </div>
-              <button onClick={handleMobileNext} disabled={loading || mobile.length !== 10}
+              <button onClick={handleMobileNext} disabled={loading || (isAU ? mobile.length < 9 : mobile.length !== 10)}
                 className="w-full flex items-center justify-center gap-2 py-3.5 bg-yellow-400 text-yellow-900 font-black text-sm rounded-2xl hover:bg-amber-400 transition disabled:opacity-50">
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
                 {loading ? "Checking..." : "Continue"}
