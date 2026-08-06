@@ -316,136 +316,111 @@ const StepCard = ({ step, index, totalSteps, onUpdate, onRemove, onMoveUp, onMov
                 <CheckSquare className="w-3.5 h-3.5 text-blue-500" /> Completion Gates
               </h4>
               <Toggle
-                label="Require Document Upload"
+                label="Boxes for Uploading Documents"
                 checked={step.requiresDocumentUpload}
-                onChange={(v) => onUpdate("requiresDocumentUpload", v)}
-                desc="A file must be uploaded to pass this step"
+                onChange={(v) => {
+                  onUpdate({ requiresDocumentUpload: v, requiresDoc: v });
+                }}
+                desc="Enable this to require custom file uploads or input fields to complete this step"
               />
               {step.requiresDocumentUpload && (
                 <div className="pl-4 border-l-2 border-blue-100 mt-2 space-y-2">
-                  <Field
-                    label="Expected Document Name (Legacy)"
-                    value={step.documentName}
-                    onChange={(v) => onUpdate("documentName", v)}
-                    placeholder="e.g. Electricity Bill, Survey Report"
-                  />
-                  <div>
-                    <label className="text-xs font-semibold text-slate-500 uppercase block mb-2">Multiple Document Requirements</label>
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {(step.documentRequirements || []).map((req, idx) => (
-                        <span key={idx} className="flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full border border-blue-200">
-                          {req}
-                          <button 
-                            type="button" 
-                            onClick={() => onUpdate("documentRequirements", (step.documentRequirements || []).filter(r => r !== req))} 
-                            className="hover:text-blue-900 ml-1 font-bold rounded-full p-0.5 hover:bg-blue-200 leading-none"
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
+                  <div className="mt-2 pt-2">
+                    <label className="text-xs font-black text-slate-700 uppercase block mb-3 tracking-wider flex items-center gap-1.5">
+                      <Zap className="w-4 h-4 text-yellow-500" /> Configure Step Inputs & Uploads
+                    </label>
+                    <div className="space-y-3 mb-3">
+                      {(step.requiredActions || []).length === 0 ? (
+                        <div className="text-center py-6 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                          <p className="text-[11px] text-slate-400 font-medium">No inputs or uploads configured. Click below to add one!</p>
+                        </div>
+                      ) : (
+                        (step.requiredActions || []).map((act, actIdx) => (
+                          <div key={actIdx} className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 shadow-sm space-y-3 transition-all hover:border-slate-300">
+                            {/* Input Field Name */}
+                            <div className="w-full">
+                              <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Input Label / Question Text</label>
+                              <input 
+                                type="text" 
+                                value={act.label} 
+                                placeholder="e.g., Postcode, Site Assessment Report, Customer Signature"
+                                onChange={(e) => {
+                                  const updated = [...(step.requiredActions || [])];
+                                  updated[actIdx].label = e.target.value;
+                                  onUpdate("requiredActions", updated);
+                                }}
+                                className="w-full text-xs font-semibold border border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-blue-400 outline-none transition"
+                              />
+                            </div>
+
+                            {/* Type and Controls Row */}
+                            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200/40">
+                              {/* Left Side: Type Dropdown */}
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-black text-slate-400 uppercase">Type:</span>
+                                <select 
+                                  value={act.fileType} 
+                                  onChange={(e) => {
+                                    const updated = [...(step.requiredActions || [])];
+                                    updated[actIdx].fileType = e.target.value;
+                                    onUpdate("requiredActions", updated);
+                                  }}
+                                  className="text-xs border border-slate-250 rounded-lg px-2 py-1 bg-white font-bold text-slate-700 outline-none focus:border-blue-400 transition"
+                                >
+                                  <option value="pdf">📄 PDF Document File</option>
+                                  <option value="image">📷 Photo / Image File</option>
+                                  <option value="text">✍️ Text / Manual Input</option>
+                                </select>
+                              </div>
+
+                              {/* Right Side: Mandatory and Delete */}
+                              <div className="flex items-center gap-2.5">
+                                <label className="flex items-center gap-1 text-[11px] font-bold text-slate-600 cursor-pointer select-none">
+                                  <input 
+                                    type="checkbox" 
+                                    checked={act.required !== false} 
+                                    onChange={(e) => {
+                                      const updated = [...(step.requiredActions || [])];
+                                      updated[actIdx].required = e.target.checked;
+                                      onUpdate("requiredActions", updated);
+                                    }}
+                                    className="rounded border-slate-350 text-yellow-500 focus:ring-yellow-400 w-3 h-3"
+                                  />
+                                  Required
+                                </label>
+                                
+                                <div className="h-3 w-px bg-slate-300" />
+
+                                <button 
+                                  type="button" 
+                                  onClick={() => {
+                                    const updated = (step.requiredActions || []).filter((_, i) => i !== actIdx);
+                                    onUpdate("requiredActions", updated);
+                                  }} 
+                                  className="text-red-500 hover:text-red-650 hover:bg-red-50 p-1 rounded-lg border border-transparent hover:border-red-100 transition flex items-center gap-1 text-[11px] font-black"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" /> Remove
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
-                    <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        id={`docInput-${index}`}
-                        className="flex-1 text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400/40"
-                        placeholder="e.g. Aadhar Card"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            const val = e.target.value.trim();
-                            if (val && !(step.documentRequirements || []).includes(val)) {
-                              onUpdate("documentRequirements", [...(step.documentRequirements || []), val]);
-                              e.target.value = "";
-                            }
-                          }
-                        }}
-                      />
+                    
+                    <div className="mt-3 bg-white p-3 rounded-xl border border-slate-250/80 shadow-sm space-y-2">
                       <button 
                         type="button"
                         onClick={() => {
-                          const input = document.getElementById(`docInput-${index}`);
-                          const val = input.value.trim();
-                          if (val && !(step.documentRequirements || []).includes(val)) {
-                            onUpdate("documentRequirements", [...(step.documentRequirements || []), val]);
-                            input.value = "";
-                          }
+                          const updated = [...(step.requiredActions || []), { label: "", fileType: "pdf", required: true }];
+                          onUpdate("requiredActions", updated);
                         }}
-                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl text-slate-700 text-sm font-semibold"
+                        className="w-full py-2.5 bg-yellow-400 hover:bg-yellow-500 text-yellow-950 text-xs font-black rounded-lg transition-all shadow-sm flex items-center justify-center gap-1.5"
                       >
-                        Add
+                        <Plus className="w-3.5 h-3.5 font-bold" /> Add Custom Input Field / File
                       </button>
+                      <p className="text-[10px] text-slate-400 text-center font-medium">Add document uploads or text fields required from customer/installer for this step.</p>
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-1">Type document name and press Add or Enter.</p>
-                  </div>
-                  
-                  <div className="mt-4 pt-4 border-t border-slate-100">
-                    <label className="text-xs font-black text-slate-600 uppercase block mb-3">Required Input Action Slots per Step</label>
-                    <div className="space-y-2 mb-3">
-                      {(step.requiredActions || []).map((act, actIdx) => (
-                        <div key={actIdx} className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                          <input 
-                            type="text" 
-                            value={act.label} 
-                            placeholder="Slot Label (e.g. Upload Electricity Bill)"
-                            onChange={(e) => {
-                              const updated = [...(step.requiredActions || [])];
-                              updated[actIdx].label = e.target.value;
-                              onUpdate("requiredActions", updated);
-                            }}
-                            className="flex-1 text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white"
-                          />
-                          <select 
-                            value={act.fileType} 
-                            onChange={(e) => {
-                              const updated = [...(step.requiredActions || [])];
-                              updated[actIdx].fileType = e.target.value;
-                              onUpdate("requiredActions", updated);
-                            }}
-                            className="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white font-medium"
-                          >
-                            <option value="pdf">PDF File</option>
-                            <option value="image">Photo/Image</option>
-                            <option value="text">Text Input</option>
-                          </select>
-                          <label className="flex items-center gap-1 text-[11px] font-bold text-slate-500">
-                            <input 
-                              type="checkbox" 
-                              checked={act.required !== false} 
-                              onChange={(e) => {
-                                const updated = [...(step.requiredActions || [])];
-                                updated[actIdx].required = e.target.checked;
-                                onUpdate("requiredActions", updated);
-                              }}
-                              className="rounded border-slate-300"
-                            />
-                            Required
-                          </label>
-                          <button 
-                            type="button" 
-                            onClick={() => {
-                              const updated = (step.requiredActions || []).filter((_, i) => i !== actIdx);
-                              onUpdate("requiredActions", updated);
-                            }} 
-                            className="text-red-500 hover:text-red-700 font-bold px-1.5 py-0.5 hover:bg-red-50 rounded"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        const updated = [...(step.requiredActions || []), { label: "", fileType: "pdf", required: true }];
-                        onUpdate("requiredActions", updated);
-                      }}
-                      className="px-3 py-1.5 bg-yellow-400 hover:bg-yellow-500 text-slate-800 text-xs font-bold rounded-lg transition-all"
-                    >
-                      + Add Action Slot
-                    </button>
-                    <p className="text-[10px] text-slate-400 mt-1">Configure individual file/text uploads required from customer/installer for this step.</p>
                   </div>
                 </div>
               )}
@@ -570,9 +545,15 @@ const JourneyCard = ({ journey, journeyIndex, onUpdateJourney, onRemoveJourney, 
   const enabledSteps = (journey.steps || []).filter(s => s.enabled).length;
   const totalSteps = (journey.steps || []).length;
 
-  const updateStep = (stepIndex, field, value) => {
+  const updateStep = (stepIndex, fieldOrObj, value) => {
     const newSteps = clone(journey.steps);
-    newSteps[stepIndex][field] = value;
+    if (typeof fieldOrObj === 'object' && fieldOrObj !== null) {
+      Object.entries(fieldOrObj).forEach(([k, v]) => {
+        newSteps[stepIndex][k] = v;
+      });
+    } else {
+      newSteps[stepIndex][fieldOrObj] = value;
+    }
     onUpdateJourney(journeyIndex, "steps", newSteps);
   };
 

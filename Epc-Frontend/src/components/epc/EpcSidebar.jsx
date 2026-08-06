@@ -1,5 +1,7 @@
-import { NavLink } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { NavLink, useParams } from 'react-router-dom';
 import { useEpcAuth } from '../../context/EpcAuthContext';
+import epcApi from '../../api/epcApi';
 
 const navItems = [
   {
@@ -62,6 +64,26 @@ const planColors = {
 
 const EpcSidebar = ({ collapsed, setCollapsed, darkMode, setDarkMode }) => {
   const { epc, logout } = useEpcAuth();
+  const { countryPrefix } = useParams();
+  const [unacceptedCount, setUnacceptedCount] = useState(0);
+
+  const fetchUnacceptedCount = async () => {
+    try {
+      const { data } = await epcApi.get('/api/epc/enquiries');
+      if (Array.isArray(data)) {
+        const count = data.filter(enq => ['Open For EPC', 'Bid Running', 'New'].includes(enq.status)).length;
+        setUnacceptedCount(count);
+      }
+    } catch (e) {
+      console.warn('Enquiries badge fetch skipped:', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchUnacceptedCount();
+    const interval = setInterval(fetchUnacceptedCount, 20000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <aside className={`${collapsed ? 'w-16' : 'w-60'} transition-all duration-300 bg-gray-900 border-r border-gray-800 flex flex-col h-screen sticky top-0 z-40`}>
@@ -88,22 +110,37 @@ const EpcSidebar = ({ collapsed, setCollapsed, darkMode, setDarkMode }) => {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                isActive
-                  ? 'bg-blue-600/15 text-blue-400 font-medium'
-                  : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
-              }`
-            }
-          >
-            <span className="flex-shrink-0">{item.icon}</span>
-            {!collapsed && <span className="truncate">{item.label}</span>}
-          </NavLink>
-        ))}
+        {navItems.map((item) => {
+          const resolvedPath = countryPrefix ? `/${countryPrefix.toLowerCase()}${item.path}` : item.path;
+          return (
+            <NavLink
+              key={item.path}
+              to={resolvedPath}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 transform hover:translate-x-1 ${
+                  isActive
+                    ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-900/30'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                }`
+              }
+            >
+              <span className="flex-shrink-0">{item.icon}</span>
+              {!collapsed && (
+                <div className="flex-1 flex items-center justify-between min-w-0">
+                  <span className="truncate">{item.label}</span>
+                  {item.label === 'My Enquiries' && unacceptedCount > 0 && (
+                    <span 
+                      className="ml-2 px-2 py-0.5 text-[10px] font-black bg-rose-500 hover:bg-rose-600 text-white rounded-full transition-colors animate-pulse shrink-0"
+                      title={`${unacceptedCount} unaccepted enquiries`}
+                    >
+                      {unacceptedCount}
+                    </span>
+                  )}
+                </div>
+              )}
+            </NavLink>
+          );
+        })}
       </nav>
 
       {/* Bottom */}

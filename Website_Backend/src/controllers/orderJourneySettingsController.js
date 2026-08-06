@@ -1,4 +1,5 @@
 import { OrderJourneySettings } from "../models/OrderJourneySettings.js";
+import { ProjectOrder } from "../models/ProjectModel.js";
 
 // ── Default journey data ──────────────────────────────────────────────────────
 const INDIA_RESIDENTIAL = {
@@ -294,7 +295,12 @@ export const getOrderJourneySettings = async (req, res) => {
 
 export const saveOrderJourneySettings = async (req, res) => {
   try {
-    const { country, state, district, discom, journeys, globalSettings } = req.body;
+    const country = req.body.country || req.headers['x-country'] || 'india';
+    const state = req.body.state || req.headers['x-state'] || 'all';
+    const district = req.body.district || req.headers['x-district'] || 'all';
+    const discom = req.body.discom || req.headers['x-discom'] || 'all';
+    const { journeys, globalSettings } = req.body;
+
     let settings = await OrderJourneySettings.findOne({ country, state, district, discom: discom || 'all' });
 
     if (!settings) {
@@ -307,7 +313,53 @@ export const saveOrderJourneySettings = async (req, res) => {
     if (globalSettings) settings.globalSettings = globalSettings;
 
     await settings.save();
-    res.json({ success: true, data: settings, message: "Settings saved successfully" });
+
+    // Dynamically sync updated steps parameters to active, uncompleted project orders
+    if (journeys && journeys.length > 0) {
+      for (const j of journeys) {
+        const activeProjects = await ProjectOrder.find({
+          projectType: j.projectType,
+          status: { $nin: ["completed", "cancelled"] }
+        });
+
+        for (const p of activeProjects) {
+          let updated = false;
+          p.steps.forEach((step) => {
+            // Find corresponding step config in master journey (match by stepNumber or stepId or id)
+            const masterStep = j.steps.find((s) => 
+              s.id === step.stepId || 
+              s.id === step.id || 
+              s.stepId === step.stepId ||
+              s.stepNumber === step.stepNumber
+            );
+
+            if (masterStep) {
+              // Only sync settings if the step is not completed yet
+              if (step.status === "in-progress" || step.status === "pending" || step.status === "awaiting-approval") {
+                step.requiresDocumentUpload = masterStep.requiresDocumentUpload;
+                step.requiresDoc = masterStep.requiresDoc || masterStep.requiresDocumentUpload;
+                step.requiredActions = masterStep.requiredActions || [];
+                step.documentRequirements = masterStep.documentRequirements || [];
+                step.documentName = masterStep.documentName;
+                step.requiresAdminApproval = masterStep.requiresAdminApproval;
+                step.visibleToCustomer = masterStep.visibleToCustomer;
+                step.visibleToEpc = masterStep.visibleToEpc;
+                step.notifyCustomer = masterStep.notifyCustomer !== false;
+                step.notifyEPC = masterStep.notifyEPC || false;
+                step.notifyAdmin = masterStep.notifyAdmin || false;
+                updated = true;
+              }
+            }
+          });
+          if (updated) {
+            p.markModified("steps");
+            await p.save();
+          }
+        }
+      }
+    }
+
+    res.json({ success: true, data: settings, message: "Settings saved and active workflows synced successfully" });
   } catch (err) {
     console.error("saveOrderJourneySettings error:", err);
     if (err.name === "ValidationError") {

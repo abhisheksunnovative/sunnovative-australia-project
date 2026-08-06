@@ -9,51 +9,38 @@ const PROJECT_TYPES = [
 
 const ENQUIRY_TYPES = [
   {
-    key: 'ECommerce',
-    label: 'E Commerce Orders',
-    desc: 'Website se direct orders',
-    icon: (<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>),
-    colorClass: 'text-blue-600',
-    bgActive: 'bg-blue-600 border-blue-600',
-    bgInactive: 'bg-white border-blue-200 hover:border-blue-400',
-    countBg: 'bg-blue-50 text-blue-600 border-blue-200',
+    key: 'ECommerce', label: 'E Commerce', desc: 'Direct website orders',
+    icon: '🛒', grad: 'from-blue-500 to-blue-700', light: 'bg-blue-50 border-blue-200',
+    activeCls: 'bg-gradient-to-br from-blue-500 to-blue-700 text-white border-transparent shadow-lg shadow-blue-200',
+    inactiveCls: 'bg-white border-blue-200 hover:border-blue-400 text-blue-700',
   },
   {
-    key: 'Bidding',
-    label: 'Bidding Orders',
-    desc: 'Project >10kW bid system',
-    icon: (<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>),
-    colorClass: 'text-purple-600',
-    bgActive: 'bg-purple-600 border-purple-600',
-    bgInactive: 'bg-white border-purple-200 hover:border-purple-400',
-    countBg: 'bg-purple-50 text-purple-600 border-purple-200',
+    key: 'Bidding', label: 'Bidding', desc: 'Projects >10kW bid system',
+    icon: '📊', grad: 'from-purple-500 to-purple-700', light: 'bg-purple-50 border-purple-200',
+    activeCls: 'bg-gradient-to-br from-purple-500 to-purple-700 text-white border-transparent shadow-lg shadow-purple-200',
+    inactiveCls: 'bg-white border-purple-200 hover:border-purple-400 text-purple-700',
   },
   {
-    key: 'QuoteByEPC',
-    label: 'Quote by EPC',
-    desc: 'EPC ne customer ko quote diya',
-    icon: (<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>),
-    colorClass: 'text-green-600',
-    bgActive: 'bg-green-600 border-green-600',
-    bgInactive: 'bg-white border-green-200 hover:border-green-400',
-    countBg: 'bg-green-50 text-green-600 border-green-200',
+    key: 'QuoteByEPC', label: 'Quote by EPC', desc: 'EPC quoted to customer',
+    icon: '📋', grad: 'from-emerald-500 to-emerald-700', light: 'bg-emerald-50 border-emerald-200',
+    activeCls: 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white border-transparent shadow-lg shadow-emerald-200',
+    inactiveCls: 'bg-white border-emerald-200 hover:border-emerald-400 text-emerald-700',
   },
 ];
 
-const statusColors = {
-  Lead:                    'bg-gray-100 text-gray-600 border-gray-200',
-  'Token Paid':            'bg-blue-50 text-blue-600 border-blue-200',
-  'Order Generated':       'bg-indigo-50 text-indigo-600 border-indigo-200',
-  'Open For EPC':          'bg-yellow-50 text-yellow-600 border-yellow-200',
-  'Bid Running':           'bg-orange-50 text-orange-600 border-orange-200',
-  'EPC Accepted':          'bg-green-50 text-green-600 border-green-200',
-  'Customer Selected EPC': 'bg-teal-50 text-teal-600 border-teal-200',
-  Converted:               'bg-green-50 text-green-700 border-green-300',
-  Expired:                 'bg-gray-100 text-gray-400 border-gray-200',
-  Rejected:                'bg-red-50 text-red-500 border-red-200',
-  New:                     'bg-blue-50 text-blue-600 border-blue-200',
-  Accepted:                'bg-yellow-50 text-yellow-600 border-yellow-200',
-  CustomerPending:         'bg-orange-50 text-orange-600 border-orange-200',
+const statusConfig = {
+  Lead:                    { cls: 'bg-gray-100 text-gray-600 border-gray-200', dot: 'bg-gray-400' },
+  'Token Paid':            { cls: 'bg-blue-50 text-blue-700 border-blue-200',  dot: 'bg-blue-500' },
+  'Order Generated':       { cls: 'bg-indigo-50 text-indigo-700 border-indigo-200', dot: 'bg-indigo-500' },
+  'Open For EPC':          { cls: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500' },
+  'Bid Running':           { cls: 'bg-orange-50 text-orange-700 border-orange-200', dot: 'bg-orange-500' },
+  'EPC Accepted':          { cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
+  'Customer Selected EPC': { cls: 'bg-teal-50 text-teal-700 border-teal-200', dot: 'bg-teal-500' },
+  Converted:               { cls: 'bg-green-50 text-green-800 border-green-300', dot: 'bg-green-600' },
+  Expired:                 { cls: 'bg-gray-100 text-gray-400 border-gray-200', dot: 'bg-gray-300' },
+  Rejected:                { cls: 'bg-red-50 text-red-600 border-red-200', dot: 'bg-red-500' },
+  New:                     { cls: 'bg-blue-50 text-blue-700 border-blue-200', dot: 'bg-blue-500' },
+  Accepted:                { cls: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500' },
 };
 
 const EpcMyEnquiries = () => {
@@ -64,6 +51,7 @@ const EpcMyEnquiries = () => {
   const [confirmingDateFor, setConfirmingDateFor] = useState(null);
   const [installDate, setInstallDate]   = useState('');
   const [msg, setMsg]                   = useState('');
+  const [msgType, setMsgType]           = useState('info');
   const [selectedType, setSelectedType] = useState('');
   const [typeCounts, setTypeCounts]     = useState({ ECommerce: 0, Bidding: 0, QuoteByEPC: 0 });
   const [filterType, setFilterType]     = useState('');
@@ -76,42 +64,38 @@ const EpcMyEnquiries = () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (selectedType) params.set('enquiryType', selectedType);
-      if (filterType)   params.set('projectType', filterType);
+      if (selectedType)  params.set('enquiryType', selectedType);
+      if (filterType)    params.set('projectType', filterType);
       if (filterCountry) params.set('country', filterCountry);
-      if (filterState)  params.set('state', filterState);
-      if (filterDist)   params.set('district', filterDist);
-      if (filterStatus) params.set('status', filterStatus);
+      if (filterState)   params.set('state', filterState);
+      if (filterDist)    params.set('district', filterDist);
+      if (filterStatus)  params.set('status', filterStatus);
 
       const { data } = await epcApi.get(`/api/epc/enquiries?${params}`);
       setEnquiries(data);
-
-      // Counts update — sirf jab koi type filter nahi
       if (!selectedType) {
         const counts = { ECommerce: 0, Bidding: 0, QuoteByEPC: 0 };
-        data.forEach(e => {
-          if (e.enquiryType && counts[e.enquiryType] !== undefined) counts[e.enquiryType]++;
-        });
+        data.forEach(e => { if (e.enquiryType && counts[e.enquiryType] !== undefined) counts[e.enquiryType]++; });
         setTypeCounts(counts);
       }
     } catch (error) {
       console.error('Error fetching enquiries:', error);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   useEffect(() => { load(); }, [selectedType, filterType, filterCountry, filterState, filterDist, filterStatus]);
 
   const handleAccept = async (enq) => {
-    if (!window.confirm(`Accept this project? This will deduct ${enq.systemCapacityKw || 1} kW points from your wallet balance.`)) return;
+    if (!window.confirm(`Accept this project? This will deduct ${enq.systemCapacityKw || 1} kW points from your wallet.`)) return;
     setAccepting(enq._id);
     try {
       await epcApi.put(`/api/epc/enquiries/${enq._id}/accept`);
-      setMsg(`Enquiry accepted! Deducted ${enq.systemCapacityKw || 1} kW points. You must confirm installation date within 24 hours.`);
+      setMsg(`✅ Enquiry accepted! Confirm installation date within 24 hours.`);
+      setMsgType('success');
       load();
     } catch (error) {
       setMsg(error.response?.data?.message || 'Failed to accept');
+      setMsgType('error');
     } finally {
       setAccepting(null);
       setTimeout(() => setMsg(''), 6000);
@@ -122,99 +106,116 @@ const EpcMyEnquiries = () => {
     if (!installDate) return alert('Please select a proposed installation date.');
     try {
       await epcApi.put(`/api/epc/enquiries/${id}/confirm-date`, { scheduledInstallDate: installDate });
-      setMsg('Installation date proposed to customer!');
-      setConfirmingDateFor(null);
-      setInstallDate('');
-      load();
+      setMsg('📅 Installation date proposed to customer!');
+      setMsgType('success');
+      setConfirmingDateFor(null); setInstallDate(''); load();
     } catch (error) {
       setMsg(error.response?.data?.message || 'Failed to confirm date');
+      setMsgType('error');
       setTimeout(() => setMsg(''), 4000);
     }
   };
 
-  const clearAll = () => {
-    setSelectedType('');
-    setFilterType('');
-    setFilterCountry('');
-    setFilterState('');
-    setFilterDist('');
-    setFilterStatus('');
-  };
+  const clearAll = () => { setSelectedType(''); setFilterType(''); setFilterCountry(''); setFilterState(''); setFilterDist(''); setFilterStatus(''); };
+  const hasFilters = filterType || filterCountry || filterState || filterDist || filterStatus || selectedType;
+  const unacceptedCount = enquiries.filter(e => ['Open For EPC', 'Bid Running', 'New'].includes(e.status)).length;
 
-  const inputCls = 'bg-white border border-gray-300 text-gray-700 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500';
+  const inputCls = 'bg-white border border-gray-200 text-gray-700 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all';
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+
+      {/* ── PAGE HEADER ── */}
+      <div className="page-header flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-gray-800 text-xl font-bold">My Enquiries</h2>
-          <p className="text-gray-500 text-sm mt-0.5">Project-wise leads in your active districts</p>
+          <h2 className="text-white text-2xl font-black tracking-tight">My Enquiries</h2>
+          <p className="text-slate-400 text-sm mt-1">Solar leads in your active districts</p>
         </div>
-        <button onClick={load} className="text-gray-400 hover:text-blue-600 p-2 rounded-lg hover:bg-blue-50 transition-colors">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-3">
+          {unacceptedCount > 0 && (
+            <div className="flex items-center gap-2 bg-amber-400/20 border border-amber-400/40 text-amber-300 px-3 py-1.5 rounded-full text-xs font-bold animate-pulse-slow">
+              🔔 {unacceptedCount} awaiting acceptance
+            </div>
+          )}
+          <button onClick={load} className="p-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors" title="Refresh">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+        </div>
       </div>
 
+      {/* ── TOAST MESSAGE ── */}
       {msg && (
-        <div className="bg-blue-50 border border-blue-200 text-blue-700 text-sm rounded-lg px-4 py-3">{msg}</div>
+        <div className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium border ${
+          msgType === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+          : msgType === 'error' ? 'bg-red-50 border-red-200 text-red-700'
+          : 'bg-blue-50 border-blue-200 text-blue-700'
+        }`}>
+          <span>{msg}</span>
+          <button onClick={() => setMsg('')} className="ml-auto text-current opacity-50 hover:opacity-100">✕</button>
+        </div>
       )}
 
-      {/* ── 3 Type Cards ── */}
-      <div className="grid grid-cols-3 gap-4">
+      {/* ── ENQUIRY TYPE CARDS ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {ENQUIRY_TYPES.map(type => {
           const isActive = selectedType === type.key;
           return (
             <button key={type.key}
               onClick={() => setSelectedType(isActive ? '' : type.key)}
-              className={`rounded-xl p-5 border-2 text-left transition-all hover:shadow-md ${isActive ? type.bgActive : type.bgInactive}`}>
-              <div className={`mb-3 ${isActive ? 'text-white' : type.colorClass}`}>{type.icon}</div>
-              <p className={`text-sm font-bold mb-0.5 ${isActive ? 'text-white' : 'text-gray-800'}`}>{type.label}</p>
-              <p className={`text-xs mb-3 ${isActive ? 'text-white/80' : 'text-gray-500'}`}>{type.desc}</p>
-              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${
-                isActive ? 'bg-white/20 text-white border-white/20' : type.countBg
-              }`}>
-                {typeCounts[type.key]} enquiries
+              className={`rounded-2xl p-5 border-2 text-left transition-all duration-300 hover:-translate-y-0.5 ${isActive ? type.activeCls : type.inactiveCls}`}>
+              <div className="text-3xl mb-3">{type.icon}</div>
+              <p className={`text-sm font-black mb-0.5 ${isActive ? 'text-white' : 'text-gray-800'}`}>{type.label}</p>
+              <p className={`text-xs mb-3 ${isActive ? 'text-white/70' : 'text-gray-500'}`}>{type.desc}</p>
+              <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-current/10 text-current'}`}>
+                {typeCounts[type.key]} leads
               </span>
             </button>
           );
         })}
       </div>
 
-      {/* ── Filters ── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4">
+      {/* ── FILTERS ── */}
+      <div className="filter-bar">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Filters</p>
+          {hasFilters && (
+            <button onClick={clearAll} className="text-xs text-red-500 hover:text-red-700 font-semibold flex items-center gap-1">
+              ✕ Clear All
+            </button>
+          )}
+        </div>
         <div className="flex items-end gap-3 flex-wrap">
           <div>
-            <label className="block text-gray-500 text-xs mb-1">Project Type</label>
+            <label className="block text-gray-400 text-xs mb-1 font-medium">Project Type</label>
             <select value={filterType} onChange={e => setFilterType(e.target.value)} className={inputCls}>
               <option value="">All Types</option>
               {PROJECT_TYPES.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-gray-500 text-xs mb-1">Country</label>
+            <label className="block text-gray-400 text-xs mb-1 font-medium">Country</label>
             <select value={filterCountry} onChange={e => setFilterCountry(e.target.value)} className={inputCls}>
               <option value="">All Countries</option>
-              <option value="India">India</option>
-              <option value="Australia">Australia</option>
-              <option value="New Zealand">New Zealand</option>
+              <option value="India">🇮🇳 India</option>
+              <option value="Australia">🇦🇺 Australia</option>
+              <option value="New Zealand">🇳🇿 New Zealand</option>
             </select>
           </div>
           <div>
-            <label className="block text-gray-500 text-xs mb-1">State</label>
-            <input type="text" value={filterState} onChange={e => setFilterState(e.target.value)} placeholder="State" className={`${inputCls} w-24`} />
+            <label className="block text-gray-400 text-xs mb-1 font-medium">State</label>
+            <input type="text" value={filterState} onChange={e => setFilterState(e.target.value)} placeholder="State" className={`${inputCls} w-28`} />
           </div>
           <div>
-            <label className="block text-gray-500 text-xs mb-1">District</label>
+            <label className="block text-gray-400 text-xs mb-1 font-medium">District</label>
             <select value={filterDist} onChange={e => setFilterDist(e.target.value)} className={inputCls}>
               <option value="">All Districts</option>
               {(epc?.activeDistricts || []).map(d => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-gray-500 text-xs mb-1">Status</label>
+            <label className="block text-gray-400 text-xs mb-1 font-medium">Status</label>
             <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className={inputCls}>
               <option value="">All Status</option>
               <option value="Open For EPC">Open For EPC</option>
@@ -225,116 +226,135 @@ const EpcMyEnquiries = () => {
               <option value="Expired">Expired</option>
             </select>
           </div>
-          {(filterType || filterCountry || filterState || filterDist || filterStatus || selectedType) && (
-            <button onClick={clearAll} className="text-xs text-red-500 border border-red-200 bg-red-50 px-3 py-2 rounded-lg">
-              Clear All
-            </button>
-          )}
-          <span className="text-gray-400 text-xs ml-auto self-end pb-2">{enquiries.length} enquiries</span>
+          <span className="text-gray-400 text-xs ml-auto font-medium">{enquiries.length} results</span>
         </div>
       </div>
 
-      {/* ── List ── */}
+      {/* ── LIST ── */}
       {loading ? (
-        <div className="text-center py-12 text-gray-400">Loading enquiries...</div>
+        <div className="space-y-3">
+          {[1,2,3].map(i => (
+            <div key={i} className="rounded-2xl overflow-hidden">
+              <div className="skeleton h-28" />
+            </div>
+          ))}
+        </div>
       ) : enquiries.length === 0 ? (
-        <div className="text-center py-12 bg-white border border-gray-200 rounded-xl">
-          <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-            <svg className="w-7 h-7 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-            </svg>
-          </div>
-          <p className="text-gray-400 text-sm">No enquiries found</p>
+        <div className="text-center py-16 bg-white border border-gray-100 rounded-2xl shadow-premium">
+          <div className="text-5xl mb-4">📭</div>
+          <h3 className="text-gray-700 font-bold text-lg mb-1">No Enquiries Found</h3>
+          <p className="text-gray-400 text-sm">Try adjusting your filters or check back later</p>
+          {hasFilters && (
+            <button onClick={clearAll} className="mt-4 text-blue-600 text-sm font-semibold hover:underline">Clear all filters</button>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
-          {enquiries.map(enq => (
-            <div key={enq._id}
-              className="bg-white border border-gray-200 rounded-xl p-5 hover:border-blue-300 hover:shadow-sm transition-all">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <span className={`text-xs px-2 py-0.5 rounded border font-medium ${statusColors[enq.status] || 'bg-gray-100 text-gray-500 border-gray-200'}`}>
-                      {enq.status}
-                    </span>
-                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200">
-                      {enq.projectType}
-                    </span>
-                    {enq.enquiryType && (
-                      <span className={`text-xs px-2 py-0.5 rounded border font-medium ${
-                        enq.enquiryType === 'ECommerce'  ? 'bg-blue-50 text-blue-600 border-blue-200' :
-                        enq.enquiryType === 'Bidding'    ? 'bg-purple-50 text-purple-600 border-purple-200' :
-                        'bg-green-50 text-green-600 border-green-200'
-                      }`}>
-                        {enq.enquiryType === 'ECommerce' ? 'E Commerce' :
-                         enq.enquiryType === 'Bidding'   ? 'Bidding' : 'Quote by EPC'}
-                      </span>
-                    )}
-                    {enq.orderNumber && <span className="text-xs text-gray-400 font-mono">#{enq.orderNumber}</span>}
+          {enquiries.map(enq => {
+            const sc = statusConfig[enq.status] || { cls: 'bg-gray-100 text-gray-500 border-gray-200', dot: 'bg-gray-400' };
+            const isNew = ['Open For EPC', 'Bid Running', 'New'].includes(enq.status);
+            return (
+              <div key={enq._id}
+                className={`card-row overflow-hidden ${isNew ? 'border-amber-300 shadow-amber-50' : ''}`}>
+                {isNew && (
+                  <div className="bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[10px] font-black px-4 py-1.5 flex items-center gap-2">
+                    <span className="animate-pulse">●</span> NEW LEAD — Accept before it expires!
                   </div>
-                  <h3 className="text-gray-800 font-semibold">{enq.customerName}</h3>
-                  <div className="flex items-center gap-4 mt-1 text-gray-500 text-xs flex-wrap">
-                    <span>📱 {enq.customerMobile}</span>
-                    <span>📍 {enq.district}{enq.city ? `, ${enq.city}` : ''}</span>
-                    {enq.systemCapacityKw && <span>⚡ {enq.systemCapacityKw} kW</span>}
-                    <span>🕒 {new Date(enq.createdAt).toLocaleDateString('en-IN')}</span>
-                  </div>
-                  {enq.customerSelectionDeadline && ['EPC Accepted', 'Accepted'].includes(enq.status) && (
-                    <div className="mt-2 space-y-2">
-                      <p className="text-orange-600 text-xs bg-orange-50 px-2 py-1 rounded inline-block">
-                        ⏳ Please propose installation date and upload KYC documents before: {new Date(enq.customerSelectionDeadline).toLocaleString('en-IN')}
-                      </p>
-                      {confirmingDateFor === enq._id ? (
-                        <div className="flex flex-col gap-3 mt-2 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                          <h4 className="text-gray-800 text-sm font-semibold mb-1">Confirm Installation Details</h4>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-gray-500 text-xs mb-1">Proposed Install Date</label>
-                              <input type="date" value={installDate} onChange={(e) => setInstallDate(e.target.value)} className={`${inputCls} w-full`} min={new Date().toISOString().split('T')[0]} />
-                            </div>
-                            <div>
-                              <label className="block text-gray-500 text-xs mb-1">Upload Customer KYC (PDF/JPG)</label>
-                              <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="block w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 bg-white border border-gray-200 rounded-lg p-1" />
-                            </div>
-                            <div>
-                              <label className="block text-gray-500 text-xs mb-1">MNRE Registration Letter (PDF)</label>
-                              <input type="file" accept=".pdf" className="block w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 bg-white border border-gray-200 rounded-lg p-1" />
-                            </div>
-                          </div>
+                )}
+                <div className="p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      {/* Status + Tags */}
+                      <div className="flex items-center gap-2 mb-3 flex-wrap">
+                        <span className={`status-pill ${sc.cls}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${sc.dot} mr-1.5 shrink-0`}></span>
+                          {enq.status}
+                        </span>
+                        <span className="status-pill bg-gray-100 text-gray-600 border-gray-200">{enq.projectType}</span>
+                        {enq.enquiryType && (
+                          <span className={`status-pill ${
+                            enq.enquiryType === 'ECommerce'  ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                            enq.enquiryType === 'Bidding'    ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                            'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          }`}>
+                            {enq.enquiryType === 'ECommerce' ? '🛒 E-Commerce' : enq.enquiryType === 'Bidding' ? '📊 Bidding' : '📋 Quote'}
+                          </span>
+                        )}
+                        {enq.orderNumber && <span className="text-xs text-gray-400 font-mono bg-gray-50 px-2 py-0.5 rounded-lg border border-gray-200">#{enq.orderNumber}</span>}
+                      </div>
 
-                          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-200">
-                            <button onClick={() => handleConfirmDate(enq._id)} className="bg-green-600 text-white text-xs px-4 py-2 rounded-lg hover:bg-green-700 font-medium">Confirm & Submit Docs</button>
-                            <button onClick={() => {setConfirmingDateFor(null); setInstallDate('');}} className="text-gray-500 text-xs px-3 py-2 rounded-lg hover:bg-gray-100">Cancel</button>
+                      {/* Customer Info */}
+                      <h3 className="text-gray-800 font-black text-base">{enq.customerName}</h3>
+                      <div className="flex items-center gap-x-4 gap-y-1 mt-1.5 text-gray-500 text-xs flex-wrap">
+                        <span className="flex items-center gap-1">📱 {enq.customerMobile}</span>
+                        <span className="flex items-center gap-1">📍 {enq.district}{enq.city ? `, ${enq.city}` : ''}</span>
+                        {enq.systemCapacityKw && <span className="flex items-center gap-1 text-amber-600 font-semibold">⚡ {enq.systemCapacityKw} kW</span>}
+                        <span className="flex items-center gap-1">🗓️ {new Date(enq.createdAt).toLocaleDateString('en-IN')}</span>
+                      </div>
+
+                      {/* Date confirmation flow */}
+                      {enq.customerSelectionDeadline && ['EPC Accepted', 'Accepted'].includes(enq.status) && (
+                        <div className="mt-3 space-y-3">
+                          <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 text-orange-700 px-3 py-2 rounded-xl text-xs font-medium">
+                            ⏳ Propose install date before: <strong>{new Date(enq.customerSelectionDeadline).toLocaleString('en-IN')}</strong>
                           </div>
-                        </div>
-                      ) : (
-                        <div>
-                          <button onClick={() => setConfirmingDateFor(enq._id)} className="bg-orange-100 text-orange-700 text-xs font-medium px-4 py-1.5 rounded-lg border border-orange-200 hover:bg-orange-200 transition-colors">
-                            Propose Install Date & Upload Docs
-                          </button>
+                          {confirmingDateFor === enq._id ? (
+                            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+                              <h4 className="text-gray-800 text-sm font-bold">Confirm Installation Details</h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-gray-500 text-xs mb-1 font-medium">Proposed Install Date</label>
+                                  <input type="date" value={installDate} onChange={e => setInstallDate(e.target.value)}
+                                    className={`${inputCls} w-full`} min={new Date().toISOString().split('T')[0]} />
+                                </div>
+                                <div>
+                                  <label className="block text-gray-500 text-xs mb-1 font-medium">Customer KYC (PDF/JPG)</label>
+                                  <input type="file" accept=".pdf,.jpg,.jpeg,.png"
+                                    className="block w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 bg-white border border-gray-200 rounded-xl p-1" />
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 pt-1">
+                                <button onClick={() => handleConfirmDate(enq._id)}
+                                  className="flex-1 bg-emerald-600 text-white text-xs px-4 py-2.5 rounded-xl hover:bg-emerald-700 font-bold transition-colors">
+                                  ✔ Confirm & Submit
+                                </button>
+                                <button onClick={() => { setConfirmingDateFor(null); setInstallDate(''); }}
+                                  className="px-4 py-2.5 text-gray-500 text-xs rounded-xl hover:bg-gray-100 border border-gray-200 font-medium transition-colors">
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button onClick={() => setConfirmingDateFor(enq._id)}
+                              className="bg-orange-50 border border-orange-300 text-orange-700 text-xs font-bold px-4 py-2 rounded-xl hover:bg-orange-100 transition-colors flex items-center gap-2">
+                              📅 Propose Install Date & Upload Docs
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
-                  )}
+
+                    {/* Action Button */}
+                    <div className="flex-shrink-0 flex flex-col gap-2">
+                      {isNew && (
+                        <button onClick={() => handleAccept(enq)} disabled={accepting === enq._id}
+                          className="bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 disabled:opacity-50 text-white text-xs font-black px-5 py-2.5 rounded-xl transition-all shadow-md shadow-blue-200 hover:shadow-blue-300 hover:scale-105 active:scale-95">
+                          {accepting === enq._id ? (
+                            <span className="flex items-center gap-1.5"><span className="animate-spin">⏳</span> Accepting...</span>
+                          ) : '✔ Accept Lead'}
+                        </button>
+                      )}
+                      {enq.status === 'Converted' && (
+                        <span className="flex items-center gap-1.5 text-xs text-emerald-700 font-bold bg-emerald-50 px-3 py-2 rounded-xl border border-emerald-200">
+                          ✅ Order Created
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                {['Open For EPC', 'Bid Running', 'New'].includes(enq.status) && (
-                  <button onClick={() => handleAccept(enq)} disabled={accepting === enq._id}
-                    className="flex-shrink-0 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-medium px-4 py-2 rounded-lg transition-colors">
-                    {accepting === enq._id ? 'Accepting...' : 'Accept Order'}
-                  </button>
-                )}
-                {enq.status === 'Converted' && (
-                  <span className="flex-shrink-0 text-xs text-green-600 flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg border border-green-200">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Order Created
-                  </span>
-                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

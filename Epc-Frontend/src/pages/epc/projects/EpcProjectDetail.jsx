@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Check, XCircle, AlertCircle } from 'lucide-react';
 import epcApi from '../../../api/epcApi';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4005';
+
 // ── Shared Horizontal Tracker ──────────────────────────────────────────────────
 // ── Shared Horizontal Tracker ──────────────────────────────────────────────────
 function HorizontalJourneyTracker({ steps }) {
@@ -79,6 +81,13 @@ function HorizontalJourneyTracker({ steps }) {
   );
 }
 
+const SectionCard = ({ title, children }) => (
+  <div className="bg-white border border-gray-200 rounded-xl p-5">
+    <h3 className="text-gray-700 text-sm font-semibold mb-4">{title}</h3>
+    {children}
+  </div>
+);
+
 const EpcProjectDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -90,6 +99,8 @@ const EpcProjectDetail = () => {
   // Completion states
   const [uploadFile, setUploadFile] = useState(null);
   const [evidenceNote, setEvidenceNote] = useState("");
+  const [actionInputs, setActionInputs] = useState({});
+  const [errorMsg, setErrorMsg] = useState("");
   const fileRef = useRef();
 
   const load = async () => {
@@ -114,14 +125,95 @@ const EpcProjectDetail = () => {
     setTimeout(() => setMsg({ text: '', type: '' }), 4000);
   };
 
+  const handleFileChange = async (stepId, slotLabel, file) => {
+    if (!file) return;
+    setActionInputs(prev => ({
+      ...prev,
+      [stepId]: {
+        ...(prev[stepId] || {}),
+        [`${slotLabel}_uploading`]: true
+      }
+    }));
+
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const { data } = await epcApi.post('/api/upload-file', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (data.success) {
+        setActionInputs(prev => ({
+          ...prev,
+          [stepId]: {
+            ...(prev[stepId] || {}),
+            [slotLabel]: data.fileUrl,
+            [`${slotLabel}_uploading`]: false
+          }
+        }));
+      } else {
+        alert(data.message || "File upload failed");
+        setActionInputs(prev => ({
+          ...prev,
+          [stepId]: {
+            ...(prev[stepId] || {}),
+            [`${slotLabel}_uploading`]: false
+          }
+        }));
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error uploading file");
+      setActionInputs(prev => ({
+        ...prev,
+        [stepId]: {
+          ...(prev[stepId] || {}),
+          [`${slotLabel}_uploading`]: false
+        }
+      }));
+    }
+  };
+
+  const handleTextChange = (stepId, slotLabel, val) => {
+    setActionInputs(prev => ({
+      ...prev,
+      [stepId]: {
+        ...(prev[stepId] || {}),
+        [slotLabel]: val
+      }
+    }));
+  };
+
   const completeStep = async (stepId) => {
     if (!window.confirm(`Mark this step as complete?`)) return;
     setStageLoading(true);
+    setErrorMsg("");
     try {
       const fd = new FormData();
       fd.append('stepId', stepId);
       if (evidenceNote) fd.append('note', evidenceNote);
       if (uploadFile) fd.append('evidence', uploadFile);
+
+      const step = project.steps.find(s => s.stepId === stepId);
+      const reqActions = step?.requiredActions || [];
+      const uploadedActions = [];
+
+      for (const act of reqActions) {
+        const val = actionInputs[stepId]?.[act.label] || "";
+        if (act.required && !val) {
+          setErrorMsg(`Please fill/upload required field: ${act.label}`);
+          setStageLoading(false);
+          return;
+        }
+        uploadedActions.push({
+          label: act.label,
+          fileType: act.fileType,
+          value: val
+        });
+      }
+
+      if (uploadedActions.length > 0) {
+        fd.append("uploadedActions", JSON.stringify(uploadedActions));
+      }
 
       const { data } = await epcApi.post(`/api/epc/projects/${id}/complete-step`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -155,12 +247,7 @@ const EpcProjectDetail = () => {
 
   const activeEpcStep = project.steps?.find(s => s.assignedTo === 'epc-partner' && (s.status === 'in-progress' || s.status === 'pending'));
 
-  const SectionCard = ({ title, children }) => (
-    <div className="bg-white border border-gray-200 rounded-xl p-5">
-      <h3 className="text-gray-700 text-sm font-semibold mb-4">{title}</h3>
-      {children}
-    </div>
-  );
+
 
   return (
     <div className="space-y-5 max-w-4xl">
@@ -261,6 +348,28 @@ const EpcProjectDetail = () => {
                     {step.evidenceUrl && <a href={step.evidenceUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline font-bold">View Evidence</a>}
                   </div>
                 )}
+
+                {((isCompleted || isAwaitingApproval) && step.uploadedActions && step.uploadedActions.length > 0) && (
+                  <div className="bg-white p-3 rounded-lg border border-gray-200 space-y-2 mt-2 text-left">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-wider">Completed Action Fields / Uploads</p>
+                    {step.uploadedActions.map((act, actIdx) => (
+                      <div key={actIdx} className="flex justify-between items-center text-xs border-b border-gray-100 pb-1.5 last:border-0 last:pb-0">
+                        <span className="font-semibold text-gray-600">{act.label}:</span>
+                        {act.fileType === "text" ? (
+                          <span className="text-gray-800 font-medium">{act.value || "—"}</span>
+                        ) : (
+                          act.value ? (
+                            <a href={`${API_BASE}${act.value}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline flex items-center gap-1 font-bold">
+                              <span>📂</span> View {act.label}
+                            </a>
+                          ) : (
+                            <span className="text-gray-400 italic">No file uploaded</span>
+                          )
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 
                  {isActive && isEPC && (() => {
                    const origIdx = project.steps.findIndex(s => s.stepId === step.stepId);
@@ -274,30 +383,131 @@ const EpcProjectDetail = () => {
                            Pehle isse pichle saare steps complete hone chahiye. / Please complete all previous steps first.
                          </div>
                        ) : (
-                         <div className="space-y-3">
-                           <input 
-                             type="text" 
-                             placeholder="Add a note (optional)..."
-                             className="w-full text-sm border border-gray-300 rounded p-2 focus:ring-1 focus:ring-orange-500"
-                             value={evidenceNote}
-                             onChange={e => setEvidenceNote(e.target.value)}
-                           />
-                           <div className="flex items-center gap-3">
-                             <input 
-                               type="file" 
-                               ref={fileRef}
-                               onChange={e => setUploadFile(e.target.files?.[0])}
-                               className="text-xs text-gray-500"
-                             />
-                             <button 
-                               onClick={() => completeStep(step.stepId)}
-                               disabled={stageLoading}
-                               className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-colors ml-auto shadow-sm cursor-pointer"
-                             >
-                               {stageLoading ? 'Saving...' : 'Submit & Complete Step'}
-                             </button>
-                           </div>
-                         </div>
+                           <div className="space-y-4">
+                             {(step.stepNumber === 4 || step.title?.includes("System Design")) && (
+                               <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-xl mb-3 space-y-2">
+                                 <div className="flex items-center gap-2 text-amber-900 font-bold text-xs uppercase tracking-wider">
+                                   <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                                   Clean Energy Council (CEC) Compliance Warning
+                                 </div>
+                                 <p className="text-[11px] text-amber-800 leading-relaxed font-semibold">
+                                   Attention EPC Installer: Australian federal law requires all solar equipment specified in your system design layout (Step 4) to be Clean Energy Council (CEC) Approved to qualify for STC discount rebates.
+                                 </p>
+                                 <div className="bg-white/90 p-2.5 rounded-lg text-[10px] text-amber-950 space-y-1.5 font-medium border border-amber-200/50 shadow-inner">
+                                   <p className="font-bold text-[10.5px] border-b border-amber-250 pb-1 text-amber-900">🛡️ SYSTEM VALIDATION CHECKS ON SAVE:</p>
+                                   <ul className="list-disc pl-4 space-y-1">
+                                     <li><strong>Installer Accreditation:</strong> The system verifies your active installer's <strong>CEC Accreditation Number</strong> saved under your company profile.</li>
+                                     <li><strong>Approved Products:</strong> Panels, Inverters, and Battery models listed in your design are cross-matched against the system's approved brand database.</li>
+                                     <li><strong>STC Validation:</strong> Serial barcodes uploaded during Step 8 will be validated against approved batches before rebate settlement.</li>
+                                   </ul>
+                                 </div>
+                                </div>
+                             )}
+                            {/* Dynamic required actions fields rendering */}
+                            {step.requiredActions && step.requiredActions.length > 0 ? (
+                              <div className="space-y-3 p-3 bg-gray-50 border border-gray-200 rounded-xl">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Required Inputs & Uploads</p>
+                                {step.requiredActions.map((act, actIdx) => {
+                                  const value = actionInputs[step.stepId]?.[act.label] || "";
+                                  const uploading = actionInputs[step.stepId]?.[`${act.label}_uploading`];
+
+                                  return (
+                                    <div key={actIdx} className="flex flex-col gap-1.5">
+                                      <label className="text-xs font-bold text-gray-700">
+                                        {act.label} {act.required !== false && <span className="text-red-500">*</span>}
+                                      </label>
+                                      {act.fileType === "text" ? (
+                                        <input 
+                                          type="text" 
+                                          value={value} 
+                                          onChange={(e) => handleTextChange(step.stepId, act.label, e.target.value)}
+                                          placeholder={`Enter ${act.label}...`}
+                                          className="w-full text-xs border border-gray-300 rounded p-2 focus:ring-1 focus:ring-orange-500 bg-white focus:outline-none"
+                                        />
+                                      ) : value ? (
+                                        <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 text-xs">
+                                          <div className="flex items-center gap-2 text-emerald-800 font-semibold truncate flex-1">
+                                            <span>{act.fileType === "image" ? "📷" : "📄"}</span>
+                                            <a 
+                                              href={`${API_BASE}${value}`} 
+                                              target="_blank" 
+                                              rel="noreferrer" 
+                                              className="underline hover:text-emerald-950 truncate max-w-[250px]"
+                                              title="Click to view uploaded file"
+                                            >
+                                              {value.split('/').pop() || "Uploaded File"}
+                                            </a>
+                                            <span className="text-[10px] bg-emerald-100 px-1.5 py-0.5 rounded text-emerald-700 font-bold shrink-0">✓ Uploaded</span>
+                                          </div>
+                                          <button 
+                                            type="button"
+                                            onClick={() => {
+                                              setActionInputs(prev => {
+                                                const next = { ...prev };
+                                                if (next[step.stepId]) {
+                                                  delete next[step.stepId][act.label];
+                                                }
+                                                return next;
+                                              });
+                                            }}
+                                            className="text-red-600 hover:text-red-700 hover:underline font-bold ml-3 shrink-0"
+                                          >
+                                            Change File
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center gap-3 bg-white p-2 border border-gray-200 rounded-lg">
+                                          <input 
+                                            type="file" 
+                                            onChange={(e) => handleFileChange(step.stepId, act.label, e.target.files?.[0])}
+                                            className="text-xs text-gray-500 flex-1"
+                                          />
+                                          {uploading ? (
+                                            <span className="text-xs text-orange-600 font-bold animate-pulse">Uploading...</span>
+                                          ) : (
+                                            <span className="text-xs text-gray-400">No file</span>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : step.requiresDoc ? (
+                              <div className="flex flex-col gap-1.5 p-3 bg-gray-50 border border-gray-200 rounded-xl">
+                                <span className="text-xs font-bold text-gray-700">
+                                  Required Document: {step.documentRequirements?.join(", ") || step.documentName || "Document"}
+                                </span>
+                                <input 
+                                  type="file" 
+                                  ref={fileRef}
+                                  onChange={e => setUploadFile(e.target.files?.[0])}
+                                  className="text-xs text-gray-500"
+                                />
+                              </div>
+                            ) : null}
+
+                            <input 
+                              type="text" 
+                              placeholder="Add a note (optional)..."
+                              className="w-full text-sm border border-gray-300 rounded p-2 focus:ring-1 focus:ring-orange-500"
+                              value={evidenceNote}
+                              onChange={e => setEvidenceNote(e.target.value)}
+                            />
+
+                            <div className="flex items-center justify-between">
+                              {errorMsg && (
+                                <p className="text-xs text-red-600 font-bold">⚠️ {errorMsg}</p>
+                              )}
+                              <button 
+                                onClick={() => completeStep(step.stepId)}
+                                disabled={stageLoading}
+                                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-colors ml-auto shadow-sm cursor-pointer"
+                              >
+                                {stageLoading ? 'Saving...' : 'Submit & Complete Step'}
+                              </button>
+                            </div>
+                          </div>
                        )}
                      </div>
                    );

@@ -101,10 +101,8 @@ const EpcMyProfile = () => {
     setFilterDist('');
   };
 
-  const inputCls = 'w-full bg-white border border-gray-300 text-gray-800 placeholder-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500';
-  
-  // Clean, visible layout structure matched with image_588ef9.png
-  const filterSelectCls = 'w-48 bg-white border border-gray-300 text-gray-700 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500 cursor-pointer';
+  const inputCls = 'w-full bg-white border border-gray-200 text-gray-800 placeholder-gray-400 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all';
+  const filterSelectCls = 'bg-white border border-gray-200 text-gray-700 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 cursor-pointer transition-all';
 
   const planColors = {
     Standard:     { bg: 'bg-gray-100',  text: 'text-gray-700',   border: 'border-gray-200' },
@@ -122,275 +120,257 @@ const EpcMyProfile = () => {
   }
 
   return (
-    <div className="space-y-5 w-full">
+    <div className="space-y-6 w-full">
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      {/* ── PAGE HEADER ── */}
+      <div className="page-header flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-gray-800 text-xl font-bold">My Profile</h2>
-          <p className="text-gray-500 text-sm mt-0.5">
-            Shown to customers when selecting EPC partner for installation
-          </p>
+          <h2 className="text-white text-2xl font-black tracking-tight">My Profile</h2>
+          <p className="text-slate-400 text-sm mt-1">Shown to customers when selecting you as their EPC partner</p>
         </div>
         {!editing && (
           <button onClick={() => setEditing(true)}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-            Edit Profile
+            className="flex items-center gap-2 bg-white text-gray-800 hover:bg-gray-50 text-sm font-bold px-5 py-2.5 rounded-xl transition-all shadow-sm">
+            ✏️ Edit Profile
           </button>
         )}
       </div>
 
       {msg.text && (
-        <div className={`text-sm rounded-lg px-4 py-3 border ${
-          msg.type === 'success' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'
-        }`}>{msg.text}</div>
+        <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-sm font-medium border ${
+          msg.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-700'
+        }`}>
+          <span>{msg.text}</span>
+          <button onClick={() => setMsg({ text: '', type: '' })} className="opacity-50 hover:opacity-100">✕</button>
+        </div>
       )}
 
-      {/* ── Company Header Card ── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-6">
-        <div className="flex items-start gap-4 flex-wrap">
-          <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-            <span className="text-blue-600 text-2xl font-bold">
-              {profile?.companyName?.charAt(0)?.toUpperCase() || 'E'}
-            </span>
+      {/* ── COMPANY HERO CARD ── */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-premium overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-full -translate-y-1/2 translate-x-1/2 opacity-60" />
+        <div className="flex items-start gap-5 flex-wrap relative z-10">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-md flex-shrink-0">
+            <span className="text-white text-2xl font-black">{profile?.companyName?.charAt(0)?.toUpperCase() || 'E'}</span>
           </div>
 
           <div className="flex-1 min-w-0">
-            <h3 className="text-gray-800 text-xl font-bold">{profile?.companyName}</h3>
+            <h3 className="text-gray-800 text-xl font-black">{profile?.companyName}</h3>
             <p className="text-gray-500 text-sm">{profile?.ownerName}</p>
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${planStyle.bg} ${planStyle.text} ${planStyle.border}`}>
-                {profile?.plan} Plan
+            <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+              <span className={`status-pill ${planStyle.bg} ${planStyle.text} ${planStyle.border}`}>
+                💼 {profile?.plan} Plan
               </span>
-              <span className={`text-xs px-2.5 py-1 rounded-full font-medium border ${
-                profile?.onboardingStatus === 'Verified'  ? 'bg-green-50 text-green-700 border-green-200' :
+              <span className={`status-pill ${
+                profile?.onboardingStatus === 'Verified'  ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                 profile?.onboardingStatus === 'Approved'  ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                'bg-yellow-50 text-yellow-700 border-yellow-200'
+                'bg-amber-50 text-amber-700 border-amber-200'
               }`}>
-                {profile?.onboardingStatus}
+                {profile?.onboardingStatus === 'Verified' ? '✅' : '⏳'} {profile?.onboardingStatus}
               </span>
               
-              {/* Trust Badge Status/Action */}
               {profile?.trustBadge?.status === 'Approved' ? (
-                <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm">
-                  <ShieldCheck className="w-3.5 h-3.5" /> TRUSTED
+                <span className="status-pill bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-transparent shadow-sm">
+                  <ShieldCheck className="w-3 h-3 mr-1" /> TRUSTED
                 </span>
               ) : profile?.trustBadge?.status === 'Pending' || profile?.trustBadge?.status === 'Applied' ? (
-                <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium bg-orange-50 text-orange-600 border border-orange-200">
-                  <ShieldCheck className="w-3.5 h-3.5" /> Badge Pending
+                <span className="status-pill bg-orange-50 text-orange-600 border-orange-200">
+                  <ShieldCheck className="w-3 h-3 mr-1" /> Badge Pending
                 </span>
               ) : (
-                <button 
+                <button
                   onClick={() => setShowTrustBadgeModal(true)}
-                  className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-semibold bg-white text-blue-600 border border-blue-200 hover:bg-blue-50 transition-colors shadow-sm"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5" /> Apply for Trust Badge
+                  className="status-pill bg-white text-blue-600 border-blue-200 hover:bg-blue-50 transition-colors shadow-sm cursor-pointer">
+                  <ShieldCheck className="w-3 h-3 mr-1" /> Apply for Trust Badge
                 </button>
               )}
             </div>
           </div>
 
-          {/* Overall Rating */}
-          <div className="flex-shrink-0 text-center bg-yellow-50 border border-yellow-200 rounded-xl px-5 py-3">
-            <p className="text-yellow-600 text-xs font-medium mb-1">Overall Rating</p>
+          {/* Rating */}
+          <div className="flex-shrink-0 text-center bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl px-5 py-4">
+            <p className="text-amber-600 text-[10px] font-bold uppercase tracking-wider mb-1">Rating</p>
             <div className="flex items-center gap-0.5 justify-center mb-1">
               {[1,2,3,4,5].map(s => (
-                <svg key={s} className={`w-4 h-4 ${s <= Math.round(profile?.rating || 0) ? 'text-yellow-400' : 'text-gray-200'}`}
+                <svg key={s} className={`w-4 h-4 ${s <= Math.round(profile?.rating || 0) ? 'text-amber-400' : 'text-gray-200'}`}
                   fill="currentColor" viewBox="0 0 24 24">
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                 </svg>
               ))}
             </div>
-            <p className="text-yellow-700 text-2xl font-bold">{profile?.rating?.toFixed(1) || '0.0'}</p>
-            <p className="text-yellow-600 text-xs">{profile?.totalRatings || 0} ratings</p>
+            <p className="text-amber-700 text-3xl font-black">{profile?.rating?.toFixed(1) || '0.0'}</p>
+            <p className="text-amber-500 text-[10px] font-medium">{profile?.totalRatings || 0} reviews</p>
           </div>
         </div>
       </div>
 
-      {/* ── Stats Row: On-time %, Districts, Experience ── */}
+      {/* ── STAT CARDS ── */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
-          <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center mx-auto mb-2">
-            <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+        {[
+          { icon: '✅', label: 'On-Time %',      value: `${profile?.onTimeCompletionPercent ?? '—'}%`, grad: 'from-emerald-500 to-emerald-600', light: 'bg-emerald-50 text-emerald-700' },
+          { icon: '📍', label: 'Districts',        value: profile?.activeDistricts?.length || 0,         grad: 'from-blue-500 to-blue-600',    light: 'bg-blue-50 text-blue-700' },
+          { icon: '🏆', label: 'Yrs Experience', value: `${profile?.yearsOfExperience || 0} yrs`,     grad: 'from-purple-500 to-purple-600', light: 'bg-purple-50 text-purple-700' },
+        ].map(stat => (
+          <div key={stat.label} className="bg-white border border-gray-200 rounded-2xl p-4 text-center shadow-premium hover:-translate-y-0.5 transition-all duration-200">
+            <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${stat.grad} flex items-center justify-center mx-auto mb-3 text-xl shadow-sm`}>
+              {stat.icon}
+            </div>
+            <p className="text-2xl font-black text-gray-800">{stat.value}</p>
+            <p className="text-gray-400 text-[10px] font-bold uppercase tracking-wider mt-1">{stat.label}</p>
           </div>
-          <p className="text-2xl font-bold text-green-600">{profile?.onTimeCompletionPercent ?? '—'}%</p>
-          <p className="text-gray-500 text-xs mt-0.5">Project Completion On Time</p>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
-          <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center mx-auto mb-2">
-            <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            </svg>
-          </div>
-          <p className="text-2xl font-bold text-blue-600">{profile?.activeDistricts?.length || 0}</p>
-          <p className="text-gray-500 text-xs mt-0.5">Active Districts</p>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
-          <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center mx-auto mb-2">
-            <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <p className="text-2xl font-bold text-purple-600">{profile?.yearsOfExperience || 0}</p>
-          <p className="text-gray-500 text-xs mt-0.5">Years Experience</p>
-        </div>
+        ))}
       </div>
 
-      {/* ── Clean UI Filter Box (Matched with image_588ef9.png layout structure) ── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4">
-        <div className="flex items-center gap-4 flex-wrap">
+      {/* ── FILTER BAR ── */}
+      <div className="filter-bar">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Filter by</p>
+          {(filterType || filterDist) && (
+            <button onClick={clearFilters} className="text-xs text-red-500 font-semibold hover:text-red-700">✕ Clear</button>
+          )}
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
           <div>
-            <label className="block text-gray-500 text-xs mb-1 font-medium">Project Type</label>
+            <label className="block text-gray-400 text-xs mb-1 font-medium">Project Type</label>
             <select value={filterType} onChange={e => setFilterType(e.target.value)} className={filterSelectCls}>
               <option value="">All Types</option>
               {PROJECT_TYPES.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-gray-500 text-xs mb-1 font-medium">District</label>
+            <label className="block text-gray-400 text-xs mb-1 font-medium">District</label>
             <select value={filterDist} onChange={e => setFilterDist(e.target.value)} className={filterSelectCls}>
               <option value="">All Districts</option>
               {(profile?.activeDistricts || epc?.activeDistricts || []).map(d => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
-          {(filterType || filterDist) && (
-            <button onClick={clearFilters} className="text-xs text-red-500 border border-red-200 bg-red-50 px-3 py-2 rounded-lg self-end mt-4 transition-all hover:bg-red-100">
-              Clear Filters
-            </button>
-          )}
         </div>
       </div>
 
-      {/* ── Project Type wise Ratings ── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5">
-        <h3 className="text-gray-700 text-sm font-semibold mb-4 flex items-center gap-2">
-          <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-          </svg>
-          Ratings by Project Type
+      {/* ── RATINGS BY PROJECT TYPE ── */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-premium">
+        <h3 className="text-gray-800 font-black mb-4 flex items-center gap-2">
+          <span className="text-xl">⭐</span> Ratings by Project Type
         </h3>
         <ProjectTypeRatings epcId={profile?._id} filterType={filterType} filterDist={filterDist} />
       </div>
 
-      {/* ── Recent Installation Photos ── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5">
+      {/* ── INSTALLATION PHOTOS ── */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-premium">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-gray-700 text-sm font-semibold flex items-center gap-2">
-            <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            Recent Installation Photos
+          <h3 className="text-gray-800 font-black flex items-center gap-2">
+            <span className="text-xl">📸</span> Recent Installation Photos
           </h3>
-          <p className="text-gray-400 text-xs">From completed projects · shown to customers</p>
+          <p className="text-gray-400 text-xs">From completed projects · visible to customers</p>
         </div>
         <RecentInstallationPhotos epcId={profile?._id} filterType={filterType} filterDist={filterDist} />
       </div>
 
-      {/* Customer Comments */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5">
-        <h3 className="text-gray-700 text-sm font-semibold mb-4 flex items-center gap-2">
-          <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
-          Customer Comments
+      {/* ── CUSTOMER COMMENTS ── */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-premium">
+        <h3 className="text-gray-800 font-black mb-4 flex items-center gap-2">
+          <span className="text-xl">💬</span> Customer Comments
         </h3>
         <CustomerComments epcId={profile?._id} filterType={filterType} filterDist={filterDist} />
       </div>
 
-      {/* ── Edit Form ── */}
+      {/* ── EDIT FORM ── */}
       {editing && (
-        <div className="bg-white border border-gray-200 rounded-xl p-6">
-          <h3 className="text-gray-700 font-semibold mb-4">Edit Company Information</h3>
+        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-premium">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-xl">✏️</div>
+            <div>
+              <h3 className="text-gray-800 font-black">Edit Company Information</h3>
+              <p className="text-gray-400 text-xs">Changes will be visible to customers</p>
+            </div>
+          </div>
           <form onSubmit={handleSave} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-gray-600 text-xs mb-1">Company Name</label>
+                <label className="block text-gray-500 text-xs mb-1.5 font-bold uppercase tracking-wider">Company Name</label>
                 <input type="text" value={form.companyName} onChange={e => setForm({...form, companyName: e.target.value})} className={inputCls} />
               </div>
               <div>
-                <label className="block text-gray-600 text-xs mb-1">Owner Name</label>
+                <label className="block text-gray-500 text-xs mb-1.5 font-bold uppercase tracking-wider">Owner Name</label>
                 <input type="text" value={form.ownerName} onChange={e => setForm({...form, ownerName: e.target.value})} className={inputCls} />
               </div>
               <div>
-                <label className="block text-gray-600 text-xs mb-1">Mobile</label>
+                <label className="block text-gray-500 text-xs mb-1.5 font-bold uppercase tracking-wider">Mobile</label>
                 <input type="tel" value={form.mobile} onChange={e => setForm({...form, mobile: e.target.value})} maxLength={10} className={inputCls} />
               </div>
               <div>
-                <label className="block text-gray-600 text-xs mb-1">HQ Location</label>
+                <label className="block text-gray-500 text-xs mb-1.5 font-bold uppercase tracking-wider">HQ Location</label>
                 <input type="text" value={form.hqLocation} onChange={e => setForm({...form, hqLocation: e.target.value})} placeholder="e.g. Surat" className={inputCls} />
               </div>
               <div>
-                <label className="block text-gray-600 text-xs mb-1">State</label>
+                <label className="block text-gray-500 text-xs mb-1.5 font-bold uppercase tracking-wider">State</label>
                 <input type="text" value={form.state} onChange={e => setForm({...form, state: e.target.value})} className={inputCls} />
               </div>
               <div>
-                <label className="block text-gray-600 text-xs mb-1">City</label>
+                <label className="block text-gray-500 text-xs mb-1.5 font-bold uppercase tracking-wider">City</label>
                 <input type="text" value={form.city} onChange={e => setForm({...form, city: e.target.value})} className={inputCls} />
               </div>
               <div>
-                <label className="block text-gray-600 text-xs mb-1">Pincode</label>
+                <label className="block text-gray-500 text-xs mb-1.5 font-bold uppercase tracking-wider">Pincode</label>
                 <input type="text" value={form.pincode} onChange={e => setForm({...form, pincode: e.target.value})} maxLength={6} className={inputCls} />
               </div>
-              <div className="col-span-2">
-                <label className="block text-gray-600 text-xs mb-1">Address</label>
+              <div className="col-span-full">
+                <label className="block text-gray-500 text-xs mb-1.5 font-bold uppercase tracking-wider">Address</label>
                 <textarea value={form.address} onChange={e => setForm({...form, address: e.target.value})} rows={2} className={`${inputCls} resize-none`} />
               </div>
             </div>
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-3 pt-2 border-t border-gray-100">
               <button type="button" onClick={() => setEditing(false)}
-                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium py-2.5 rounded-lg">Cancel</button>
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-bold py-3 rounded-xl transition-colors">Cancel</button>
               <button type="submit" disabled={saving}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium py-2.5 rounded-lg">
-                {saving ? 'Saving...' : 'Save Changes'}
+                className="flex-1 bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 disabled:opacity-50 text-white text-sm font-black py-3 rounded-xl transition-all shadow-md shadow-blue-100">
+                {saving ? '⏳ Saving...' : '✔ Save Changes'}
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* ── Contact + Location (view mode) ── */}
+      {/* ── CONTACT + LOCATION (view mode) ── */}
       {!editing && (
         <div className="grid sm:grid-cols-2 gap-4">
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <h3 className="text-gray-700 text-sm font-semibold mb-3">Contact Info</h3>
-            <div className="space-y-2.5">
-              <div><p className="text-gray-400 text-xs">Email</p><p className="text-gray-800 text-sm">{profile?.email}</p></div>
-              <div><p className="text-gray-400 text-xs">Mobile</p><p className="text-gray-800 text-sm">{profile?.mobile || '—'}</p></div>
-              <div><p className="text-gray-400 text-xs">HQ Location</p><p className="text-gray-800 text-sm">{profile?.hqLocation || '—'}</p></div>
+          <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-premium">
+            <h3 className="text-gray-800 font-black mb-4 flex items-center gap-2"><span className="text-lg">📞</span> Contact Info</h3>
+            <div className="space-y-3">
+              {[{ label: 'Email', value: profile?.email }, { label: 'Mobile', value: profile?.mobile }, { label: 'HQ Location', value: profile?.hqLocation }].map(item => (
+                <div key={item.label} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                  <span className="text-gray-400 text-xs font-medium">{item.label}</span>
+                  <span className="text-gray-800 text-sm font-semibold">{item.value || '—'}</span>
+                </div>
+              ))}
             </div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <h3 className="text-gray-700 text-sm font-semibold mb-3">Location</h3>
-            <div className="space-y-2.5">
-              <div><p className="text-gray-400 text-xs">State</p><p className="text-gray-800 text-sm">{profile?.state || '—'}</p></div>
-              <div><p className="text-gray-400 text-xs">City</p><p className="text-gray-800 text-sm">{profile?.city || '—'}</p></div>
-              <div><p className="text-gray-400 text-xs">Address</p><p className="text-gray-800 text-sm">{profile?.address || '—'}</p></div>
+          <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-premium">
+            <h3 className="text-gray-800 font-black mb-4 flex items-center gap-2"><span className="text-lg">📍</span> Location</h3>
+            <div className="space-y-3">
+              {[{ label: 'State', value: profile?.state }, { label: 'City', value: profile?.city }, { label: 'Pincode', value: profile?.pincode }, { label: 'Address', value: profile?.address }].map(item => (
+                <div key={item.label} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                  <span className="text-gray-400 text-xs font-medium">{item.label}</span>
+                  <span className="text-gray-800 text-sm font-semibold">{item.value || '—'}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* Active districts */}
+      {/* ── ACTIVE DISTRICTS ── */}
       {profile?.activeDistricts?.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-gray-700 text-sm font-semibold">Active Districts</p>
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-premium">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-gray-800 font-black flex items-center gap-2"><span className="text-lg">🗺️</span> Active Districts</h3>
             <button onClick={() => setShowBrandConfig(true)}
-              className="text-xs bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 px-3 py-1.5 rounded-lg font-medium transition-colors">
-              Configure Brand Offerings
+              className="text-xs bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 px-3 py-2 rounded-xl font-bold transition-colors">
+              🏷️ Configure Brands
             </button>
           </div>
           <div className="flex gap-2 flex-wrap">
             {profile.activeDistricts.map(d => (
-              <span key={d} className="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg border border-blue-200">{d}</span>
+              <span key={d} className="text-xs bg-blue-50 text-blue-700 px-3 py-1.5 rounded-xl border border-blue-200 font-semibold">📍 {d}</span>
             ))}
           </div>
         </div>

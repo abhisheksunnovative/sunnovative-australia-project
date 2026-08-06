@@ -36,6 +36,8 @@ const JourneyStepSchema = new mongoose.Schema({
     enum: ["in-app", "email", "sms", "whatsapp"],
     default: ["email"] 
   }, // Deep notification setting
+  requiresDocumentUpload: { type: Boolean, default: false },
+  requiresDoc: { type: Boolean, default: false },
   documentRequirements: [String], // Support multiple documents
   requiredActions: [
     {

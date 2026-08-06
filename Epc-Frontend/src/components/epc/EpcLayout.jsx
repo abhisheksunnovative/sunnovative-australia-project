@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useParams } from 'react-router-dom';
 import { Bell, Trash2, CheckSquare, Square, Check } from 'lucide-react';
 import EpcSidebar from './EpcSidebar';
 import { useEpcAuth } from '../../context/EpcAuthContext';
@@ -12,6 +12,7 @@ const EpcLayout = () => {
   );
   const { epc } = useEpcAuth();
   const navigate = useNavigate();
+  const { countryPrefix } = useParams();
 
   // ── Wallet summary for header badge ───────────────────────────────────────
   const [wallet, setWallet] = useState(null);
@@ -225,9 +226,9 @@ const EpcLayout = () => {
 
             {/* ✅ KW Wallet Badge */}
             <button
-              onClick={() => navigate('/epc/wallet')}
-              className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-full px-3 py-1.5 transition-colors"
-              title="View Wallet"
+               onClick={() => navigate(countryPrefix ? `/${countryPrefix.toLowerCase()}/epc/wallet` : '/epc/wallet')}
+               className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-full px-3 py-1.5 transition-colors"
+               title="View Wallet"
             >
               <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}

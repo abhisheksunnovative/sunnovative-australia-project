@@ -62,7 +62,10 @@ const StepCompletionSchema = new mongoose.Schema({
       value: { type: String, default: "" },
       uploadedAt: { type: Date, default: Date.now }
     }
-  ]
+  ],
+  notifyCustomer: { type: Boolean, default: true },
+  notifyEPC: { type: Boolean, default: false },
+  notifyAdmin: { type: Boolean, default: false }
 }, { _id: false });
 
 // Geo location schema

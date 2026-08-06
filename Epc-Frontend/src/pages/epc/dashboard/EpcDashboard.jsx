@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useEpcAuth } from '../../../context/EpcAuthContext';
 import epcApi from '../../../api/epcApi';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4005';
+
 const StatCard = ({ label, value, sub, color, bgColor, icon, onClick }) => (
   <div
     onClick={onClick}
@@ -30,23 +32,26 @@ const EpcDashboard = () => {
   const [demandStats, setDemandStats] = useState(null);
   const [videoSettings, setVideoSettings] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [unacceptedLeadsCount, setUnacceptedLeadsCount] = useState(0);
+  const [installationPhotos, setInstallationPhotos] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [ordRes, enqRes, demandRes, settingsRes] = await Promise.all([
+        const [ordRes, enqRes, demandRes, settingsRes, projRes] = await Promise.all([
           epcApi.get('/api/epc/orders/summary'),
           epcApi.get('/api/epc/enquiries'),
           epcApi.get('/api/epc/orders/demand-stats'),
-          epcApi.get('/api/website-settings') // Assuming this can hit the backend properly, or standard fetch
+          epcApi.get('/api/website-settings'),
+          epcApi.get('/api/epc/projects')
         ]).catch(async (e) => {
-          // If epcApi fails for website-settings, fetch directly
-          const [o, e2, d] = await Promise.all([
+          const [o, e2, d, p] = await Promise.all([
              epcApi.get('/api/epc/orders/summary'),
              epcApi.get('/api/epc/enquiries'),
-             epcApi.get('/api/epc/orders/demand-stats')
+             epcApi.get('/api/epc/orders/demand-stats'),
+             epcApi.get('/api/epc/projects')
           ]);
-          return [o, e2, d, null];
+          return [o, e2, d, null, p];
         });
 
         if (settingsRes === null) {
@@ -61,7 +66,37 @@ const EpcDashboard = () => {
 
         setSummary(ordRes.data);
         setEnquiryCount(enqRes.data.filter(e => e.status === 'New').length);
+        
+        const unaccepted = enqRes.data.filter(e => ['Open For EPC', 'New', 'Bid Running'].includes(e.status)).length;
+        setUnacceptedLeadsCount(unaccepted);
         setDemandStats(demandRes.data);
+
+        // Process recent installation photos
+        const photos = [];
+        if (projRes && projRes.data && Array.isArray(projRes.data.projects)) {
+          projRes.data.projects.forEach(proj => {
+            const installStep = proj.steps?.find(s => s.stepId?.includes('step-8') || s.title?.toLowerCase().includes('installation'));
+            if (installStep?.uploadedActions?.length > 0) {
+              installStep.uploadedActions.forEach(act => {
+                if (act.value && act.fileType !== 'text') {
+                  photos.push({
+                    url: act.value,
+                    label: `${proj.customerName || 'Customer'} - Roof Installation`,
+                    date: installStep.completedAt || proj.updatedAt
+                  });
+                }
+              });
+            }
+            if (proj.rooftopPhoto) {
+              photos.push({
+                url: proj.rooftopPhoto,
+                label: `${proj.customerName || 'Customer'} - Initial Rooftop`,
+                date: proj.createdAt
+              });
+            }
+          });
+        }
+        setInstallationPhotos(photos.slice(0, 6));
       } catch (error) {
         console.error('Dashboard fetch error:', error);
       } finally {
@@ -79,6 +114,32 @@ const EpcDashboard = () => {
 
   return (
     <div className="space-y-6">
+
+      {/* ── PAGE HEADER ── */}
+      <div className="page-header">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Dashboard</p>
+            <h2 className="text-white text-2xl font-black tracking-tight">
+              Welcome, {epc?.companyName} 👋
+            </h2>
+            <p className="text-slate-400 text-sm mt-1">
+              <span className="text-blue-400 font-bold">{epc?.plan} Plan</span>
+              <span className="mx-2 text-slate-600">|</span>
+              {epc?.activeDistricts?.join(', ') || 'No districts assigned'}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 px-4 py-2 rounded-xl">
+              <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              </svg>
+              <span className="text-yellow-300 text-lg font-black">{epc?.rating?.toFixed(1) || '0.0'}</span>
+              <span className="text-slate-400 text-xs">/ 5.0</span>
+            </div>
+          </div>
+        </div>
+      </div>
       {/* Red Alert Banner */}
       {summary?.isRedAlert && (
         <div className="bg-gradient-to-r from-red-500 to-rose-600 border border-red-600 p-5 rounded-2xl shadow-lg mb-6 flex items-start gap-4 text-white relative overflow-hidden">
@@ -95,30 +156,27 @@ const EpcDashboard = () => {
         </div>
       )}
 
-      {/* Welcome banner */}
-      <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg border border-gray-100 dark:border-slate-700/50 rounded-2xl px-7 py-6 flex items-center justify-between shadow-sm">
-        <div>
-          <h2 className="text-gray-900 dark:text-white text-2xl font-black tracking-tight">
-            Welcome, {epc?.companyName} 👋
-          </h2>
-          <p className="text-gray-500 dark:text-slate-400 text-sm mt-1.5 font-medium">
-            <span className="text-blue-600 dark:text-blue-400 font-bold px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 rounded-md">{epc?.plan} Plan</span>
-            <span className="mx-2 text-gray-300">|</span>
-            Active Districts:{' '}
-            <span className="text-gray-700 dark:text-slate-300 font-semibold">
-              {epc?.activeDistricts?.join(', ') || 'Not assigned yet'}
-            </span>
-          </p>
-        </div>
-        <div className="flex flex-col items-end">
-          <div className="flex items-center gap-2 bg-gradient-to-r from-amber-100 to-yellow-50 dark:from-yellow-900/40 dark:to-yellow-800/20 border border-yellow-200 dark:border-yellow-700/50 px-4 py-2 rounded-xl shadow-sm">
-            <svg className="w-5 h-5 text-yellow-500 drop-shadow-sm" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-            </svg>
-            <span className="text-yellow-700 dark:text-yellow-500 text-base font-black">{epc?.rating?.toFixed(1) || '0.0'}</span>
+      {/* New Leads Notification Alert */}
+      {unacceptedLeadsCount > 0 && (
+        <div className="bg-gradient-to-r from-orange-500 to-amber-600 border border-orange-600 p-5 rounded-2xl shadow-lg mb-6 flex items-start justify-between gap-4 text-white animate-pulse-slow">
+          <div className="flex items-start gap-4">
+            <span className="text-2xl mt-0.5">🔔</span>
+            <div>
+              <h3 className="font-black text-lg">New Leads Waiting!</h3>
+              <p className="text-orange-50 text-sm mt-1 font-medium">
+                You have {unacceptedLeadsCount} new solar enquiries waiting to be accepted. Go to My Enquiries to claim them before they expire!
+              </p>
+            </div>
           </div>
+          <button 
+            onClick={() => navigate('/epc/enquiries')}
+            className="px-4 py-2 bg-white text-orange-950 font-black text-xs rounded-xl shadow-md hover:bg-orange-50 hover:scale-105 active:scale-95 transition-all shrink-0"
+          >
+            View Enquiries
+          </button>
         </div>
-      </div>
+      )}
+
 
       {/* Onboarding alert */}
       {epc?.onboardingStatus === 'Approved' && (
@@ -237,9 +295,11 @@ const EpcDashboard = () => {
         />
       </div>
 
-      {/* Performance Metrics */}
-      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-5 shadow-premium">
-        <h3 className="text-gray-700 dark:text-slate-200 text-sm font-semibold mb-4">Performance Metrics</h3>
+      {/* ── PERFORMANCE METRICS ── */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-premium">
+        <h3 className="text-gray-800 font-black mb-4 flex items-center gap-2">
+          <span className="text-xl">📈</span> Performance Metrics
+        </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex items-center gap-4 bg-gray-50 dark:bg-slate-700/50 p-4 rounded-xl border border-gray-100 dark:border-slate-600">
             <div className="bg-blue-100 dark:bg-blue-900/50 p-3 rounded-full">
@@ -281,22 +341,55 @@ const EpcDashboard = () => {
         </div>
       </div>
 
-      {/* Quick actions */}
-      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-5">
-        <h3 className="text-gray-700 dark:text-slate-200 text-sm font-semibold mb-4">Quick Actions</h3>
+      {/* ── QUICK ACTIONS ── */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-premium">
+        <h3 className="text-gray-800 font-black mb-4 flex items-center gap-2">
+          <span className="text-xl">⚡</span> Quick Actions
+        </h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'View Enquiries', path: '/epc/enquiries', cls: 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/40 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/60' },
-            { label: 'My Orders',      path: '/epc/orders',    cls: 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100 dark:bg-green-900/40 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/60' },
-            { label: 'View Calendar',  path: '/epc/orders',    cls: 'bg-yellow-50 border-yellow-200 text-yellow-600 hover:bg-yellow-100 dark:bg-yellow-900/40 dark:border-yellow-800 dark:text-yellow-400 dark:hover:bg-yellow-900/60' },
-            { label: 'Upgrade Plan',   path: '/epc/plan',      cls: 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100 dark:bg-purple-900/40 dark:border-purple-800 dark:text-purple-400 dark:hover:bg-purple-900/60' },
+            { label: '💬 View Enquiries', path: '/epc/enquiries', cls: 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300' },
+            { label: '📋 My Orders',      path: '/epc/orders',    cls: 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300' },
+            { label: '📅 View Calendar',  path: '/epc/orders',    cls: 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 hover:border-amber-300' },
+            { label: '💠 Upgrade Plan',   path: '/epc/plan',      cls: 'bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100 hover:border-purple-300' },
           ].map((a) => (
             <button key={a.path} onClick={() => navigate(a.path)}
-              className={`border text-xs font-medium rounded-lg py-3 px-4 transition-colors ${a.cls}`}>
+              className={`border text-xs font-bold rounded-xl py-3.5 px-4 transition-all hover:-translate-y-0.5 hover:shadow-md ${a.cls}`}>
               {a.label}
             </button>
           ))}
         </div>
+      </div>
+
+      {/* ── INSTALLATION PHOTOS ── */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-premium">
+        <h3 className="text-gray-800 font-black mb-4 flex items-center gap-2">
+          <span className="text-xl">📸</span> Recent Installation Photos
+        </h3>
+        
+        {installationPhotos.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {installationPhotos.map((photo, idx) => (
+              <div key={idx} className="relative group rounded-xl overflow-hidden border border-gray-100 dark:border-slate-700 aspect-square shadow-sm hover:shadow-lg transition-all duration-300">
+                <img 
+                  src={photo.url.startsWith('http') ? photo.url : `${API_BASE}${photo.url}`} 
+                  alt={photo.label} 
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3 text-white">
+                  <p className="text-[10px] font-black tracking-wider uppercase text-blue-400">Sunnovative Partner</p>
+                  <p className="text-xs font-bold leading-tight mt-0.5 truncate">{photo.label}</p>
+                  <span className="text-[9px] text-gray-300 mt-1">{new Date(photo.date).toLocaleDateString()}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-10 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
+            <span className="text-2xl">🌅</span>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-2 font-medium">No installation photos uploaded yet</p>
+          </div>
+        )}
       </div>
 
       {/* Floating Video Widget (PIP) */}

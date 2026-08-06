@@ -179,23 +179,28 @@ const EpcWallet = () => {
   const freeTrialPct = wallet ? Math.min(100, (wallet.freeTrialKwUsed / wallet.freeTrialKwLimit) * 100) : 0;
 
   return (
-    <div className="space-y-5 max-w-4xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-gray-800 text-xl font-bold">KW Credit Wallet</h2>
-          <p className="text-gray-500 text-sm mt-0.5">Manage your project-wise order credits</p>
-        </div>
-        <div>
-          {wallet?.activeDistricts?.length > 1 && (
-            <button onClick={() => setShowTransfer(true)}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-4 py-2.5 rounded-xl transition-colors mr-2">
-              Transfer KW
+    <div className="space-y-6 max-w-4xl">
+
+      {/* PAGE HEADER */}
+      <div className="page-header">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Finance</p>
+            <h2 className="text-white text-2xl font-black tracking-tight">KW Credit Wallet</h2>
+            <p className="text-slate-400 text-sm mt-1">Manage your project-wise solar installation credits</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {wallet?.activeDistricts?.length > 1 && (
+              <button onClick={() => setShowTransfer(true)}
+                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur border border-white/20 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-all">
+                Transfer KW
+              </button>
+            )}
+            <button onClick={openPurchaseModal}
+              className="flex items-center gap-2 bg-white text-gray-800 hover:bg-gray-50 text-sm font-black px-5 py-2.5 rounded-xl transition-all shadow-sm">
+              + Buy Credits
             </button>
-          )}
-          <button onClick={openPurchaseModal}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors">
-            + Buy Credits
-          </button>
+          </div>
         </div>
       </div>
 

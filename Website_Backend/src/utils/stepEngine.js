@@ -74,7 +74,10 @@ export const mapJourneyStepsToProjectSteps = (journeySteps = []) => {
         requiresDoc: !!s.requiresDocumentUpload,
         documentRequirements: s.documentRequirements || [],
         requiredActions: s.requiredActions || [],
-        notificationMedium: s.notificationMedium || ['email']
+        notificationMedium: s.notificationMedium || ['email'],
+        notifyCustomer: s.notifyCustomer !== false,
+        notifyEPC: s.notifyEPC || false,
+        notifyAdmin: s.notifyAdmin || false
       };
     });
 };
@@ -84,6 +87,25 @@ export const getStatusFromSteps = (steps, completionPercentage) => {
   const hasInProgress = steps.some((s) => s.status === "in-progress" || s.status === "awaiting-approval");
   if (hasInProgress) return "in-progress";
   return "pending";
+};
+
+// -- AU STC Zone and Value Calculator --
+const getAuStcZone = (postcode) => {
+  const code = parseInt(postcode, 10);
+  if (!code) return 3;
+  if ((code >= 800 && code <= 899) || (code >= 4700 && code <= 4899) || (code >= 6700 && code <= 6799)) return 1;
+  if ((code >= 4300 && code <= 4699) || (code >= 6600 && code <= 6699)) return 2;
+  if ((code >= 7000 && code <= 7999) || code === 2627 || code === 2628) return 4;
+  return 3;
+};
+
+const calcAuStcs = ({ kw, zone, deemingYears = 5, stcPrice = 38 }) => {
+  const multiplier = { 1: 1.622, 2: 1.536, 3: 1.382, 4: 1.185 }[zone] || 1.382;
+  const stcs = Math.floor(kw * multiplier * deemingYears);
+  const stcValue = Math.round(stcs * stcPrice);
+  const installCost = Math.round(kw * 1100);
+  const netCost = Math.max(500, installCost - stcValue);
+  return { zone, multiplier, deemingYears, stcPrice, stcs, stcValue, installCost, netCost };
 };
 
 /**
@@ -139,18 +161,44 @@ export const processStepCompletionEngine = async (
 
   // Step complete karo
   order.steps[stepIndex].status = newStatus;
+  
+  let dynamicEvidenceNote = finalNote;
+  
+  // Trigger STC calculations for Australia Step 1
+  if (stepId === "au-res-step-1" && newStatus === "completed" && uploadedActions && uploadedActions.length > 0) {
+    const postcodeObj = uploadedActions.find(a => a.label && a.label.toLowerCase().includes("postcode"));
+    const billObj = uploadedActions.find(a => a.label && a.label.toLowerCase().includes("bill"));
+    
+    if (postcodeObj && postcodeObj.value) {
+      const postcode = postcodeObj.value.trim();
+      const zone = getAuStcZone(postcode);
+      const systemSize = order.systemSizeKW || 6.6;
+      const stcResult = calcAuStcs({ kw: systemSize, zone });
+      
+      order.estimatedSubsidy = stcResult.stcValue;
+      order.totalProjectCost = stcResult.netCost;
+      if (billObj && billObj.value) {
+        const billVal = parseFloat(billObj.value.replace(/[^0-9.]/g, "")) || 0;
+        order.monthlyBillAmount = billVal;
+      }
+      
+      const calcSummary = `[Auto-Calc: Postcode ${postcode} resolved to Zone ${zone}. System Size: ${systemSize}kW. Estimated STC Rebate: $${stcResult.stcValue}. Net Project Cost: $${stcResult.netCost}]`;
+      dynamicEvidenceNote = (dynamicEvidenceNote ? dynamicEvidenceNote + " | " : "") + calcSummary;
+    }
+  }
+
   if (newStatus === "completed") {
     order.steps[stepIndex].completedAt = new Date();
     
     const formattedDate = new Date().toLocaleString("en-IN");
-    const logStr = `\n\n[✓ Completed by ${completedBy} on ${formattedDate}. Action Details: ${finalNote || 'Completed successfully'}]`;
+    const logStr = `\n\n[✓ Completed by ${completedBy} on ${formattedDate}. Action Details: ${dynamicEvidenceNote || 'Completed successfully'}]`;
     if (!order.steps[stepIndex].description.includes("[✓ Completed by")) {
       order.steps[stepIndex].description += logStr;
     }
   }
   order.steps[stepIndex].completedBy = completedBy;
   order.steps[stepIndex].evidenceUrl = finalUrl || order.steps[stepIndex].evidenceUrl;
-  order.steps[stepIndex].evidenceNote = finalNote || order.steps[stepIndex].evidenceNote;
+  order.steps[stepIndex].evidenceNote = dynamicEvidenceNote || order.steps[stepIndex].evidenceNote;
   if (uploadedActions && uploadedActions.length > 0) {
     order.steps[stepIndex].uploadedActions = uploadedActions;
   }
@@ -192,6 +240,53 @@ export const processStepCompletionEngine = async (
   // Update overall status
   order.status = getStatusFromSteps(order.steps, order.completionPercentage);
   order.lastActivityAt = new Date();
+
+  // Trigger In-App Notification Alerts dynamically based on Step Settings
+  try {
+    const { default: Notification } = await import('../models/Notification.js');
+    
+    const title = `Step Update: ${step.title}`;
+    const statusText = newStatus === 'awaiting-approval' ? 'Awaiting Approval' : 'Completed';
+    const message = `Step "${step.title}" of project #${order.orderNumber || ''} (${order.customerName || 'Customer'}) has been updated to "${statusText}" by ${completedBy}.`;
+    
+    // 1. Notify Customer
+    if (step.notifyCustomer && order.customerId) {
+      await Notification.create({
+        role: "Customer",
+        recipientId: order.customerId,
+        title,
+        message,
+        projectId: order._id
+      });
+      console.log(`[In-App Notification] Created for Customer regarding step: ${step.title}`);
+    }
+    
+    // 2. Notify EPC Partner
+    if (step.notifyEPC && order.assignedEPCId) {
+      await Notification.create({
+        role: "EpcPartner",
+        recipientId: order.assignedEPCId,
+        title,
+        message,
+        projectId: order._id
+      });
+      console.log(`[In-App Notification] Created for EPC Partner regarding step: ${step.title}`);
+    }
+    
+    // 3. Notify Admin
+    if (step.notifyAdmin) {
+      await Notification.create({
+        role: "Admin",
+        recipientId: null,
+        title,
+        message,
+        projectId: order._id
+      });
+      console.log(`[In-App Notification] Created for Admin regarding step: ${step.title}`);
+    }
+  } catch (nErr) {
+    console.error("Step completion notification trigger error:", nErr);
+  }
 
   return { success: true, message: `Step "${step.title}" updated`, order, nextStep, newStatus };
 };

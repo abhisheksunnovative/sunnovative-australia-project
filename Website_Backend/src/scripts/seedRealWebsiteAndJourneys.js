@@ -12,6 +12,112 @@ import { OrderJourneySettings } from "../models/OrderJourneySettings.js";
 
 const MONGO_URI = process.env.MONGODB_URL || "mongodb://127.0.0.1:27017/sunnovative_ecommerce";
 
+function enrichJourneySteps(steps) {
+  return steps.map((step, idx) => {
+    const nextStep = steps[idx + 1] ? steps[idx + 1].title : "Journey Completed";
+    
+    // 1. Determine Performer Label
+    let performer = "Admin / Company";
+    if (step.assignedTo === "customer") performer = "Customer";
+    else if (step.assignedTo === "epc-partner") performer = "EPC Partner";
+    else if (step.assignedTo === "bde") performer = "BDE";
+    else if (step.assignedTo === "both") performer = "Customer & BDE";
+
+    // 2. Determine Action Description
+    let actionDesc = step.description || `Please complete the tasks for step "${step.title}".`;
+    
+    // 3. Determine Required Actions (Slots)
+    let actions = [];
+    let requiredUploadText = "None (Manual Check-off)";
+
+    const titleLower = step.title.toLowerCase();
+    
+    if (titleLower.includes("postcode") || titleLower.includes("eligibility")) {
+      requiredUploadText = "Postcode and Monthly/Quarterly Usage (Text Input)";
+      actions = [
+        { label: "Postcode / Suburb", fileType: "text", required: true },
+        { label: "Estimated Bill Amount", fileType: "text", required: true }
+      ];
+    } else if (titleLower.includes("bill") && titleLower.includes("gst")) {
+      requiredUploadText = "Electricity Bill (PDF) & GST Registration Certificate (PDF)";
+      actions = [
+        { label: "Recent Electricity Bill", fileType: "pdf", required: true },
+        { label: "GST Certificate", fileType: "pdf", required: true }
+      ];
+    } else if (titleLower.includes("bill")) {
+      requiredUploadText = "Electricity Bill (PDF)";
+      actions = [
+        { label: "Recent Electricity Bill", fileType: "pdf", required: true }
+      ];
+    } else if (titleLower.includes("photo") || titleLower.includes("image")) {
+      requiredUploadText = "Rooftop Aerial View (Image) & Switchboard Setup (Image)";
+      actions = [
+        { label: "Rooftop Layout Photo", fileType: "image", required: true },
+        { label: "Switchboard Photo", fileType: "image", required: true }
+      ];
+    } else if (titleLower.includes("survey") || titleLower.includes("site check")) {
+      requiredUploadText = "Technical Site Survey Report (PDF) & Physical Rooftop Photo (Image)";
+      actions = [
+        { label: "Site Survey Report", fileType: "pdf", required: true },
+        { label: "Rooftop Physical Access Photo", fileType: "image", required: true }
+      ];
+    } else if (titleLower.includes("contract") || titleLower.includes("proposal") || titleLower.includes("agreement")) {
+      requiredUploadText = "Signed Quote & System Agreement Form (PDF)";
+      actions = [
+        { label: "Signed Agreement", fileType: "pdf", required: true }
+      ];
+    } else if (titleLower.includes("dnsp") || titleLower.includes("grid")) {
+      requiredUploadText = "DNSP Pre-Approval Clearance (PDF)";
+      actions = [
+        { label: "DNSP Grid Approval Document", fileType: "pdf", required: true }
+      ];
+    } else if (titleLower.includes("payment")) {
+      requiredUploadText = "Transaction Reference ID (Text) & Bank Payment Receipt (PDF)";
+      actions = [
+        { label: "Transaction Reference ID", fileType: "text", required: true },
+        { label: "Payment Receipt copy", fileType: "pdf", required: true }
+      ];
+    } else if (titleLower.includes("net meter")) {
+      requiredUploadText = "Bi-Directional Net-Meter Agreement (PDF) & Serial Number (Text)";
+      actions = [
+        { label: "Net-Metering Agreement", fileType: "pdf", required: true },
+        { label: "New Meter Serial Number", fileType: "text", required: true }
+      ];
+    } else if (step.requiresDocumentUpload || step.milestoneType === "doc_upload" || (step.documentRequirements && step.documentRequirements.length > 0)) {
+      const docs = step.documentRequirements || ["Supporting Document"];
+      requiredUploadText = docs.join(", ") + " (Upload File)";
+      actions = docs.map(doc => ({
+        label: doc,
+        fileType: "pdf",
+        required: true
+      }));
+    }
+
+    // 4. Construct rich formatted description
+    const richDescription = `[WHO] ${performer}\n` +
+      `[ACTION] ${actionDesc}\n` +
+      `[REQUIRED UPLOAD/DATA] ${requiredUploadText}\n` +
+      `[NEXT STEP] ${nextStep}`;
+
+    // 5. Build SLA
+    const sla = step.slaDays || 2;
+    const warning = step.warningDays || Math.max(1, Math.floor(sla / 2));
+    const redAlert = step.redAlertDays || (sla + 1);
+
+    return {
+      ...step,
+      description: richDescription,
+      requiredActions: actions.length > 0 ? actions : [],
+      notificationMedium: ["email", "in-app"],
+      slaDays: sla,
+      warningDays: warning,
+      redAlertDays: redAlert,
+      autoNotifyOverdue: true,
+      requiresAdminApproval: step.requiresAdminApproval || step.completionCondition === "admin_approval"
+    };
+  });
+}
+
 // ==========================================
 // 1. ORDER JOURNEY STEPS blue prints
 // ==========================================
@@ -1575,7 +1681,7 @@ async function run() {
             enabled: true,
             description: "PM Surya Ghar Yojana government subsidy residential journey.",
             epcSelectionType: "FCFS",
-            steps: INDIA_RESIDENTIAL_STEPS
+            steps: enrichJourneySteps(INDIA_RESIDENTIAL_STEPS)
           },
           {
             projectType: "commercial",
@@ -1583,7 +1689,7 @@ async function run() {
             enabled: true,
             description: "India Commercial and Industrial net-metering journey.",
             epcSelectionType: "FCFS",
-            steps: INDIA_COMMERCIAL_STEPS
+            steps: enrichJourneySteps(INDIA_COMMERCIAL_STEPS)
           }
         ]
       },
@@ -1607,7 +1713,7 @@ async function run() {
             enabled: true,
             description: "Australia CEC residential solar upfront STC rebate journey.",
             epcSelectionType: "BDE_SELECT",
-            steps: AU_RESIDENTIAL_STEPS
+            steps: enrichJourneySteps(AU_RESIDENTIAL_STEPS)
           },
           {
             projectType: "commercial",
@@ -1615,7 +1721,7 @@ async function run() {
             enabled: true,
             description: "Australia Commercial & Industrial DNSP level 3 pre-approval journey.",
             epcSelectionType: "BDE_SELECT",
-            steps: AU_COMMERCIAL_STEPS
+            steps: enrichJourneySteps(AU_COMMERCIAL_STEPS)
           },
           {
             projectType: "solar-battery",
@@ -1623,7 +1729,7 @@ async function run() {
             enabled: true,
             description: "CEC solar + storage battery hybrid setup journey.",
             epcSelectionType: "BDE_SELECT",
-            steps: AU_BATTERY_STEPS
+            steps: enrichJourneySteps(AU_BATTERY_STEPS)
           },
           {
             projectType: "farm-rural",
@@ -1631,7 +1737,7 @@ async function run() {
             enabled: true,
             description: "Farm ground-mount off-grid or remote network hybrid solar journey.",
             epcSelectionType: "BDE_SELECT",
-            steps: AU_FARM_RURAL_STEPS
+            steps: enrichJourneySteps(AU_FARM_RURAL_STEPS)
           },
           {
             projectType: "community-strata",
@@ -1639,7 +1745,7 @@ async function run() {
             enabled: true,
             description: "Embedded network multi-unit strata body corporate solar journey.",
             epcSelectionType: "BDE_SELECT",
-            steps: AU_COMMUNITY_STEPS
+            steps: enrichJourneySteps(AU_COMMUNITY_STEPS)
           }
         ]
       },
