@@ -346,7 +346,7 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
     }
   };
 
-  const handleCompleteStep = async (stepId, file = null, note = "") => {
+  const handleCompleteStep = async (stepId, file = null, note = "", uploadedActions = []) => {
     setCompletingId(stepId);
     try {
       const formData = new FormData();
@@ -354,6 +354,9 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
       formData.append("completedBy", "Admin");
       if (note) formData.append("note", note);
       if (file) formData.append("evidence", file);
+      if (uploadedActions && uploadedActions.length > 0) {
+        formData.append("uploadedActions", JSON.stringify(uploadedActions));
+      }
 
       const res = await fetch(`${API_BASE}/api/project-orders/${orderId}/complete-step`, {
         method: "POST",
@@ -637,7 +640,7 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
         <HorizontalJourneyTracker 
           steps={order.steps} 
           userRole="admin"
-          onExecuteStep={(stepId, file, note) => handleCompleteStep(stepId, file, note)}
+          onExecuteStep={(stepId, file, note, uploadedActions) => handleCompleteStep(stepId, file, note, uploadedActions)}
         />
 
         <div className="mt-8 border-t border-slate-100 pt-6">
@@ -674,6 +677,14 @@ export const LiveProjectTrackingScreen = () => {
   const [availableDiscoms, setAvailableDiscoms] = useState([]);
   const [availableProjectTypes, setAvailableProjectTypes] = useState([]);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+
+  useEffect(() => {
+    const savedProjId = localStorage.getItem("active_tracking_project_id");
+    if (savedProjId) {
+      setSelectedOrderId(savedProjId);
+      localStorage.removeItem("active_tracking_project_id");
+    }
+  }, []);
 
   // Predefined states for various countries
   const countryStatesMap = {

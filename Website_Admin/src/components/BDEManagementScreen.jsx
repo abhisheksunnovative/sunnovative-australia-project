@@ -10,6 +10,7 @@ export default function BDEManagementScreen() {
   const [selectedDistrict, setSelectedDistrict] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [manualDistricts, setManualDistricts] = useState([]);
+  const [filterType, setFilterType] = useState("all"); // "all", "active", "freelancer", "employee", "india", "australia", "commission"
   
   // Modal state
   const [isEditing, setIsEditing] = useState(false);
@@ -398,18 +399,222 @@ export default function BDEManagementScreen() {
     );
   };
 
+  const activeBdesCount = bdes.filter(b => b.isActive).length;
+  const freelancerBdesCount = bdes.filter(b => b.bdeType === "Freelancer").length;
+  const employeeBdesCount = bdes.filter(b => b.bdeType === "Employee").length;
+  const totalBdes = bdes.length;
+
+  const totalLeads = bdes.reduce((acc, curr) => acc + (curr.performance?.leadsAcquired || 0), 0);
+  const totalConversions = bdes.reduce((acc, curr) => acc + (curr.performance?.leadsConverted || 0), 0);
+  const conversionRatio = totalLeads > 0 ? ((totalConversions / totalLeads) * 100).toFixed(1) : "0.0";
+
+  const totalCommissions = bdes.reduce((acc, curr) => acc + (curr.freelancerSettings?.totalEarnings || 0), 0);
+
+  const indiaConversions = bdes.filter(b => b.assignedCountries?.includes("india")).reduce((acc, curr) => acc + (curr.performance?.leadsConverted || 0), 0);
+  const ausConversions = bdes.filter(b => b.assignedCountries?.includes("australia")).reduce((acc, curr) => acc + (curr.performance?.leadsConverted || 0), 0);
+
+  const getFilteredBdes = () => {
+    let list = bdes;
+    if (filterType === "active") list = bdes.filter(b => b.isActive);
+    if (filterType === "freelancer") list = bdes.filter(b => b.bdeType === "Freelancer");
+    if (filterType === "employee") list = bdes.filter(b => b.bdeType === "Employee");
+    if (filterType === "india") list = bdes.filter(b => b.assignedCountries?.includes("india"));
+    if (filterType === "australia") list = bdes.filter(b => b.assignedCountries?.includes("australia"));
+    if (filterType === "commission") list = bdes.filter(b => b.bdeType === "Freelancer" && (b.freelancerSettings?.totalEarnings || 0) > 0);
+    return list;
+  };
+
   return (
     <div className="p-6 text-slate-800 max-w-7xl mx-auto font-sans">
-      <div className="mb-8">
-        <h1 className="text-3xl font-black tracking-tight text-blue-800 flex items-center gap-3">
-          <UserCheck className="text-blue-600" /> BDE Network
-        </h1>
-        <p className="text-slate-500 mt-2">Manage Business Development Executives by region and project type.</p>
+      <div className="mb-8 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight text-blue-800 flex items-center gap-3">
+            <UserCheck className="text-blue-600" /> BDE Network
+          </h1>
+          <p className="text-slate-500 mt-2">Manage Business Development Executives by region and project type.</p>
+        </div>
+        <div>
+          <button onClick={handleAddNew} className="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 flex items-center gap-2 text-sm transition-all shadow-md">
+            <Plus className="w-4 h-4" /> Add New BDE
+          </button>
+        </div>
       </div>
 
-      {!selectedCountry && renderCountries()}
-      {selectedCountry && !selectedDistrict && renderDistricts()}
-      {selectedCountry && selectedDistrict && renderBDEs()}
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
+        <div 
+          onClick={() => {
+            setFilterType(filterType === "active" ? "all" : "active");
+            setSelectedCountry(null);
+            setSelectedDistrict(null);
+          }}
+          className={`p-4 rounded-2xl border transition-all cursor-pointer shadow-sm ${
+            filterType === "active" ? "bg-blue-50 border-blue-500 ring-2 ring-blue-500/20" : "bg-white border-slate-200 hover:border-blue-300"
+          }`}
+        >
+          <p className="text-[10px] uppercase font-extrabold text-slate-400">Active BDEs</p>
+          <p className="text-2xl font-black text-slate-800 mt-1">{activeBdesCount}</p>
+          <span className="text-[9px] text-slate-500 font-semibold">Status: Active</span>
+        </div>
+
+        <div 
+          onClick={() => {
+            setFilterType(filterType === "freelancer" ? "all" : "freelancer");
+            setSelectedCountry(null);
+            setSelectedDistrict(null);
+          }}
+          className={`p-4 rounded-2xl border transition-all cursor-pointer shadow-sm ${
+            filterType === "freelancer" ? "bg-amber-50 border-amber-500 ring-2 ring-amber-500/20" : "bg-white border-slate-200 hover:border-amber-300"
+          }`}
+        >
+          <p className="text-[10px] uppercase font-extrabold text-slate-400">Freelancers</p>
+          <p className="text-2xl font-black text-slate-800 mt-1">{freelancerBdesCount}</p>
+          <span className="text-[9px] text-slate-500 font-semibold">Type: Commission</span>
+        </div>
+
+        <div 
+          onClick={() => {
+            setFilterType(filterType === "employee" ? "all" : "employee");
+            setSelectedCountry(null);
+            setSelectedDistrict(null);
+          }}
+          className={`p-4 rounded-2xl border transition-all cursor-pointer shadow-sm ${
+            filterType === "employee" ? "bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20" : "bg-white border-slate-200 hover:border-emerald-300"
+          }`}
+        >
+          <p className="text-[10px] uppercase font-extrabold text-slate-400">Employees</p>
+          <p className="text-2xl font-black text-slate-800 mt-1">{employeeBdesCount}</p>
+          <span className="text-[9px] text-slate-500 font-semibold">Type: Salaried</span>
+        </div>
+
+        <div className="p-4 rounded-2xl border bg-white border-slate-200 shadow-sm">
+          <p className="text-[10px] uppercase font-extrabold text-slate-400">Conversion Ratio</p>
+          <p className="text-2xl font-black text-slate-800 mt-1">{conversionRatio}%</p>
+          <span className="text-[9px] text-slate-500 font-semibold">{totalConversions} / {totalLeads} Converted</span>
+        </div>
+
+        <div 
+          onClick={() => {
+            setFilterType(filterType === "australia" ? "india" : filterType === "india" ? "all" : "australia");
+            setSelectedCountry(null);
+            setSelectedDistrict(null);
+          }}
+          className={`p-4 rounded-2xl border transition-all cursor-pointer shadow-sm ${
+            filterType === "australia" || filterType === "india" ? "bg-indigo-50 border-indigo-500 ring-2 ring-indigo-500/20" : "bg-white border-slate-200 hover:border-indigo-300"
+          }`}
+        >
+          <p className="text-[10px] uppercase font-extrabold text-slate-400">Country Performance</p>
+          <p className="text-xs font-black text-slate-700 mt-1 flex flex-col">
+            <span>🇮🇳 India: {indiaConversions} conv</span>
+            <span>🇦🇺 Aust: {ausConversions} conv</span>
+          </p>
+        </div>
+
+        <div 
+          onClick={() => {
+            setFilterType(filterType === "commission" ? "all" : "commission");
+            setSelectedCountry(null);
+            setSelectedDistrict(null);
+          }}
+          className={`p-4 rounded-2xl border transition-all cursor-pointer shadow-sm ${
+            filterType === "commission" ? "bg-rose-50 border-rose-500 ring-2 ring-rose-500/20" : "bg-white border-slate-200 hover:border-rose-300"
+          }`}
+        >
+          <p className="text-[10px] uppercase font-extrabold text-slate-400">Commissions Summary</p>
+          <p className="text-base font-black text-rose-700 mt-1 flex items-center gap-0.5">
+            <span>₹{totalCommissions.toLocaleString()}</span>
+          </p>
+          <span className="text-[9px] text-slate-500 font-semibold">Total Paid out</span>
+        </div>
+      </div>
+
+      {filterType !== "all" ? (
+        <div className="space-y-6 animate-fadeIn">
+          <div className="flex justify-between items-center bg-slate-50 p-4 border border-slate-200 rounded-2xl text-slate-700">
+            <p className="text-sm font-bold capitalize">
+              Showing Filtered BDE list: <span className="text-blue-700 font-black">{filterType} BDEs</span> ({getFilteredBdes().length} found)
+            </p>
+            <button 
+              onClick={() => setFilterType("all")} 
+              className="text-xs font-black bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition shadow-sm cursor-pointer"
+            >
+              Clear Filter
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {getFilteredBdes().map(bde => {
+              const isFreelancer = bde.bdeType === "Freelancer";
+              const commType = bde.freelancerSettings?.commissionType || "Fixed";
+              const commAmt = bde.freelancerSettings?.commissionAmount || 0;
+              const totalEarned = bde.freelancerSettings?.totalEarnings || 0;
+
+              return (
+                <div key={bde._id} className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-bold text-lg text-slate-800">{bde.name}</h3>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                          isFreelancer ? "bg-amber-100 text-amber-800 border border-amber-200" : "bg-blue-100 text-blue-800 border border-blue-200"
+                        }`}>
+                          {isFreelancer ? "Freelancer" : "Employee"}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-500">{bde.email}</p>
+                      <p className="text-xs text-slate-500">{bde.mobile}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleEdit(bde)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100">
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleDelete(bde._id)} className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap gap-1">
+                      {bde.assignedProjectTypes?.map(pt => (
+                        <span key={pt} className="px-2 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-600 text-[10px] uppercase rounded-full">
+                          {pt}
+                        </span>
+                      ))}
+                    </div>
+
+                    {isFreelancer && (
+                      <div className="p-2.5 bg-amber-50/80 border border-amber-200/80 rounded-lg text-xs space-y-1">
+                        <div className="flex justify-between text-amber-900 font-bold">
+                          <span>Accrued Earnings:</span>
+                          <span className="text-emerald-700 text-sm font-black">₹{totalEarned.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+                      <div>
+                        <p className="text-xs text-slate-500">Leads</p>
+                        <p className="font-bold text-slate-800">{bde.performance?.leadsAcquired || 0} / {bde.targets?.leads || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Converted</p>
+                        <p className="font-bold text-slate-800">{bde.performance?.leadsConverted || 0} / {bde.targets?.conversions || 0}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <>
+          {!selectedCountry && renderCountries()}
+          {selectedCountry && !selectedDistrict && renderDistricts()}
+          {selectedCountry && selectedDistrict && renderBDEs()}
+        </>
+      )}
 
       {/* Slide-over / Modal for Edit */}
       {isEditing && (

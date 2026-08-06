@@ -12,34 +12,53 @@ import {
   PhoneCall,
 } from "lucide-react";
 
-export default function TrustSection() {
-  const trustPoints = [
-    {
-      title: "Empaneled Solar Contractor",
-      desc: "Proud GEDA (Gujarat Energy Development Agency) authorized empanelled solar installer. Certified to load subsidy directly on the National Portal.",
-      icon: <ShieldCheck className="w-5 h-5 text-solar-sky" />,
-    },
-    {
-      title: "Residential Solar Pioneers",
-      desc: "Authorized partner in Rajkot for residential solar panels, supporting zero-overhead setups for single-family homes, complexes, and high-rise apartments.",
-      icon: <Snowflake className="w-5 h-5 text-blue-500" />,
-    },
-    {
-      title: "Commercial & Industrial Solar",
-      desc: "Custom high-load commercial arrays with 40% accelerated depreciation tax benefits, bringing down corporate, hospital, and factory energy bills significantly.",
-      icon: <Settings className="w-5 h-5 text-teal-600" />,
-    },
-    {
-      title: "Tier-1 Certified Components",
-      desc: "We exclusively deploy ALMM-approved, ultra-high-efficiency Mono Perc and Bifacial panels (wafer-thin panels capturing sunlight from both sides) with a 25-year performance warranty.",
-      icon: <Gauge className="w-5 h-5 text-amber-600" />,
-    },
-    {
-      title: "Timely Local Maintenance",
-      desc: "Based in Rajkot (Kalawad Road). Our mobile response team promises site checkups and cleanup services within 24 hours of call logged.",
-      icon: <PhoneCall className="w-5 h-5 text-solar-green" />,
-    },
+export default function TrustSection({ settings }) {
+  const defaultIcons = [
+    <ShieldCheck className="w-5 h-5 text-solar-sky" />,
+    <Snowflake className="w-5 h-5 text-blue-500" />,
+    <Settings className="w-5 h-5 text-teal-600" />,
+    <Gauge className="w-5 h-5 text-amber-600" />,
+    <PhoneCall className="w-5 h-5 text-solar-green" />,
   ];
+
+  const rawPoints = settings?.trust?.points || [];
+  const trustPoints = rawPoints.length > 0
+    ? rawPoints.map((pt, idx) => ({
+        title: pt.title,
+        desc: pt.desc,
+        icon: defaultIcons[idx % defaultIcons.length]
+      }))
+    : [
+        {
+          title: "Empaneled Solar Contractor",
+          desc: "Proud GEDA (Gujarat Energy Development Agency) authorized empanelled solar installer. Certified to load subsidy directly on the National Portal.",
+          icon: <ShieldCheck className="w-5 h-5 text-solar-sky" />,
+        },
+        {
+          title: "Residential Solar Pioneers",
+          desc: "Authorized partner in Rajkot for residential solar panels, supporting zero-overhead setups for single-family homes, complexes, and high-rise apartments.",
+          icon: <Snowflake className="w-5 h-5 text-blue-500" />,
+        },
+        {
+          title: "Commercial & Industrial Solar",
+          desc: "Custom high-load commercial arrays with 40% accelerated depreciation tax benefits, bringing down corporate, hospital, and factory energy bills significantly.",
+          icon: <Settings className="w-5 h-5 text-teal-600" />,
+        },
+        {
+          title: "Tier-1 Certified Components",
+          desc: "We exclusively deploy ALMM-approved, ultra-high-efficiency Mono Perc and Bifacial panels (wafer-thin panels capturing sunlight from both sides) with a 25-year performance warranty.",
+          icon: <Gauge className="w-5 h-5 text-amber-600" />,
+        },
+        {
+          title: "Timely Local Maintenance",
+          desc: "Based in Rajkot (Kalawad Road). Our mobile response team promises site checkups and cleanup services within 24 hours of call logged.",
+          icon: <PhoneCall className="w-5 h-5 text-solar-green" />,
+        },
+      ];
+
+  const sectionTitle = settings?.trust?.sectionTitle || "Local Trusted Expert";
+  const sectionSubtitle = settings?.trust?.sectionSubtitle || "Sunnovative Solar System Pvt Ltd";
+  const sectionDesc = settings?.trust?.sectionDesc || "As the leading epc service firm in Rajkot & Saurashtra region, we combine world-class PV component logistics with rigorous local engineering standards, protecting families against volatile power rates for the next 25+ years.";
 
   return (
     <section
@@ -56,16 +75,13 @@ export default function TrustSection() {
           <div className="lg:col-span-7 space-y-8">
             <div>
               <span className="text-xs font-bold uppercase tracking-widest text-[#0081C9] bg-sky-50 px-3 py-1 rounded-full border border-sky-100">
-                Local Trusted Expert
+                {sectionTitle}
               </span>
               <h2 className="text-3xl md:text-4xl font-display font-extrabold text-slate-900 mt-3 leading-tight">
-                Sunnovative Solar System Pvt Ltd
+                {sectionSubtitle}
               </h2>
               <p className="text-slate-500 mt-4 text-xs md:text-sm leading-relaxed">
-                As the leading epc service firm in Rajkot & Saurashtra region,
-                we combine world-class PV component logistics with rigorous
-                local engineering standards, protecting families against
-                volatile power rates for the next 25+ years.
+                {sectionDesc}
               </p>
             </div>
 

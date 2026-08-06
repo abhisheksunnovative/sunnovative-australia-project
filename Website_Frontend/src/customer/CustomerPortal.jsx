@@ -10,7 +10,7 @@ import {
   Shield, Zap, IndianRupee, TrendingUp, Bell, CheckCheck, Circle,
   Timer, XCircle, Calendar, Building, Users, Star, Award,
   Package, Sparkles, ArrowRight, Camera, X, Info, Search,
-  Filter, SlidersHorizontal, BarChart3, Leaf, Wallet, Check, CreditCard,
+  Filter, SlidersHorizontal, BarChart3, Leaf, Wallet, Check, CreditCard, Trash2, CheckSquare, Square,
 } from "lucide-react";
 import { useCustomerAuth } from "./CustomerAuthContext";
 import { useCountry } from "../context/CountryContext";
@@ -100,8 +100,129 @@ function ProgressTracker({ status, pct }) {
   );
 }
 
-function ProjectJourneyTracker({ steps }) {
+function ProjectJourneyTracker({ steps, projectId, onRefresh }) {
   const [expandedStep, setExpandedStep] = useState(null);
+  const [evidenceNote, setEvidenceNote] = useState("");
+  const [uploadFile, setUploadFile] = useState(null);
+  const [actionInputs, setActionInputs] = useState({});
+  const [stageLoading, setStageLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const handleFileChange = async (stepId, slotLabel, file) => {
+    if (!file) return;
+    const token = localStorage.getItem("customer_token");
+    const fd = new FormData();
+    fd.append("file", file);
+    
+    setActionInputs(prev => ({
+      ...prev,
+      [stepId]: {
+        ...(prev[stepId] || {}),
+        [`${slotLabel}_uploading`]: true
+      }
+    }));
+
+    try {
+      const res = await fetch(`${API}/api/upload-file`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActionInputs(prev => ({
+          ...prev,
+          [stepId]: {
+            ...(prev[stepId] || {}),
+            [slotLabel]: data.fileUrl,
+            [`${slotLabel}_uploading`]: false
+          }
+        }));
+      } else {
+        alert(data.message || "File upload failed");
+        setActionInputs(prev => ({
+          ...prev,
+          [stepId]: {
+            ...(prev[stepId] || {}),
+            [`${slotLabel}_uploading`]: false
+          }
+        }));
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error uploading file");
+      setActionInputs(prev => ({
+        ...prev,
+        [stepId]: {
+          ...(prev[stepId] || {}),
+          [`${slotLabel}_uploading`]: false
+        }
+      }));
+    }
+  };
+
+  const handleTextChange = (stepId, slotLabel, val) => {
+    setActionInputs(prev => ({
+      ...prev,
+      [stepId]: {
+        ...(prev[stepId] || {}),
+        [slotLabel]: val
+      }
+    }));
+  };
+
+  const completeStep = async (stepId) => {
+    if (!window.confirm("Mark this step as complete?")) return;
+    setStageLoading(true);
+    setErrorMsg("");
+    try {
+      const fd = new FormData();
+      fd.append("stepId", stepId);
+      if (evidenceNote) fd.append("note", evidenceNote);
+      if (uploadFile) fd.append("evidence", uploadFile);
+
+      const step = displaySteps.find(s => (s.id || s.stepId) === stepId);
+      const reqActions = step?.requiredActions || [];
+      const uploadedActions = [];
+
+      for (const act of reqActions) {
+        const val = actionInputs[stepId]?.[act.label] || "";
+        if (act.required && !val) {
+          alert(`Please fill/upload required field: ${act.label}`);
+          setStageLoading(false);
+          return;
+        }
+        uploadedActions.push({
+          label: act.label,
+          fileType: act.fileType,
+          value: val
+        });
+      }
+
+      if (uploadedActions.length > 0) {
+        fd.append("uploadedActions", JSON.stringify(uploadedActions));
+      }
+
+      const token = localStorage.getItem("customer_token");
+      const res = await fetch(`${API}/api/customer/projects/${projectId}/complete-step`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      const d = await res.json();
+      if (d.success) {
+        setUploadFile(null);
+        setEvidenceNote("");
+        if (onRefresh) onRefresh();
+      } else {
+        setErrorMsg(d.message || "Step completion failed");
+      }
+    } catch (err) {
+      setErrorMsg("Network error completing step");
+    } finally {
+      setStageLoading(false);
+    }
+  };
 
   const displaySteps = steps?.length > 0 ? steps : [
     { stepNumber: 1, title: 'Lead Captured', status: 'completed' },
@@ -120,6 +241,9 @@ function ProjectJourneyTracker({ steps }) {
         const active = step.status === "in-progress" || isAwaitingApproval || (step.status === "pending" && (i === 0 || displaySteps[i-1]?.status === "completed"));
         const isExpanded = expandedStep === i;
 
+        // Check if all previous steps in the journey are completed or skipped
+        const previousStepsCompleted = displaySteps.slice(0, i).every(s => s.status === "completed" || s.status === "skipped");
+
         // Role-based colors
         let roleColor = "bg-slate-100 text-slate-600";
         let roleLabel = "Admin";
@@ -137,11 +261,18 @@ function ProjectJourneyTracker({ steps }) {
           roleLabel = "Aap (Customer)";
         }
 
+        const isCustomer = step.assignedTo === "customer";
+        const isActive = step.status === "in-progress" || (step.status === "pending" && (i === 0 || displaySteps[i-1]?.status === "completed"));
+        const requiresDoc = step.requiresDocumentUpload || (step.documentRequirements && step.documentRequirements.length > 0);
+
         return (
           <div key={i} className={`border rounded-lg transition-all ${isAwaitingApproval ? 'border-yellow-400 bg-yellow-50/70 shadow-sm' : active ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200/80 bg-white'}`}>
             <div 
               className="flex items-center justify-between py-1.5 px-3 cursor-pointer hover:bg-slate-50 rounded-lg"
-              onClick={() => setExpandedStep(isExpanded ? null : i)}
+              onClick={() => {
+                setExpandedStep(isExpanded ? null : i);
+                setErrorMsg("");
+              }}
             >
               <div className="flex items-center gap-2.5">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
@@ -187,8 +318,31 @@ function ProjectJourneyTracker({ steps }) {
                   </div>
                 )}
 
-                {(step.evidenceUrl || step.evidenceNote) ? (
-                  <div className="bg-white p-3 rounded-lg border border-slate-200">
+                {(step.uploadedActions && step.uploadedActions.length > 0) ? (
+                  <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-2 mt-2">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Completed Action Fields</p>
+                    {step.uploadedActions.map((act, actIdx) => (
+                      <div key={actIdx} className="flex justify-between items-center text-xs border-b border-slate-100 pb-1.5 last:border-0 last:pb-0">
+                        <span className="font-semibold text-slate-600">{act.label}:</span>
+                        {act.fileType === "text" ? (
+                          <span className="text-slate-800 font-medium">{act.value || "—"}</span>
+                        ) : (
+                          act.value ? (
+                            <a href={`${API}${act.value}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline flex items-center gap-1 font-bold">
+                              <FileText className="w-3.5 h-3.5" /> View File
+                            </a>
+                          ) : (
+                            <span className="text-slate-400 italic">No file uploaded</span>
+                          )
+                        )}
+                      </div>
+                    ))}
+                    {step.evidenceNote && (
+                      <p className="text-xs text-slate-700 bg-slate-50 p-2 rounded border border-slate-100 italic mt-2">"{step.evidenceNote}"</p>
+                    )}
+                  </div>
+                ) : (step.evidenceUrl || step.evidenceNote) ? (
+                  <div className="bg-white p-3 rounded-lg border border-slate-200 mt-2">
                     <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Completion Details</p>
                     {step.evidenceUrl && (
                       <a href={step.evidenceUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-xs text-blue-600 hover:underline mb-2 font-medium">
@@ -201,6 +355,97 @@ function ProjectJourneyTracker({ steps }) {
                   </div>
                 ) : (
                   <p className="text-[11px] text-slate-400 italic mt-2">No attachments or notes yet.</p>
+                )}
+
+                {isActive && isCustomer && (
+                  <div className="mt-4 pt-4 border-t border-amber-200">
+                    <p className="text-xs font-semibold text-amber-900 mb-2">
+                      {step.actionLabel || `Complete this step: ${step.title}`}
+                    </p>
+                    {!previousStepsCompleted ? (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-bold text-red-700 flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                        Pehle isse pichle saare steps complete hone chahiye. / Please complete all previous steps first.
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {step.requiredActions && step.requiredActions.length > 0 ? (
+                          <div className="space-y-3 p-3 bg-white border border-slate-200 rounded-xl">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Required Input Fields</p>
+                            {step.requiredActions.map((act, actIdx) => {
+                              const stepId = step.id || step.stepId;
+                              const value = actionInputs[stepId]?.[act.label] || "";
+                              const uploading = actionInputs[stepId]?.[`${act.label}_uploading`];
+
+                              return (
+                                <div key={actIdx} className="flex flex-col gap-1.5">
+                                  <label className="text-xs font-bold text-slate-700">
+                                    {act.label} {act.required !== false && <span className="text-red-500">*</span>}
+                                  </label>
+                                  {act.fileType === "text" ? (
+                                    <input 
+                                      type="text" 
+                                      value={value} 
+                                      onChange={(e) => handleTextChange(stepId, act.label, e.target.value)}
+                                      placeholder={`Enter ${act.label}...`}
+                                      className="w-full text-xs border border-slate-300 rounded p-2 focus:ring-1 focus:ring-amber-500 bg-white focus:outline-none"
+                                    />
+                                  ) : (
+                                    <div className="flex items-center gap-3">
+                                      <input 
+                                        type="file" 
+                                        onChange={(e) => handleFileChange(stepId, act.label, e.target.files?.[0])}
+                                        className="text-xs text-slate-500"
+                                      />
+                                      {uploading ? (
+                                        <span className="text-xs text-amber-600 font-bold animate-pulse">Uploading...</span>
+                                      ) : value ? (
+                                        <span className="text-xs text-green-600 font-bold flex items-center gap-1">✓ Uploaded</span>
+                                      ) : (
+                                        <span className="text-xs text-slate-400">No file</span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : requiresDoc ? (
+                          <div className="flex flex-col gap-1.5 p-3 bg-white border border-slate-200 rounded-xl">
+                            <span className="text-xs font-bold text-slate-700">
+                              Required Document: {step.documentRequirements?.join(", ") || step.documentName || "Document"}
+                            </span>
+                            <input 
+                              type="file" 
+                              onChange={e => setUploadFile(e.target.files?.[0])}
+                              className="text-xs text-slate-500"
+                            />
+                          </div>
+                        ) : null}
+
+                        <input 
+                          type="text" 
+                          placeholder="Add a note (optional)..."
+                          className="w-full text-xs border border-slate-300 rounded p-2 focus:ring-1 focus:ring-amber-500 bg-white focus:outline-none"
+                          value={evidenceNote}
+                          onChange={e => setEvidenceNote(e.target.value)}
+                        />
+
+                        <div className="flex items-center justify-end">
+                          <button 
+                            onClick={() => completeStep(step.id || step.stepId)}
+                            disabled={stageLoading}
+                            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition-colors shadow-sm cursor-pointer"
+                          >
+                            {stageLoading ? 'Saving...' : 'Submit & Complete'}
+                          </button>
+                        </div>
+                        {errorMsg && (
+                          <p className="text-xs text-red-600 font-bold mt-1">⚠️ {errorMsg}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             )}
@@ -571,8 +816,8 @@ function ProjectDetail({ projectId, onBack, authFetch }) {
           <div className="grid grid-cols-3 gap-2 relative z-10">
             {[
               { l: "SYSTEM", v: project.systemSizeKW ? `${project.systemSizeKW} kW` : "—" },
-              { l: "TOTAL COST", v: project.totalProjectCost ? `${country === "AU" ? "$" : "₹"}${project.totalProjectCost.toLocaleString('en-IN')}` : "—" },
-              { l: country === "AU" ? "STC REBATE" : "SUBSIDY", v: project.estimatedSubsidy ? `${country === "AU" ? "$" : "₹"}${project.estimatedSubsidy.toLocaleString('en-IN')}` : "—" },
+              { l: (project.country === "australia" || country === "AU") ? "TOTAL COST" : "TOTAL COST", v: project.totalProjectCost ? `${(project.country === "australia" || country === "AU") ? "$" : "₹"}${project.totalProjectCost.toLocaleString((project.country === "australia" || country === "AU") ? 'en-US' : 'en-IN')}` : "—" },
+              { l: (project.country === "australia" || country === "AU") ? "STC REBATE" : "SUBSIDY", v: project.estimatedSubsidy ? `${(project.country === "australia" || country === "AU") ? "$" : "₹"}${project.estimatedSubsidy.toLocaleString((project.country === "australia" || country === "AU") ? 'en-US' : 'en-IN')}` : "—" },
             ].map(s => (
               <div key={s.l} className="bg-slate-950/70 rounded-lg py-1.5 px-2 text-center backdrop-blur-md border border-white/10 shadow-sm">
                 <p className="text-[8px] text-slate-400 uppercase font-black tracking-wider">{s.l}</p>
@@ -723,7 +968,7 @@ function ProjectDetail({ projectId, onBack, authFetch }) {
             <BarChart3 className="w-4 h-4 text-yellow-500" />
             <h3 className="font-black text-slate-800">Installation Journey</h3>
           </div>
-          <ProjectJourneyTracker steps={project.steps} />
+          <ProjectJourneyTracker steps={project.steps} projectId={project._id} onRefresh={fetchProject} />
         </div>
 
         {/* EPC Partner */}
@@ -894,7 +1139,7 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
     setSubmitting(true);
     const fd = new FormData();
     const payload = {
-        projectType: pkg.suitable?.[0]?.toLowerCase().replace(" solar","").replace(" ","-") || "residential",
+        projectType: pkg.projectType || pkg.suitable?.[0]?.toLowerCase().replace(" solar","").replace(/[\s/]/g,"-").replace("+-","") || "residential",
         projectTypeLabel: pkg.name,
         systemSizeKW: pkg.kw,
         monthlyBillAmount: 0,
@@ -1156,6 +1401,90 @@ export default function CustomerPortal({ onClose }) {
   const [journeySettings, setJourneySettings] = useState(null);
   const [customerLead, setCustomerLead] = useState(null);
   const [backendNotifications, setBackendNotifications] = useState([]);
+  const [selectedNotifIds, setSelectedNotifIds] = useState([]);
+
+  const toggleSelectNotif = (id) => {
+    setSelectedNotifIds(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllNotifs = () => {
+    const dbNotifs = backendNotifications.map(n => n._id);
+    if (selectedNotifIds.length === dbNotifs.length) {
+      setSelectedNotifIds([]);
+    } else {
+      setSelectedNotifIds(dbNotifs);
+    }
+  };
+
+  const handleDeleteSelectedNotifs = async () => {
+    if (selectedNotifIds.length === 0) return;
+    if (!window.confirm(`Delete ${selectedNotifIds.length} selected notifications?`)) return;
+    try {
+      await authFetch("/api/notifications/delete-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedNotifIds })
+      });
+      setSelectedNotifIds([]);
+      fetchBackendNotifications();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleMarkSelectedAsRead = async () => {
+    if (selectedNotifIds.length === 0) return;
+    try {
+      await authFetch("/api/notifications/mark-all-read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedNotifIds })
+      });
+      setSelectedNotifIds([]);
+      fetchBackendNotifications();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteSingleNotif = async (id) => {
+    if (!window.confirm("Delete this notification?")) return;
+    try {
+      await authFetch(`/api/notifications/${id}`, { method: "DELETE" });
+      setSelectedNotifIds(prev => prev.filter(x => x !== id));
+      fetchBackendNotifications();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleMarkSingleAsRead = async (id) => {
+    try {
+      await authFetch(`/api/notifications/${id}/read`, { method: "PUT" });
+      fetchBackendNotifications();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      const ids = backendNotifications.filter(n => !n.isRead).map(n => n._id);
+      if (ids.length === 0) return;
+      await authFetch("/api/notifications/mark-all-read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids })
+      });
+      fetchBackendNotifications();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const unreadCount = backendNotifications.filter(n => !n.isRead).length;
 
   const fetchBackendNotifications = async () => {
     try {
@@ -1237,7 +1566,14 @@ export default function CustomerPortal({ onClose }) {
     try {
       const res = await authFetch("/api/customer/projects");
       const d = await res.json();
-      if (d.success) setProjects(d.data);
+      if (d.success) {
+        setProjects(d.data);
+        if (d.data.length === 0) {
+          setTab("new-project");
+        } else {
+          setTab("home");
+        }
+      }
     } catch {}
     setProjLoading(false);
   };
@@ -1347,7 +1683,17 @@ export default function CustomerPortal({ onClose }) {
         {/* Dynamic Sidebar Nav */}
         <div className="flex-1 py-4 md:py-6 overflow-y-auto px-3 sm:px-4 flex md:flex-col gap-2 sm:gap-3 hide-scrollbar">
           
-          <p className="text-[10px] font-black uppercase text-white/40 tracking-wider mb-2 hidden md:block px-3">Active Projects</p>
+          {/* Dashboard Home Tab */}
+          <button onClick={() => { setTab("home"); setProjectView("list"); }}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all whitespace-nowrap md:whitespace-normal text-left ${tab === "home" ? "bg-yellow-400 text-yellow-950 shadow-md font-bold" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}>
+            <LayoutDashboard className="w-5 h-5 shrink-0" />
+            <div>
+              <p className="font-bold text-sm leading-tight">Dashboard Home</p>
+              <p className="text-[10px] opacity-80">Overview & Documents</p>
+            </div>
+          </button>
+
+          <p className="text-[10px] font-black uppercase text-white/40 tracking-wider mb-2 mt-4 hidden md:block px-3">Active Projects</p>
           {active.length > 0 ? (
             active.map(p => (
               <button key={p._id} onClick={() => { setTab("projects"); setProjectView("detail"); setSelectedProjectId(p._id); }}
@@ -1370,7 +1716,11 @@ export default function CustomerPortal({ onClose }) {
             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all whitespace-nowrap md:whitespace-normal text-left ${tab === "notifications" ? "bg-amber-400 text-yellow-950 shadow-md font-bold" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}>
             <div className="relative shrink-0">
               <Bell className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full animate-ping" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center text-[9px] font-black text-white ring-2 ring-slate-900 animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
             </div>
             <div>
               <p className="font-bold text-sm leading-tight">Notifications</p>
@@ -1422,22 +1772,321 @@ export default function CustomerPortal({ onClose }) {
       <div className={`flex-1 bg-slate-50 flex flex-col h-full ${(tab === "projects" && projectView === "detail") ? "overflow-hidden" : "overflow-y-auto"}`}>
         <div className={`max-w-4xl mx-auto px-4 sm:px-6 py-6 w-full ${(tab === "projects" && projectView === "detail") ? "h-full flex flex-col overflow-hidden pb-4" : "pb-24 md:pb-12"}`}>
 
-          {/* ── HOME DASHBOARD REMOVED - NOW DEFAULTING TO PROJECTS/APPLY VIEW ── */}
+          {/* ── HIGH-FIDELITY HOME DASHBOARD ── */}
           {tab === "home" && (
-              <div className="bg-gradient-to-r from-emerald-50 to-green-50 border border-green-100 rounded-2xl p-4 flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-green-500 flex items-center justify-center shrink-0">
-                  <Leaf className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm font-black text-green-800">Gujarat Residents ke liye</p>
-                  <p className="text-xs text-green-700 mt-0.5">Central ₹78,000 + Gujarat state ₹40,000 = total ₹1,18,000 tak subsidy milti hai 3kW system pe! PM Surya Ghar Yojana ke under.</p>
+            <div className="space-y-6 animate-fadeIn">
+              {/* Welcome Header */}
+              <div className="bg-slate-900 rounded-3xl p-5 md:p-6 text-white shadow-xl relative overflow-hidden border border-slate-800 text-left">
+                <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-yellow-500/10 rounded-full blur-2xl pointer-events-none" />
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-black uppercase text-yellow-400 tracking-widest bg-yellow-500/10 px-2.5 py-1 rounded-full border border-yellow-500/20">
+                      Welcome Back / Swagat Hai
+                    </span>
+                    <h2 className="text-xl md:text-2xl font-black">{customer?.fullName || "Solar Partner"}</h2>
+                    <p className="text-xs text-slate-400">Sunnovative energy ecosystem dashboard. Track, manage and monitor your solar installation.</p>
+                  </div>
+                  <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl p-3 md:min-w-[240px]">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-400 to-amber-400 flex items-center justify-center text-yellow-950 font-black text-lg">
+                      {customer?.fullName?.charAt(0).toUpperCase() || "S"}
+                    </div>
+                    <div className="text-left">
+                      <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">Registered Profile</p>
+                      <p className="text-xs font-bold text-slate-200 truncate max-w-[170px]">{customer?.mobile}</p>
+                      <p className="text-[10px] text-slate-450 truncate max-w-[170px]">{customer?.email || "No Email Provided"}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
+
+              {/* Dynamic Notification Banner / Subsidy Tips */}
+              <div className="bg-gradient-to-r from-amber-500/10 to-yellow-500/10 border border-yellow-500/20 rounded-2xl p-4 flex items-start gap-3 text-left">
+                <div className="w-9 h-9 rounded-xl bg-yellow-400/20 flex items-center justify-center shrink-0 border border-yellow-500/30">
+                  <Leaf className="w-5 h-5 text-yellow-600 fill-yellow-500/20" />
+                </div>
+                <div>
+                  <p className="text-xs font-black text-amber-900">
+                    {country === "AU" ? "Australian Solar Incentives" : "PM Surya Ghar Yojana (Subsidy Scheme)"}
+                  </p>
+                  <p className="text-[11px] text-amber-800 mt-0.5 leading-normal">
+                    {country === "AU" 
+                      ? "Small-scale Technology Certificates (STC) apply directly at point-of-sale to save you thousands upfront. Ensure all CEC forms are signed in the tracker." 
+                      : "Central ₹78,000 + Gujarat state ₹40,000 = total ₹1,18,000 tak ki direct subsidy milti hai 3kW system par. Direct Benefit Transfer (DBT) is processed post net-metering."}
+                  </p>
+                </div>
+              </div>
+
+              {/* Ongoing Projects Section */}
+              <div className="text-left">
+                <h3 className="font-black text-slate-800 text-sm md:text-base mb-3 flex items-center gap-2">
+                  <FolderOpen className="w-5 h-5 text-yellow-500" /> Active Solar Projects ({active.length})
+                </h3>
+                
+                {active.length > 0 ? (
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {active.map(p => {
+                      const currentStep = p.steps?.find(s => s.status === 'in-progress' || s.status === 'pending') || p.steps?.[0];
+                      const installDate = p.preferredInstallDate || p.scheduledInstallDate;
+                      return (
+                        <div key={p._id} className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4 hover:shadow-md transition">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-black text-slate-800 text-sm">{p.projectTypeLabel || p.projectType} Solar</h4>
+                              <p className="text-[10px] font-mono text-slate-400 font-bold uppercase mt-0.5">{p.orderNumber}</p>
+                            </div>
+                            <span className="text-[10px] font-black bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full border border-amber-200">
+                              {p.status}
+                            </span>
+                          </div>
+
+                          {/* Progress Bar */}
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                              <span>Overall Progress</span>
+                              <span>{p.completionPercentage || 0}%</span>
+                            </div>
+                            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                              <div className="bg-amber-400 h-full transition-all" style={{ width: `${p.completionPercentage || 0}%` }} />
+                            </div>
+                          </div>
+
+                          {/* Status and Dates */}
+                          <div className="grid grid-cols-2 gap-2 text-left bg-slate-50 p-2.5 rounded-2xl border border-slate-100 text-[11px]">
+                            <div>
+                              <span className="text-slate-450 font-medium block">Current Step</span>
+                              <span className="font-bold text-slate-700 truncate block">
+                                {currentStep ? `#${currentStep.stepNumber}: ${currentStep.title}` : "—"}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-slate-450 font-medium block">Installation Date</span>
+                              <span className="font-bold text-slate-700 block">
+                                {installDate ? new Date(installDate).toLocaleDateString() : "To be scheduled"}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Action Button to Detail */}
+                          <button 
+                            onClick={() => { setTab("projects"); setProjectView("detail"); setSelectedProjectId(p._id); }}
+                            className="w-full py-2 bg-yellow-400 hover:bg-amber-400 text-yellow-950 font-black text-xs rounded-xl transition flex items-center justify-center gap-1 shadow-sm cursor-pointer"
+                          >
+                            Track Installation Journey <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="bg-white border border-slate-200 rounded-3xl p-6 text-center shadow-sm">
+                    <Sun className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="text-xs text-slate-500 font-bold">No active solar projects found.</p>
+                    <button 
+                      onClick={() => setTab("new-project")}
+                      className="mt-3 px-4 py-2 bg-yellow-400 hover:bg-amber-400 text-yellow-950 font-black text-xs rounded-xl transition shadow-sm cursor-pointer"
+                    >
+                      Apply For Solar Now
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Lead Recommendations Section */}
+              {projects.length > 0 && (
+                <div className="text-left">
+                  <h3 className="font-black text-slate-800 text-sm md:text-base mb-3 flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-yellow-500" /> Lead Recommendations (Calculated Options)
+                  </h3>
+                  <div className="space-y-3">
+                    {projects.map(p => {
+                      const isAU = p.country === "australia" || country === "AU";
+                      const size = p.systemSizeKW || (isAU ? 6.6 : 3);
+                      const cost = p.totalProjectCost || (isAU ? 6800 : 120000);
+                      const subsidy = p.estimatedSubsidy || (isAU ? 3200 : 78000);
+                      const netPayable = Math.max(0, cost - subsidy);
+                      const panelsCount = Math.round(size * 1000 / 440); // 440W panels
+                      const monthlyGen = Math.round(size * 120); // 120 kWh per kW per month
+                      const savings = isAU ? monthlyGen * 0.30 : monthlyGen * 8; // $0.30/kWh vs ₹8/unit
+
+                      return (
+                        <div key={p._id} className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4 text-left">
+                          <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                            <div>
+                              <span className="text-[10px] text-slate-450 font-bold uppercase">Project Link</span>
+                              <h4 className="font-black text-slate-800 text-xs truncate max-w-[200px]">{p.projectTypeLabel || p.projectType} Solar ({p.orderNumber})</h4>
+                            </div>
+                            <span className="text-[10px] font-black bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full border border-blue-150">
+                              Calculated Options
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center">
+                              <p className="text-[9px] font-black uppercase text-slate-450">Capacity</p>
+                              <p className="text-sm font-black text-slate-800 mt-0.5">{size} kW</p>
+                              <p className="text-[9px] text-slate-500 font-bold mt-0.5">~{panelsCount} Panels</p>
+                            </div>
+                            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center">
+                              <p className="text-[9px] font-black uppercase text-slate-450">Total Value</p>
+                              <p className="text-sm font-black text-slate-800 mt-0.5">{isAU ? "$" : "₹"}{cost.toLocaleString()}</p>
+                              <p className="text-[9px] text-slate-500 font-bold mt-0.5">Project Cost</p>
+                            </div>
+                            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center">
+                              <p className="text-[9px] font-black uppercase text-slate-450">{isAU ? "STC Rebate" : "Govt Subsidy"}</p>
+                              <p className="text-sm font-black text-green-600 mt-0.5">-{isAU ? "$" : "₹"}{subsidy.toLocaleString()}</p>
+                              <p className="text-[9px] text-slate-500 font-bold mt-0.5 font-sans">Upfront discount</p>
+                            </div>
+                            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center">
+                              <p className="text-[9px] font-black uppercase text-slate-450">Net Cost</p>
+                              <p className="text-sm font-black text-blue-600 mt-0.5">{isAU ? "$" : "₹"}{netPayable.toLocaleString()}</p>
+                              <p className="text-[9px] text-slate-500 font-bold mt-0.5">Payable amount</p>
+                            </div>
+                          </div>
+
+                          <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-3 flex items-center justify-between text-xs text-emerald-800">
+                            <span className="font-bold flex items-center gap-1">🌿 Estimated Environmental & Bills Savings:</span>
+                            <span className="font-black text-emerald-950 bg-emerald-100 px-3 py-1 rounded-xl">
+                              ~{isAU ? "$" : "₹"}{Math.round(savings).toLocaleString()} / Month
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Uploaded Documents Repository */}
+              <div className="text-left">
+                <h3 className="font-black text-slate-800 text-sm md:text-base mb-3 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-yellow-500" /> Dynamic Document Repository
+                </h3>
+                <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
+                  {(() => {
+                    const allDocs = [];
+                    projects.forEach(p => {
+                      if (p.documents && p.documents.length > 0) {
+                        p.documents.forEach(d => {
+                          allDocs.push({
+                            name: d.type?.replace(/_/g, " ") || "Uploaded Document",
+                            project: `${p.projectTypeLabel || p.projectType} (${p.orderNumber})`,
+                            uploadedBy: "Customer",
+                            uploadedAt: d.uploadedAt || p.updatedAt,
+                            url: d.url
+                          });
+                        });
+                      }
+                      if (p.steps && p.steps.length > 0) {
+                        p.steps.forEach(s => {
+                          if (s.evidenceUrl) {
+                            allDocs.push({
+                              name: s.title || "Evidence Document",
+                              project: `${p.projectTypeLabel || p.projectType} (${p.orderNumber})`,
+                              uploadedBy: s.completedBy || "EPC / Customer",
+                              uploadedAt: s.completedAt || p.updatedAt,
+                              url: s.evidenceUrl
+                            });
+                          }
+                        });
+                      }
+                    });
+
+                    if (allDocs.length === 0) {
+                      return (
+                        <div className="p-6 text-center">
+                          <p className="text-xs text-slate-400 italic">No document uploads captured yet. Documents will appear here once uploaded in the journey tracker.</p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead>
+                            <tr className="bg-slate-100 border-b border-slate-200 text-[10px] font-black uppercase text-slate-450 tracking-wider">
+                              <th className="p-3">File / Document Name</th>
+                              <th className="p-3">Project Link</th>
+                              <th className="p-3">Uploaded By</th>
+                              <th className="p-3">Upload Date</th>
+                              <th className="p-3 text-right">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {allDocs.map((doc, idx) => (
+                              <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50 transition">
+                                <td className="p-3 font-bold text-slate-800 capitalize flex items-center gap-1.5">
+                                  <FileText className="w-4 h-4 text-slate-400" /> {doc.name}
+                                </td>
+                                <td className="p-3 text-slate-500 font-bold">{doc.project}</td>
+                                <td className="p-3 text-slate-500 font-medium">{doc.uploadedBy}</td>
+                                <td className="p-3 text-slate-400 font-bold">{new Date(doc.uploadedAt).toLocaleDateString()}</td>
+                                <td className="p-3 text-right">
+                                  <a 
+                                    href={doc.url.startsWith("/") ? `${API}${doc.url}` : doc.url} 
+                                    target="_blank" 
+                                    rel="noreferrer"
+                                    className="px-2.5 py-1 bg-blue-50 text-blue-650 hover:bg-blue-100 border border-blue-200 rounded-lg text-[10px] font-black transition inline-block uppercase tracking-wider"
+                                  >
+                                    View / Open
+                                  </a>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Portal Directory / Tour Section */}
+              <div className="bg-slate-50 rounded-3xl p-5 border border-slate-200 text-left space-y-4">
+                <div>
+                  <h4 className="text-slate-800 font-black text-sm">💡 Quick Guide: Portal Tour</h4>
+                  <p className="text-slate-500 text-[11px] mt-0.5 font-bold">Need help navigating the portal? Here is where each section belongs:</p>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="bg-white p-3.5 rounded-2xl border border-slate-150 space-y-1">
+                    <p className="font-bold text-slate-800 text-xs flex items-center gap-1">
+                      <LayoutDashboard className="w-4 h-4 text-yellow-500" /> Dashboard Home
+                    </p>
+                    <p className="text-[10px] text-slate-500 leading-normal font-sans">
+                      Presents an overview of your active solar projects, dynamically calculated bill savings, recommendation details, and acts as your complete document locker.
+                    </p>
+                  </div>
+                  <div className="bg-white p-3.5 rounded-2xl border border-slate-150 space-y-1">
+                    <p className="font-bold text-slate-800 text-xs flex items-center gap-1">
+                      <Sun className="w-4 h-4 text-amber-500" /> Active Projects
+                    </p>
+                    <p className="text-[10px] text-slate-500 leading-normal font-sans">
+                      Watch your solar array build live! Click on any active project on the sidebar to interact with active steps (upload signatures, upload light bills, submit site reports).
+                    </p>
+                  </div>
+                  <div className="bg-white p-3.5 rounded-2xl border border-slate-150 space-y-1">
+                    <p className="font-bold text-slate-800 text-xs flex items-center gap-1">
+                      <Bell className="w-4 h-4 text-blue-500" /> Notifications Center
+                    </p>
+                    <p className="text-[10px] text-slate-500 leading-normal font-sans">
+                      A central hub for real-time status updates, grid connection approvals, payment milestones, and important alerts from the Sunnovative operations desk.
+                    </p>
+                  </div>
+                  <div className="bg-white p-3.5 rounded-2xl border border-slate-150 space-y-1">
+                    <p className="font-bold text-slate-800 text-xs flex items-center gap-1">
+                      <Building className="w-4 h-4 text-emerald-500" /> My Installer
+                    </p>
+                    <p className="text-[10px] text-slate-500 leading-normal font-sans">
+                      View details of your assigned Solar Accreditation Australia (SAA) certified installer. Rate and review their work once installation is complete!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* ── NOTIFICATIONS CENTER ── */}
           {tab === "notifications" && (
-            <div className="space-y-6">
+            <div className="space-y-6 text-left">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="font-black text-slate-800 text-lg flex items-center gap-2">
@@ -1449,6 +2098,45 @@ export default function CustomerPortal({ onClose }) {
                   LIVE HUB
                 </span>
               </div>
+
+              {/* Batch Actions for Database Notifications */}
+              {backendNotifications.length > 0 && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-550/30 border border-slate-200 rounded-2xl text-xs text-slate-700 gap-3 animate-fadeIn">
+                  <button 
+                    onClick={handleSelectAllNotifs}
+                    className="font-bold hover:text-slate-900 flex items-center gap-1.5 cursor-pointer text-left"
+                  >
+                    {selectedNotifIds.length === backendNotifications.length ? <CheckSquare className="w-4 h-4 text-blue-600" /> : <Square className="w-4 h-4" />}
+                    Select All Database Alerts
+                  </button>
+
+                  <div className="flex gap-4">
+                    {selectedNotifIds.length > 0 ? (
+                      <>
+                        <button 
+                          onClick={handleMarkSelectedAsRead}
+                          className="text-blue-600 font-bold hover:underline cursor-pointer"
+                        >
+                          Mark Read
+                        </button>
+                        <button 
+                          onClick={handleDeleteSelectedNotifs}
+                          className="text-red-500 font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Delete Selected ({selectedNotifIds.length})
+                        </button>
+                      </>
+                    ) : (
+                      <button 
+                        onClick={markAllAsRead}
+                        className="text-blue-600 font-bold hover:underline cursor-pointer"
+                      >
+                        Mark all as read
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {projects.length === 0 ? (
                 <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center shadow-sm">
@@ -1531,47 +2219,101 @@ export default function CustomerPortal({ onClose }) {
                       }
                     }
                     return uniqueLogs;
-                  })().map(item => (
-                    <div 
-                      key={item.id}
-                      onClick={() => { 
-                        if (item.title?.toLowerCase().includes("installer") || item.desc?.toLowerCase().includes("installer") || item.desc?.toLowerCase().includes("bde")) {
-                          setTab("select-installer");
-                          if (item.orderId) {
-                            setSelectedProjectId(item.orderId);
-                            fetchActiveProjectDetail(item.orderId);
+                  })().map(item => {
+                    const isDbNotif = backendNotifications.some(n => n._id === item.id);
+                    const isSelected = selectedNotifIds.includes(item.id);
+                    const dbNotifObject = isDbNotif ? backendNotifications.find(n => n._id === item.id) : null;
+                    const isRead = dbNotifObject ? dbNotifObject.isRead : true;
+
+                    return (
+                      <div 
+                        key={item.id}
+                        onClick={() => { 
+                          if (item.title?.toLowerCase().includes("installer") || item.desc?.toLowerCase().includes("installer") || item.desc?.toLowerCase().includes("bde")) {
+                            setTab("select-installer");
+                            if (item.orderId) {
+                              setSelectedProjectId(item.orderId);
+                              fetchActiveProjectDetail(item.orderId);
+                            }
+                          } else {
+                            setProjectView("detail"); 
+                            setSelectedProjectId(item.orderId); 
+                            setTab("projects"); 
                           }
-                        } else {
-                          setProjectView("detail"); 
-                          setSelectedProjectId(item.orderId); 
-                          setTab("projects"); 
-                        }
-                      }}
-                      className={`p-4 rounded-2xl border transition-all cursor-pointer hover:shadow-md flex items-start gap-3.5 ${
-                        item.type === "warning" ? "bg-amber-50/60 border-amber-200 hover:border-amber-400" :
-                        item.type === "success" ? "bg-emerald-50/50 border-emerald-200 hover:border-emerald-400" :
-                        "bg-white border-slate-200 hover:border-yellow-300"
-                      }`}
-                    >
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${
-                        item.type === "warning" ? "bg-amber-400 text-yellow-950" :
-                        item.type === "success" ? "bg-emerald-500 text-white" :
-                        "bg-blue-500 text-white"
-                      }`}>
-                        {item.type === "warning" ? <AlertCircle className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <h4 className="text-xs font-black text-slate-800 truncate">{item.title}</h4>
-                          <span className="text-[10px] text-slate-400 shrink-0 font-medium">{item.time}</span>
+                        }}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer hover:shadow-md flex items-start gap-3.5 relative ${
+                          item.type === "warning" ? "bg-amber-50/60 border-amber-200 hover:border-amber-400" :
+                          item.type === "success" ? "bg-emerald-50/50 border-emerald-200 hover:border-emerald-400" :
+                          "bg-white border-slate-200 hover:border-yellow-300"
+                        } ${isDbNotif && !isRead ? "ring-2 ring-blue-500/20" : ""}`}
+                      >
+                        {/* Checkbox (Only for database alerts) */}
+                        {isDbNotif && (
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleSelectNotif(item.id);
+                            }}
+                            className="mt-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+                          >
+                            {isSelected ? <CheckSquare className="w-4 h-4 text-blue-600" /> : <Square className="w-4 h-4" />}
+                          </button>
+                        )}
+
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${
+                          item.type === "warning" ? "bg-amber-400 text-yellow-950" :
+                          item.type === "success" ? "bg-emerald-500 text-white" :
+                          "bg-blue-500 text-white"
+                        }`}>
+                          {item.type === "warning" ? <AlertCircle className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
                         </div>
-                        <p className="text-xs text-slate-600 mt-0.5">{item.desc}</p>
-                        <p className="text-[10px] font-bold text-yellow-600 mt-1 flex items-center gap-1 hover:underline">
-                          {item.title?.toLowerCase().includes("installer") ? "Go to My Installer to Accept →" : `View Project Details #${item.orderNumber} →`}
-                        </p>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <h4 className="text-xs font-black text-slate-800 truncate flex items-center gap-1.5">
+                              {item.title}
+                              {isDbNotif && !isRead && (
+                                <span className="w-1.5 h-1.5 bg-blue-600 rounded-full" title="New Alert" />
+                              )}
+                            </h4>
+                            <span className="text-[10px] text-slate-400 shrink-0 font-medium">{item.time}</span>
+                          </div>
+                          <p className="text-xs text-slate-600 mt-0.5">{item.desc}</p>
+                          <p className="text-[10px] font-bold text-yellow-600 mt-1 flex items-center gap-1 hover:underline">
+                            {item.title?.toLowerCase().includes("installer") ? "Go to My Installer to Accept →" : `View Project Details #${item.orderNumber} →`}
+                          </p>
+                        </div>
+
+                        {/* Deletion & Read Actions (Only for DB alerts) */}
+                        {isDbNotif && (
+                          <div className="flex items-center gap-1 ml-2 self-center shrink-0">
+                            {!isRead && (
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMarkSingleAsRead(item.id);
+                                }}
+                                className="p-1.5 hover:bg-slate-100 rounded text-emerald-600 cursor-pointer"
+                                title="Mark as Read"
+                              >
+                                <Check className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button 
+                              onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteSingleNotif(item.id);
+                              }}
+                              className="p-1.5 hover:bg-slate-100 rounded text-red-500 cursor-pointer"
+                              title="Delete Alert"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1595,15 +2337,21 @@ export default function CustomerPortal({ onClose }) {
                   const isComm = pt.projectType === "commercial";
                   const pkg = {
                     name: pt.projectTypeLabel || pt.projectType,
+                    projectType: pt.projectType,
                     kw: isComm ? 10 : 3,
                     installCost: isComm ? 500000 : 180000,
                     centralSubsidy: isComm ? 0 : 78000,
                     suitable: [pt.projectTypeLabel || pt.projectType]
                   };
+                  const isAU = country === "AU" || customer?.country === "australia";
+                  const defaultState = isAU ? (customer?.state || "Victoria") : "Gujarat";
+                  const defaultSubsidy = isAU ? 0 : 40000;
+                  const minDays = journeySettings?.globalSettings?.minBookingDays || 5;
+
                   return (
                     <div 
                       key={pt.projectType}
-                      onClick={() => handleApply(pkg, "Gujarat", 40000, 5)}
+                      onClick={() => handleApply(pkg, defaultState, defaultSubsidy, minDays)}
                       className="bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-lg hover:border-yellow-400 cursor-pointer transition duration-300 flex flex-col justify-between gap-4 group"
                     >
                       <div className="flex items-start justify-between">

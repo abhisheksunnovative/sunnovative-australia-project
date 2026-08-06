@@ -48,6 +48,21 @@ const StepCompletionSchema = new mongoose.Schema({
   reuploadReason: { type: String, default: "" },
   canBeCompletedByBDE: { type: Boolean, default: false },
   externalParty: { type: String, default: "" },
+  requiredActions: [
+    {
+      label: { type: String, required: true },
+      fileType: { type: String, enum: ["pdf", "image", "text"], default: "pdf" },
+      required: { type: Boolean, default: true }
+    }
+  ],
+  uploadedActions: [
+    {
+      label: { type: String, required: true },
+      fileType: { type: String, enum: ["pdf", "image", "text"], default: "pdf" },
+      value: { type: String, default: "" },
+      uploadedAt: { type: Date, default: Date.now }
+    }
+  ]
 }, { _id: false });
 
 // Geo location schema
@@ -75,7 +90,7 @@ const ProjectOrderSchema = new mongoose.Schema(
     orderNumber: { type: String, unique: true }, // e.g. SUN-2026-0001
     projectType: {
       type: String,
-      enum: ["residential", "commercial", "group", "common-meter"],
+      enum: ["residential", "commercial", "group", "common-meter", "solar-battery", "farm-rural", "community-strata"],
       required: true,
     },
     projectTypeLabel: { type: String, default: "" },

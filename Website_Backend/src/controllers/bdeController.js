@@ -121,10 +121,64 @@ export const getBDEDashboard = async (req, res) => {
     if (!bde) return res.status(404).json({ success: false, message: "BDE not found" });
 
     const totalAssigned = await Lead.countDocuments({ assignedBde: bdeId });
-    const activeCustomers = await Lead.countDocuments({ assignedBde: bdeId, status: "Contacted" });
-    const ordersGenerated = await Lead.countDocuments({ assignedBde: bdeId, status: "Converted" });
+    
+    // Fetch BDE Converted Projects
+    const bdeProjects = await ProjectOrder.find({ assignedBde: bdeId });
+    const ordersGenerated = bdeProjects.length;
+    
+    const activeCustomers = await ProjectOrder.countDocuments({
+      assignedBde: bdeId,
+      status: { $nin: ["Project Completed", "Warranty Activated", "cancelled"] }
+    });
+
     const conversionRatio = totalAssigned > 0 ? ((ordersGenerated / totalAssigned) * 100).toFixed(2) : 0;
     
+    // Dynamic Revenue Calculation
+    const revenueGenerated = bdeProjects.reduce((sum, p) => sum + (p.totalProjectCost || 0), 0);
+    const revenueTarget = bde.targets?.revenue || 200000;
+
+    // Dynamic STC Pipeline Calculations for Australia
+    const stcPipeline = {
+      total: 0,
+      approved: 0,
+      pending: 0,
+      rejected: 0
+    };
+
+    bdeProjects.forEach(p => {
+      if (p.country === "australia") {
+        const status = p.stcDetails?.status || "not_started";
+        if (status !== "not_started") {
+          stcPipeline.total += 1;
+          if (status === "approved") {
+            stcPipeline.approved += 1;
+          } else if (status === "rejected") {
+            stcPipeline.rejected += 1;
+          } else {
+            stcPipeline.pending += 1;
+          }
+        }
+      }
+    });
+
+    // Zone-wise Lead Distribution calculation
+    const zoneStatsMap = {
+      "Zone 1": { zone: "Zone 1 (Far North QLD/NT)", count: 0, kw: 0 },
+      "Zone 2": { zone: "Zone 2 (WA North/QLD)", count: 0, kw: 0 },
+      "Zone 3": { zone: "Zone 3 (NSW/VIC/QLD/SA/WA)", count: 0, kw: 0 },
+      "Zone 4": { zone: "Zone 4 (TAS/VIC South)", count: 0, kw: 0 }
+    };
+
+    bdeProjects.forEach(p => {
+      if (p.country === "australia" && p.stcDetails?.zone) {
+        const zKey = p.stcDetails.zone; // e.g. "Zone 3"
+        if (zoneStatsMap[zKey]) {
+          zoneStatsMap[zKey].count += 1;
+          zoneStatsMap[zKey].kw += p.systemSizeKW || 0;
+        }
+      }
+    });
+
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
     const endOfToday = new Date();
@@ -142,6 +196,7 @@ export const getBDEDashboard = async (req, res) => {
 
     res.json({
       success: true,
+      bde,
       stats: {
         totalAssigned,
         activeCustomers,
@@ -151,7 +206,10 @@ export const getBDEDashboard = async (req, res) => {
         followupList: todaysFollowupLeads,
         districtStats,
         targetLeads: bde.targets?.leads || 0,
-        targetConversions: bde.targets?.conversions || 0
+        targetConversions: bde.targets?.conversions || 0,
+        revenue: { generated: revenueGenerated, target: revenueTarget },
+        stcPipeline,
+        zoneStats: Object.values(zoneStatsMap)
       }
     });
   } catch (error) {
@@ -173,6 +231,41 @@ export const getBDELeads = async (req, res) => {
           lead.recommendedEpcs = po.recommendedEpcs || lead.recommendedEpcs;
           lead.isInstallDateFixed = po.isInstallDateFixed || lead.isInstallDateFixed;
           lead.preferredInstallDate = po.preferredInstallDate || lead.preferredInstallDate;
+
+          // Fetch selection type dynamically
+          let epcSelectionType = "FCFS";
+          try {
+            let searchCountry = (lead.country || 'india').toLowerCase().trim();
+            if (searchCountry === 'au') searchCountry = 'australia';
+            if (searchCountry === 'in') searchCountry = 'india';
+            if (searchCountry === 'nz') searchCountry = 'new-zealand';
+            if (searchCountry === 'uk') searchCountry = 'uk';
+            if (searchCountry === 'us' || searchCountry === 'usa') searchCountry = 'usa';
+
+            const OrderJourneySettingsModel = (await import('../models/OrderJourneySettings.js')).OrderJourneySettings;
+            let journeySettings = await OrderJourneySettingsModel.findOne({ 
+              country: searchCountry, 
+              state: lead.state || 'all', 
+              district: lead.district || 'all', 
+              discom: 'all' 
+            });
+            if (!journeySettings) {
+              journeySettings = await OrderJourneySettingsModel.findOne({ 
+                country: searchCountry, 
+                state: 'all', 
+                district: 'all', 
+                discom: 'all' 
+              });
+            }
+            const projectType = lead.solarType || 'residential';
+            const journey = journeySettings?.journeys?.find(j => j.projectType === projectType && j.enabled);
+            if (journey?.epcSelectionType) {
+              epcSelectionType = journey.epcSelectionType;
+            }
+          } catch (settingsErr) {
+            console.error('Error fetching settings in getBDELeads:', settingsErr);
+          }
+          lead.epcSelectionType = epcSelectionType;
 
           if (po.assignedEPCId) {
             try {
@@ -447,23 +540,38 @@ export const getBDEOverdueProjects = async (req, res) => {
 
 export const uploadBDEProjectDoc = async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ success: false, message: "File is required" });
-    
     const { projectId, stepId } = req.params;
+    const { note, uploadedActions: rawActions } = req.body;
+    
     const project = await ProjectOrder.findById(projectId);
     if (!project) return res.status(404).json({ success: false, message: "Project not found" });
 
     const stepIndex = project.steps.findIndex(s => s.stepId === stepId);
     if (stepIndex === -1) return res.status(404).json({ success: false, message: "Step not found" });
 
-    // Mock upload URL - in production use S3/Cloudinary
-    const fileUrl = `/uploads/bde-docs/${Date.now()}-${req.file.originalname}`;
+    let fileUrl = "";
+    if (req.file) {
+      // Mock upload URL - in production use S3/Cloudinary
+      fileUrl = `/uploads/bde-docs/${Date.now()}-${req.file.originalname}`;
+      project.steps[stepIndex].evidenceUrl = fileUrl;
+    }
     
-    project.steps[stepIndex].evidenceUrl = fileUrl;
+    if (note) {
+      project.steps[stepIndex].evidenceNote = note;
+    }
+
+    let uploadedActions = [];
+    if (rawActions) {
+      try {
+        uploadedActions = typeof rawActions === 'string' ? JSON.parse(rawActions) : rawActions;
+      } catch (err) {
+        console.error('Error parsing uploadedActions:', err);
+      }
+    }
     
     // Use the shared helper to advance the journey correctly
     const { processStepCompletionEngine } = await import('../utils/stepEngine.js');
-    const result = await processStepCompletionEngine(project, stepId, 'BDE', fileUrl, null, "bde");
+    const result = await processStepCompletionEngine(project, stepId, 'BDE', fileUrl, note || "", "bde", uploadedActions);
     
     if (!result.success) {
       return res.status(400).json({ success: false, message: result.message });

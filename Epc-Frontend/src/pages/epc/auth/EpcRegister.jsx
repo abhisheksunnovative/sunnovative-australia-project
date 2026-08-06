@@ -155,7 +155,9 @@ const EpcRegister = () => {
       
       sessionStorage.removeItem('currentTempToken');
       localStorage.setItem('epcPartner', JSON.stringify(data));
-      navigate('/epc/dashboard');
+      const redirectCountry = (data?.country || '').toLowerCase().trim();
+      const redirectPrefix = redirectCountry === 'australia' ? '/au' : redirectCountry === 'new_zealand' ? '/nz' : '';
+      navigate(`${redirectPrefix}/epc/dashboard`);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to set PIN');
     } finally { setLoading(false); }

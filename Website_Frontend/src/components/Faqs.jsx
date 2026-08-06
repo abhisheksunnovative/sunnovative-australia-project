@@ -7,9 +7,10 @@ import React, { useState } from "react";
 import { HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { useWebsiteSettings } from "../hooks/useWebsiteSettings";
 
-export default function Faqs({ projectTypes, selectedPt }) {
+export default function Faqs({ settings: propSettings, projectTypes, selectedPt }) {
   const [openIndex, setOpenIndex] = useState(0);
-  const settings = useWebsiteSettings();
+  const baseSettings = useWebsiteSettings(selectedPt);
+  const settings = propSettings || baseSettings;
   const faqsList = settings.faqs || [];
 
   const toggleFaq = (index) => {

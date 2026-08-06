@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { Bell } from 'lucide-react';
+import { Bell, Trash2, CheckSquare, Square, Check } from 'lucide-react';
 import EpcSidebar from './EpcSidebar';
 import { useEpcAuth } from '../../context/EpcAuthContext';
 import epcApi from '../../api/epcApi';
@@ -34,8 +34,66 @@ const EpcLayout = () => {
   }, []);
 
   const [notifications, setNotifications] = useState([]);
+  const [selectedNotifIds, setSelectedNotifIds] = useState([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const notifRef = useRef(null);
+
+  const toggleSelectNotif = (id) => {
+    setSelectedNotifIds(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllNotifs = () => {
+    if (selectedNotifIds.length === notifications.length) {
+      setSelectedNotifIds([]);
+    } else {
+      setSelectedNotifIds(notifications.map(n => n._id));
+    }
+  };
+
+  const handleDeleteSelectedNotifs = async () => {
+    if (selectedNotifIds.length === 0) return;
+    if (!window.confirm(`Delete ${selectedNotifIds.length} selected notifications?`)) return;
+    try {
+      await epcApi.post(`/api/notifications/delete-batch`, { ids: selectedNotifIds });
+      setSelectedNotifIds([]);
+      loadNotifications();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleMarkSelectedAsRead = async () => {
+    if (selectedNotifIds.length === 0) return;
+    try {
+      await epcApi.post(`/api/notifications/mark-all-read`, { ids: selectedNotifIds });
+      setSelectedNotifIds([]);
+      loadNotifications();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteSingleNotif = async (id) => {
+    if (!window.confirm("Delete this notification?")) return;
+    try {
+      await epcApi.delete(`/api/notifications/${id}`);
+      setSelectedNotifIds(prev => prev.filter(x => x !== id));
+      loadNotifications();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleMarkSingleAsRead = async (id) => {
+    try {
+      await epcApi.put(`/api/notifications/${id}/read`);
+      loadNotifications();
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const loadNotifications = async () => {
     try {
@@ -57,8 +115,9 @@ const EpcLayout = () => {
 
   const markAllAsRead = async () => {
     try {
-      if (!epc?._id) return;
-      await epcApi.put(`/api/notifications/EpcPartner/${epc._id}/read-all`);
+      const ids = notifications.filter(n => !n.isRead).map(n => n._id);
+      if (ids.length === 0) return;
+      await epcApi.post(`/api/notifications/mark-all-read`, { ids });
       loadNotifications();
     } catch (e) {
       console.error(e);
@@ -204,30 +263,97 @@ const EpcLayout = () => {
               </button>
 
               {notificationsOpen && (
-                <div className="absolute right-0 mt-2 w-80 rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 z-50 border border-slate-100 max-h-96 overflow-y-auto">
-                  <div className="flex items-center justify-between p-3 border-b border-slate-100 sticky top-0 bg-white">
-                    <span className="font-bold text-xs text-slate-800">Notifications</span>
+                <div className="absolute right-0 mt-2 w-96 rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 z-50 border border-slate-100 max-h-96 overflow-y-auto">
+                  {/* Header */}
+                  <div className="flex items-center justify-between p-3 border-b border-slate-100 sticky top-0 bg-white z-10">
+                    <span className="font-bold text-xs text-slate-800">Notifications ({notifications.length})</span>
                     {unreadCount > 0 && (
-                      <button onClick={markAllAsRead} className="text-[10px] text-blue-600 font-semibold hover:underline">
+                      <button onClick={markAllAsRead} className="text-[10px] text-blue-600 font-semibold hover:underline cursor-pointer">
                         Mark all as read
                       </button>
                     )}
                   </div>
+
+                  {/* Batch Actions Toolbar */}
+                  {notifications.length > 0 && (
+                    <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 bg-slate-50/50 text-[10px] text-slate-600">
+                      <button 
+                        onClick={handleSelectAllNotifs}
+                        className="font-bold hover:text-slate-900 flex items-center gap-1 cursor-pointer"
+                      >
+                        {selectedNotifIds.length === notifications.length ? <CheckSquare className="w-3.5 h-3.5 text-blue-600" /> : <Square className="w-3.5 h-3.5" />}
+                        Select All
+                      </button>
+
+                      {selectedNotifIds.length > 0 && (
+                        <div className="flex gap-3">
+                          <button 
+                            onClick={handleMarkSelectedAsRead}
+                            className="text-blue-600 font-bold hover:underline cursor-pointer"
+                          >
+                            Mark Read
+                          </button>
+                          <button 
+                            onClick={handleDeleteSelectedNotifs}
+                            className="text-red-500 font-bold hover:underline flex items-center gap-0.5 cursor-pointer"
+                          >
+                            <Trash2 className="w-3 h-3" /> Delete Selected ({selectedNotifIds.length})
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Notifications List */}
                   <div className="divide-y divide-slate-50">
                     {notifications.length === 0 ? (
                       <p className="text-xs text-slate-500 p-4 text-center">No new notifications</p>
                     ) : (
-                      notifications.map((notif) => (
-                        <div key={notif._id} className="p-3 text-left hover:bg-slate-50 transition-colors">
-                          <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider mb-0.5">{notif.title}</p>
-                          <p className={`text-xs ${notif.isRead ? "text-slate-500" : "text-slate-800 font-semibold"}`}>
-                            {notif.message}
-                          </p>
-                          <span className="text-[10px] text-slate-400 mt-1 block">
-                            {new Date(notif.createdAt).toLocaleString()}
-                          </span>
-                        </div>
-                      ))
+                      notifications.map((notif) => {
+                        const isSelected = selectedNotifIds.includes(notif._id);
+                        return (
+                          <div key={notif._id} className="p-3 flex items-start gap-2 text-left hover:bg-slate-50 transition-colors">
+                            {/* Checkbox */}
+                            <button 
+                              onClick={() => toggleSelectNotif(notif._id)}
+                              className="mt-0.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                            >
+                              {isSelected ? <CheckSquare className="w-3.5 h-3.5 text-blue-600" /> : <Square className="w-3.5 h-3.5" />}
+                            </button>
+
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider mb-0.5">{notif.title}</p>
+                              <p className={`text-xs ${notif.isRead ? "text-slate-500" : "text-slate-800 font-semibold"}`}>
+                                {notif.message}
+                              </p>
+                              <span className="text-[9px] text-slate-400 mt-1 block">
+                                {new Date(notif.createdAt).toLocaleString()}
+                              </span>
+                            </div>
+
+                            {/* Single row actions */}
+                            <div className="flex items-center gap-1 shrink-0 self-center">
+                              {!notif.isRead && (
+                                <button 
+                                  onClick={() => handleMarkSingleAsRead(notif._id)}
+                                  className="p-1 hover:bg-slate-200 rounded text-emerald-600 cursor-pointer"
+                                  title="Mark as Read"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => handleDeleteSingleNotif(notif._id)}
+                                className="p-1 hover:bg-slate-200 rounded text-red-500 cursor-pointer"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
                     )}
                   </div>
                 </div>

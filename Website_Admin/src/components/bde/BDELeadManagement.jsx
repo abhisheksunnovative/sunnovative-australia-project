@@ -706,7 +706,7 @@ export default function BDELeadManagement({ bdeId, country }) {
                           <div className="bg-blue-50 border border-blue-200 p-2.5 rounded-xl text-xs text-left w-full max-w-[210px] space-y-0.5 shadow-xs">
                             <p className="font-black text-blue-900 flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5 text-emerald-600"/> EPC Accepted by Customer:</p>
                             <p className="text-blue-950 font-black text-sm">{lead.epcDetails.companyName}</p>
-                            <p className="text-slate-700 font-bold">👤 {lead.epcDetails.contactPerson}</p>
+                            {lead.epcDetails.contactPerson && <p className="text-slate-700 font-bold">👤 {lead.epcDetails.contactPerson}</p>}
                             <p className="text-slate-600">📞 {lead.epcDetails.mobile}</p>
                           </div>
                         )}
@@ -719,6 +719,10 @@ export default function BDELeadManagement({ bdeId, country }) {
                             >
                               <Calendar className="w-4 h-4"/> Confirm Final Installation Date
                             </button>
+                          ) : lead.epcSelectionType === 'FCFS' ? (
+                            <span className="inline-flex items-center gap-1.5 text-amber-800 text-xs font-bold px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg">
+                              <Clock className="w-3.5 h-3.5 text-amber-600"/> Waiting for FCFS claim...
+                            </span>
                           ) : (lead.bdeRecommendationStatus === 'recommended' || (lead.recommendedEpcs && lead.recommendedEpcs.length > 0) || lead.enquiryStatus === 'EPC Recommended') ? (
                             <button
                               onClick={() => handleOpenRecommendModal(lead)}

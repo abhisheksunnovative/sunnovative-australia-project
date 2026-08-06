@@ -19,8 +19,8 @@ export const scheduleOverdueTrackerJob = () => {
         status: { $nin: ["Project Completed", "cancelled", "closed", "Warranty Activated"] } 
       });
 
-      const journeySettingsObj = await OrderJourneySettings.findOne({ _settingsKey: "main" });
-      if (!journeySettingsObj || !journeySettingsObj.journeys) {
+      const allSettings = await OrderJourneySettings.find();
+      if (!allSettings || allSettings.length === 0) {
         return;
       }
 
@@ -29,6 +29,13 @@ export const scheduleOverdueTrackerJob = () => {
       for (const order of orders) {
         let orderUpdated = false;
         let hasOverdueSteps = false;
+
+        let searchCountry = (order.country || 'india').toLowerCase().trim();
+        if (searchCountry === 'au') searchCountry = 'australia';
+        if (searchCountry === 'in') searchCountry = 'india';
+
+        const journeySettingsObj = allSettings.find(s => s.country === searchCountry) || allSettings.find(s => s.country === 'india');
+        if (!journeySettingsObj || !journeySettingsObj.journeys) continue;
 
         const journey = journeySettingsObj.journeys.find(j => j.projectType === order.projectType);
         if (!journey) continue;

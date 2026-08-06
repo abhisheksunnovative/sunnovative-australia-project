@@ -27,7 +27,8 @@ export const createProjectOrder = async (req, res) => {
     }
 
     // Journey settings se steps fetch karo
-    const journeySettings = await OrderJourneySettings.findOne({ _settingsKey: "main" });
+    const { findJourneySettings } = await import('../utils/stepEngine.js');
+    const journeySettings = await findJourneySettings(req.body.country || req.country, state, location?.district);
     const journey = journeySettings?.journeys?.find(
       (j) => j.projectType === projectType && j.enabled
     );
@@ -156,7 +157,7 @@ export const getProjectOrder = async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 export const completeStep = async (req, res) => {
   try {
-    const { stepId, completedBy = "Admin", note = "", evidenceNote = "" } = req.body;
+    const { stepId, completedBy = "Admin", note = "", evidenceNote = "", uploadedActions: rawActions } = req.body;
     
     const finalNote = evidenceNote || note || "";
     let finalUrl = req.body.evidenceUrl || "";
@@ -164,10 +165,19 @@ export const completeStep = async (req, res) => {
       finalUrl = `/${req.file.path.replace(/\\/g, '/')}`;
     }
 
+    let uploadedActions = [];
+    if (rawActions) {
+      try {
+        uploadedActions = typeof rawActions === 'string' ? JSON.parse(rawActions) : rawActions;
+      } catch (err) {
+        console.error('Error parsing uploadedActions:', err);
+      }
+    }
+
     const order = await ProjectOrder.findById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: "Order nahi mila" });
 
-    const result = await processStepCompletionEngine(order, stepId, completedBy, finalUrl, finalNote);
+    const result = await processStepCompletionEngine(order, stepId, completedBy, finalUrl, finalNote, "", uploadedActions);
 
     if (!result.success) {
       return res.status(400).json({ success: false, message: result.message });
@@ -697,12 +707,22 @@ export const requestReupload = async (req, res) => {
 export const completeStepOnBehalf = async (req, res) => {
   try {
     const { id, stepId } = req.params;
-    const { bdeName, evidenceUrl, note } = req.body;
+    const { bdeName, evidenceUrl, note, uploadedActions: rawActions } = req.body;
+    
+    let uploadedActions = [];
+    if (rawActions) {
+      try {
+        uploadedActions = typeof rawActions === 'string' ? JSON.parse(rawActions) : rawActions;
+      } catch (err) {
+        console.error('Error parsing uploadedActions:', err);
+      }
+    }
+
     const order = await ProjectOrder.findById(id);
     if (!order) return res.status(404).json({ success: false, message: "Order not found" });
 
     const { completeStepOnBehalfOfCustomer } = await import('../utils/stepEngine.js');
-    const result = await completeStepOnBehalfOfCustomer(order, stepId, bdeName || "BDE", evidenceUrl || "", note || "");
+    const result = await completeStepOnBehalfOfCustomer(order, stepId, bdeName || "BDE", evidenceUrl || "", note || "", uploadedActions);
     if (result.success) await order.save();
     res.json(result);
   } catch (err) {

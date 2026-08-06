@@ -137,6 +137,46 @@ export const acceptEnquiry = async (req, res) => {
       lockedEnquiry.customerSelectionDeadline = deadline;
       await lockedEnquiry.save();
 
+      // Sync to ProjectOrder & Lead
+      try {
+        const { ProjectOrder } = await import('../models/ProjectModel.js');
+        const EpcPartner = (await import('../models/EpcPartner.js')).default;
+        const epc = await EpcPartner.findById(epcId);
+        
+        if (epc) {
+          // Update ProjectOrder
+          const project = await ProjectOrder.findOne({ orderNumber: lockedEnquiry.orderNumber });
+          if (project) {
+            project.assignedEPCId = epc._id.toString();
+            project.assignedEPCName = epc.companyName;
+            project.status = 'EPC Accepted';
+            project.pendingActionAlert = 'EPC Partner accepted your project! Site survey scheduled.';
+            project.pendingActionFor = 'epc-partner';
+            await project.save();
+          }
+
+          // Update Lead Model
+          const LeadModel = (await import('../models/Lead.js')).default;
+          await LeadModel.updateOne(
+            { mobile: lockedEnquiry.customerMobile },
+            { 
+              assignedEPCId: epc._id, 
+              assignedEPCName: epc.companyName, 
+              enquiryStatus: 'EPC Accepted',
+              epcDetails: {
+                companyName: epc.companyName,
+                contactPerson: epc.ownerName || epc.contactPerson,
+                mobile: epc.mobile,
+                email: epc.email,
+                rating: epc.rating
+              }
+            }
+          );
+        }
+      } catch (syncErr) {
+        console.error('Error syncing ProjectOrder and Lead on FCFS acceptance:', syncErr);
+      }
+
       res.json({
         message: 'Enquiry accepted! You must confirm installation date within 24 hours.',
         enquiry: lockedEnquiry,

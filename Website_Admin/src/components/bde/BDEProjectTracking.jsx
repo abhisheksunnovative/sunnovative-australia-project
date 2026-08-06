@@ -16,6 +16,9 @@ export default function BDEProjectTracking({ bdeId }) {
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [availableDiscoms, setAvailableDiscoms] = useState([]);
   const [completingId, setCompletingId] = useState(null);
+  const [bdeUploadFile, setBdeUploadFile] = useState(null);
+  const [bdeEvidenceNote, setBdeEvidenceNote] = useState("");
+  const [expandedStepIndex, setExpandedStepIndex] = useState(null);
 
   const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
@@ -64,13 +67,16 @@ export default function BDEProjectTracking({ bdeId }) {
     setLoading(false);
   };
 
-  const handleCompleteForCustomer = async (projectId, stepId, file = null, note = "") => {
+  const handleCompleteForCustomer = async (projectId, stepId, file = null, note = "", uploadedActions = []) => {
     setCompletingId(stepId);
     try {
       const formData = new FormData();
       formData.append("bdeName", "BDE");
       if (note) formData.append("note", note);
       if (file) formData.append("file", file);
+      if (uploadedActions && uploadedActions.length > 0) {
+        formData.append("uploadedActions", JSON.stringify(uploadedActions));
+      }
 
       const res = await fetch(`${API_BASE}/api/bde/projects/${projectId}/step/${stepId}/upload`, {
         method: "POST",
@@ -147,7 +153,7 @@ export default function BDEProjectTracking({ bdeId }) {
               steps={selectedProject.steps} 
               userRole="bde"
               showGridCards={false}
-              onExecuteStep={(stepId, file, note) => handleCompleteForCustomer(selectedProject._id, stepId, file, note)}
+              onExecuteStep={(stepId, file, note, uploadedActions) => handleCompleteForCustomer(selectedProject._id, stepId, file, note, uploadedActions)}
             />
           </div>
 
@@ -183,11 +189,11 @@ export default function BDEProjectTracking({ bdeId }) {
           <div className="space-y-3">
             {selectedProject.steps?.map((step, idx) => {
               const isCustomerStep = step.assignedTo === 'customer';
-              const canBdeDo = isCustomerStep || step.canBeCompletedByBDE;
+              const canBdeDo = step.assignedTo === 'bde' || isCustomerStep || step.canBeCompletedByBDE;
               const isDone = step.status === 'completed';
               const isAwaitingApproval = step.status === 'awaiting-approval';
               const isActive = step.status === 'in-progress' || isAwaitingApproval || (step.status === 'pending' && (idx === 0 || selectedProject.steps[idx - 1]?.status === 'completed'));
-              const isExpanded = completingId === step.stepId;
+              const isExpanded = expandedStepIndex === idx;
 
               let roleBadge = "bg-slate-100 text-slate-600";
               let roleLabel = "Admin";
@@ -211,7 +217,10 @@ export default function BDEProjectTracking({ bdeId }) {
                     'border-slate-200 bg-white'
                   }`}
                 >
-                  <div className="flex items-center justify-between p-3.5 cursor-pointer hover:bg-slate-50/80 transition">
+                  <div 
+                    className="flex items-center justify-between p-3.5 cursor-pointer hover:bg-slate-50/80 transition"
+                    onClick={() => setExpandedStepIndex(isExpanded ? null : idx)}
+                  >
                     <div className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
                         isDone ? "bg-emerald-500 text-white shadow-sm" : 
@@ -221,10 +230,9 @@ export default function BDEProjectTracking({ bdeId }) {
                         {isDone ? <Check className="w-4 h-4" /> : <span>{step.stepNumber || (idx + 1)}</span>}
                       </div>
                       <div>
-                        <h4 className={`text-sm font-extrabold ${isDone ? 'text-slate-800' : isActive ? 'text-amber-900' : 'text-slate-700'}`}>
+                        <h4 className={`text-sm font-extrabold ${isDone ? 'text-slate-800' : isActive ? 'text-amber-900 font-extrabold' : 'text-slate-700'}`}>
                           {step.title}
                         </h4>
-                        {step.description && <p className="text-[11px] text-slate-400 font-medium">{step.description}</p>}
                       </div>
                     </div>
 
@@ -232,36 +240,84 @@ export default function BDEProjectTracking({ bdeId }) {
                       <span className={`text-xs font-bold px-3 py-1 rounded-full ${roleBadge}`}>
                         {roleLabel}
                       </span>
-                      {canBdeDo && !isDone && (
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCompleteForCustomer(selectedProject._id, step.stepId);
-                          }}
-                          disabled={completingId === step.stepId}
-                          className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-500 text-yellow-950 font-black text-xs rounded-xl transition flex items-center gap-1 shadow-sm"
-                        >
-                          {completingId === step.stepId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                          Complete (BDE)
-                        </button>
-                      )}
+                      {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                     </div>
                   </div>
 
-                  {step.adminNote && (
-                    <div className="px-4 py-2 bg-blue-50/80 border-t border-blue-100 text-xs text-blue-800 font-medium">
-                      📌 <strong>Admin Note:</strong> {step.adminNote}
-                    </div>
-                  )}
-
-                  {isDone && (
-                    <div className="px-4 py-2 bg-emerald-50/80 border-t border-emerald-100 text-xs font-bold text-emerald-700 flex items-center justify-between">
-                      <span>✓ Completed by {step.completedBy || "User"}</span>
-                      {step.evidenceUrl && (
-                        <a href={API_BASE + step.evidenceUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
-                          <Eye className="w-3.5 h-3.5"/> View Document
-                        </a>
+                  {isExpanded && (
+                    <div className="px-4 pb-4 pt-2 border-t border-slate-100 bg-slate-50/50 rounded-b-xl space-y-3">
+                      {step.description && (
+                        <p className="text-xs text-slate-600 font-medium leading-relaxed bg-white p-2.5 rounded-lg border border-slate-100 animate-fadeIn">
+                          {step.description}
+                        </p>
                       )}
+                      
+                      {step.adminNote && (
+                        <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800 font-medium">
+                          📌 <strong>Admin Note:</strong> {step.adminNote}
+                        </div>
+                      )}
+
+                      {isDone && (
+                        <div className="p-3 bg-emerald-50/50 rounded-lg border border-emerald-100 text-xs font-bold text-emerald-700 flex items-center justify-between">
+                          <span>✓ Completed by {step.completedBy || "User"}</span>
+                          {step.evidenceUrl && (
+                            <a href={API_BASE + step.evidenceUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline flex items-center gap-1.5 font-bold">
+                              <Eye className="w-3.5 h-3.5"/> View Document
+                            </a>
+                          )}
+                        </div>
+                      )}
+
+                      {step.evidenceNote && (
+                        <div className="p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-medium italic text-slate-700">
+                          "{step.evidenceNote}"
+                        </div>
+                      )}
+                      
+                      {canBdeDo && !isDone && (() => {
+                        const previousStepsCompleted = selectedProject.steps.slice(0, idx).every(s => s.status === "completed" || s.status === "skipped");
+                        return (
+                          <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2 text-left">
+                            <p className="text-xs font-bold text-amber-900">Complete this step on behalf of customer:</p>
+                            {!previousStepsCompleted ? (
+                              <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs font-bold text-red-750 flex items-start gap-2">
+                                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                                Pehle isse pichle saare steps complete hone chahiye. / Please complete all previous steps first.
+                              </div>
+                            ) : (
+                              <>
+                                <input 
+                                  type="text" 
+                                  placeholder="Add a note (optional)..."
+                                  className="w-full text-xs border border-slate-300 rounded p-2 focus:ring-1 focus:ring-amber-500 bg-white focus:outline-none"
+                                  value={bdeEvidenceNote}
+                                  onChange={e => setBdeEvidenceNote(e.target.value)}
+                                />
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                  <input 
+                                    type="file" 
+                                    onChange={e => setBdeUploadFile(e.target.files?.[0])}
+                                    className="text-xs text-slate-500"
+                                  />
+                                  <button 
+                                    onClick={() => {
+                                      handleCompleteForCustomer(selectedProject._id, step.stepId, bdeUploadFile, bdeEvidenceNote);
+                                      setBdeUploadFile(null);
+                                      setBdeEvidenceNote("");
+                                    }}
+                                    disabled={completingId === step.stepId}
+                                    className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-500 text-yellow-950 font-black text-xs rounded-xl transition flex items-center gap-1 shadow-sm sm:ml-auto cursor-pointer"
+                                  >
+                                    {completingId === step.stepId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                                    Submit & Complete
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>

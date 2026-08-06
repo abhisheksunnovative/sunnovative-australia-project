@@ -543,37 +543,32 @@ export const convertLeadToProject = async (req, res) => {
     }
 
     let projectType = lead.solarType || 'residential';
-    const validProjectTypes = ["residential", "commercial", "group", "common-meter"];
-    if (!validProjectTypes.includes(projectType)) {
-        if (projectType === 'surya-ghar') projectType = 'residential';
-        else projectType = 'residential';
+    const searchCountry = (lead.country || 'india').toLowerCase().trim();
+    const isAU = searchCountry === 'australia' || searchCountry === 'au';
+
+    if (isAU) {
+      if (projectType === 'au-solar-battery') projectType = 'solar-battery';
+      else if (['au-small-home', 'au-standard-family', 'au-large-home', 'au-ev-owners'].includes(projectType)) {
+        projectType = 'residential';
+      }
+      const validAUProjectTypes = ["residential", "commercial", "solar-battery", "farm-rural", "community-strata"];
+      if (!validAUProjectTypes.includes(projectType)) {
+        projectType = 'residential';
+      }
+    } else {
+      if (projectType === 'surya-ghar') projectType = 'residential';
+      const validINProjectTypes = ["residential", "commercial", "group", "common-meter"];
+      if (!validINProjectTypes.includes(projectType)) {
+        projectType = 'residential';
+      }
     }
 
-    let journeySettings = await OrderJourneySettings.findOne({ 
-      country: lead.country || 'india', 
-      state: lead.state || 'all', 
-      district: lead.district || 'all', 
-      discom: 'all' 
-    });
-    
-    if (!journeySettings) {
-      journeySettings = await OrderJourneySettings.findOne({ 
-        country: lead.country || 'india', 
-        state: 'all', 
-        district: 'all', 
-        discom: 'all' 
-      });
-    }
-
-    if (!journeySettings) {
-      journeySettings = await OrderJourneySettings.findOne({ country: 'india' }); // ultimate fallback
-    }
-
+    const { findJourneySettings, mapJourneyStepsToProjectSteps } = await import('../utils/stepEngine.js');
+    const journeySettings = await findJourneySettings(lead.country, lead.state, lead.district);
     const journey = journeySettings?.journeys?.find(j => j.projectType === projectType && j.enabled);
     
     let steps = [];
     if (journeySettings && journey) {
-      const { mapJourneyStepsToProjectSteps } = await import('../utils/stepEngine.js');
       steps = mapJourneyStepsToProjectSteps(journey.steps);
     } else {
       // Fallback default steps if admin hasn't configured OrderJourneySettings yet
@@ -594,6 +589,8 @@ export const convertLeadToProject = async (req, res) => {
         installationDate = slot.date;
       }
     }
+
+    const isCustomerSelect = journey?.epcSelectionType === 'CUSTOMER_SELECT';
 
     if (steps.length > 0) {
       steps[0].status = 'in-progress';
@@ -616,7 +613,10 @@ export const convertLeadToProject = async (req, res) => {
       status: 'Enquiry Created',
       assignedBde: lead.assignedBde,
       assignedEPCId: assignedEpc ? assignedEpc.toString() : null,
-      preferredInstallDate: installationDate
+      preferredInstallDate: installationDate,
+      bdeRecommendationStatus: isCustomerSelect ? 'pending' : 'accepted',
+      pendingActionAlert: isCustomerSelect ? 'BDE is selecting top certified installers for you' : 'Waiting for FCFS EPC Partner to claim order...',
+      pendingActionFor: isCustomerSelect ? 'bde' : 'epc-partner'
     });
     
     await po.save();
@@ -653,8 +653,8 @@ export const convertLeadToProject = async (req, res) => {
       preferredInstallDate: po.preferredInstallDate,
       tokenAmount: tokenAmt,
       tokenPaid: false,
-      status: 'Open For EPC',
-      assignmentType: 'FirstComeFirstServe',
+      status: isCustomerSelect ? 'Lead' : 'Open For EPC',
+      assignmentType: isCustomerSelect ? 'CustomerSelect' : 'FirstComeFirstServe',
       orderNumber: po.orderNumber
     });
     await enquiry.save();

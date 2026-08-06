@@ -223,6 +223,7 @@ export const loginWithPin = async (req, res) => {
       rating: epc.rating,
       isActive: epc.isActive,
       deactivationReason: epc.deactivationReason,
+      country: epc.country,
       token: generateToken(epc._id),
     });
   } catch (err) {
@@ -253,6 +254,7 @@ export const setPin = async (req, res) => {
       onboardingStatus: epc.onboardingStatus,
       activeDistricts: epc.activeDistricts,
       rating: epc.rating,
+      country: epc.country,
       token: finalToken, 
     });
   } catch (err) {

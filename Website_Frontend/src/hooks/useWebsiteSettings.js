@@ -185,61 +185,34 @@ const DEFAULTS = {
   },
 };
 
-// Module-level cache so all components share one fetch per country
-let _cache = {};
-let _listeners = [];
-let _fetching = {};
-
-const notify = (countryStr) => _listeners.forEach((fn) => fn(countryStr));
-
-const fetchOnce = async (countryStr) => {
-  if (_cache[countryStr] || _fetching[countryStr]) return;
-  _fetching[countryStr] = true;
-  try {
-    let code = "india";
-    if (countryStr === "AU") code = "australia";
-    if (countryStr === "NZ") code = "new_zealand";
-
-    const res = await fetch(`${API_BASE}/api/website-settings`, {
-      headers: { 'x-country': code }
-    });
-    const data = await res.json();
-    if (data.success && data.data) {
-      _cache[countryStr] = data.data;
-      notify(countryStr);
-    }
-  } catch {
-    // silent fallback — components will use DEFAULTS
-  } finally {
-    _fetching[countryStr] = false;
-  }
-};
-
-export function useWebsiteSettings() {
+export function useWebsiteSettings(selectedPt = "default") {
   const { country } = useCountry();
-  const [data, setData] = useState(_cache[country] || DEFAULTS);
+  const [data, setData] = useState(DEFAULTS);
 
   useEffect(() => {
-    // Reset data if country changes
-    setData(_cache[country] || DEFAULTS);
+    let active = true;
+    const load = async () => {
+      try {
+        let code = "india";
+        if (country === "AU") code = "australia";
+        if (country === "NZ") code = "new_zealand";
+        
+        const pt = selectedPt ? selectedPt.toLowerCase() : "default";
 
-    // If not cached, fetch it
-    if (!_cache[country]) {
-      fetchOnce(country);
-    }
-
-    // Register listener for this country
-    const update = (updatedCountry) => {
-      if (updatedCountry === country) {
-        setData(_cache[country] || DEFAULTS);
+        const res = await fetch(`${API_BASE}/api/website-settings/${code}/${pt}`);
+        const result = await res.json();
+        if (active && result.success && result.data) {
+          setData(result.data);
+        }
+      } catch (err) {
+        console.error("Error loading website settings:", err);
       }
     };
-    _listeners.push(update);
-
+    load();
     return () => {
-      _listeners = _listeners.filter((fn) => fn !== update);
+      active = false;
     };
-  }, [country]);
+  }, [country, selectedPt]);
 
   return data;
 }

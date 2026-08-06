@@ -15,8 +15,9 @@ import { useWebsiteSettings } from "../hooks/useWebsiteSettings";
 
 const STAT_COLORS = ["text-solar-yellow", "text-solar-green", "text-solar-sky"];
 
-export default function Hero({ onScrollToForm, projectTypes, selectedPt, onSelectPt }) {
-  const settings = useWebsiteSettings();
+export default function Hero({ settings: propSettings, onScrollToForm, projectTypes, selectedPt, onSelectPt }) {
+  const baseSettings = useWebsiteSettings();
+  const settings = propSettings || baseSettings;
   const hero = settings.hero || {};
   const stats = settings.stats || [];
 

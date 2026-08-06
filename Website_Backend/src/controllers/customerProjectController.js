@@ -7,6 +7,7 @@ import { ProjectOrder } from '../models/ProjectModel.js';
 import EpcEnquiry from '../models/EpcEnquiry.js';
 import EpcOrder from '../models/EpcOrder.js';
 import { OrderJourneySettings } from '../models/OrderJourneySettings.js';
+import { processStepCompletionEngine } from '../utils/stepEngine.js';
 import Razorpay from "razorpay";
 import crypto from "crypto";
 
@@ -119,25 +120,12 @@ export const applyForProject = async (req, res) => {
       });
     }
 
-    let journeySettings = await OrderJourneySettings.findOne({
-      country: req.country || 'india',
-      state: state || 'all',
-      district: location?.district || 'all'
-    });
-    
-    // Fallbacks
-    if (!journeySettings) {
-      journeySettings = await OrderJourneySettings.findOne({ country: 'india', state: state || 'all', district: 'all' });
-    }
-    if (!journeySettings) {
-      journeySettings = await OrderJourneySettings.findOne({ country: 'india', state: 'all', district: 'all' });
-    }
-    if (!journeySettings) {
-      journeySettings = await OrderJourneySettings.findOne(); // absolute fallback
-    }
+    const { findJourneySettings } = await import('../utils/stepEngine.js');
+    const resolvedCountry = req.customer?.country || req.country || 'india';
+    const journeySettings = await findJourneySettings(resolvedCountry, state, location?.district);
 
     // Find the specific journey for the selected project type
-    const currentJourney = journeySettings?.journeys?.find(j => j.projectType === projectType) || {};
+    const currentJourney = journeySettings?.journeys?.find(j => j.projectType === projectType && j.enabled) || {};
 
     const minDays = journeySettings?.globalSettings?.minBookingDays || 5;
 
@@ -187,7 +175,7 @@ export const applyForProject = async (req, res) => {
       estimatedSubsidy: estimatedSubsidy  || 0,
       totalProjectCost: totalProjectCost  || 0,
       state:            state || req.customer.state || 'Gujarat',
-      country:          req.country || 'india',
+      country:          req.customer?.country || req.country || 'india',
       location: {
         ...(location || {}),
         latitude: latitude || null,
@@ -438,49 +426,47 @@ export const getAvailableEpcs = async (req, res) => {
 // -- POST /api/customer/projects/:id/complete-step -- Complete a customer assigned step --
 export const completeStep = async (req, res) => {
   try {
-    const { stepId, note } = req.body;
+    const { stepId, note, uploadedActions: rawActions } = req.body;
     
     const project = await ProjectOrder.findOne({
       _id: req.params.id,
-      customer: req.customer._id,
+      $or: [
+        { customerId: req.customer._id.toString() },
+        { customerMobile: req.customer.mobile }
+      ]
     });
     
     if (!project) return res.status(404).json({ message: 'Project not found' });
 
-    const stepIndex = project.steps.findIndex(s => s.stepId === stepId);
-    if (stepIndex === -1) return res.status(404).json({ message: 'Step not found' });
-    
-    if (project.steps[stepIndex].assignedTo !== 'customer') {
-      return res.status(403).json({ message: 'Not authorized to complete this step. It is assigned to ' + project.steps[stepIndex].assignedTo });
+    let uploadedActions = [];
+    if (rawActions) {
+      try {
+        uploadedActions = typeof rawActions === 'string' ? JSON.parse(rawActions) : rawActions;
+      } catch (err) {
+        console.error('Error parsing uploadedActions:', err);
+      }
     }
 
-    project.steps[stepIndex].status = 'completed';
-    project.steps[stepIndex].completedAt = new Date();
-    project.steps[stepIndex].completedBy = req.customer.name || 'Customer';
-    
-    if (note) project.steps[stepIndex].evidenceNote = note;
-    
+    let fileUrl = "";
     if (req.file) {
-      project.steps[stepIndex].evidenceUrl = `/${req.file.path.replace(/\\/g, '/')}`;
+      fileUrl = `/${req.file.path.replace(/\\/g, '/')}`;
     }
 
-    // Update overall current step
-    const nextStep = project.steps.find(s => s.status !== 'completed');
-    if (nextStep) {
-      project.currentStepNumber = nextStep.stepNumber;
-      project.status = nextStep.title;
-      nextStep.status = 'in-progress';
-    } else {
-      project.status = 'Project Completed';
-      project.completionPercentage = 100;
-    }
+    const result = await processStepCompletionEngine(
+      project,
+      stepId,
+      req.customer.name || 'Customer',
+      fileUrl,
+      note || '',
+      'customer',
+      uploadedActions
+    );
 
-    // Recalculate completion percentage
-    const completedStepsCount = project.steps.filter(s => s.status === 'completed').length;
-    project.completionPercentage = Math.round((completedStepsCount / project.steps.length) * 100);
+    if (!result.success) {
+      return res.status(400).json({ success: false, message: result.message });
+    }
 
     await project.save();
-
     res.json({ success: true, message: 'Step completed successfully', project });
   } catch (error) {
     console.error('Customer completeStep error:', error);

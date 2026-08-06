@@ -1,13 +1,129 @@
-import React from "react";
-import { LayoutDashboard, Users, Map, LogOut, Sun, ClipboardList, AlertTriangle } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { LayoutDashboard, Users, Map, LogOut, Sun, ClipboardList, AlertTriangle, Bell, Trash2, CheckSquare, Square, Check } from "lucide-react";
 
-export default function BDELayout({ children, currentTab, onTabChange, onLogout, bdeName }) {
+export default function BDELayout({ children, currentTab, onTabChange, onLogout, bdeName, bdeId }) {
   const navItems = [
     { id: "bde-aust", name: "Dashboard", icon: <LayoutDashboard className="w-5 h-5 text-emerald-400" /> },
     { id: "bde-leads", name: "My Leads", icon: <Users className="w-5 h-5" /> },
     { id: "bde-projects", name: "My Projects", icon: <ClipboardList className="w-5 h-5" /> },
     { id: "bde-demand", name: "Demand Pool", icon: <Map className="w-5 h-5" /> }
   ];
+
+  const [notifications, setNotifications] = useState([]);
+  const [selectedNotifIds, setSelectedNotifIds] = useState([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notifRef = useRef(null);
+
+  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
+
+  const loadNotifications = async () => {
+    try {
+      if (!bdeId) return;
+      const res = await fetch(`${API_BASE}/api/notifications/bde/${bdeId}`);
+      const data = await res.json();
+      if (data.success) setNotifications(data.data);
+    } catch (e) {
+      console.warn('BDE Notifications fetch failed:', e);
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications();
+    const int = setInterval(loadNotifications, 60000);
+    return () => clearInterval(int);
+  }, [bdeId]);
+
+  const toggleSelectNotif = (id) => {
+    setSelectedNotifIds(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllNotifs = () => {
+    if (selectedNotifIds.length === notifications.length) {
+      setSelectedNotifIds([]);
+    } else {
+      setSelectedNotifIds(notifications.map(n => n._id));
+    }
+  };
+
+  const handleDeleteSelectedNotifs = async () => {
+    if (selectedNotifIds.length === 0) return;
+    if (!window.confirm(`Delete ${selectedNotifIds.length} selected notifications?`)) return;
+    try {
+      await fetch(`${API_BASE}/api/notifications/delete-batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedNotifIds })
+      });
+      setSelectedNotifIds([]);
+      loadNotifications();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleMarkSelectedAsRead = async () => {
+    if (selectedNotifIds.length === 0) return;
+    try {
+      await fetch(`${API_BASE}/api/notifications/mark-all-read`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedNotifIds })
+      });
+      setSelectedNotifIds([]);
+      loadNotifications();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteSingleNotif = async (id) => {
+    if (!window.confirm("Delete this notification?")) return;
+    try {
+      await fetch(`${API_BASE}/api/notifications/${id}`, { method: "DELETE" });
+      setSelectedNotifIds(prev => prev.filter(x => x !== id));
+      loadNotifications();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleMarkSingleAsRead = async (id) => {
+    try {
+      await fetch(`${API_BASE}/api/notifications/${id}/read`, { method: "PUT" });
+      loadNotifications();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      const ids = notifications.filter(n => !n.isRead).map(n => n._id);
+      if (ids.length === 0) return;
+      await fetch(`${API_BASE}/api/notifications/mark-all-read`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids })
+      });
+      loadNotifications();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notifRef.current && !notifRef.current.contains(event.target)) {
+        setNotificationsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
@@ -62,6 +178,118 @@ export default function BDELayout({ children, currentTab, onTabChange, onLogout,
           <h1 className="text-xl font-bold text-gray-800">
             {navItems.find(i => i.id === currentTab)?.name || "Dashboard"}
           </h1>
+
+          {/* Notifications Bell for BDE */}
+          <div className="relative" ref={notifRef}>
+            <button
+              onClick={() => setNotificationsOpen(!notificationsOpen)}
+              className="p-2 rounded-xl hover:bg-slate-100 relative transition-colors cursor-pointer"
+            >
+              <Bell className="w-5 h-5 text-gray-600" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white ring-2 ring-white">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+
+            {notificationsOpen && (
+              <div className="absolute right-0 mt-2 w-96 rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 z-50 border border-slate-100 max-h-96 overflow-y-auto">
+                {/* Header */}
+                <div className="flex items-center justify-between p-3 border-b border-slate-100 sticky top-0 bg-white z-10">
+                  <span className="font-bold text-xs text-slate-800">Notifications ({notifications.length})</span>
+                  {unreadCount > 0 && (
+                    <button onClick={markAllAsRead} className="text-[10px] text-blue-600 font-semibold hover:underline cursor-pointer">
+                      Mark all as read
+                    </button>
+                  )}
+                </div>
+
+                {/* Batch Actions Toolbar */}
+                {notifications.length > 0 && (
+                  <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 bg-slate-50/50 text-[10px] text-slate-650">
+                    <button 
+                      onClick={handleSelectAllNotifs}
+                      className="font-bold hover:text-slate-900 flex items-center gap-1 cursor-pointer"
+                    >
+                      {selectedNotifIds.length === notifications.length ? <CheckSquare className="w-3.5 h-3.5 text-blue-600" /> : <Square className="w-3.5 h-3.5" />}
+                      Select All
+                    </button>
+
+                    {selectedNotifIds.length > 0 && (
+                      <div className="flex gap-3">
+                        <button 
+                          onClick={handleMarkSelectedAsRead}
+                          className="text-blue-600 font-bold hover:underline cursor-pointer"
+                        >
+                          Mark Read
+                        </button>
+                        <button 
+                          onClick={handleDeleteSelectedNotifs}
+                          className="text-red-500 font-bold hover:underline flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <Trash2 className="w-3 h-3" /> Delete Selected ({selectedNotifIds.length})
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Notifications List */}
+                <div className="divide-y divide-slate-100">
+                  {notifications.length === 0 ? (
+                    <p className="text-xs text-slate-500 p-4 text-center">No new notifications</p>
+                  ) : (
+                    notifications.map((notif) => {
+                      const isSelected = selectedNotifIds.includes(notif._id);
+                      return (
+                        <div key={notif._id} className="p-3 flex items-start gap-2 text-left hover:bg-slate-50 transition-colors">
+                          {/* Checkbox */}
+                          <button 
+                            onClick={() => toggleSelectNotif(notif._id)}
+                            className="mt-0.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                          >
+                            {isSelected ? <CheckSquare className="w-3.5 h-3.5 text-blue-600" /> : <Square className="w-3.5 h-3.5" />}
+                          </button>
+
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider mb-0.5">{notif.title}</p>
+                            <p className={`text-xs ${notif.isRead ? "text-slate-500" : "text-slate-800 font-semibold"}`}>
+                              {notif.message}
+                            </p>
+                            <span className="text-[9px] text-slate-400 mt-1 block">
+                              {new Date(notif.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+
+                          {/* Single row actions */}
+                          <div className="flex items-center gap-1 shrink-0 self-center">
+                            {!notif.isRead && (
+                              <button 
+                                onClick={() => handleMarkSingleAsRead(notif._id)}
+                                className="p-1 hover:bg-slate-200 rounded text-emerald-600 cursor-pointer"
+                                title="Mark as Read"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            <button 
+                              onClick={() => handleDeleteSingleNotif(notif._id)}
+                              className="p-1 hover:bg-slate-200 rounded text-red-500 cursor-pointer"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </header>
         <div className="flex-1 overflow-auto p-6 scroll-smooth">
           {children}

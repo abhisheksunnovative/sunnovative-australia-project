@@ -379,6 +379,74 @@ const StepCard = ({ step, index, totalSteps, onUpdate, onRemove, onMoveUp, onMov
                     </div>
                     <p className="text-[11px] text-slate-400 mt-1">Type document name and press Add or Enter.</p>
                   </div>
+                  
+                  <div className="mt-4 pt-4 border-t border-slate-100">
+                    <label className="text-xs font-black text-slate-600 uppercase block mb-3">Required Input Action Slots per Step</label>
+                    <div className="space-y-2 mb-3">
+                      {(step.requiredActions || []).map((act, actIdx) => (
+                        <div key={actIdx} className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                          <input 
+                            type="text" 
+                            value={act.label} 
+                            placeholder="Slot Label (e.g. Upload Electricity Bill)"
+                            onChange={(e) => {
+                              const updated = [...(step.requiredActions || [])];
+                              updated[actIdx].label = e.target.value;
+                              onUpdate("requiredActions", updated);
+                            }}
+                            className="flex-1 text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white"
+                          />
+                          <select 
+                            value={act.fileType} 
+                            onChange={(e) => {
+                              const updated = [...(step.requiredActions || [])];
+                              updated[actIdx].fileType = e.target.value;
+                              onUpdate("requiredActions", updated);
+                            }}
+                            className="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white font-medium"
+                          >
+                            <option value="pdf">PDF File</option>
+                            <option value="image">Photo/Image</option>
+                            <option value="text">Text Input</option>
+                          </select>
+                          <label className="flex items-center gap-1 text-[11px] font-bold text-slate-500">
+                            <input 
+                              type="checkbox" 
+                              checked={act.required !== false} 
+                              onChange={(e) => {
+                                const updated = [...(step.requiredActions || [])];
+                                updated[actIdx].required = e.target.checked;
+                                onUpdate("requiredActions", updated);
+                              }}
+                              className="rounded border-slate-300"
+                            />
+                            Required
+                          </label>
+                          <button 
+                            type="button" 
+                            onClick={() => {
+                              const updated = (step.requiredActions || []).filter((_, i) => i !== actIdx);
+                              onUpdate("requiredActions", updated);
+                            }} 
+                            className="text-red-500 hover:text-red-700 font-bold px-1.5 py-0.5 hover:bg-red-50 rounded"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const updated = [...(step.requiredActions || []), { label: "", fileType: "pdf", required: true }];
+                        onUpdate("requiredActions", updated);
+                      }}
+                      className="px-3 py-1.5 bg-yellow-400 hover:bg-yellow-500 text-slate-800 text-xs font-bold rounded-lg transition-all"
+                    >
+                      + Add Action Slot
+                    </button>
+                    <p className="text-[10px] text-slate-400 mt-1">Configure individual file/text uploads required from customer/installer for this step.</p>
+                  </div>
                 </div>
               )}
               <div className="pt-2">

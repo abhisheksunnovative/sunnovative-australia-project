@@ -154,7 +154,9 @@ const EpcLogin = () => {
       const { data } = await epcApi.post('/api/epc/auth/set-pin', { pin },
         { headers: { Authorization: `Bearer ${tempToken}` } });
       setEpcDirect(data);
-      navigate('/epc/dashboard');
+      const redirectCountry = (data?.country || '').toLowerCase().trim();
+      const redirectPrefix = redirectCountry === 'australia' ? '/au' : redirectCountry === 'new_zealand' ? '/nz' : '';
+      navigate(`${redirectPrefix}/epc/dashboard`);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to set PIN');
     } finally { setLoading(false); }
@@ -167,7 +169,9 @@ const EpcLogin = () => {
     try {
       const { data } = await epcApi.post('/api/epc/auth/login-with-pin', { email: selected.email, pin });
       setEpcDirect(data);
-      navigate('/epc/dashboard');
+      const redirectCountry = (data?.country || '').toLowerCase().trim();
+      const redirectPrefix = redirectCountry === 'australia' ? '/au' : redirectCountry === 'new_zealand' ? '/nz' : '';
+      navigate(`${redirectPrefix}/epc/dashboard`);
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid PIN');
     } finally { setLoading(false); }

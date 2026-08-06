@@ -571,9 +571,20 @@ export const LeadsScreen = () => {
                         </button>
 
                         {lead.convertedProjectId ? (
-                          <span className="px-2 py-1 bg-emerald-50 text-emerald-700 font-bold text-[10px] rounded-lg border border-emerald-200 flex items-center gap-1">
-                            <CheckCircle className="w-3 h-3 text-emerald-600"/> Approved
-                          </span>
+                          <div className="flex flex-col gap-1 items-start">
+                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-bold text-[10px] rounded border border-emerald-200 flex items-center gap-1">
+                              <CheckCircle className="w-3 h-3 text-emerald-600"/> Approved
+                            </span>
+                            <button 
+                              onClick={() => {
+                                localStorage.setItem("active_tracking_project_id", lead.convertedProjectId);
+                                window.dispatchEvent(new CustomEvent("change-tab", { detail: "project-orders" }));
+                              }}
+                              className="px-2 py-1 bg-yellow-400 hover:bg-yellow-500 text-yellow-950 font-bold text-[10px] rounded-lg transition-colors flex items-center gap-1 shadow-sm mt-1 cursor-pointer"
+                            >
+                              <Zap className="w-3 h-3 fill-yellow-950" /> Live Tracker
+                            </button>
+                          </div>
                         ) : lead.status === "Converted" ? (
                           <button 
                             onClick={async () => {

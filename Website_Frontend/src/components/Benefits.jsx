@@ -13,44 +13,70 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-export default function Benefits({ onScrollToForm, projectTypes, selectedPt }) {
-  const benefitCards = [
-    {
-      icon: <Landmark className="w-8 h-8 text-amber-600" />,
-      title: "Government Subsidy Support",
-      guarantee: "Up to ₹78,000 Direct Return",
-      subtitle:
-        "MNRE National Portal key direct integration: 1kW translates to ₹33,000, 2kW offers ₹66,000, and 3kW or above gains ₹78,000 maximum direct bank transfer.",
-    },
-    {
-      icon: <PiggyBank className="w-8 h-8 text-sky-600" />,
-      title: "Zero Electricity Bill Savings",
-      guarantee: "Save up to 90% Every Month",
-      subtitle:
-        "Free up to 300 units of energy monthly depending on panel size. Any extra energy generated goes back to PGVCL grid, lowering your electric tab to near-zero.",
-    },
-    {
-      icon: <Award className="w-8 h-8 text-emerald-600" />,
-      title: "End-to-End Installation",
-      guarantee: "Tier-1 Components & Warranty",
-      subtitle:
-        "Complete rooftop mounting structure with wind-flow optimization (withstands Cyclone gusts in Saurashtra), structural safety certified by architects.",
-    },
-    {
-      icon: <FileText className="w-8 h-8 text-indigo-600" />,
-      title: "Hassle-Free Liaisoning",
-      guarantee: "Zero Red Tape or Document Stress",
-      subtitle:
-        "We fully manage documentation on the PGVCL portal, structural drawing submissions, subsidy eligibility approval, and regulatory liaisoning.",
-    },
-    {
-      icon: <Cable className="w-8 h-8 text-rose-600" />,
-      title: "Bi-directional Net-Metering",
-      guarantee: "Turn Sun into Guaranteed Earnings",
-      subtitle:
-        "Full coordination with PGVCL division engineers to commission standard and secure bi-directional meters. Monitor production from your smartphone.",
-    },
+export default function Benefits({ onScrollToForm, projectTypes, selectedPt, settings }) {
+  const defaultIcons = [
+    <Landmark className="w-8 h-8 text-amber-600" />,
+    <PiggyBank className="w-8 h-8 text-sky-600" />,
+    <Award className="w-8 h-8 text-emerald-600" />,
+    <FileText className="w-8 h-8 text-indigo-600" />,
+    <Cable className="w-8 h-8 text-rose-600" />
   ];
+
+  const rawItems = settings?.benefits?.items || [];
+  const benefitCards = rawItems.length > 0 
+    ? rawItems.map((item, idx) => ({
+        icon: defaultIcons[idx % defaultIcons.length],
+        title: item.title,
+        guarantee: item.subtitle,
+        subtitle: item.desc,
+        badge: item.badge
+      }))
+    : [
+        {
+          icon: <Landmark className="w-8 h-8 text-amber-600" />,
+          title: "Government Subsidy Support",
+          guarantee: "Up to ₹78,000 Direct Return",
+          subtitle:
+            "MNRE National Portal key direct integration: 1kW translates to ₹33,000, 2kW offers ₹66,000, and 3kW or above gains ₹78,000 maximum direct bank transfer.",
+          badge: "Rajkot Authorized Geda vendor"
+        },
+        {
+          icon: <PiggyBank className="w-8 h-8 text-sky-600" />,
+          title: "Zero Electricity Bill Savings",
+          guarantee: "Save up to 90% Every Month",
+          subtitle:
+            "Free up to 300 units of energy monthly depending on panel size. Any extra energy generated goes back to PGVCL grid, lowering your electric tab to near-zero.",
+          badge: "Rajkot Authorized Geda vendor"
+        },
+        {
+          icon: <Award className="w-8 h-8 text-emerald-600" />,
+          title: "End-to-End Installation",
+          guarantee: "Tier-1 Components & Warranty",
+          subtitle:
+            "Complete rooftop mounting structure with wind-flow optimization (withstands Cyclone gusts in Saurashtra), structural safety certified by architects.",
+          badge: "Rajkot Authorized Geda vendor"
+        },
+        {
+          icon: <FileText className="w-8 h-8 text-indigo-600" />,
+          title: "Hassle-Free Liaisoning",
+          guarantee: "Zero Red Tape or Document Stress",
+          subtitle:
+            "We fully manage documentation on the PGVCL portal, structural drawing submissions, subsidy eligibility approval, and regulatory liaisoning.",
+          badge: "Rajkot Authorized Geda vendor"
+        },
+        {
+          icon: <Cable className="w-8 h-8 text-rose-600" />,
+          title: "Bi-directional Net-Metering",
+          guarantee: "Turn Sun into Guaranteed Earnings",
+          subtitle:
+            "Full coordination with PGVCL division engineers to commission standard and secure bi-directional meters. Monitor production from your smartphone.",
+          badge: "Rajkot Authorized Geda vendor"
+        },
+      ];
+
+  const sectionTitle = settings?.benefits?.sectionTitle || "Why Install Solar Now?";
+  const sectionSubtitle = settings?.benefits?.sectionSubtitle || "PM Surya Ghar Yojana ke Benefits & Savings";
+  const sectionDesc = settings?.benefits?.sectionDesc || "Sarkari Subsidy and Sunnovative Solar System's advanced German engineering make Rooftop Solar the single smartest investment for every home in Rajkot.";
 
   return (
     <section
@@ -64,15 +90,13 @@ export default function Benefits({ onScrollToForm, projectTypes, selectedPt }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <span className="text-xs font-bold uppercase tracking-widest text-[#0081C9] bg-sky-50 px-3 py-1 rounded-full border border-sky-100">
-            Why Install Solar Now?
+            {sectionTitle}
           </span>
           <h2 className="text-3xl md:text-4xl font-display font-extrabold text-slate-900 mt-3 leading-tight">
-            PM Surya Ghar Yojana ke Benefits & Savings
+            {sectionSubtitle}
           </h2>
           <p className="text-slate-600 mt-4 text-sm md:text-base">
-            Sarkari Subsidy and Sunnovative Solar System's advanced German
-            engineering make Rooftop Solar the single smartest investment for
-            every home in Rajkot.
+            {sectionDesc}
           </p>
         </div>
 
@@ -107,7 +131,7 @@ export default function Benefits({ onScrollToForm, projectTypes, selectedPt }) {
 
               <div className="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between">
                 <span className="text-[10px] font-bold text-slate-400">
-                  Rajkot Authorized Geda vendor
+                  {benefit.badge || "Rajkot Authorized Geda vendor"}
                 </span>
                 <span className="w-1.5 h-1.5 rounded-full bg-solar-green animate-pulse"></span>
               </div>

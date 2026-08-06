@@ -30,7 +30,11 @@ import {
   User,
   Activity,
   UserCheck,
-   Wallet,
+  Wallet,
+  Trash2,
+  CheckSquare,
+  Square,
+  Check,
 } from "lucide-react";
 
 export const MainLayout = ({
@@ -230,11 +234,95 @@ export const MainLayout = ({
     "Sunnovative";
 
   const [notifications, setNotifications] = useState([]);
+  const [selectedNotifIds, setSelectedNotifIds] = useState([]);
   const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
+
+  const toggleSelectNotif = (id) => {
+    setSelectedNotifIds(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllNotifs = () => {
+    if (selectedNotifIds.length === notifications.length) {
+      setSelectedNotifIds([]);
+    } else {
+      setSelectedNotifIds(notifications.map(n => n._id));
+    }
+  };
+
+  const handleDeleteSelectedNotifs = async () => {
+    if (selectedNotifIds.length === 0) return;
+    if (!window.confirm(`Delete ${selectedNotifIds.length} selected notifications?`)) return;
+    try {
+      await fetch(`${API_BASE}/api/notifications/delete-batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedNotifIds })
+      });
+      setSelectedNotifIds([]);
+      fetchNotifications();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleMarkSelectedAsRead = async () => {
+    if (selectedNotifIds.length === 0) return;
+    try {
+      await fetch(`${API_BASE}/api/notifications/mark-all-read`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedNotifIds })
+      });
+      setSelectedNotifIds([]);
+      fetchNotifications();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteSingleNotif = async (id) => {
+    if (!window.confirm("Delete this notification?")) return;
+    try {
+      await fetch(`${API_BASE}/api/notifications/${id}`, { method: "DELETE" });
+      setSelectedNotifIds(prev => prev.filter(x => x !== id));
+      fetchNotifications();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleMarkSingleAsRead = async (id) => {
+    try {
+      await fetch(`${API_BASE}/api/notifications/${id}/read`, { method: "PUT" });
+      fetchNotifications();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const [newLeadsCount, setNewLeadsCount] = useState(0);
+
+  const fetchLeadStats = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/leads/stats`);
+      const data = await res.json();
+      if (data.success) {
+        setNewLeadsCount(data.data.newLeads || 0);
+      }
+    } catch (err) {
+      console.error("Failed to fetch lead stats");
+    }
+  };
 
   React.useEffect(() => {
     fetchNotifications();
-    const int = setInterval(fetchNotifications, 60000); // refresh every minute
+    fetchLeadStats();
+    const int = setInterval(() => {
+      fetchNotifications();
+      fetchLeadStats();
+    }, 60000); // refresh every minute
     return () => clearInterval(int);
   }, []);
 
@@ -250,7 +338,13 @@ export const MainLayout = ({
 
   const markAllAsRead = async () => {
     try {
-      await fetch(`${API_BASE}/api/notifications/Admin/read-all`, { method: "PUT" });
+      const ids = notifications.filter(n => !n.isRead).map(n => n._id);
+      if (ids.length === 0) return;
+      await fetch(`${API_BASE}/api/notifications/mark-all-read`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids })
+      });
       fetchNotifications();
     } catch (err) {
       console.error(err);
@@ -397,7 +491,12 @@ export const MainLayout = ({
                 }`}
               >
                 {item.icon}
-                <span className="truncate">{item.name}</span>
+                <span className="truncate flex-1 text-left">{item.name}</span>
+                {item.id === "website-leads" && newLeadsCount > 0 && (
+                  <span className="shrink-0 bg-yellow-400 text-yellow-950 font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
+                    {newLeadsCount}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -545,7 +644,12 @@ export const MainLayout = ({
                     }`}
                   >
                     {item.icon}
-                    <span className="truncate">{item.name}</span>
+                    <span className="truncate flex-1 text-left">{item.name}</span>
+                    {item.id === "website-leads" && newLeadsCount > 0 && (
+                      <span className="shrink-0 bg-yellow-400 text-yellow-950 font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
+                        {newLeadsCount}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -656,37 +760,104 @@ export const MainLayout = ({
                     className="fixed inset-0 z-30"
                     onClick={() => setNotificationsOpen(false)}
                   />
-                  <div className="absolute right-0 mt-2.5 w-80 origin-top-right rounded-2xl bg-white p-4 shadow-xl ring-1 ring-black/5 z-40 border border-gray-100 max-h-96 overflow-y-auto">
-                    <div className="flex items-center justify-between pb-2 border-b border-gray-50">
-                      <span className="font-bold text-xs text-primary font-display">
-                        Notifications
+                  <div className="absolute right-0 mt-2.5 w-96 origin-top-right rounded-2xl bg-white p-4 shadow-xl ring-1 ring-black/5 z-40 border border-gray-100 max-h-96 overflow-y-auto">
+                    {/* Header */}
+                    <div className="flex items-center justify-between pb-2.5 border-b border-gray-150">
+                      <span className="font-bold text-xs text-primary font-display flex items-center gap-1.5">
+                        Notifications ({notifications.length})
                       </span>
-                      {unreadCount > 0 && (
-                        <button
-                          onClick={markAllAsRead}
-                          className="text-[10px] text-accent font-semibold hover:underline"
-                        >
-                          Mark all as read
-                        </button>
-                      )}
+                      <div className="flex gap-2">
+                        {unreadCount > 0 && (
+                          <button
+                            onClick={markAllAsRead}
+                            className="text-[10px] text-blue-600 font-semibold hover:underline cursor-pointer"
+                          >
+                            Mark all as read
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div className="mt-2 divide-y divide-gray-55 space-y-2">
+
+                    {/* Batch Actions Toolbar */}
+                    {notifications.length > 0 && (
+                      <div className="flex items-center justify-between py-2 border-b border-gray-100 text-[10px]">
+                        <button 
+                          onClick={handleSelectAllNotifs}
+                          className="text-slate-500 font-bold hover:text-slate-800 flex items-center gap-1 cursor-pointer"
+                        >
+                          {selectedNotifIds.length === notifications.length ? <CheckSquare className="w-3.5 h-3.5 text-blue-600" /> : <Square className="w-3.5 h-3.5" />}
+                          Select All
+                        </button>
+
+                        {selectedNotifIds.length > 0 && (
+                          <div className="flex gap-3">
+                            <button 
+                              onClick={handleMarkSelectedAsRead}
+                              className="text-blue-600 font-bold hover:underline cursor-pointer"
+                            >
+                              Mark Read
+                            </button>
+                            <button 
+                              onClick={handleDeleteSelectedNotifs}
+                              className="text-red-500 font-bold hover:underline flex items-center gap-0.5 cursor-pointer"
+                            >
+                              <Trash2 className="w-3 h-3" /> Delete Selected ({selectedNotifIds.length})
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Notifications List */}
+                    <div className="mt-2 divide-y divide-gray-100 space-y-1">
                       {notifications.length === 0 ? (
                         <p className="text-xs text-gray-500 py-4 text-center">No new notifications</p>
                       ) : (
-                        notifications.map((notif) => (
-                          <div key={notif._id} className="pt-2 text-left">
-                            <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider mb-0.5">{notif.title}</p>
-                            <p
-                              className={`text-xs ${notif.isRead ? "text-gray-500" : "text-primary font-semibold"}`}
-                            >
-                              {notif.message}
-                            </p>
-                            <span className="text-[10px] text-gray-400 mt-1 block">
-                              {new Date(notif.createdAt).toLocaleString()}
-                            </span>
-                          </div>
-                        ))
+                        notifications.map((notif) => {
+                          const isSelected = selectedNotifIds.includes(notif._id);
+                          return (
+                            <div key={notif._id} className="py-2.5 flex items-start gap-2 text-left hover:bg-slate-50 rounded px-1">
+                              {/* Checkbox */}
+                              <button 
+                                onClick={() => toggleSelectNotif(notif._id)}
+                                className="mt-0.5 text-slate-400 hover:text-slate-650 cursor-pointer"
+                              >
+                                {isSelected ? <CheckSquare className="w-3.5 h-3.5 text-blue-600" /> : <Square className="w-3.5 h-3.5" />}
+                              </button>
+
+                              {/* Content */}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider mb-0.5">{notif.title}</p>
+                                <p className={`text-xs leading-normal ${notif.isRead ? "text-gray-505" : "text-primary font-semibold"}`}>
+                                  {notif.message}
+                                </p>
+                                <span className="text-[9px] text-gray-400 mt-1 block">
+                                  {new Date(notif.createdAt).toLocaleString()}
+                                </span>
+                              </div>
+
+                              {/* Single actions */}
+                              <div className="flex items-center gap-1 shrink-0 self-center">
+                                {!notif.isRead && (
+                                  <button 
+                                    onClick={() => handleMarkSingleAsRead(notif._id)}
+                                    className="p-1 hover:bg-slate-100 rounded text-emerald-600 cursor-pointer"
+                                    title="Mark as Read"
+                                  >
+                                    <Check className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                                <button 
+                                  onClick={() => handleDeleteSingleNotif(notif._id)}
+                                  className="p-1 hover:bg-slate-100 rounded text-red-500 cursor-pointer"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
                       )}
                     </div>
                   </div>

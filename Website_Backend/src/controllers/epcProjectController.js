@@ -1,4 +1,5 @@
 import { ProjectOrder } from '../models/ProjectModel.js';
+import { processStepCompletionEngine } from '../utils/stepEngine.js';
 
 export const getAllProjects = async (req, res) => {
   try {
@@ -59,7 +60,7 @@ export const getProjectById = async (req, res) => {
 
 export const completeStep = async (req, res) => {
   try {
-    const { stepId, note } = req.body;
+    const { stepId, note, uploadedActions: rawActions } = req.body;
     
     const project = await ProjectOrder.findOne({
       _id: req.params.id,
@@ -75,6 +76,15 @@ export const completeStep = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to complete this step' });
     }
 
+    let uploadedActions = [];
+    if (rawActions) {
+      try {
+        uploadedActions = typeof rawActions === 'string' ? JSON.parse(rawActions) : rawActions;
+      } catch (err) {
+        console.error('Error parsing uploadedActions:', err);
+      }
+    }
+
     let evidenceUrl = "";
     if (req.file) {
       evidenceUrl = `/${req.file.path.replace(/\\/g, '/')}`;
@@ -86,7 +96,8 @@ export const completeStep = async (req, res) => {
       req.epc.companyName || 'EPC Partner',
       evidenceUrl,
       note || "",
-      "epc-partner"
+      "epc-partner",
+      uploadedActions
     );
 
     if (!result.success) {

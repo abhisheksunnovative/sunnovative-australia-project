@@ -13,9 +13,72 @@ export default function HorizontalJourneyTracker({
   const [selectedStep, setSelectedStep] = useState(null);
   const [uploadFile, setUploadFile] = useState(null);
   const [noteInput, setNoteInput] = useState("");
+  const [actionInputs, setActionInputs] = useState({});
   const [reuploadReason, setReuploadReason] = useState("Uploaded document is not clear. Please re-upload.");
   const [showAdminAction, setShowAdminAction] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const handleFileChange = async (stepId, slotLabel, file) => {
+    if (!file) return;
+    const fd = new FormData();
+    fd.append("file", file);
+    
+    setActionInputs(prev => ({
+      ...prev,
+      [stepId]: {
+        ...(prev[stepId] || {}),
+        [`${slotLabel}_uploading`]: true
+      }
+    }));
+
+    try {
+      const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
+      const res = await fetch(`${API_BASE}/api/upload-file`, {
+        method: "POST",
+        body: fd
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActionInputs(prev => ({
+          ...prev,
+          [stepId]: {
+            ...(prev[stepId] || {}),
+            [slotLabel]: data.fileUrl,
+            [`${slotLabel}_uploading`]: false
+          }
+        }));
+      } else {
+        alert(data.message || "File upload failed");
+        setActionInputs(prev => ({
+          ...prev,
+          [stepId]: {
+            ...(prev[stepId] || {}),
+            [`${slotLabel}_uploading`]: false
+          }
+        }));
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error uploading file");
+      setActionInputs(prev => ({
+        ...prev,
+        [stepId]: {
+          ...(prev[stepId] || {}),
+          [`${slotLabel}_uploading`]: false
+        }
+      }));
+    }
+  };
+
+  const handleTextChange = (stepId, slotLabel, val) => {
+    setActionInputs(prev => ({
+      ...prev,
+      [stepId]: {
+        ...(prev[stepId] || {}),
+        [slotLabel]: val
+      }
+    }));
+  };
 
   const isBDE = userRole === "bde";
   const isEPC = userRole === "epc";
@@ -43,9 +106,26 @@ export default function HorizontalJourneyTracker({
   const displaySteps = steps?.length > 0 ? steps : defaultSteps;
 
   const handleStepSubmit = async (step) => {
+    const stepId = step.stepId || step._id;
+    const reqActions = step.requiredActions || [];
+    const uploadedActions = [];
+
+    for (const act of reqActions) {
+      const val = actionInputs[stepId]?.[act.label] || "";
+      if (act.required && !val) {
+        alert(`Please fill/upload required field: ${act.label}`);
+        return;
+      }
+      uploadedActions.push({
+        label: act.label,
+        fileType: act.fileType,
+        value: val
+      });
+    }
+
     if (onExecuteStep) {
       setSubmitting(true);
-      await onExecuteStep(step.stepId || step._id, uploadFile, noteInput);
+      await onExecuteStep(stepId, uploadFile, noteInput, uploadedActions);
       setSubmitting(false);
       setSelectedStep(null);
     } else {
@@ -210,7 +290,6 @@ export default function HorizontalJourneyTracker({
               </div>
             )}
 
-            {/* BDE On-Behalf Banner */}
             {isBDE && selectedStep.assignedTo === 'customer' && selectedStep.status !== 'completed' && (
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs flex items-start gap-2.5">
                 <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
@@ -225,10 +304,34 @@ export default function HorizontalJourneyTracker({
             {selectedStep.status === 'completed' && (
               <div className="bg-emerald-50/60 p-4 rounded-xl border border-emerald-200 space-y-2 text-xs">
                 <p className="font-bold text-emerald-900">✓ Step Completed</p>
-                {selectedStep.evidenceUrl && (
-                  <a href={selectedStep.evidenceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-blue-600 font-bold hover:underline">
-                    <FileText className="w-4 h-4" /> View Uploaded Document / Evidence
-                  </a>
+                {selectedStep.uploadedActions && selectedStep.uploadedActions.length > 0 ? (
+                  <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-2">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Completed Action Fields</p>
+                    {selectedStep.uploadedActions.map((act, actIdx) => (
+                      <div key={actIdx} className="flex justify-between items-center text-xs border-b border-slate-100 pb-1.5 last:border-0 last:pb-0">
+                        <span className="font-semibold text-slate-600">{act.label}:</span>
+                        {act.fileType === "text" ? (
+                          <span className="text-slate-800 font-medium">{act.value || "—"}</span>
+                        ) : (
+                          act.value ? (
+                            <a href={`${API_BASE}${act.value}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline flex items-center gap-1 font-bold">
+                              <FileText className="w-3.5 h-3.5" /> View File
+                            </a>
+                          ) : (
+                            <span className="text-slate-400 italic">No file uploaded</span>
+                          )
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    {selectedStep.evidenceUrl && (
+                      <a href={selectedStep.evidenceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-blue-600 font-bold hover:underline">
+                        <FileText className="w-4 h-4" /> View Uploaded Document / Evidence
+                      </a>
+                    )}
+                  </>
                 )}
                 {selectedStep.evidenceNote && (
                   <p className="text-slate-600 italic">"{selectedStep.evidenceNote}"</p>
@@ -238,17 +341,60 @@ export default function HorizontalJourneyTracker({
 
             {/* Action Form (For incomplete steps) */}
             {selectedStep.status !== 'completed' && (
-              <div className="space-y-3 pt-2">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                    {isBDE && selectedStep.assignedTo === 'customer' ? "Upload File (On-Behalf of Customer)" : "Upload Attachment / Document"}
-                  </label>
-                  <input
-                    type="file"
-                    onChange={(e) => setUploadFile(e.target.files[0])}
-                    className="w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                  />
-                </div>
+              <div className="space-y-4 pt-2 text-xs">
+                {selectedStep.requiredActions && selectedStep.requiredActions.length > 0 ? (
+                  <div className="space-y-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Required Input Fields</p>
+                    {selectedStep.requiredActions.map((act, actIdx) => {
+                      const stepId = selectedStep.stepId || selectedStep._id;
+                      const value = actionInputs[stepId]?.[act.label] || "";
+                      const uploading = actionInputs[stepId]?.[`${act.label}_uploading`];
+
+                      return (
+                        <div key={actIdx} className="flex flex-col gap-1.5">
+                          <label className="text-xs font-bold text-slate-700">
+                            {act.label} {act.required !== false && <span className="text-red-500">*</span>}
+                          </label>
+                          {act.fileType === "text" ? (
+                            <input 
+                              type="text" 
+                              value={value} 
+                              onChange={(e) => handleTextChange(stepId, act.label, e.target.value)}
+                              placeholder={`Enter ${act.label}...`}
+                              className="w-full text-xs border border-slate-300 rounded p-2 focus:ring-1 focus:ring-blue-500 bg-white focus:outline-none"
+                            />
+                          ) : (
+                            <div className="flex items-center gap-3">
+                              <input 
+                                type="file" 
+                                onChange={(e) => handleFileChange(stepId, act.label, e.target.files?.[0])}
+                                className="text-xs text-slate-500"
+                              />
+                              {uploading ? (
+                                <span className="text-xs text-amber-600 font-bold animate-pulse">Uploading...</span>
+                              ) : value ? (
+                                <span className="text-xs text-green-600 font-bold flex items-center gap-1">✓ Uploaded</span>
+                              ) : (
+                                <span className="text-xs text-slate-400">No file</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                      {isBDE && selectedStep.assignedTo === 'customer' ? "Upload File (On-Behalf of Customer)" : "Upload Attachment / Document"}
+                    </label>
+                    <input
+                      type="file"
+                      onChange={(e) => setUploadFile(e.target.files[0])}
+                      className="w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Notes / Action Summary</label>
@@ -257,7 +403,7 @@ export default function HorizontalJourneyTracker({
                     value={noteInput}
                     onChange={(e) => setNoteInput(e.target.value)}
                     placeholder={isBDE ? "Customer verbally confirmed / BDE uploaded bill..." : "Enter completion details..."}
-                    className="w-full border rounded-xl p-2.5 text-xs bg-slate-50 focus:bg-white"
+                    className="w-full border border-slate-200 rounded-xl p-2.5 text-xs bg-slate-50 focus:bg-white focus:outline-none"
                   />
                 </div>
 

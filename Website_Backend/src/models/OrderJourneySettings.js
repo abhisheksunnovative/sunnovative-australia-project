@@ -36,8 +36,14 @@ const JourneyStepSchema = new mongoose.Schema({
     enum: ["in-app", "email", "sms", "whatsapp"],
     default: ["email"] 
   }, // Deep notification setting
-  requiresDocumentUpload: { type: Boolean, default: false }, // Legacy, keep for backward compatibility
   documentRequirements: [String], // Support multiple documents
+  requiredActions: [
+    {
+      label: { type: String, required: true },
+      fileType: { type: String, enum: ["pdf", "image", "text"], default: "pdf" },
+      required: { type: Boolean, default: true }
+    }
+  ],
   documentName: { type: String, default: "" }, // Legacy
   requiresAdminApproval: { type: Boolean, default: false }, // New field
   completionCondition: { 
@@ -67,7 +73,7 @@ const ProjectJourneySchema = new mongoose.Schema({
   },
   epcSelectionType: {
     type: String,
-    enum: ["FCFS", "CUSTOMER_SELECT"],
+    enum: ["FCFS", "CUSTOMER_SELECT", "BDE_SELECT"],
     default: "FCFS"
   },
   steps: { type: [JourneyStepSchema], default: [] },

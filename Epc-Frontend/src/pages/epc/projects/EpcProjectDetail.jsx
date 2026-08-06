@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Check, XCircle } from 'lucide-react';
+import { Check, XCircle, AlertCircle } from 'lucide-react';
 import epcApi from '../../../api/epcApi';
 
 // ── Shared Horizontal Tracker ──────────────────────────────────────────────────
@@ -262,35 +262,46 @@ const EpcProjectDetail = () => {
                   </div>
                 )}
                 
-                {isActive && isEPC && (
-                  <div className="mt-4 pt-4 border-t border-orange-200">
-                    <p className="text-xs font-semibold text-orange-900 mb-2">{step.pendingActionAlert || `Complete ${step.title}`}</p>
-                    <div className="space-y-3">
-                      <input 
-                        type="text" 
-                        placeholder="Add a note (optional)..."
-                        className="w-full text-sm border border-gray-300 rounded p-2 focus:ring-1 focus:ring-orange-500"
-                        value={evidenceNote}
-                        onChange={e => setEvidenceNote(e.target.value)}
-                      />
-                      <div className="flex items-center gap-3">
-                        <input 
-                          type="file" 
-                          ref={fileRef}
-                          onChange={e => setUploadFile(e.target.files?.[0])}
-                          className="text-xs text-gray-500"
-                        />
-                        <button 
-                          onClick={() => completeStep(step.stepId)}
-                          disabled={stageLoading}
-                          className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-colors ml-auto shadow-sm"
-                        >
-                          {stageLoading ? 'Saving...' : 'Submit & Complete Step'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                 {isActive && isEPC && (() => {
+                   const origIdx = project.steps.findIndex(s => s.stepId === step.stepId);
+                   const previousStepsCompleted = project.steps.slice(0, origIdx).every(s => s.status === "completed" || s.status === "skipped");
+                   return (
+                     <div className="mt-4 pt-4 border-t border-orange-200 text-left">
+                       <p className="text-xs font-semibold text-orange-900 mb-2">{step.pendingActionAlert || `Complete ${step.title}`}</p>
+                       {!previousStepsCompleted ? (
+                         <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-bold text-red-750 flex items-start gap-2">
+                           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                           Pehle isse pichle saare steps complete hone chahiye. / Please complete all previous steps first.
+                         </div>
+                       ) : (
+                         <div className="space-y-3">
+                           <input 
+                             type="text" 
+                             placeholder="Add a note (optional)..."
+                             className="w-full text-sm border border-gray-300 rounded p-2 focus:ring-1 focus:ring-orange-500"
+                             value={evidenceNote}
+                             onChange={e => setEvidenceNote(e.target.value)}
+                           />
+                           <div className="flex items-center gap-3">
+                             <input 
+                               type="file" 
+                               ref={fileRef}
+                               onChange={e => setUploadFile(e.target.files?.[0])}
+                               className="text-xs text-gray-500"
+                             />
+                             <button 
+                               onClick={() => completeStep(step.stepId)}
+                               disabled={stageLoading}
+                               className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-colors ml-auto shadow-sm cursor-pointer"
+                             >
+                               {stageLoading ? 'Saving...' : 'Submit & Complete Step'}
+                             </button>
+                           </div>
+                         </div>
+                       )}
+                     </div>
+                   );
+                 })()}
               </div>
             );
           }) : (

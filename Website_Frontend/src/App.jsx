@@ -31,14 +31,14 @@ const CustomerPortal = lazy(() => import("./customer/CustomerPortal"));
 
 
 function AppInner() {
-  const { customer } = useCustomerAuth();
+  const { customer, loading, token } = useCustomerAuth();
   const { country } = useCountry();
-  const { settings } = useWebsiteSettings();
+  const [selectedPt, setSelectedPt] = useState(null);
+  const settings = useWebsiteSettings(selectedPt);
   const isAU = country === "AU";
   const [viewMode, setViewMode] = useState("home"); // home | blog | account
   const [showCustomerLogin, setShowCustomerLogin] = useState(false);
   const [journeySettings, setJourneySettings] = useState(null);
-  const [selectedPt, setSelectedPt] = useState(null);
   
   useEffect(() => {
     // Fetch journey settings to know available project types for this country
@@ -94,6 +94,7 @@ function AppInner() {
 
   // Hash routing
   useEffect(() => {
+    if (loading) return; // Wait until authentication check completes!
     const handleHashChange = () => {
       const hash = window.location.hash;
       if (hash === "#blog" || hash.startsWith("#blog/")) setViewMode("blog");
@@ -106,7 +107,18 @@ function AppInner() {
     handleHashChange();
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
-  }, [customer]);
+  }, [customer, loading]);
+
+  if (loading && token) {
+    return (
+      <div className="min-h-screen bg-slate-550 flex items-center justify-center bg-slate-900 text-white">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs font-bold text-slate-400">Securing your session...</p>
+        </div>
+      </div>
+    );
+  }
 
   const scrollToForm = () => {
     if (viewMode !== "home") {

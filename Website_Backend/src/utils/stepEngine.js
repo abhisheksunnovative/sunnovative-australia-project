@@ -7,6 +7,37 @@ export const calcCompletion = (steps) => {
   return Math.round((comp / steps.length) * 100);
 };
 
+export const findJourneySettings = async (country, state, district) => {
+  const { OrderJourneySettings } = await import('../models/OrderJourneySettings.js');
+  let searchCountry = (country || 'india').toLowerCase().trim();
+  if (searchCountry === 'au') searchCountry = 'australia';
+  if (searchCountry === 'in') searchCountry = 'india';
+
+  let doc = await OrderJourneySettings.findOne({
+    country: searchCountry,
+    state: state || 'all',
+    district: district || 'all'
+  });
+
+  if (!doc && (state || district)) {
+    doc = await OrderJourneySettings.findOne({
+      country: searchCountry,
+      state: 'all',
+      district: 'all'
+    });
+  }
+
+  if (!doc) {
+    doc = await OrderJourneySettings.findOne({ country: 'india', state: 'all', district: 'all' });
+  }
+
+  if (!doc) {
+    doc = await OrderJourneySettings.findOne(); // absolute fallback
+  }
+
+  return doc;
+};
+
 /**
  * Standardize mapping from OrderJourneySettings step to ProjectOrder step
  */
@@ -42,6 +73,7 @@ export const mapJourneyStepsToProjectSteps = (journeySteps = []) => {
         completionCondition: s.completionCondition || "manual",
         requiresDoc: !!s.requiresDocumentUpload,
         documentRequirements: s.documentRequirements || [],
+        requiredActions: s.requiredActions || [],
         notificationMedium: s.notificationMedium || ['email']
       };
     });
@@ -72,7 +104,8 @@ export const processStepCompletionEngine = async (
   completedBy = "System",
   finalUrl = "",
   finalNote = "",
-  executorRole = ""
+  executorRole = "",
+  uploadedActions = []
 ) => {
   // Step dhundho
   const stepIndex = order.steps.findIndex((s) => s.stepId === stepId);
@@ -108,10 +141,19 @@ export const processStepCompletionEngine = async (
   order.steps[stepIndex].status = newStatus;
   if (newStatus === "completed") {
     order.steps[stepIndex].completedAt = new Date();
+    
+    const formattedDate = new Date().toLocaleString("en-IN");
+    const logStr = `\n\n[✓ Completed by ${completedBy} on ${formattedDate}. Action Details: ${finalNote || 'Completed successfully'}]`;
+    if (!order.steps[stepIndex].description.includes("[✓ Completed by")) {
+      order.steps[stepIndex].description += logStr;
+    }
   }
   order.steps[stepIndex].completedBy = completedBy;
   order.steps[stepIndex].evidenceUrl = finalUrl || order.steps[stepIndex].evidenceUrl;
   order.steps[stepIndex].evidenceNote = finalNote || order.steps[stepIndex].evidenceNote;
+  if (uploadedActions && uploadedActions.length > 0) {
+    order.steps[stepIndex].uploadedActions = uploadedActions;
+  }
   order.steps[stepIndex].pendingActionAlert = "";
 
   let nextStep = null;
@@ -192,10 +234,10 @@ export const editStepDetails = async (order, stepId, updates, adminName = "Admin
 };
 
 // 4. BDE customer ki taraf se step complete kare (sirf allowed steps)
-export const completeStepOnBehalfOfCustomer = async (order, stepId, bdeName = "BDE", evidenceUrl = "", note = "") => {
+export const completeStepOnBehalfOfCustomer = async (order, stepId, bdeName = "BDE", evidenceUrl = "", note = "", uploadedActions = []) => {
   const step = order.steps.find(s => s.stepId === stepId);
   if (!step) return { success: false, message: "Step nahi mila" };
   if (step.assignedTo !== "customer") return { success: false, message: "Ye customer ka step nahi hai" };
   if (!step.canBeCompletedByBDE) return { success: false, message: "Is step ko BDE customer ki taraf se nahi kar sakta" };
-  return processStepCompletionEngine(order, stepId, `BDE (on behalf of customer) — ${bdeName}`, evidenceUrl, note);
+  return processStepCompletionEngine(order, stepId, `BDE (on behalf of customer) — ${bdeName}`, evidenceUrl, note, "bde", uploadedActions);
 };

@@ -16,9 +16,11 @@ export default function Header({
   onOpenCustomerLogin,
   isCustomerLoggedIn,
   customerName,
+  settings: propSettings,
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const settings = useWebsiteSettings();
+  const baseSettings = useWebsiteSettings();
+  const settings = propSettings || baseSettings;
   const brand = settings.brand || {};
   const footer = settings.footer || {};
   const { country, setCountry, t } = useCountry();

@@ -7,8 +7,9 @@ import React from "react";
 import { Sun, Mail, Phone, MapPin, ExternalLink, ShieldCheck } from "lucide-react";
 import { useWebsiteSettings } from "../hooks/useWebsiteSettings";
 
-export default function Footer({ onScrollToForm }) {
-  const settings = useWebsiteSettings();
+export default function Footer({ onScrollToForm, settings: propSettings }) {
+  const baseSettings = useWebsiteSettings();
+  const settings = propSettings || baseSettings;
   const brand = settings.brand || {};
   const footer = settings.footer || {};
 

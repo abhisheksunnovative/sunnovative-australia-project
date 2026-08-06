@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { MainLayout } from "./components/MainLayout";
 import { DashboardScreen } from "./components/DashboardScreen";
 import { EpcPartnerScreen } from "./components/EpcPartnerScreen";
@@ -108,6 +108,16 @@ export default function App() {
   // Navigation states
   const [currentTab, setCurrentTab] = useState(userRole === "BDE" ? "bde-aust" : "dashboard");
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    const handleTabChange = (e) => {
+      if (e.detail) {
+        setCurrentTab(e.detail);
+      }
+    };
+    window.addEventListener("change-tab", handleTabChange);
+    return () => window.removeEventListener("change-tab", handleTabChange);
+  }, []);
 
   // Core Persistent State Pools for SaaS Administration
   const [partners, setPartners] = useState(initialEPCPartners);
@@ -511,6 +521,7 @@ export default function App() {
         onTabChange={setCurrentTab}
         onLogout={handleLogout}
         bdeName={adminEmail} // For now, passing email as name
+        bdeId={userId}
       >
         <div className="animate-fade-in-up duration-300">
           {renderTabContent()}
