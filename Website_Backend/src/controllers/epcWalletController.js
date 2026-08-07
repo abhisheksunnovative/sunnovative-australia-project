@@ -1,11 +1,31 @@
 import crypto from 'crypto';
 import EpcWallet from '../models/EpcWallet.js';
-import { PROJECT_TYPES } from '../models/EpcWallet.js';
 import EpcWalletSettings from '../models/EpcWalletSettings.js';
+import { OrderJourneySettings } from '../models/OrderJourneySettings.js';
 import { razorpay } from '../config/razorpay.js';
 import { sendLowBalanceAlert } from '../utils/sendWalletAlertEmail.js';
 import EpcPartner from '../models/EpcPartner.js';
 import EpcPlan from '../models/EpcPlan.js';
+
+// ── Helper: fetch valid project types from OrderJourneySettings ─────────────
+const getValidProjectTypes = async (epc) => {
+  const country = epc?.country || 'india';
+  const state = epc?.state || 'all';
+  const district = epc?.district || 'all';
+  
+  let settings = await OrderJourneySettings.findOne({ country, state, district });
+  if (!settings && district !== 'all') {
+    settings = await OrderJourneySettings.findOne({ country, state, district: 'all' });
+  }
+  if (!settings && state !== 'all') {
+    settings = await OrderJourneySettings.findOne({ country, state: 'all', district: 'all' });
+  }
+  
+  if (settings && settings.journeys) {
+    return settings.journeys.map(j => j.projectType);
+  }
+  return [];
+};
 
 // ── Helper: fetch a wallet for this EPC, creating it (with admin-configured
 //    free trial limit) if it doesn't exist yet ─────────────────────────────
@@ -57,12 +77,27 @@ export const getWallet = async (req, res) => {
     const freeTrialRemaining = Math.max(0, wallet.freeTrialKwLimit - wallet.freeTrialKwUsed);
     const totalCredits = wallet.getTotalCredits();
 
+    const country = req.epc?.country || 'india';
+    const state = req.epc?.state || 'all';
+    const district = req.epc?.district || 'all';
+    
+    let journeySettings = await OrderJourneySettings.findOne({ country, state, district });
+    if (!journeySettings && district !== 'all') {
+      journeySettings = await OrderJourneySettings.findOne({ country, state, district: 'all' });
+    }
+    if (!journeySettings && state !== 'all') {
+      journeySettings = await OrderJourneySettings.findOne({ country, state: 'all', district: 'all' });
+    }
+    
+    const availableProjectTypes = journeySettings?.journeys ? journeySettings.journeys.map(j => j.projectType) : [];
+
     res.json({
       totalCredits,
       freeTrialKwLimit:    wallet.freeTrialKwLimit,
       freeTrialKwUsed:     wallet.freeTrialKwUsed,
       freeTrialRemaining,
       creditsByType:       wallet.credits,
+      availableProjectTypes,
       recentTransactions:  wallet.transactions.slice(-20).reverse(),
       pricePerCredit:      settings.pricePerKW,
       minRechargeKW:       settings.minRechargeKW,
@@ -86,8 +121,9 @@ export const getWallet = async (req, res) => {
 export const createRechargeOrder = async (req, res) => {
   try {
     const { projectType, kw, packageId } = req.body;
-    if (!projectType || !PROJECT_TYPES.includes(projectType))
-      return res.status(400).json({ message: `Invalid project type. Must be one of: ${PROJECT_TYPES.join(', ')}` });
+    const validProjectTypes = await getValidProjectTypes(req.epc);
+    if (!projectType || !validProjectTypes.includes(projectType))
+      return res.status(400).json({ message: `Invalid project type. Must be one of: ${validProjectTypes.join(', ')}` });
     
     // Automatically pick up district from EPC profile
     const district = req.epc.district || (req.epc.activeDistricts && req.epc.activeDistricts[0]) || req.epc.hqLocation || 'Unknown';
@@ -218,7 +254,8 @@ export const verifyRechargePayment = async (req, res) => {
 export const checkEligibility = async (req, res) => {
   try {
     const { projectType, kwRequired } = req.body;
-    if (!projectType || !PROJECT_TYPES.includes(projectType)) return res.status(400).json({ message: 'Invalid project type' });
+    const validProjectTypes = await getValidProjectTypes(req.epc);
+    if (!projectType || !validProjectTypes.includes(projectType)) return res.status(400).json({ message: 'Invalid project type' });
 
     const kwNum = Number(kwRequired);
     if (!kwNum || kwNum <= 0) return res.status(400).json({ message: 'Invalid KW requirement' });
@@ -288,7 +325,8 @@ export const deductCreditsForOrder = async (epcPartnerId, projectType, kwRequire
 export const refundCredits = async (req, res) => {
   try {
     const { projectType, kw, orderId } = req.body;
-    if (!projectType || !PROJECT_TYPES.includes(projectType)) return res.status(400).json({ message: 'Invalid project type' });
+    const validProjectTypes = await getValidProjectTypes(req.epc);
+    if (!projectType || !validProjectTypes.includes(projectType)) return res.status(400).json({ message: 'Invalid project type' });
 
     const wallet = await EpcWallet.findOne({ epcPartner: req.epc._id });
     if (!wallet) return res.status(404).json({ message: 'Wallet not found' });

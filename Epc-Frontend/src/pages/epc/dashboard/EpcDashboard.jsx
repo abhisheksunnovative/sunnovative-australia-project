@@ -38,23 +38,21 @@ const EpcDashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [ordRes, enqRes, demandRes, settingsRes, projRes] = await Promise.all([
+        const results = await Promise.allSettled([
           epcApi.get('/api/epc/orders/summary'),
           epcApi.get('/api/epc/enquiries'),
           epcApi.get('/api/epc/orders/demand-stats'),
           epcApi.get('/api/website-settings'),
           epcApi.get('/api/epc/projects')
-        ]).catch(async (e) => {
-          const [o, e2, d, p] = await Promise.all([
-             epcApi.get('/api/epc/orders/summary'),
-             epcApi.get('/api/epc/enquiries'),
-             epcApi.get('/api/epc/orders/demand-stats'),
-             epcApi.get('/api/epc/projects')
-          ]);
-          return [o, e2, d, null, p];
-        });
+        ]);
+        
+        const ordRes = results[0].status === 'fulfilled' ? results[0].value : { data: {} };
+        const enqRes = results[1].status === 'fulfilled' ? results[1].value : { data: [] };
+        const demandRes = results[2].status === 'fulfilled' ? results[2].value : { data: null };
+        const settingsRes = results[3].status === 'fulfilled' ? results[3].value : null;
+        const projRes = results[4].status === 'fulfilled' ? results[4].value : { data: { projects: [] } };
 
-        if (settingsRes === null) {
+        if (!settingsRes || !settingsRes.data) {
           try {
             const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:4005"}/api/website-settings`, { headers: { 'x-country': 'india' } });
             const data = await res.json();

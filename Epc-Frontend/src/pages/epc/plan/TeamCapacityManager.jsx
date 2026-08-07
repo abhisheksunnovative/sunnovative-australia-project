@@ -2,11 +2,18 @@ import { useState } from 'react';
 import epcApi from '../../../api/epcApi';
 import { useEpcAuth } from '../../../context/EpcAuthContext';
 
-const STATES_AND_DISTRICTS = {
+const INDIAN_STATES = {
   "Gujarat": ["Ahmedabad", "Surat", "Vadodara", "Rajkot", "Gandhinagar"],
   "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Thane"],
   "Rajasthan": ["Jaipur", "Jodhpur", "Udaipur", "Kota"],
   "Delhi": ["New Delhi", "North Delhi", "South Delhi"]
+};
+
+const AUS_STATES = {
+  "Victoria": ["Melbourne", "Geelong", "Ballarat", "Bendigo"],
+  "New South Wales": ["Sydney", "Newcastle", "Wollongong", "Central Coast"],
+  "Queensland": ["Brisbane", "Gold Coast", "Sunshine Coast", "Townsville"],
+  "Western Australia": ["Perth", "Mandurah", "Bunbury", "Geraldton"]
 };
 
 const TeamCapacityManager = ({ myPlan }) => {
@@ -14,8 +21,14 @@ const TeamCapacityManager = ({ myPlan }) => {
   const [upgrading, setUpgrading] = useState('');
   const [msg, setMsg] = useState({ text: '', type: '' });
   const [additionalInstallers, setAdditionalInstallers] = useState(1);
-  const [targetState, setTargetState] = useState('Gujarat');
-  const [targetDistrict, setTargetDistrict] = useState('Ahmedabad');
+
+  const isAus = epc?.country === 'australia';
+  const statesMap = isAus ? AUS_STATES : INDIAN_STATES;
+  const defaultState = isAus ? 'Victoria' : 'Gujarat';
+  const defaultDistrict = isAus ? 'Melbourne' : 'Ahmedabad';
+
+  const [targetState, setTargetState] = useState(defaultState);
+  const [targetDistrict, setTargetDistrict] = useState(defaultDistrict);
 
   const handleInstallerUpgrade = async () => {
     if (!targetDistrict) return alert("Please select a target district for the new team(s).");
@@ -138,11 +151,11 @@ const TeamCapacityManager = ({ myPlan }) => {
                   value={targetState}
                   onChange={(e) => {
                     setTargetState(e.target.value);
-                    setTargetDistrict(STATES_AND_DISTRICTS[e.target.value][0]);
+                    setTargetDistrict(statesMap[e.target.value][0]);
                   }}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
                 >
-                  {Object.keys(STATES_AND_DISTRICTS).map(s => (
+                  {Object.keys(statesMap).map(s => (
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
@@ -154,7 +167,7 @@ const TeamCapacityManager = ({ myPlan }) => {
                   onChange={(e) => setTargetDistrict(e.target.value)}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
                 >
-                  {STATES_AND_DISTRICTS[targetState]?.map(d => (
+                  {statesMap[targetState]?.map(d => (
                     <option key={d} value={d}>{d}</option>
                   ))}
                 </select>

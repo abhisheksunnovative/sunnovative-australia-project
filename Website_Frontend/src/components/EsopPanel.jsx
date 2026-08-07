@@ -777,6 +777,11 @@ export default function EsopPanel({ viewMode, setViewMode }) {
         if (!pkg.isSubsidyEligible) return false;
       }
 
+      // Battery Storage toggle
+      if (filterBatteryOption !== "All" && filterBatteryOption !== "Grid-Tie") {
+        if (pkg.batteryConfig !== filterBatteryOption) return false;
+      }
+
       // Max budget slider
       if (pkg.price > maxBudgetCost) return false;
 
@@ -1586,6 +1591,19 @@ export default function EsopPanel({ viewMode, setViewMode }) {
                 { value: "Non-DCR", label: "Non-DCR System" },
               ]}
               onChange={(val) => setFilterCellType(val)}
+            />
+
+            {/* Battery Storage Config */}
+            <CustomFilterSelect
+              label="Battery Storage"
+              value={filterBatteryOption}
+              options={[
+                { value: "All", label: "Any Configuration" },
+                { value: "Grid-Tie", label: "Grid-Tie (No Battery)" },
+                { value: "Hybrid", label: "Hybrid (With Battery)" },
+                { value: "Off-Grid", label: "Off-Grid System" },
+              ]}
+              onChange={(val) => setFilterBatteryOption(val)}
             />
 
             {/* Subsidy Eligible Only */}

@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'react';
 import epcApi from '../../../api/epcApi';
-
-const PROJECT_TYPES = [
-  'Surya Ghar Yojana', 'Group Solar', 'Village Solar Campaign',
-  'Commercial Solar', 'Residential Solar',
-];
+import { useEpcAuth } from '../../../context/EpcAuthContext';
 
 const typeIcons = {
   'Surya Ghar Yojana':      '🏠',
@@ -12,6 +8,10 @@ const typeIcons = {
   'Village Solar Campaign': '🌾',
   'Commercial Solar':       '🏢',
   'Residential Solar':      '🏡',
+  'Off-Grid Solar':         '🔋',
+  'Solar + Battery':        '🔋',
+  'Farm / Rural Solar':     '🚜',
+  'Community & Strata':     '🏢'
 };
 
 // Loads the Razorpay checkout.js script once, reuses it on later opens
@@ -25,12 +25,16 @@ const loadRazorpayScript = () => new Promise((resolve) => {
 });
 
 const EpcWallet = () => {
+  const { epc } = useEpcAuth();
+
   const [wallet, setWallet]       = useState(null);
   const [loading, setLoading]     = useState(true);
   const [msg, setMsg]             = useState({ text: '', type: '', code: '' });
 
+  const currentProjectTypes = wallet?.availableProjectTypes || [];
+
   const [showPurchase, setShowPurchase] = useState(false);
-  const [purchaseType, setPurchaseType] = useState(PROJECT_TYPES[0]);
+  const [purchaseType, setPurchaseType] = useState('');
   const [purchaseDistrict, setPurchaseDistrict] = useState('');
   const [selectedPackageId, setSelectedPackageId] = useState(null); // null = custom amount
   const [purchaseKw, setPurchaseKw]     = useState('');
@@ -38,7 +42,7 @@ const EpcWallet = () => {
 
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferKw, setTransferKw] = useState('');
-  const [transferType, setTransferType] = useState(PROJECT_TYPES[0]);
+  const [transferType, setTransferType] = useState('');
   const [fromDistrict, setFromDistrict] = useState('');
   const [toDistrict, setToDistrict] = useState('');
   const [transferring, setTransferring] = useState(false);
@@ -52,13 +56,20 @@ const EpcWallet = () => {
       showMsg('Source and Destination districts must be different', 'error');
       return;
     }
+
+    const kwAmount = Number(transferKw);
+    if (isNaN(kwAmount) || kwAmount <= 0) {
+      showMsg('Please enter a valid KW amount', 'error');
+      return;
+    }
+
     setTransferring(true);
     try {
       const { data } = await epcApi.post('/api/epc/wallet/transfer', {
         fromDistrict,
         toDistrict,
         projectType: transferType,
-        kwAmount: Number(transferKw)
+        kwAmount: kwAmount
       });
       showMsg(data.message);
       setShowTransfer(false);
@@ -91,7 +102,8 @@ const EpcWallet = () => {
   const openPurchaseModal = () => {
     setSelectedPackageId(null);
     setPurchaseKw('');
-    setPurchaseDistrict('');
+    setPurchaseDistrict(epc.district || epc.hqLocation || '');
+    if (currentProjectTypes.length > 0) setPurchaseType(currentProjectTypes[0]);
     setShowPurchase(true);
   };
 
@@ -191,7 +203,13 @@ const EpcWallet = () => {
           </div>
           <div className="flex items-center gap-2">
             {wallet?.activeDistricts?.length > 1 && (
-              <button onClick={() => setShowTransfer(true)}
+              <button onClick={() => {
+                setTransferKw('');
+                setFromDistrict('');
+                setToDistrict('');
+                if (currentProjectTypes.length > 0) setTransferType(currentProjectTypes[0]);
+                setShowTransfer(true);
+              }}
                 className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur border border-white/20 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-all">
                 Transfer KW
               </button>
@@ -255,17 +273,20 @@ const EpcWallet = () => {
       <div className="bg-white border border-gray-200 rounded-2xl p-5">
         <h3 className="text-gray-700 text-sm font-semibold mb-4">Credits by Project Type</h3>
         <div className="grid sm:grid-cols-2 gap-3">
-          {(wallet?.creditsByType || []).map((c, i) => (
-            <div key={i}
-              className="flex items-center gap-4 px-4 py-4 rounded-xl border border-gray-100 bg-white hover:border-blue-200 hover:shadow-md transition-all duration-300 group cursor-default">
-              <span className="text-3xl group-hover:scale-110 transition-transform">{typeIcons[c.projectType] || '⚡'}</span>
-              <div className="flex-1">
-                <p className="text-gray-800 text-sm font-bold">{c.projectType}</p>
-                <p className="text-gray-500 text-xs mt-0.5">{c.district || 'All'} District</p>
+          {currentProjectTypes.map((pt, i) => {
+            const c = (wallet?.creditsByType || []).find(x => x.projectType === pt) || { projectType: pt, district: 'All', credits: 0 };
+            return (
+              <div key={i}
+                className="flex items-center gap-4 px-4 py-4 rounded-xl border border-gray-100 bg-white hover:border-blue-200 hover:shadow-md transition-all duration-300 group cursor-default">
+                <span className="text-3xl group-hover:scale-110 transition-transform">{typeIcons[c.projectType] || '⚡'}</span>
+                <div className="flex-1">
+                  <p className="text-gray-800 text-sm font-bold">{c.projectType}</p>
+                  <p className="text-gray-500 text-xs mt-0.5">{c.district || 'All'} District</p>
+                </div>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 font-black text-xl">{c.credits} KW</span>
               </div>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 font-black text-xl">{c.credits} KW</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -314,7 +335,7 @@ const EpcWallet = () => {
                 <label className="block text-gray-600 text-xs font-medium mb-1.5">Project Type</label>
                 <select value={purchaseType} onChange={e => setPurchaseType(e.target.value)}
                   className="w-full bg-white border border-gray-200 text-gray-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500">
-                  {PROJECT_TYPES.map(pt => <option key={pt} value={pt}>{pt}</option>)}
+                  {currentProjectTypes.map(pt => <option key={pt} value={pt}>{pt}</option>)}
                 </select>
               </div>
 
@@ -378,7 +399,7 @@ const EpcWallet = () => {
                 <label className="block text-gray-600 text-xs font-medium mb-1.5">Project Type</label>
                 <select value={transferType} onChange={e => setTransferType(e.target.value)}
                   className="w-full bg-white border border-gray-200 text-gray-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500">
-                  {PROJECT_TYPES.map(pt => <option key={pt} value={pt}>{pt}</option>)}
+                  {currentProjectTypes.map(pt => <option key={pt} value={pt}>{pt}</option>)}
                 </select>
               </div>
               <div>

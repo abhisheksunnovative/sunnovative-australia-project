@@ -80,6 +80,24 @@ const epcOrderSchema = new mongoose.Schema({
   },
   warrantyActivated:   { type: Boolean, default: false },
   warrantyActivatedAt: { type: Date },
+  // STC Tracking (Australia Specific)
+  stcDetails: {
+    systemSizeKw: { type: Number, default: 0 },
+    postcode: { type: String, default: "" },
+    zone: { type: Number, default: 0 },
+    deemingYears: { type: Number, default: 0 },
+    stcs: { type: Number, default: 0 },
+    stcPriceUsed: { type: Number, default: 0 },
+    stcRebateAmount: { type: Number, default: 0 },
+  },
+  stcStatus: {
+    assignmentFormSigned: { type: Boolean, default: false },
+    assignmentFormSignedAt: Date,
+    customerSignatureUrl: String,
+    stcsCreatedInRegistry: { type: Boolean, default: false },
+    stcsTraded: { type: Boolean, default: false },
+    amountRecovered: { type: Number, default: 0 }
+  }
 }, { timestamps: true });
 
 epcOrderSchema.pre('validate', async function () {

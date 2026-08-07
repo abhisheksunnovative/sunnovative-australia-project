@@ -1709,6 +1709,22 @@ export default function CustomerPortal({ onClose }) {
              <p className="text-xs text-white/30 italic px-3 hidden md:block mb-4">No active projects</p>
           )}
 
+          {done.length > 0 && (
+            <>
+              <p className="text-[10px] font-black uppercase text-white/40 tracking-wider mb-2 mt-4 hidden md:block px-3">Completed Projects</p>
+              {done.map(p => (
+                <button key={p._id} onClick={() => { setTab("projects"); setProjectView("detail"); setSelectedProjectId(p._id); }}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all whitespace-nowrap md:whitespace-normal text-left ${tab === "projects" && selectedProjectId === p._id ? "bg-yellow-400 text-yellow-900 shadow-md shadow-yellow-400/20" : "text-slate-400 hover:bg-white/5 hover:text-white"}`}>
+                  <CheckCircle2 className={`w-5 h-5 shrink-0 ${tab === "projects" && selectedProjectId === p._id ? "text-yellow-700" : "text-slate-500"}`} />
+                  <div>
+                    <p className="font-bold text-sm leading-tight">{p.projectTypeLabel || p.projectType}</p>
+                    <p className="text-[10px] opacity-80">{p.orderNumber}</p>
+                  </div>
+                </button>
+              ))}
+            </>
+          )}
+
           <div className="hidden md:block my-2 border-t border-white/10" />
 
           {/* Notifications Center Tab */}

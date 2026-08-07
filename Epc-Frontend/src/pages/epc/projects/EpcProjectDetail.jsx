@@ -1,7 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Check, XCircle, AlertCircle } from 'lucide-react';
+import { Check, XCircle, AlertCircle, FileText } from 'lucide-react';
 import epcApi from '../../../api/epcApi';
+import { useEpcAuth } from '../../../context/EpcAuthContext';
+import GSTInvoice from "../../../components/epc/GSTInvoice";
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4005';
 
@@ -91,10 +93,12 @@ const SectionCard = ({ title, children }) => (
 const EpcProjectDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { epc } = useEpcAuth();
   const [project, setProject]       = useState(null);
   const [loading, setLoading]       = useState(true);
   const [stageLoading, setStageLoading] = useState(false);
   const [msg, setMsg]               = useState({ text: '', type: '' });
+  const [showInvoice, setShowInvoice] = useState(false);
 
   // Completion states
   const [uploadFile, setUploadFile] = useState(null);
@@ -263,10 +267,29 @@ const EpcProjectDetail = () => {
           <h2 className="text-gray-800 text-xl font-bold">{project.customerName}</h2>
           <p className="text-gray-400 text-xs font-mono">#{project.orderNumber} • {project.projectTypeLabel || project.projectType}</p>
         </div>
+        
+        {project.status === 'completed' && epc?.country === 'australia' && (
+          <button onClick={() => setShowInvoice(true)} className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-900 text-white px-3 py-1.5 rounded-lg text-sm font-bold transition">
+            <FileText className="w-4 h-4" />
+            Tax Invoice
+          </button>
+        )}
+        
         <span className="text-sm font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg">
           {project.completionPercentage || 0}% Complete
         </span>
       </div>
+
+      {showInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto relative">
+            <button onClick={() => setShowInvoice(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 p-2 print:hidden">
+              <XCircle className="w-6 h-6" />
+            </button>
+            <GSTInvoice project={project} epc={epc} />
+          </div>
+        </div>
+      )}
 
       {msg.text && (
         <div className={`text-sm rounded-lg px-4 py-3 border ${

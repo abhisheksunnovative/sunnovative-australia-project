@@ -274,7 +274,7 @@ export const processStepCompletionEngine = async (
     }
     
     // 3. Notify Admin
-    if (step.notifyAdmin) {
+    if (step.notifyAdmin || step.requiresAdminApproval) {
       await Notification.create({
         role: "Admin",
         recipientId: null,

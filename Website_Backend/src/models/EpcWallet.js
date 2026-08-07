@@ -1,22 +1,14 @@
 import mongoose from 'mongoose';
 
-export const PROJECT_TYPES = [
-  'Surya Ghar Yojana',
-  'Group Solar',
-  'Village Solar Campaign',
-  'Commercial Solar',
-  'Residential Solar',
-];
-
 const WalletCreditSchema = new mongoose.Schema({
   district:    { type: String, required: true, default: 'All' },
-  projectType: { type: String, enum: PROJECT_TYPES, required: true },
+  projectType: { type: String, required: true },
   credits:     { type: Number, default: 0 },
 }, { _id: false });
 
 const WalletTransactionSchema = new mongoose.Schema({
   type:        { type: String, enum: ['PURCHASE', 'DEDUCT', 'REFUND', 'TRANSFER'], required: true },
-  projectType: { type: String, enum: PROJECT_TYPES, required: true },
+  projectType: { type: String, required: true },
   kw:          { type: Number, required: true },
   amount:      { type: Number, default: 0 },
   orderId:     { type: mongoose.Schema.Types.ObjectId, ref: 'EpcOrder', default: null },
@@ -32,7 +24,7 @@ const EpcWalletSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
-  credits: { type: [WalletCreditSchema], default: () => PROJECT_TYPES.map(pt => ({ district: 'All', projectType: pt, credits: 0 })) },
+  credits: { type: [WalletCreditSchema], default: [] },
   freeTrialKwUsed:  { type: Number, default: 0 },
   freeTrialKwLimit: { type: Number, default: 10 },
   transactions: { type: [WalletTransactionSchema], default: [] },

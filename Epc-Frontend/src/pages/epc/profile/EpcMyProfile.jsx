@@ -19,6 +19,7 @@ const EpcMyProfile = () => {
   const [form, setForm] = useState({
     companyName: '', ownerName: '', mobile: '',
     state: '', city: '', pincode: '', address: '', hqLocation: '',
+    abn: '', cecAccreditationNumber: '', cecExpiryDate: '', cecLicenseUrl: ''
   });
 
   // Dynamic filter states
@@ -53,6 +54,10 @@ const EpcMyProfile = () => {
         pincode:     data.pincode     || '',
         address:     data.address     || '',
         hqLocation:  data.hqLocation  || '',
+        abn:         data.kycDocuments?.abn || '',
+        cecAccreditationNumber: data.kycDocuments?.cecAccreditationNumber || '',
+        cecExpiryDate: data.kycDocuments?.cecExpiryDate ? data.kycDocuments.cecExpiryDate.split('T')[0] : '',
+        cecLicenseUrl: data.kycDocuments?.cecLicenseUrl || '',
       });
     } catch (error) {
       console.error('Profile fetch error:', error);
@@ -67,7 +72,17 @@ const EpcMyProfile = () => {
     e.preventDefault();
     setSaving(true);
     try {
-      const { data } = await epcApi.put('/api/epc/auth/profile', { ...form, brandOfferings });
+      const payload = {
+        ...form,
+        brandOfferings,
+        kycDocuments: {
+          abn: form.abn,
+          cecAccreditationNumber: form.cecAccreditationNumber,
+          cecExpiryDate: form.cecExpiryDate || null,
+          cecLicenseUrl: form.cecLicenseUrl
+        }
+      };
+      const { data } = await epcApi.put('/api/epc/auth/profile', payload);
       setMsg({ text: 'Profile updated successfully!', type: 'success' });
       updateEpcData({ companyName: data.companyName });
       setEditing(false);
@@ -317,6 +332,27 @@ const EpcMyProfile = () => {
                 <label className="block text-gray-500 text-xs mb-1.5 font-bold uppercase tracking-wider">Address</label>
                 <textarea value={form.address} onChange={e => setForm({...form, address: e.target.value})} rows={2} className={`${inputCls} resize-none`} />
               </div>
+
+              {/* Australia Specific Fields */}
+              {(profile?.country === 'australia' || epc?.country === 'australia') && (
+                <div className="col-span-full bg-slate-50 border border-slate-200 p-4 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                  <div className="col-span-full mb-1">
+                    <h4 className="text-gray-800 font-bold flex items-center gap-2">🇦🇺 Australia Specific Information</h4>
+                  </div>
+                  <div>
+                    <label className="block text-gray-500 text-xs mb-1.5 font-bold uppercase tracking-wider">ABN (For GST Invoices)</label>
+                    <input type="text" value={form.abn} onChange={e => setForm({...form, abn: e.target.value})} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="block text-gray-500 text-xs mb-1.5 font-bold uppercase tracking-wider">CEC Accreditation No.</label>
+                    <input type="text" value={form.cecAccreditationNumber} onChange={e => setForm({...form, cecAccreditationNumber: e.target.value})} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="block text-gray-500 text-xs mb-1.5 font-bold uppercase tracking-wider">CEC Expiry Date</label>
+                    <input type="date" value={form.cecExpiryDate} onChange={e => setForm({...form, cecExpiryDate: e.target.value})} className={inputCls} />
+                  </div>
+                </div>
+              )}
             </div>
             <div className="flex gap-3 pt-2 border-t border-gray-100">
               <button type="button" onClick={() => setEditing(false)}
@@ -355,6 +391,35 @@ const EpcMyProfile = () => {
               ))}
             </div>
           </div>
+
+          {/* Australia Compliance View */}
+          {(profile?.country === 'australia' || epc?.country === 'australia') && (
+            <div className="sm:col-span-2 bg-gradient-to-br from-slate-50 to-white border border-slate-200 rounded-2xl p-5 shadow-premium">
+              <h3 className="text-gray-800 font-black mb-4 flex items-center gap-2">
+                <span className="text-lg">🇦🇺</span> Australia Compliance & Accreditations
+              </h3>
+              <div className="grid sm:grid-cols-3 gap-4">
+                <div className="flex items-center justify-between py-2 border-b border-gray-100 sm:border-b-0 sm:border-r pr-4">
+                  <span className="text-gray-400 text-xs font-medium">ABN</span>
+                  <span className="text-gray-800 text-sm font-semibold">{profile?.kycDocuments?.abn || '—'}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 border-b border-gray-100 sm:border-b-0 sm:border-r pr-4 pl-0 sm:pl-4">
+                  <span className="text-gray-400 text-xs font-medium">CEC Accreditation No.</span>
+                  <span className="text-gray-800 text-sm font-semibold">{profile?.kycDocuments?.cecAccreditationNumber || '—'}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 pl-0 sm:pl-4">
+                  <span className="text-gray-400 text-xs font-medium">CEC Expiry Date</span>
+                  <span className={`text-sm font-semibold ${
+                    new Date(profile?.kycDocuments?.cecExpiryDate) < new Date() ? 'text-red-600' : 'text-gray-800'
+                  }`}>
+                    {profile?.kycDocuments?.cecExpiryDate 
+                      ? new Date(profile.kycDocuments.cecExpiryDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) 
+                      : '—'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

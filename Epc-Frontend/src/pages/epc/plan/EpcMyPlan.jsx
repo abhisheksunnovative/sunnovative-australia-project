@@ -26,12 +26,12 @@ const EpcMyPlan = () => {
     const fetchPlans = async () => {
       try {
         const [plansRes, myRes, analyticsRes] = await Promise.all([
-          epcApi.get('/api/epc/plans'),
-          epcApi.get('/api/epc/plans/my-plan'),
+          epcApi.get('/api/epc/plans').catch(() => ({ data: [] })),
+          epcApi.get('/api/epc/plans/my-plan').catch(() => ({ data: null })),
           epcApi.get('/api/epc/orders/demand-analytics').catch(() => ({ data: { data: [] } })),
         ]);
-        setPlans(plansRes.data);
-        setMyPlan(myRes.data);
+        setPlans(plansRes?.data || []);
+        setMyPlan(myRes?.data || null);
         setDemandStats(analyticsRes.data?.data || []);
       } catch (error) {
         console.error('Plans fetch error:', error);
@@ -299,10 +299,20 @@ const EpcMyPlan = () => {
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Project Type</label>
                 <select value={transferType} onChange={e => setTransferType(e.target.value)} className="w-full border border-gray-200 rounded-lg p-2.5 text-sm bg-gray-50 focus:bg-white">
-                  <option value="Surya Ghar Yojana">Surya Ghar Yojana</option>
-                  <option value="Group Solar">Group Solar</option>
-                  <option value="Commercial Solar">Commercial Solar</option>
-                  <option value="Residential Solar">Residential Solar</option>
+                  {epc?.country === 'australia' ? (
+                    <>
+                      <option value="Residential Solar">Residential Solar</option>
+                      <option value="Commercial Solar">Commercial Solar</option>
+                      <option value="Off-Grid Solar">Off-Grid Solar</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="Surya Ghar Yojana">Surya Ghar Yojana</option>
+                      <option value="Group Solar">Group Solar</option>
+                      <option value="Commercial Solar">Commercial Solar</option>
+                      <option value="Residential Solar">Residential Solar</option>
+                    </>
+                  )}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">

@@ -48,6 +48,9 @@ const EpcPartnerSchema = new mongoose.Schema({
     // Australia specific
     abn:               { type: String, default: '' },
     cecAccreditationNumber: { type: String, default: '' },
+    cecExpiryDate: { type: Date, default: null },
+    cecLicenseUrl: { type: String, default: '' },
+    cecStatus: { type: String, enum: ['Pending', 'Verified', 'Rejected', 'Expired'], default: 'Pending' }
   },
   rating:                   { type: Number, default: 0 },
   totalRatings:              { type: Number, default: 0 },
