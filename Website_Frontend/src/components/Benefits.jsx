@@ -12,8 +12,11 @@ import {
   Cable,
   ArrowRight,
 } from "lucide-react";
+import { useCountry } from "../context/CountryContext";
 
 export default function Benefits({ onScrollToForm, projectTypes, selectedPt, settings }) {
+  const { country } = useCountry();
+  const isAU = country === "AU";
   const defaultIcons = [
     <Landmark className="w-8 h-8 text-amber-600" />,
     <PiggyBank className="w-8 h-8 text-sky-600" />,
@@ -148,12 +151,16 @@ export default function Benefits({ onScrollToForm, projectTypes, selectedPt, set
                 Interactive Estimate
               </span>
               <h3 className="text-xl font-display font-bold mt-4 leading-snug">
-                Kitna Subsidy milega? <br />
-                Check parameters instantly.
+                {isAU ? (
+                  <>How much Rebate?<br />Check parameters instantly.</>
+                ) : (
+                  <>Kitna Subsidy milega? <br />Check parameters instantly.</>
+                )}
               </h3>
               <p className="text-slate-300 text-xs mt-3 leading-relaxed">
-                Provide your custom light bill values to estimate total ROI,
-                payback periods, and net installation panel units.
+                {isAU 
+                  ? "Provide your energy bill values to estimate total ROI, payback periods, and net installation panel units."
+                  : "Provide your custom light bill values to estimate total ROI, payback periods, and net installation panel units."}
               </p>
             </div>
 

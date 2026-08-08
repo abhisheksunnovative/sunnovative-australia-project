@@ -29,7 +29,7 @@ const NavBadge = ({ count, color = 'bg-rose-500', collapsed, label }) => {
   );
 };
 
-const EpcSidebar = ({ collapsed, setCollapsed, darkMode, setDarkMode }) => {
+const EpcSidebar = ({ collapsed, setCollapsed, darkMode, setDarkMode, setMobileOpen }) => {
   const { epc, logout } = useEpcAuth();
   const { countryPrefix } = useParams();
 
@@ -232,6 +232,7 @@ const EpcSidebar = ({ collapsed, setCollapsed, darkMode, setDarkMode }) => {
               key={item.path}
               to={resolvedPath}
               title={collapsed ? item.label : undefined}
+              onClick={() => setMobileOpen && setMobileOpen(false)}
               className={({ isActive }) =>
                 `relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 hover:translate-x-1 ${
                   isActive

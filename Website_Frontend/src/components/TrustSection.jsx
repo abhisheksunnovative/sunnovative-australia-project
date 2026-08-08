@@ -11,8 +11,11 @@ import {
   Gauge,
   PhoneCall,
 } from "lucide-react";
+import { useCountry } from "../context/CountryContext";
 
 export default function TrustSection({ settings }) {
+  const { country } = useCountry();
+  const isAU = country === "AU";
   const defaultIcons = [
     <ShieldCheck className="w-5 h-5 text-solar-sky" />,
     <Snowflake className="w-5 h-5 text-blue-500" />,
@@ -114,8 +117,10 @@ export default function TrustSection({ settings }) {
           <div className="lg:col-span-5 space-y-4">
             <div className="relative group overflow-hidden rounded-3xl shadow-xl aspect-video md:aspect-auto md:h-64 border border-slate-100">
               <img
-                src="https://images.unsplash.com/photo-1548613053-220ef31815bb?auto=format&fit=crop&w=800&q=80"
-                alt="Solar plant rooftop project in Rajkot"
+                src={isAU 
+                  ? "https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?auto=format&fit=crop&w=800&q=80" 
+                  : "https://images.unsplash.com/photo-1548613053-220ef31815bb?auto=format&fit=crop&w=800&q=80"}
+                alt="Solar plant rooftop project"
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                 referrerPolicy="no-referrer"
               />
@@ -127,10 +132,10 @@ export default function TrustSection({ settings }) {
                   Authorized Installation Site
                 </span>
                 <p className="font-display font-bold text-sm text-white mt-1">
-                  Rajeshbhai Patel Home Project, Mavdi Road
+                  {isAU ? "Brisbane Residential Solar Array" : "Rajeshbhai Patel Home Project, Mavdi Road"}
                 </p>
                 <p className="text-[10.5px] text-slate-350">
-                  3 kW Rooftop Solar System Grid-connected
+                  {isAU ? "6 kW Rooftop Solar System Grid-connected" : "3 kW Rooftop Solar System Grid-connected"}
                 </p>
               </div>
             </div>
@@ -150,10 +155,10 @@ export default function TrustSection({ settings }) {
                   Commercial & Industrial
                 </span>
                 <p className="font-display font-bold text-sm text-white mt-1">
-                  Shreeji Industries Factory, GIDC Metoda
+                  {isAU ? "Sydney Commercial Warehouse Project" : "Shreeji Industries Factory, GIDC Metoda"}
                 </p>
-                <p className="text-[10.5px] text-slate-350 font-sans">
-                  45 kW Solar plant commissioned in record 14 Days
+                <p className="text-[10.5px] text-slate-350">
+                  {isAU ? "100 kW Solar plant commissioned in record time" : "45 kW Solar plant commissioned in record 14 Days"}
                 </p>
               </div>
             </div>

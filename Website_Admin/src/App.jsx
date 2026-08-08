@@ -7,6 +7,7 @@ import React, { useState, useEffect } from "react";
 import { MainLayout } from "./components/MainLayout";
 import { DashboardScreen } from "./components/DashboardScreen";
 import { EpcPartnerScreen } from "./components/EpcPartnerScreen";
+import { EpcBulkUploadScreen } from "./components/EpcBulkUploadScreen";
 import { KycScreen } from "./components/KycScreen";
 import { QualificationScreen } from "./components/QualificationScreen";
 import { SubscriptionScreen } from "./components/SubscriptionScreen";
@@ -302,6 +303,9 @@ export default function App() {
             onDeleteRule={handleDeleteQualificationRule}
           />
         );
+
+      case "epc-bulk-upload":
+        return <EpcBulkUploadScreen />;
 
       case "subscriptions":
         return (

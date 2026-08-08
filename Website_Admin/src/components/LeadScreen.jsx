@@ -5,6 +5,8 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useAdminSettings } from "../hooks/useAdminSettings";
+import { SUPPORTED_COUNTRIES, getStatesForCountry, getDistrictsForState } from "../utils/geography";
 import {
   Users, Plus, RefreshCw, Search, Filter, Trash2, Eye,
   CheckCircle, AlertCircle, Loader2, ChevronLeft, ChevronRight,
@@ -27,21 +29,7 @@ const STATUS_COLORS = {
   "Junk":           "bg-slate-100 text-slate-500 border-slate-200",
 };
 
-const SOLAR_TYPES = [
-  { value: "residential",  label: "Residential Solar" },
-  { value: "surya-ghar",   label: "Surya Ghar Yojana" },
-  { value: "commercial",   label: "Commercial Solar" },
-  { value: "group-solar",  label: "Group Solar" },
-  { value: "rwa-society",  label: "RWA Society" },
-  { value: "village",      label: "Village Solar" },
-  { value: "msme",         label: "MSME Solar" },
-  { value: "au-small-home",      label: "AU Small Home (6.6kW)" },
-  { value: "au-standard-family", label: "AU Standard Family (8-10kW)" },
-  { value: "au-large-home",      label: "AU Large Home (10-13kW)" },
-  { value: "au-ev-owners",       label: "AU EV Owners (13-20kW)" },
-  { value: "au-solar-battery",   label: "AU Solar + Battery" },
-  { value: "general",      label: "General" },
-];
+
 
 const SOURCE_COLORS = {
   "website-form": "bg-sky-50 text-sky-700",
@@ -59,7 +47,7 @@ const Toast = ({ toast }) => toast ? (
 ) : null;
 
 // ── Create Lead Modal ─────────────────────────────────────────────────────────
-const CreateLeadModal = ({ onClose, onSuccess }) => {
+const CreateLeadModal = ({ onClose, onSuccess, solarTypes, filterCountry }) => {
   const [form, setForm] = useState({ name: "", mobile: "", email: "", state: "", district: "", city: "", pincode: "", solarType: "residential", kw: "", billAmount: "", notes: "", sourceOfMedia: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -98,8 +86,7 @@ const CreateLeadModal = ({ onClose, onSuccess }) => {
               { label: "Name *", key: "name", placeholder: "Customer name" },
               { label: "Mobile *", key: "mobile", placeholder: "10-digit mobile", type: "tel" },
               { label: "Email", key: "email", placeholder: "email@example.com", type: "email" },
-              { label: "State", key: "state", placeholder: "e.g. Gujarat" },
-              { label: "District", key: "district", placeholder: "e.g. Rajkot" },
+              
               { label: "City", key: "city", placeholder: "e.g. Rajkot" },
               { label: "Pincode", key: "pincode", placeholder: "360001" },
               { label: "Bill Amount (₹)", key: "billAmount", placeholder: "2500", type: "number" },
@@ -117,7 +104,7 @@ const CreateLeadModal = ({ onClose, onSuccess }) => {
             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Solar Type *</label>
             <select value={form.solarType} onChange={e => set("solarType", e.target.value)}
               className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400/40 bg-white">
-              {SOLAR_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              {solarTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
           <div>
@@ -140,7 +127,7 @@ const CreateLeadModal = ({ onClose, onSuccess }) => {
 };
 
 // ── Lead Detail Modal ─────────────────────────────────────────────────────────
-const LeadDetailModal = ({ lead, onClose, onUpdate, onConvert }) => {
+const LeadDetailModal = ({ lead, onClose, onUpdate, onConvert, solarTypes }) => {
   const [converting, setConverting] = useState(false);
   const status = STATUS_COLORS[lead.status] || STATUS_COLORS["New"];
 
@@ -184,7 +171,7 @@ const LeadDetailModal = ({ lead, onClose, onUpdate, onConvert }) => {
               { icon: <Phone className="w-3.5 h-3.5" />, label: "Mobile", value: lead.mobile },
               { icon: <Mail className="w-3.5 h-3.5" />, label: "Email", value: lead.email || "—" },
               { icon: <MapPin className="w-3.5 h-3.5" />, label: "Location", value: [lead.address, lead.city, lead.district, lead.state, lead.country].filter(Boolean).join(", ") || "—" },
-              { icon: <Zap className="w-3.5 h-3.5" />, label: "Solar Type", value: SOLAR_TYPES.find(t => t.value === lead.solarType)?.label || lead.solarType },
+              { icon: <Zap className="w-3.5 h-3.5" />, label: "Solar Type", value: solarTypes.find(t => t.value === lead.solarType)?.label || lead.solarType },
               { icon: <Zap className="w-3.5 h-3.5" />, label: "System Size", value: lead.kw ? `${lead.kw} kW` : "—" },
               { icon: <Zap className="w-3.5 h-3.5" />, label: "Bill Amount", value: lead.billAmount ? (lead.country?.toLowerCase() === 'australia' ? `$${lead.billAmount} AUD` : `₹${lead.billAmount}`) : "—" },
               { icon: <Zap className="w-3.5 h-3.5" />, label: "NMI / Consumer", value: lead.consumerNumber || "—" },
@@ -290,7 +277,7 @@ const UploadModal = ({ onClose, onSuccess }) => {
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Solar Type</label>
               <select value={solarType} onChange={e => setSolarType(e.target.value)}
                 className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400/40">
-                {SOLAR_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                {solarTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
             <div>
@@ -488,7 +475,7 @@ export const LeadsScreen = () => {
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
           className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium">
           <option value="">All Solar Types</option>
-          {SOLAR_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+          {solarTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
         <select value={filterCountry} onChange={e => setFilterCountry(e.target.value)}
           className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium">
@@ -543,10 +530,15 @@ export const LeadsScreen = () => {
                     <td className="px-4 py-3 text-slate-600 font-mono text-xs">{lead.mobile}</td>
                     <td className="px-4 py-3">
                       <span className="text-[11px] font-semibold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg">
-                        {SOLAR_TYPES.find(t => t.value === lead.solarType)?.label || lead.solarType}
+                        {solarTypes.find(t => t.value === lead.solarType)?.label || lead.solarType}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-500">{[lead.city, lead.district].filter(Boolean).join(", ") || "—"}</td>
+                    <td className="px-4 py-3 text-xs text-slate-500">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-slate-700">{[lead.city, lead.district].filter(Boolean).join(", ") || "No City/Dist"}</span>
+                        <span className="text-[10px] text-slate-400 mt-0.5">{[lead.state, lead.country].filter(Boolean).join(", ") || "No State/Country"}</span>
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-xs text-slate-500">
                       {lead.kw && lead.kw !== "0" ? <span className="font-semibold text-slate-700">{lead.kw} kW</span> : "—"}
                       {lead.billAmount > 0 && <span className="block text-slate-400">₹{lead.billAmount}</span>}
@@ -638,7 +630,7 @@ export const LeadsScreen = () => {
       )}
 
       {/* Modals */}
-      {showCreate && <CreateLeadModal onClose={() => setShowCreate(false)} onSuccess={() => { setShowCreate(false); fetchLeads(page); showToast("success", "Lead created!"); }} />}
+      {showCreate && <CreateLeadModal onClose={() => setShowCreate(false)} onSuccess={fetchLeads} solarTypes={solarTypes} filterCountry={filterCountry} />}
       {showUpload && <UploadModal onClose={() => setShowUpload(false)} onSuccess={() => { setShowUpload(false); fetchLeads(1); showToast("success", "Leads uploaded!"); }} />}
       {selectedLead && (
         <LeadDetailModal

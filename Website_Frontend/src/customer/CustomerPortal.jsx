@@ -1681,7 +1681,7 @@ export default function CustomerPortal({ onClose }) {
         </div>
 
         {/* Dynamic Sidebar Nav */}
-        <div className="flex-1 py-4 md:py-6 overflow-y-auto px-3 sm:px-4 flex md:flex-col gap-2 sm:gap-3 hide-scrollbar">
+        <div className="flex-1 py-4 md:py-6 overflow-x-auto overflow-y-hidden md:overflow-y-auto md:overflow-x-hidden px-3 sm:px-4 flex md:flex-col gap-2 sm:gap-3 hide-scrollbar">
           
           {/* Dashboard Home Tab */}
           <button onClick={() => { setTab("home"); setProjectView("list"); }}

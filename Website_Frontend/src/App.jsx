@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, Suspense, lazy } from "react";
-import { Sun, Sparkles } from "lucide-react";
+import { Sun, Sparkles, Zap } from "lucide-react";
 import { CustomerAuthProvider, useCustomerAuth } from "./customer/CustomerAuthContext";
 import { CountryProvider } from "./context/CountryContext";
 import { BrowserRouter, Routes, Route, useParams, Navigate } from "react-router-dom";
@@ -191,23 +191,31 @@ function AppInner() {
           </div>
         ) : (
           <>
-            {/* Project Type Switcher */}
-            <div className="bg-gray-50 border-b border-gray-200">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex space-x-8 overflow-x-auto py-3">
-                  {availableProjectTypes.map((pt) => (
-                    <button
-                      key={pt.type || pt.projectType}
-                      onClick={() => setSelectedPt(pt.type || pt.projectType)}
-                      className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                        selectedPt === (pt.type || pt.projectType)
-                          ? "border-blue-600 text-blue-600"
-                          : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                      }`}
-                    >
-                      {pt.projectTypeLabel || pt.type}
-                    </button>
-                  ))}
+            {/* Premium Project Type Switcher */}
+            <div className="bg-slate-900 border-b border-slate-800 shadow-md">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-solar-yellow/20 flex items-center justify-center">
+                       <Zap className="w-4 h-4 text-solar-yellow" />
+                    </div>
+                    <span className="text-slate-300 font-medium text-sm">Select your project type:</span>
+                  </div>
+                  <div className="flex space-x-2 overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
+                    {availableProjectTypes.map((pt) => (
+                      <button
+                        key={pt.type || pt.projectType}
+                        onClick={() => setSelectedPt(pt.type || pt.projectType)}
+                        className={`whitespace-nowrap px-4 py-2 rounded-full font-bold text-xs transition-all duration-300 ${
+                          selectedPt === (pt.type || pt.projectType)
+                            ? "bg-solar-yellow text-slate-900 shadow-[0_0_15px_rgba(253,224,71,0.3)]"
+                            : "bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 border border-slate-700"
+                        }`}
+                      >
+                        {pt.projectTypeLabel || pt.type}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

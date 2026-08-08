@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, useNavigate, useParams } from 'react-router-dom';
-import { Bell, Trash2, CheckSquare, Square, Check } from 'lucide-react';
+import { Bell, Trash2, CheckSquare, Square, Check, Menu } from 'lucide-react';
 import EpcSidebar from './EpcSidebar';
 import { useEpcAuth } from '../../context/EpcAuthContext';
 import epcApi from '../../api/epcApi';
 
 const EpcLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(
     () => localStorage.getItem('epc-theme') === 'dark'
   );
@@ -99,8 +100,8 @@ const EpcLayout = () => {
   const loadNotifications = async () => {
     try {
       if (!epc?._id) return;
-      const { data } = await epcApi.get(`/api/notifications/EpcPartner/${epc._id}`);
-      if (data.success) setNotifications(data.data);
+      const { data } = await epcApi.get(`/api/notifications/epc`);
+      if (data?.success) setNotifications(data.data || []);
     } catch (e) {
       console.warn('Notifications fetch skipped:', e.response?.status);
     }
@@ -186,25 +187,45 @@ const EpcLayout = () => {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--bg-app)' }}>
+    <div className="flex h-screen overflow-hidden relative" style={{ backgroundColor: 'var(--bg-app)' }}>
 
-      <EpcSidebar
-        collapsed={collapsed}
-        setCollapsed={setCollapsed}
-        darkMode={darkMode}
-        setDarkMode={setDarkMode}
-      />
+      {/* Mobile Overlay */}
+      {mobileOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 md:hidden backdrop-blur-sm"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
 
-      <div className="flex-1 flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--bg-app)' }}>
+      <div className={`fixed inset-y-0 left-0 z-40 transform transition-transform duration-300 md:relative md:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <EpcSidebar
+          collapsed={collapsed}
+          setCollapsed={setCollapsed}
+          darkMode={darkMode}
+          setDarkMode={setDarkMode}
+          setMobileOpen={setMobileOpen}
+        />
+      </div>
+
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0" style={{ backgroundColor: 'var(--bg-app)' }}>
 
         {/* Header */}
         <header style={{ backgroundColor: 'var(--header-bg)', borderBottom: '1px solid var(--header-border)' }}
-          className="px-6 py-3 flex items-center justify-between flex-shrink-0">
-          <div>
-            <h1 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-              {epc?.companyName}
-            </h1>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{epc?.email}</p>
+          className="px-4 md:px-6 py-3 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <button 
+              className="md:hidden p-2 -ml-2 rounded-lg hover:bg-slate-100 transition-colors"
+              onClick={() => setMobileOpen(true)}
+              style={{ color: 'var(--text-primary)' }}
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-sm font-semibold truncate max-w-[150px] md:max-w-xs" style={{ color: 'var(--text-primary)' }}>
+                {epc?.companyName}
+              </h1>
+              <p className="text-xs truncate max-w-[150px] md:max-w-xs" style={{ color: 'var(--text-muted)' }}>{epc?.email}</p>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -227,18 +248,18 @@ const EpcLayout = () => {
             {/* ✅ KW Wallet Badge */}
             <button
                onClick={() => navigate(countryPrefix ? `/${countryPrefix.toLowerCase()}/epc/wallet` : '/epc/wallet')}
-               className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-full px-3 py-1.5 transition-colors"
+               className="flex items-center gap-1.5 md:gap-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-full px-2.5 py-1.5 md:px-3 transition-colors"
                title="View Wallet"
             >
-              <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              <span className="text-xs font-bold text-blue-700">
+              <span className="text-[11px] md:text-xs font-bold text-blue-700 whitespace-nowrap">
                 {wallet ? wallet.totalCredits : '...'} KW
               </span>
               {wallet?.freeTrialRemaining > 0 && (
-                <span className="text-[10px] bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full font-medium">
+                <span className="hidden md:inline-block text-[10px] bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full font-medium">
                   +{wallet.freeTrialRemaining} free
                 </span>
               )}

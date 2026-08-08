@@ -11,7 +11,11 @@ const typeIcons = {
   'Off-Grid Solar':         '🔋',
   'Solar + Battery':        '🔋',
   'Farm / Rural Solar':     '🚜',
-  'Community & Strata':     '🏢'
+  'Community & Strata':     '🏢',
+  'commercial':             '🏢',
+  'residential':            '🏡',
+  'off-grid':               '🔋',
+  'hybrid':                 '🔋',
 };
 
 // Loads the Razorpay checkout.js script once, reuses it on later opens
@@ -272,21 +276,24 @@ const EpcWallet = () => {
 
       <div className="bg-white border border-gray-200 rounded-2xl p-5">
         <h3 className="text-gray-700 text-sm font-semibold mb-4">Credits by Project Type</h3>
-        <div className="grid sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {currentProjectTypes.map((pt, i) => {
             const c = (wallet?.creditsByType || []).find(x => x.projectType === pt) || { projectType: pt, district: 'All', credits: 0 };
             return (
               <div key={i}
                 className="flex items-center gap-4 px-4 py-4 rounded-xl border border-gray-100 bg-white hover:border-blue-200 hover:shadow-md transition-all duration-300 group cursor-default">
-                <span className="text-3xl group-hover:scale-110 transition-transform">{typeIcons[c.projectType] || '⚡'}</span>
-                <div className="flex-1">
-                  <p className="text-gray-800 text-sm font-bold">{c.projectType}</p>
+                <span className="text-3xl group-hover:scale-110 transition-transform">{typeIcons[c.projectType] || typeIcons[c.projectType.toLowerCase()] || '⚡'}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-gray-800 text-sm font-bold truncate" title={c.projectType}>{c.projectType}</p>
                   <p className="text-gray-500 text-xs mt-0.5">{c.district || 'All'} District</p>
                 </div>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 font-black text-xl">{c.credits} KW</span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 font-black text-xl shrink-0">{c.credits} KW</span>
               </div>
             );
           })}
+          {currentProjectTypes.length === 0 && (
+             <p className="text-gray-400 text-sm italic py-4 col-span-full">No active project types found in your region's order journey settings.</p>
+          )}
         </div>
       </div>
 

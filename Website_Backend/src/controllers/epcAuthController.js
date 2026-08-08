@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import axios from 'axios';
 import bcrypt from 'bcryptjs';
 import EpcPartner from '../models/EpcPartner.js';
+import EpcBulkLead from '../models/EpcBulkLead.js';
 import { sendOTP } from '../utils/smsService.js';
 
 // Fresh Token Generator
@@ -100,14 +101,24 @@ export const loginCheck = async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: 'Email required' });
 
-    const epc = await EpcPartner.findOne({ email });
-    if (!epc) return res.status(404).json({ message: 'No EPC account found with this email' });
+    let epc = await EpcPartner.findOne({ email });
+    let isBulkLead = false;
+    let bulkLead = null;
+
+    if (!epc) {
+      bulkLead = await EpcBulkLead.findOne({ email, status: 'Pending' });
+      if (bulkLead) {
+        isBulkLead = true;
+      } else {
+        return res.status(404).json({ message: 'No EPC account found with this email' });
+      }
+    }
     // Allow login so frontend can show the suspended banner
-    // if (!epc.isActive) return res.status(403).json({ message: 'Account pending admin approval.' });
+    // if (epc && !epc.isActive) return res.status(403).json({ message: 'Account pending admin approval.' });
 
     const maskedEmail = email.replace(/(.{2}).*(@)/, '$1***$2');
 
-    if (epc.loginPin) {
+    if (epc && epc.loginPin) {
       return res.json({
         hasPinSet:   true,
         nextStep:    'ENTER_PIN',
@@ -119,7 +130,12 @@ export const loginCheck = async (req, res) => {
 
     const otp       = generateOtp();
     const expiresAt = Date.now() + 10 * 60 * 1000;
-    emailOtpStore[email] = { otp, expiresAt, epcId: epc._id.toString() };
+    
+    if (isBulkLead) {
+      emailOtpStore[email] = { otp, expiresAt, bulkLeadId: bulkLead._id.toString() };
+    } else {
+      emailOtpStore[email] = { otp, expiresAt, epcId: epc._id.toString() };
+    }
 
     const emailSent = await sendEmailOtp(email, otp);
 
@@ -144,14 +160,27 @@ export const loginSendOtp = async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: 'Email required' });
 
-    const epc = await EpcPartner.findOne({ email });
-    if (!epc) return res.status(404).json({ message: 'No EPC account found with this email' });
-    // Allow login to show suspended banner
-    // if (!epc.isActive) return res.status(403).json({ message: 'Account pending admin approval.' });
+    let epc = await EpcPartner.findOne({ email });
+    let isBulkLead = false;
+    let bulkLead = null;
+
+    if (!epc) {
+      bulkLead = await EpcBulkLead.findOne({ email, status: 'Pending' });
+      if (bulkLead) {
+        isBulkLead = true;
+      } else {
+        return res.status(404).json({ message: 'No EPC account found with this email' });
+      }
+    }
 
     const otp       = generateOtp();
     const expiresAt = Date.now() + 10 * 60 * 1000;
-    emailOtpStore[email] = { otp, expiresAt, epcId: epc._id.toString() };
+    
+    if (isBulkLead) {
+      emailOtpStore[email] = { otp, expiresAt, bulkLeadId: bulkLead._id.toString() };
+    } else {
+      emailOtpStore[email] = { otp, expiresAt, epcId: epc._id.toString() };
+    }
 
     const emailSent = await sendEmailOtp(email, otp);
 
@@ -184,8 +213,37 @@ export const loginVerifyOtp = async (req, res) => {
     if (record.otp !== otp.toString()) return res.status(400).json({ message: 'Invalid OTP.' });
     delete emailOtpStore[email];
 
-    const epc = await EpcPartner.findById(record.epcId);
-    if (!epc) return res.status(404).json({ message: 'EPC not found' });
+    let epc;
+    if (record.bulkLeadId) {
+      const bulkLead = await EpcBulkLead.findById(record.bulkLeadId);
+      if (!bulkLead) return res.status(404).json({ message: 'Pending account not found' });
+      
+      // Migrate Bulk Lead to EpcPartner
+      epc = await EpcPartner.create({
+        companyName: bulkLead.companyName,
+        ownerName: bulkLead.contactPersonName || bulkLead.companyName,
+        email: bulkLead.email,
+        mobile: bulkLead.mobile,
+        state: bulkLead.state || '',
+        district: bulkLead.district || '',
+        city: bulkLead.city || '',
+        pincode: bulkLead.pincode || '',
+        address: bulkLead.address || '',
+        yearsOfExperience: bulkLead.yearsOfExperience || 0,
+        plan: 'Standard',
+        country: bulkLead.country || 'India',
+        onboardingStatus: 'Pending',
+        isActive: true,
+        kycDocuments: bulkLead.gstNumber ? { gstNumber: bulkLead.gstNumber.toUpperCase() } : {},
+      });
+
+      bulkLead.status = 'Active';
+      bulkLead.claimedByEpcId = epc._id;
+      await bulkLead.save();
+    } else {
+      epc = await EpcPartner.findById(record.epcId);
+      if (!epc) return res.status(404).json({ message: 'EPC not found' });
+    }
 
     res.json({
       message:     'OTP verified successfully.',

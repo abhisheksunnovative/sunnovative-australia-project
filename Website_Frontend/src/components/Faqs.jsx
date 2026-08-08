@@ -6,8 +6,11 @@
 import React, { useState } from "react";
 import { HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { useWebsiteSettings } from "../hooks/useWebsiteSettings";
+import { useCountry } from "../context/CountryContext";
 
 export default function Faqs({ settings: propSettings, projectTypes, selectedPt }) {
+  const { country } = useCountry();
+  const isAU = country === "AU";
   const [openIndex, setOpenIndex] = useState(0);
   const baseSettings = useWebsiteSettings(selectedPt);
   const settings = propSettings || baseSettings;
@@ -26,9 +29,11 @@ export default function Faqs({ settings: propSettings, projectTypes, selectedPt 
             Common Inquiries
           </div>
           <h2 className="text-3xl font-display font-extrabold text-slate-800 tracking-tight">
-            Surya Ghar Yojana FAQs
+            {isAU ? "Australia Solar FAQs" : "Surya Ghar Yojana FAQs"}
           </h2>
-          <p className="text-sm text-slate-500 mt-2">(અવારનવાર પુછાતા પ્રશ્નો)</p>
+          <p className="text-sm text-slate-500 mt-2">
+            {isAU ? "(Frequently Asked Questions)" : "(અવારનવાર પુછાતા પ્રશ્નો)"}
+          </p>
         </div>
 
         <div className="space-y-3">
@@ -58,9 +63,11 @@ export default function Faqs({ settings: propSettings, projectTypes, selectedPt 
         </div>
 
         <div className="mt-12 text-center p-6 bg-slate-50 rounded-2xl border border-slate-200">
-          <p className="text-sm text-slate-600 font-medium mb-2">Kuch aur doubts ya questions hain?</p>
+          <p className="text-sm text-slate-600 font-medium mb-2">
+            {isAU ? "Still have doubts or questions?" : "Kuch aur doubts ya questions hain?"}
+          </p>
           <p className="text-xs text-slate-500">
-            Direct call our Rajkot center representatives and get answers in Gujarati or Hindi.
+            {isAU ? "Direct call our Australia center representatives and get answers instantly." : "Direct call our Rajkot center representatives and get answers in Gujarati or Hindi."}
           </p>
           <a
             href={`tel:${settings.footer?.phone || "+919898231245"}`}

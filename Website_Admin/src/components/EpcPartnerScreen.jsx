@@ -17,6 +17,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { StatusBadge, RatingStars, DetailDrawer, EmptyState } from "./CommonUI";
+import { COUNTRY_DATA } from "../utils/geography";
 
 export const EpcPartnerScreen = ({
   partners,
@@ -400,21 +401,32 @@ export const EpcPartnerScreen = ({
             {/* Country Filter */}
             <select
               value={filterCountry}
-              onChange={(e) => { setFilterCountry(e.target.value); setFilterState("All"); setFilterDistrict("All"); }}
+              onChange={(e) => {
+                const newC = e.target.value;
+                setFilterCountry(newC);
+                const newStates = Object.keys(COUNTRY_DATA[newC] || {});
+                const newS = newStates[0] || "";
+                setFilterState(newS);
+                const newDistricts = COUNTRY_DATA[newC]?.[newS] || [];
+                setFilterDistrict(newDistricts[0] || "");
+              }}
               className="text-xs font-semibold bg-white border border-gray-100 rounded-xl px-3 py-2 text-primary focus:outline-hidden focus:border-primary/20"
             >
-              <option value="All">All Countries</option>
-              {uniqueCountries.map((c) => <option key={c} value={c}>{c}</option>)}
+              {availableCountries.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
 
             {/* State Filter */}
             <select
               value={filterState}
-              onChange={(e) => { setFilterState(e.target.value); setFilterDistrict("All"); }}
+              onChange={(e) => {
+                const newS = e.target.value;
+                setFilterState(newS);
+                const newDistricts = COUNTRY_DATA[filterCountry]?.[newS] || [];
+                setFilterDistrict(newDistricts[0] || "");
+              }}
               className="text-xs font-semibold bg-white border border-gray-100 rounded-xl px-3 py-2 text-primary focus:outline-hidden focus:border-primary/20"
             >
-              <option value="All">All States</option>
-              {uniqueStates.filter(s => filterCountry === "All" || dbPartners.some(p => p.state === s && p.country === filterCountry)).map((st) => (
+              {Object.keys(COUNTRY_DATA[filterCountry] || {}).map((st) => (
                 <option key={st} value={st}>{st}</option>
               ))}
             </select>
@@ -422,27 +434,15 @@ export const EpcPartnerScreen = ({
             {/* District Filter */}
             <select
               value={filterDistrict}
-              onChange={(e) => { setFilterDistrict(e.target.value); setFilterCity("All"); }}
+              onChange={(e) => setFilterDistrict(e.target.value)}
               className="text-xs font-semibold bg-white border border-gray-100 rounded-xl px-3 py-2 text-primary focus:outline-none focus:border-primary/20"
             >
-              <option value="All">All Districts</option>
-              {Array.from(new Set(dbPartners.map(p => p.district).filter(Boolean))).map((dst) => (
+              {(COUNTRY_DATA[filterCountry]?.[filterState] || []).map((dst) => (
                 <option key={dst} value={dst}>{dst}</option>
               ))}
             </select>
 
-            {/* City/Area Filter */}
-            <select
-              value={filterCity}
-              onChange={(e) => setFilterCity(e.target.value)}
-              className="text-xs font-semibold bg-white border border-gray-100 rounded-xl px-3 py-2 text-primary focus:outline-none focus:border-primary/20"
-            >
-              <option value="All">All Areas/Cities</option>
-              {Array.from(new Set(dbPartners.map(p => p.city).filter(Boolean))).map((cty) => (
-                <option key={cty} value={cty}>{cty}</option>
-              ))}
-            </select>
-          </div>
+            </div>
 
           <button
             onClick={handleOpenAdd}

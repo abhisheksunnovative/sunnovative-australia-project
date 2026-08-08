@@ -87,6 +87,11 @@ export const MainLayout = ({
       icon: <Users className="w-5 h-5" />,
     },
     {
+      name: "EPC Bulk Upload",
+      id: "epc-bulk-upload",
+      icon: <Users className="w-5 h-5" />,
+    },
+    {
       name: "KYC & Agreement",
       id: "kyc-agreement",
       icon: <FileCheck className="w-5 h-5" />,
