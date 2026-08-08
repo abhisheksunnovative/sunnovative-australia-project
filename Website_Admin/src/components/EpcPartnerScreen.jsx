@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { StatusBadge, RatingStars, DetailDrawer, EmptyState } from "./CommonUI";
 import { COUNTRY_DATA } from "../utils/geography";
+import { useAdminSettings } from "../hooks/useAdminSettings";
 
 export const EpcPartnerScreen = ({
   partners,
@@ -30,6 +31,8 @@ export const EpcPartnerScreen = ({
   searchQuery,
 }) => {
   // Page states
+  const { settings, loading: settingsLoading } = useAdminSettings();
+  const dynamicProjectTypes = settings?.projectTypes?.length > 0 ? settings.projectTypes : ["Residential"];
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterCountry, setFilterCountry] = useState("All");
   const [filterState, setFilterState] = useState("All");
@@ -166,7 +169,7 @@ export const EpcPartnerScreen = ({
     district: "",
     cluster: "",
     experience: 3,
-    projectTypes: ["Residential"],
+    projectTypes: dynamicProjectTypes,
     minKW: 5,
     maxKW: 250,
     installersCount: 2,
@@ -190,7 +193,7 @@ export const EpcPartnerScreen = ({
       district: "",
       cluster: "",
       experience: 3,
-      projectTypes: ["Residential"],
+      projectTypes: dynamicProjectTypes,
       minKW: 5,
       maxKW: 250,
       installersCount: 2,
