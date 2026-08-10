@@ -123,21 +123,8 @@ export default function Header({
               className="w-10 h-10 rounded-xl object-contain transition-all group-hover:scale-105"
             />
           ) : (
-            <div className="w-10 h-10 rounded-xl bg-solar-yellow flex items-center justify-center text-solar-navy transition-all group-hover:scale-105 shadow-md shadow-amber-200">
-              <Sun
-                className="w-6 h-6 animate-spin-slow text-slate-955 fill-amber-300"
-                style={{ animationDuration: "20s" }}
-              />
-            </div>
+            <img src="/logo.png" alt="EmergeSun" className="w-32 h-auto object-contain" />
           )}
-          <div className="flex flex-col">
-            <span className="text-lg font-display font-black tracking-tight text-slate-900 leading-tight">
-              {brand.companyName || "SUNNOVATIVE"}
-            </span>
-            <span className="text-[10px] font-mono font-bold tracking-widest text-[#0081C9] uppercase leading-none">
-              {brand.tagline || "Solar System"}
-            </span>
-          </div>
         </a>
 
         {/* Desktop Navigation Links */}
@@ -181,14 +168,6 @@ export default function Header({
             {isCustomerLoggedIn ? (customerName?.split(" ")[0] || "My Account") : "Login"}
           </button>
 
-          <button
-            onClick={onScrollToForm}
-            className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 bg-[#0081C9] hover:bg-[#005F9E] text-white text-xs font-bold rounded-xl shadow-md shadow-sky-100 transition-all cursor-pointer"
-            id="header-cta-quote"
-          >
-            <PhoneCall className="w-3.5 h-3.5" />
-            {t?.ctaLabel || "Free Consultation"}
-          </button>
 
           <button
             onClick={toggleMobileMenu}
@@ -230,7 +209,7 @@ export default function Header({
               <Sun className="w-5 h-5 text-slate-900 fill-amber-300" />
             </div>
             <span className="font-display font-black text-xs text-slate-900 uppercase tracking-widest">
-              Sunnovative
+              EmergeSun
             </span>
           </div>
 

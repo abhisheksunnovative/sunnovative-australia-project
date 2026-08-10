@@ -129,14 +129,9 @@ export default function BDELayout({ children, currentTab, onTabChange, onLogout,
     <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
       {/* Sidebar */}
       <aside className="w-64 bg-slate-900 text-white flex flex-col shadow-xl z-20 flex-shrink-0">
-        <div className="h-16 flex items-center px-6 border-b border-white/10 shrink-0 mt-4 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center mr-3 shadow-inner border border-amber-500/30">
-            <Sun className="w-6 h-6 animate-[spin_10s_linear_infinite]" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold tracking-tight text-white leading-none">BDE Portal</h2>
-            <p className="text-[10px] uppercase tracking-wider text-amber-500/80 font-bold mt-1">Sunnovative</p>
-          </div>
+        <div className="h-16 flex flex-col justify-center px-6 border-b border-white/10 shrink-0 mt-4 mb-4">
+          <img src="/logo-white.png" alt="EmergeSun" className="w-32 h-auto object-contain object-left" />
+          <p className="text-[10px] uppercase tracking-wider text-amber-500/80 font-bold mt-1">BDE Portal</p>
         </div>
 
         <div className="px-4 py-3 border-b border-white/10 mb-4 bg-slate-800/50">

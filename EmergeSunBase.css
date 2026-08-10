@@ -1,0 +1,101 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=Poppins:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Montserrat", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* EmergeSun Brand Palette Overrides for standard Tailwind classes */
+  --color-blue-50: #eff1f9;
+  --color-blue-100: #d8ddf0;
+  --color-blue-500: #3b4d9c;
+  --color-blue-600: #28377f; /* Navy Blue - Primary */
+  --color-blue-700: #1b265c;
+  --color-blue-800: #111a40;
+  --color-blue-900: #0a0f26;
+
+  --color-yellow-50: #fefde7;
+  --color-yellow-100: #fdfbb7;
+  --color-yellow-400: #f4ea0c; /* Yellow - Secondary */
+  --color-yellow-500: #d6cc0a;
+  --color-yellow-600: #a39c08;
+
+  --color-orange-50: #fef5eb;
+  --color-orange-100: #fce7cd;
+  --color-orange-400: #f9af60;
+  --color-orange-500: #f79b38; /* Orange - Accent */
+  --color-orange-600: #d6832e;
+
+  --color-slate-700: #666565;
+  --color-slate-800: #4d4c4c; /* Dark Gray */
+  --color-slate-900: #333232;
+  
+  --color-gray-700: #666565;
+  --color-gray-800: #4d4c4c; /* Dark Gray */
+  --color-gray-900: #333232;
+
+  /* Custom solar-theme colors mapped to EmergeSun */
+  --color-solar-yellow: #f4ea0c;
+  --color-solar-yellow-dark: #d6cc0a;
+  --color-solar-sky: #28377f;
+  --color-solar-green: #22c55e;
+  --color-solar-navy: #111a40;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.02); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 4s ease-in-out infinite;
+}
+
+/* Base modifications */
+html {
+  scroll-behavior: smooth;
+  font-family: "Poppins", sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6, .font-display {
+  font-family: "Montserrat", sans-serif;
+}
+
+.solar-gradient {
+  background: radial-gradient(circle at 20% 20%, #fefde7 0%, #d8ddf0 100%);
+}
+
+.sun-gradient {
+  background: radial-gradient(circle at 10% 20%, rgba(244, 234, 12, 0.15) 0%, rgba(40, 55, 127, 0.05) 50%, transparent 100%);
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(40, 55, 127, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(40, 55, 127, 0.07);
+}
+
+.glass-panel-dark {
+  background: rgba(17, 26, 64, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+}
+
+.card-blur {
+  background-color: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+}

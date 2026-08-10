@@ -60,7 +60,7 @@ export default function TrustSection({ settings }) {
       ];
 
   const sectionTitle = settings?.trust?.sectionTitle || "Local Trusted Expert";
-  const sectionSubtitle = settings?.trust?.sectionSubtitle || "Sunnovative Solar System Pvt Ltd";
+  const sectionSubtitle = settings?.trust?.sectionSubtitle || "EmergeSun Solar System Pvt Ltd";
   const sectionDesc = settings?.trust?.sectionDesc || "As the leading epc service firm in Rajkot & Saurashtra region, we combine world-class PV component logistics with rigorous local engineering standards, protecting families against volatile power rates for the next 25+ years.";
 
   return (

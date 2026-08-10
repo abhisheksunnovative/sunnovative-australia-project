@@ -161,12 +161,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
       <div className="w-full max-w-md bg-[#092231]/80 backdrop-blur-xl border border-sky-900/40 rounded-3xl p-8 shadow-2xl relative z-10">
         {/* Brand Banner */}
         <div className="flex flex-col items-center mb-8">
-          <div className="p-3.5 bg-secondary text-primary rounded-2xl shadow-lg shadow-secondary/10 mb-3 flex items-center justify-center transform hover:rotate-12 transition-transform duration-300">
-            <Sun className="w-7 h-7" />
-          </div>
-          <h1 className="text-2xl font-black tracking-tight text-white font-display uppercase">
-            SUNNOVATIVE
-          </h1>
+          <img src="/logo.png" alt="EmergeSun" className="w-48 h-auto mx-auto mb-4 object-contain" />
           <p className="text-xs text-sky-300/80 mt-1 font-semibold tracking-wide uppercase font-mono mb-4">
             Solar SaaS Admin Station
           </p>

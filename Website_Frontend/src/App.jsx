@@ -25,6 +25,7 @@ const Faqs = lazy(() => import("./components/Faqs"));
 const Footer = lazy(() => import("./components/Footer"));
 const DynamicSections = lazy(() => import("./components/DynamicSections"));
 const DynamicPageRenderer = lazy(() => import("./components/DynamicPageRenderer"));
+const UserReviewsSection = lazy(() => import("./components/UserReviewsSection"));
 const EpcPartnerModal = lazy(() => import("./components/EpcPartnerModal"));
 const CustomerLogin = lazy(() => import("./customer/CustomerLogin"));
 const CustomerPortal = lazy(() => import("./customer/CustomerPortal"));
@@ -229,6 +230,7 @@ function AppInner() {
             )}
             <TrustSection settings={displaySettings} />
             <DynamicPageRenderer onScrollToForm={scrollToForm} selectedProjectType={selectedPt} settings={displaySettings} />
+            <UserReviewsSection settings={displaySettings} />
             {!hasDynamic('faq') && <Faqs settings={displaySettings} />}
           </>
         )}

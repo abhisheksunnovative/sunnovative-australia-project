@@ -30,6 +30,8 @@ const leadSchema = new mongoose.Schema(
     preferredSolarBrand: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand' },
     preferredInverterBrand: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand' },
     sourceOfMedia: { type: String },
+    uploadSource: { type: String, enum: ['website', 'bde_manual'], default: 'website' },
+    hasLoggedIn: { type: Boolean, default: false },
     profession: { type: String },
     notes: { type: String, trim: true },
 

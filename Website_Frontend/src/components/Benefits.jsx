@@ -79,7 +79,7 @@ export default function Benefits({ onScrollToForm, projectTypes, selectedPt, set
 
   const sectionTitle = settings?.benefits?.sectionTitle || "Why Install Solar Now?";
   const sectionSubtitle = settings?.benefits?.sectionSubtitle || "PM Surya Ghar Yojana ke Benefits & Savings";
-  const sectionDesc = settings?.benefits?.sectionDesc || "Sarkari Subsidy and Sunnovative Solar System's advanced German engineering make Rooftop Solar the single smartest investment for every home in Rajkot.";
+  const sectionDesc = settings?.benefits?.sectionDesc || "Sarkari Subsidy and EmergeSun Solar System's advanced German engineering make Rooftop Solar the single smartest investment for every home in Rajkot.";
 
   return (
     <section

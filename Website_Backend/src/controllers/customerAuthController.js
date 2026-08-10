@@ -115,6 +115,9 @@ export const verifyOtp = async (req, res) => {
     customer.isActive = true;
     await customer.save();
 
+    // Mark lead as logged in so BDE can now "Contact" them
+    await Lead.updateMany({ mobile: cleanMobile }, { hasLoggedIn: true });
+
     // Check if this mobile had submitted leads before (lead form se)
     const existingProjects = await ProjectOrder.find({ customerMobile: mobile })
       .select('orderNumber projectType status createdAt systemSizeKW estimatedSubsidy')
@@ -173,6 +176,9 @@ export const loginWithPin = async (req, res) => {
 
     const match = await customer.matchPin(pin);
     if (!match) return res.status(400).json({ message: 'PIN galat hai' });
+
+    // Mark lead as logged in so BDE can now "Contact" them
+    await Lead.updateMany({ mobile }, { hasLoggedIn: true });
 
     // Fetch lead projects
     const existingProjects = await ProjectOrder.find({ customerMobile: mobile })

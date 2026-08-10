@@ -16,7 +16,7 @@ const DEFAULT_SETTINGS = {
     headingLine1: "Surya Ghar Yojana ke liye",
     headingHighlight: "Rooftop Solar Lagvao!",
     subtext:
-      "Bijli bill bachao, subsidy ka benefit lo, aur trusted solar expert ke saath solar installation karao. Get up to ₹78,000 subsidy transferred directly to your bank account with Sunnovative Solar System Pvt Ltd.",
+      "Bijli bill bachao, subsidy ka benefit lo, aur trusted solar expert ke saath solar installation karao. Get up to ₹78,000 subsidy transferred directly to your bank account with EmergeSun Solar System Pvt Ltd.",
     ctaPrimary: "Free Solar Consultation",
     ctaSecondary: "Check Eligibility (Guj)",
     socialProofText: "Rajkot Residents: Save up to ₹78,000 on Solar Subsidy!",
@@ -30,7 +30,7 @@ const DEFAULT_SETTINGS = {
     sectionTitle: "Why Install Solar Now?",
     sectionSubtitle: "PM Surya Ghar Yojana ke Benefits & Savings",
     sectionDesc:
-      "Sarkari Subsidy and Sunnovative Solar System's advanced German engineering make Rooftop Solar the single smartest investment for every home in Rajkot.",
+      "Sarkari Subsidy and EmergeSun Solar System's advanced German engineering make Rooftop Solar the single smartest investment for every home in Rajkot.",
     items: [
       {
         title: "Government Subsidy Support",
@@ -78,7 +78,7 @@ const DEFAULT_SETTINGS = {
         stepNum: "02",
         timeLabel: "Within 1 Hour",
         title: "Team Eligibility Check Karegi",
-        desc: "Sunnovative experts PGVCL database se load allocation aur sanjay-yojana slab details match karke optimal solar size estimate karenge.",
+        desc: "EmergeSun experts PGVCL database se load allocation aur sanjay-yojana slab details match karke optimal solar size estimate karenge.",
       },
       {
         stepNum: "03",
@@ -103,7 +103,7 @@ const DEFAULT_SETTINGS = {
   },
   trust: {
     sectionTitle: "Local Trusted Expert",
-    sectionSubtitle: "Sunnovative Solar System Pvt Ltd",
+    sectionSubtitle: "EmergeSun Solar System Pvt Ltd",
     sectionDesc:
       "As the leading epc service firm in Rajkot & Saurashtra region, we combine world-class PV component logistics with rigorous local engineering standards, protecting families against volatile power rates for the next 25+ years.",
     points: [
@@ -151,9 +151,9 @@ const DEFAULT_SETTINGS = {
         "Subsidy rules bohot simple hain: 1 kW ke liye ₹33,000, 2 kW ke liye ₹66,000 aur 3 kW ya usse bade rooftop solar system ke liye maximum ₹78,000 direct bank transfer hoti hai.",
     },
     {
-      question: "Kya Sunnovative GEDA/MNRE Empaneled Vendor hai?",
+      question: "Kya EmergeSun GEDA/MNRE Empaneled Vendor hai?",
       answer:
-        "Haan, Sunnovative Solar System Pvt Ltd ek authorized/empaneled vendor hai. Hamari empanelment se system lagvane par hi aap central government subsidy ke liye eligible honge.",
+        "Haan, EmergeSun Solar System Pvt Ltd ek authorized/empaneled vendor hai. Hamari empanelment se system lagvane par hi aap central government subsidy ke liye eligible honge.",
     },
     {
       question: "Net-metering kya hota hai aur solar bill kaise reduce hota hai?",
@@ -168,7 +168,7 @@ const DEFAULT_SETTINGS = {
     {
       question: "Rooftop solar panels ki maintenance kaise hoti hai?",
       answer:
-        "Solar design highly strong hota hai kyunki isme moving mechanical parts nahi hote. Sunnovative Solar aapko 5-years free maintenance response package deti hai.",
+        "Solar design highly strong hota hai kyunki isme moving mechanical parts nahi hote. EmergeSun Solar aapko 5-years free maintenance response package deti hai.",
     },
   ],
   footer: {
@@ -176,7 +176,7 @@ const DEFAULT_SETTINGS = {
     phone: "+91 98982 31245",
     email: "info@sunnovative.com",
     gedaCertNo: "#RJK-20412",
-    copyrightText: "Sunnovative Solar System Pvt Ltd is Rajkot's premium GEDA registered EPC service provider specialized in standard residential PM Surya Ghar Yojana. Turns rooftop shadows into guaranteed cash savings.",
+    copyrightText: "EmergeSun Solar System Pvt Ltd is Rajkot's premium GEDA registered EPC service provider specialized in standard residential PM Surya Ghar Yojana. Turns rooftop shadows into guaranteed cash savings.",
   },
   projectForm: {
     title: "Apply for Solar",

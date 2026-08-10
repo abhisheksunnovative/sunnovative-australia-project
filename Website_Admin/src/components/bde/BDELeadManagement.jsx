@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { PhoneCall, Calendar, ArrowRight, UserCheck, CheckCircle, Edit2, Plus, X, ShieldCheck, XCircle, Clock } from "lucide-react";
+import UnifiedAddLeadModal from "../UnifiedAddLeadModal";
 
 export default function BDELeadManagement({ bdeId, country }) {
   const [leads, setLeads] = useState([]);
@@ -671,13 +672,19 @@ export default function BDELeadManagement({ bdeId, country }) {
                         const currentRank = STATUS_RANK[lead.status] || 1;
                         const optRank = STATUS_RANK[st] || 1;
                         const isDowngrade = optRank < currentRank && lead.status !== "Not Interested";
+                        // Block "Contacted" and above if customer hasn't logged in
+                        const isBlockedByLogin = !lead.hasLoggedIn && optRank > 1 && st !== "Not Interested";
+                        const isDisabled = isDowngrade || isBlockedByLogin;
+
                         return (
-                          <option key={st} value={st} disabled={isDowngrade}>
-                            {st === "Converted" ? "Converted (Ready for Installation)" : st} {isDowngrade ? "🔒 (Locked)" : ""}
+                          <option key={st} value={st} disabled={isDisabled}>
+                            {st === "Converted" ? "Converted (Ready for Installation)" : st} {isDowngrade ? "🔒 (Locked)" : isBlockedByLogin ? "🚫 (Wait for Login)" : ""}
                           </option>
                         );
                       })}
                     </select>
+                    {!lead.hasLoggedIn && <p className="text-[10px] text-red-600 font-bold mt-1 mb-1">🔴 Waiting for Customer Login</p>}
+                    {lead.hasLoggedIn && <p className="text-[10px] text-emerald-600 font-bold mt-1 mb-1">🟢 Customer Logged In</p>}
                     <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
                       <Calendar className="w-3 h-3"/> 
                       <input 
@@ -698,9 +705,15 @@ export default function BDELeadManagement({ bdeId, country }) {
 
                     {lead.status === "Converted" ? (
                       <div className="flex flex-col items-end gap-2">
-                        <span className="inline-flex items-center gap-1 text-emerald-700 text-xs font-bold px-3 py-1 bg-emerald-50 rounded-lg border border-emerald-200">
-                          <CheckCircle className="w-3.5 h-3.5 text-emerald-600"/> Order Approved
-                        </span>
+                        {lead.convertedProjectId ? (
+                          <span className="inline-flex items-center gap-1 text-emerald-700 text-xs font-bold px-3 py-1 bg-emerald-50 rounded-lg border border-emerald-200">
+                            <CheckCircle className="w-3.5 h-3.5 text-emerald-600"/> Order Approved
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-amber-700 text-xs font-bold px-3 py-1 bg-amber-50 rounded-lg border border-amber-200 animate-pulse">
+                            <Clock className="w-3.5 h-3.5 text-amber-600"/> Waiting for Admin Approval
+                          </span>
+                        )}
                         
                         {lead.epcDetails && (
                           <div className="bg-blue-50 border border-blue-200 p-2.5 rounded-xl text-xs text-left w-full max-w-[210px] space-y-0.5 shadow-xs">
@@ -723,20 +736,26 @@ export default function BDELeadManagement({ bdeId, country }) {
                             <span className="inline-flex items-center gap-1.5 text-amber-800 text-xs font-bold px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg">
                               <Clock className="w-3.5 h-3.5 text-amber-600"/> Waiting for FCFS claim...
                             </span>
-                          ) : (lead.bdeRecommendationStatus === 'recommended' || (lead.recommendedEpcs && lead.recommendedEpcs.length > 0) || lead.enquiryStatus === 'EPC Recommended') ? (
-                            <button
-                              onClick={() => handleOpenRecommendModal(lead)}
-                              className="inline-flex items-center gap-1.5 text-blue-800 text-xs font-bold px-3 py-1.5 bg-blue-50 hover:bg-blue-100 rounded-lg transition border border-blue-300 cursor-pointer"
-                            >
-                              <CheckCircle className="w-3.5 h-3.5 text-blue-600"/> EPC Suggestions Sent
-                            </button>
+                          ) : (!isAU) ? (
+                            (lead.bdeRecommendationStatus === 'recommended' || (lead.recommendedEpcs && lead.recommendedEpcs.length > 0) || lead.enquiryStatus === 'EPC Recommended') ? (
+                              <button
+                                onClick={() => handleOpenRecommendModal(lead)}
+                                className="inline-flex items-center gap-1.5 text-blue-800 text-xs font-bold px-3 py-1.5 bg-blue-50 hover:bg-blue-100 rounded-lg transition border border-blue-300 cursor-pointer"
+                              >
+                                <CheckCircle className="w-3.5 h-3.5 text-blue-600"/> EPC Suggestions Sent
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleOpenRecommendModal(lead)}
+                                className="inline-flex items-center gap-1.5 text-white text-xs font-bold px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg transition shadow-xs cursor-pointer animate-pulse"
+                              >
+                                <ShieldCheck className="w-3.5 h-3.5"/> Suggest EPCs to Customer
+                              </button>
+                            )
                           ) : (
-                            <button
-                              onClick={() => handleOpenRecommendModal(lead)}
-                              className="inline-flex items-center gap-1.5 text-white text-xs font-bold px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg transition shadow-xs cursor-pointer animate-pulse"
-                            >
-                              <ShieldCheck className="w-3.5 h-3.5"/> Suggest EPCs to Customer
-                            </button>
+                            <span className="inline-flex items-center gap-1.5 text-blue-800 text-xs font-bold px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
+                              <Clock className="w-3.5 h-3.5 text-blue-600"/> Waiting for Customer EPC Selection...
+                            </span>
                           )
                         ) : lead.isInstallDateFixed ? (
                           <span className="inline-flex items-center gap-1 text-blue-800 text-xs font-bold px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-200 shadow-xs">
@@ -862,7 +881,16 @@ export default function BDELeadManagement({ bdeId, country }) {
       )}
 
       {/* Add/Edit Modal (Simplified) */}
-      {(isAddModalOpen || isEditModalOpen) && (
+      {isAddModalOpen && (
+        <UnifiedAddLeadModal 
+          isBDE={true} 
+          bdeId={bdeId}
+          userCountry={country}
+          onClose={() => setIsAddModalOpen(false)} 
+          onSuccess={() => { setIsAddModalOpen(false); fetchLeads(); }} 
+        />
+      )}
+      {isEditModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden">
             <div className="p-4 border-b flex justify-between items-center bg-gray-50">

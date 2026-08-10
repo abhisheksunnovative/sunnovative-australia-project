@@ -20,7 +20,7 @@ const clone = (obj) => JSON.parse(JSON.stringify(obj));
 
 // ── Assigned to badge colors ──────────────────────────────────────────────────
 const ASSIGNED_TO_CONFIG = {
-  "company": { label: "Sunnovative / Admin", color: "bg-blue-100 text-blue-700 border-blue-200" },
+  "company": { label: "EmergeSun / Admin", color: "bg-blue-100 text-blue-700 border-blue-200" },
   "epc-partner": { label: "EPC Partner", color: "bg-purple-100 text-purple-700 border-purple-200" },
   "customer": { label: "Customer", color: "bg-green-100 text-green-700 border-green-200" },
   "both": { label: "Company + EPC", color: "bg-orange-100 text-orange-700 border-orange-200" },
@@ -193,7 +193,7 @@ const StepCard = ({ step, index, totalSteps, onUpdate, onRemove, onMoveUp, onMov
               {[
                 { role: "customer", label: "👤 Customer", desc: "Customer portal se execute kar sakta hai" },
                 { role: "epc-partner", label: "⚡ EPC Partner", desc: "EPC Installer execute kar sakta hai" },
-                { role: "company", label: "🏢 Admin / Company", desc: "Sunnovative Admin approval/execution" },
+                { role: "company", label: "🏢 Admin / Company", desc: "EmergeSun Admin approval/execution" },
                 { role: "bde", label: "💼 BDE Executive", desc: "BDE customer ke behalf par execute kar sakta hai" }
               ].map(({ role, label, desc }) => {
                 const currentRoles = step.allowedRoles && step.allowedRoles.length > 0 

@@ -17,7 +17,7 @@ const DEFAULTS = {
     { type: "Group", isActive: true }
   ],
   brand: {
-    companyName: "SUNNOVATIVE",
+    companyName: "emergesun",
     tagline: "SOLAR SYSTEM",
     phone: "+61 400 000 000",
     hubLabel: "Call Australia Hub",
@@ -109,7 +109,7 @@ const DEFAULTS = {
   },
   trust: {
     sectionTitle: "Trusted Local Experts",
-    sectionSubtitle: "Sunnovative Energy Systems",
+    sectionSubtitle: "EmergeSun Energy Systems",
     sectionDesc:
       "Fully accredited and compliant with all Australian standards (AS/NZS 5033). We ensure premium quality and safety.",
     points: [
@@ -181,7 +181,7 @@ const DEFAULTS = {
     email: "info@sunnovative.com.au",
     gedaCertNo: "ABN: 12 345 678 910",
     copyrightText:
-      "Sunnovative Energy Systems is an SAA accredited solar provider, helping Australians slash power bills with premium tier-1 solar solutions.",
+      "EmergeSun Energy Systems is an SAA accredited solar provider, helping Australians slash power bills with premium tier-1 solar solutions.",
   },
 };
 

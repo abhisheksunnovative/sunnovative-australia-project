@@ -61,7 +61,7 @@ const EpcMyPlan = () => {
         key: data.keyId,
         amount: data.amount,
         currency: data.currency,
-        name: "Sunnovative EPC",
+        name: "EmergeSun EPC",
         description: `${planName} Plan (${billing})`,
         order_id: data.orderId,
         handler: async function (response) {

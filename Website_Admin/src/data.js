@@ -900,9 +900,9 @@ export const initialEpcPartnerSettings = {
     "ISO certification (Optional)",
   ],
   undertakingText:
-    "We hereby undertake that all structural designs uploaded by our engineer on the Sunnovative Platform comply absolutely with National Building Code specifications, using quality-certified panels. We accept full statutory civil and electrical warranty obligations for 10 years of site running.",
+    "We hereby undertake that all structural designs uploaded by our engineer on the EmergeSun Platform comply absolutely with National Building Code specifications, using quality-certified panels. We accept full statutory civil and electrical warranty obligations for 10 years of site running.",
   agreementTerms:
-    "This Master Services Agreement is executed between Sunnovative Solar (Platform Owner) and the Approved EPC Partner. Approved Partners receive project bookings and direct customer escrow allocations. Partner pays a base platform fee percentage (Starter 5%, Growth 4%, Premium 3%, Enterprise 2%) per booked installation payout.",
+    "This Master Services Agreement is executed between EmergeSun Solar (Platform Owner) and the Approved EPC Partner. Approved Partners receive project bookings and direct customer escrow allocations. Partner pays a base platform fee percentage (Starter 5%, Growth 4%, Premium 3%, Enterprise 2%) per booked installation payout.",
   approvalWorkflow: "Single Step Admin",
   autoQualificationRulesEnabled: true,
   projectAssignmentRules:

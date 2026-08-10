@@ -30,6 +30,8 @@ import { DiscomManagementScreen } from "./components/DiscomManagementScreen";
 import BrandManagementScreen from "./components/BrandManagementScreen";
 import CountryWebsiteScreen from "./components/country/CountryWebsiteScreen";
 import StcManagementDashboard from "./components/country/StcManagementDashboard";
+import AustraliaEpcRates from "./components/country/AustraliaEpcRates";
+import AustraliaPaymentSettings from "./components/country/AustraliaPaymentSettings";
 
 // ── BDE Portal ─────────────────────────────────────────────────────────────
 import BDELayout from "./components/bde/BDELayout";
@@ -480,12 +482,21 @@ export default function App() {
 
       case "stc-management":
         return <StcManagementDashboard />;
+        
+      case "australia-epc-rates":
+        return <AustraliaEpcRates />;
+        
+      case "australia-payments":
+        return <AustraliaPaymentSettings />;
 
       case "project-orders":
         return <LiveProjectTrackingScreen />;
 
       case "website-leads":
-        return <LeadScreen />;
+        return <LeadScreen uploadSource="website" />;
+
+      case "bde-leads-admin":
+        return <LeadScreen uploadSource="bde_manual" />;
 
       case "demand-supply":
         return <DemandSupplyScreen />;

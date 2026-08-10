@@ -55,7 +55,7 @@ export default function HowItWorks({ onScrollToForm, settings }) {
           icon: <ClipboardCheck className="w-6 h-6 text-solar-yellow-dark" />,
           title: "Team Eligibility Check Karegi",
           description:
-            "Sunnovative experts PGVCL database se load allocation aur sanjay-yojana slab details match karke optimal solar size estimate karenge.",
+            "EmergeSun experts PGVCL database se load allocation aur sanjay-yojana slab details match karke optimal solar size estimate karenge.",
           badge: "Within 1 Hour",
         },
         {

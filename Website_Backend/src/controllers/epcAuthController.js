@@ -28,13 +28,13 @@ const sendEmailOtp = async (toEmail, otp) => {
     await axios.post(
       'https://api.brevo.com/v3/smtp/email',
       {
-        sender:  { name: 'Sunnovative EPC', email: process.env.BREVO_SENDER_EMAIL },
+        sender:  { name: 'EmergeSun EPC', email: process.env.BREVO_SENDER_EMAIL },
         to:      [{ email: toEmail }],
-        subject: 'Your Sunnovative EPC Login OTP',
+        subject: 'Your EmergeSun EPC Login OTP',
         htmlContent: `
           <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;border:1px solid #e5e7eb;border-radius:12px;">
             <div style="text-align:center;margin-bottom:20px;">
-              <h2 style="color:#1d4ed8;margin:0;">Sunnovative EPC Portal</h2>
+              <h2 style="color:#1d4ed8;margin:0;">EmergeSun EPC Portal</h2>
               <p style="color:#6b7280;font-size:13px;margin-top:4px;">Solar Project Management Platform</p>
             </div>
             <p style="color:#374151;font-size:15px;">Your OTP for login/registration is:</p>

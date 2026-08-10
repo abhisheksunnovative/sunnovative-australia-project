@@ -375,7 +375,7 @@ const EpcDashboard = () => {
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3 text-white">
-                  <p className="text-[10px] font-black tracking-wider uppercase text-blue-400">Sunnovative Partner</p>
+                  <p className="text-[10px] font-black tracking-wider uppercase text-blue-400">EmergeSun Partner</p>
                   <p className="text-xs font-bold leading-tight mt-0.5 truncate">{photo.label}</p>
                   <span className="text-[9px] text-gray-300 mt-1">{new Date(photo.date).toLocaleDateString()}</span>
                 </div>

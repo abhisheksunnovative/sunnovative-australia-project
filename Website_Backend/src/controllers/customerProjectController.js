@@ -347,6 +347,42 @@ export const payEscrow = async (req, res) => {
 
     // 2. Automatically generate the Order (simulate convertToOrder)
     const { totalProjectCost } = req.body;
+    
+    // Default fallback (India)
+    let amount90 = totalProjectCost ? totalProjectCost * 0.9 : 0;
+    let amount10 = totalProjectCost ? totalProjectCost * 0.1 : 0;
+    let status90 = 'Escrowed';
+    let status10 = 'Pending';
+
+    const isAu = enquiry.country?.toLowerCase() === 'australia' || req.customer?.country?.toLowerCase() === 'australia';
+
+    if (isAu) {
+      const { default: CustomerPaymentSettings } = await import('../models/CustomerPaymentSettings.js');
+      const paySettings = await CustomerPaymentSettings.findOne({ country: 'australia' });
+      if (paySettings) {
+        const config = paySettings.projectConfigs?.find(c => c.projectType === enquiry.projectType);
+        if (config) {
+          if (config.paymentMode === 'PAYMENT_LATER') {
+             status90 = 'Pending';
+             amount90 = totalProjectCost || 0; // EPC collects all later
+             amount10 = 0;
+          } else if (config.paymentMode === 'ADVANCE_ESCROW') {
+             if (config.escrow.mode === 'PERCENTAGE') {
+               amount90 = totalProjectCost ? (totalProjectCost * config.escrow.percentage) / 100 : 0;
+               amount10 = totalProjectCost ? totalProjectCost - amount90 : 0;
+             } else if (config.escrow.mode === 'TOKEN') {
+               amount90 = config.escrow.tokenAmount || 0;
+               amount10 = totalProjectCost ? totalProjectCost - amount90 : 0;
+             } else if (config.escrow.mode === 'FULL') {
+               amount90 = totalProjectCost || 0;
+               amount10 = 0;
+             }
+             // For MILESTONES we would map it to a dynamic array, but keeping payment90/10 structure for compatibility
+          }
+        }
+      }
+    }
+
     const order = await EpcOrder.create({
       epcPartner:        enquiry.epcPartner,
       enquiry:           enquiry._id,
@@ -359,14 +395,15 @@ export const payEscrow = async (req, res) => {
       district:          enquiry.district,
       city:              enquiry.city,
       address:           enquiry.address,
+      country:           isAu ? 'australia' : (enquiry.country || 'india'),
       totalProjectValue: totalProjectCost || 0,
       payment90: {
-        amount: totalProjectCost ? totalProjectCost * 0.9 : 0,
-        status: 'Escrowed', // Since they paid escrow
+        amount: amount90,
+        status: status90,
       },
       payment10: {
-        amount: totalProjectCost ? totalProjectCost * 0.1 : 0,
-        status: 'Pending',
+        amount: amount10,
+        status: status10,
       },
       stage:  'Registration Started',
       status: 'New',
@@ -390,33 +427,63 @@ export const payEscrow = async (req, res) => {
 // -- GET /api/customer/epcs — Get available EPCs for selection ---------------
 export const getAvailableEpcs = async (req, res) => {
   try {
-    const { state, district } = req.query;
+    const { state, district, country = req.customer?.country || 'india' } = req.query;
     const { EpcPartner } = await import('../models/EpcPartner.js');
     
-    // Find EPCs matching state and district (and must be verified/active)
-    const epcs = await EpcPartner.find({
-      isVerified: true,
-      serviceAreas: {
-        $elemMatch: {
-          state: state || 'Gujarat',
-          district: district
-        }
-      }
-    }).select('companyName contactPerson totalExperience rating totalInstallations profilePic installerCount weeklyCapacityKw');
+    const isAu = country.toLowerCase() === 'australia';
 
-    // Also get fallback if no district match
-    let finalEpcs = epcs;
-    if (epcs.length === 0) {
-      finalEpcs = await EpcPartner.find({
-        isVerified: true,
-        serviceAreas: {
-          $elemMatch: {
-            state: state || 'Gujarat'
-          }
-        }
-      }).select('companyName contactPerson totalExperience rating totalInstallations profilePic installerCount weeklyCapacityKw');
+    // Find EPCs matching state and district (and must be verified/active)
+    // If Australia, we need to match by country too.
+    let query = { isVerified: true };
+    if (isAu) {
+      query.country = "australia";
+    }
+    query.serviceAreas = {
+      $elemMatch: {
+        state: state || 'Gujarat'
+      }
+    };
+    if (district && district !== 'All') {
+       query.serviceAreas.$elemMatch.district = district;
     }
 
+    let epcs = await EpcPartner.find(query)
+       .select('companyName contactPerson totalExperience rating totalInstallations profilePic installerCount weeklyCapacityKw trustBadge country');
+
+    // Also get fallback if no district match (but state match)
+    if (epcs.length === 0 && district && district !== 'All') {
+      let fallbackQuery = { isVerified: true };
+      if (isAu) fallbackQuery.country = "australia";
+      fallbackQuery.serviceAreas = {
+        $elemMatch: { state: state || 'Gujarat' }
+      };
+      epcs = await EpcPartner.find(fallbackQuery)
+         .select('companyName contactPerson totalExperience rating totalInstallations profilePic installerCount weeklyCapacityKw trustBadge country');
+    }
+
+    let finalEpcs = epcs;
+    if (isAu) {
+      const { default: InstallerRankingSettings } = await import('../models/InstallerRankingSettings.js');
+      const rankingConfig = await InstallerRankingSettings.findOne({ country: 'australia' });
+      
+      if (rankingConfig) {
+        finalEpcs.sort((a, b) => {
+          for (let prio of rankingConfig.rankingPriority) {
+            if (prio === 'rating') {
+              if (b.rating !== a.rating) return (b.rating || 0) - (a.rating || 0);
+            }
+            if (prio === 'trustBadge') {
+              const bTrust = b.trustBadge?.status === 'Approved' ? 1 : 0;
+              const aTrust = a.trustBadge?.status === 'Approved' ? 1 : 0;
+              if (bTrust !== aTrust) return bTrust - aTrust;
+            }
+          }
+          return 0;
+        });
+        
+        finalEpcs = finalEpcs.slice(0, rankingConfig.numberOfInstallersToDisplay);
+      }
+    }
     res.json({ success: true, count: finalEpcs.length, data: finalEpcs });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });

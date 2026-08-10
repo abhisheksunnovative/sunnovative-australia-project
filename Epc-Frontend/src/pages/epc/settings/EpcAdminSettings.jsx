@@ -190,12 +190,12 @@ const EpcAdminSettings = () => {
           <h3 className="text-gray-800 font-black">Need Help?</h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <a href="mailto:support@sunnovative.in"
+          <a href="mailto:support@emergesun.in"
             className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors group">
             <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white text-sm group-hover:scale-105 transition-transform">📧</div>
             <div>
               <p className="text-blue-800 text-xs font-black">Email Support</p>
-              <p className="text-blue-600 text-xs">support@sunnovative.in</p>
+              <p className="text-blue-600 text-xs">support@emergesun.in</p>
             </div>
           </a>
           <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl cursor-pointer hover:bg-green-100 transition-colors group">

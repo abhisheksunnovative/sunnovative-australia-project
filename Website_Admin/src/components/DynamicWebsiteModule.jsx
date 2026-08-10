@@ -151,11 +151,11 @@ export default function DynamicWebsiteModule() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Company / Brand Name</label>
-                <input type="text" value={settings.websiteContent?.brandName || settings.countryName || ''} onChange={e => updateNested(['websiteContent', 'brandName'], e.target.value)} className="w-full border rounded-lg p-2.5 text-sm bg-slate-50" placeholder="e.g. Sunnovative Solar" />
+                <input type="text" value={settings.websiteContent?.brandName || settings.countryName || ''} onChange={e => updateNested(['websiteContent', 'brandName'], e.target.value)} className="w-full border rounded-lg p-2.5 text-sm bg-slate-50" placeholder="e.g. EmergeSun Solar" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Brand Logo URL</label>
-                <input type="text" value={settings.websiteContent?.brandLogoUrl || ''} onChange={e => updateNested(['websiteContent', 'brandLogoUrl'], e.target.value)} className="w-full border rounded-lg p-2.5 text-sm bg-slate-50" placeholder="https://example.com/logo.png" />
+                <input type="text" value={settings.websiteContent?.brandLogoUrl || ''} onChange={e => updateNested(['websiteContent', 'brandLogoUrl'], e.target.value)} className="w-full border rounded-lg p-2.5 text-sm bg-slate-50" placeholder="https://example.com/logo.svg" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Support Phone Number</label>

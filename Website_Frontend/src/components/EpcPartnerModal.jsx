@@ -83,7 +83,7 @@ export default function EpcPartnerModal({ isOpen, onClose }) {
               Registration Received!
             </h3>
             <p className="text-slate-600 mb-6 max-w-md mx-auto">
-              Thank you for trusting Sunnovative. Our EPC channel manager will
+              Thank you for trusting EmergeSun. Our EPC channel manager will
               review your company profile and reach out within 24 business hours
               to schedule a Zoom or physical meeting in Rajkot.
             </p>
@@ -134,7 +134,7 @@ export default function EpcPartnerModal({ isOpen, onClose }) {
                 Become an EPC Delivery Partner
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Collaborate with Sunnovative Solar System Pvt Ltd to expand
+                Collaborate with EmergeSun Solar System Pvt Ltd to expand
                 standard PM Surya Ghar Yojana installations in Saurashtra.
               </p>
             </div>
@@ -286,7 +286,7 @@ export default function EpcPartnerModal({ isOpen, onClose }) {
               <div className="p-3 bg-slate-50 rounded-xl flex items-start gap-2.5 border border-slate-100">
                 <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  <strong>{isAU ? "Why Partner with Sunnovative in Australia?" : "Why Partner with Sunnovative?"}</strong> {isAU ? "Direct panel/inverter bulk logistics, STC assignment management, swift compliance coordination, and high-margin co-epc structure." : "Direct panel/inverter bulk logistics from Rajkot hub, MNRE National Portal submission convenience, swift subsidy coordination, and high-margin co-epc empanelment structure."}
+                  <strong>{isAU ? "Why Partner with EmergeSun in Australia?" : "Why Partner with EmergeSun?"}</strong> {isAU ? "Direct panel/inverter bulk logistics, STC assignment management, swift compliance coordination, and high-margin co-epc structure." : "Direct panel/inverter bulk logistics from Rajkot hub, MNRE National Portal submission convenience, swift subsidy coordination, and high-margin co-epc empanelment structure."}
                 </p>
               </div>
 

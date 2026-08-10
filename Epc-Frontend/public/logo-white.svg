@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="40 0 320 150" width="100%" height="100%">
+  <!-- Sun/Meter Graphic -->
+  <g transform="translate(200, 60)">
+    <!-- Rays -->
+    <path d="M -40,10 L -60,5 L -55,-5 L -35,0 Z" fill="#f79b38" />
+    <path d="M -30,-15 L -45,-30 L -35,-40 L -20,-25 Z" fill="#f79b38" />
+    <path d="M -5,-35 L -10,-55 L 0,-60 L 5,-40 Z" fill="#f4ea0c" />
+    <path d="M 25,-40 L 30,-65 L 40,-60 L 35,-35 Z" fill="#f4ea0c" />
+    <path d="M 50,-25 L 65,-45 L 75,-35 L 60,-15 Z" fill="#f4ea0c" />
+    <!-- Meter Needle -->
+    <path d="M 10,20 L 5,15 L 55,-50 L 65,-45 Z" fill="#f4ea0c" />
+    <!-- Bottom Rays -->
+    <path d="M -20,30 L -35,45 L -25,55 L -10,40 Z" fill="#f4ea0c" />
+    <path d="M 10,35 L 5,55 L 15,60 L 20,40 Z" fill="#f4ea0c" />
+    <path d="M 40,30 L 55,45 L 45,55 L 30,40 Z" fill="#f4ea0c" />
+  </g>
+  
+  <!-- Text -->
+  <text x="200" y="120" font-family="Arial, sans-serif" font-weight="bold" font-size="42" fill="#ffffff" text-anchor="middle">
+    EmergeSun
+  </text>
+  <text x="200" y="140" font-family="Arial, sans-serif" font-weight="normal" font-size="14" fill="#e2e8f0" text-anchor="middle">
+    Brighter Solutions for Tomorrow
+  </text>
+</svg>

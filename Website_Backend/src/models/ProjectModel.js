@@ -122,6 +122,25 @@ const ProjectOrderSchema = new mongoose.Schema(
     preferredInstallDate: { type: Date, default: null },
     isInstallDateFixed: { type: Boolean, default: false },
 
+    // ── Installation Date Negotiation Flow ────────────────────
+    installDateNegotiation: {
+      proposedDateByBde: { type: Date, default: null },
+      
+      // EPC's Response
+      epcStatus: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
+      epcNote: { type: String, default: "" },
+      epcProposedAlternateDate: { type: Date, default: null },
+      
+      // Customer's Response
+      customerStatus: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
+      customerNote: { type: String, default: "" },
+      customerProposedAlternateDate: { type: Date, default: null },
+      
+      // Final Outcome
+      isFinalized: { type: Boolean, default: false },
+      finalInstallationDate: { type: Date, default: null }
+    },
+
     // ── Payment (Signup Token) ────────────────────────────────
     paymentStatus: { type: String, enum: ["pending", "paid", "not_required"], default: "not_required" },
     razorpayOrderId: { type: String, default: "" },

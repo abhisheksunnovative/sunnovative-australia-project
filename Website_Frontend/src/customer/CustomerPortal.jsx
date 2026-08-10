@@ -457,6 +457,23 @@ function ProjectJourneyTracker({ steps, projectId, onRefresh }) {
 }
 
 
+// ── All Indian States + Union Territories ─────────────────────────────────────
+const INDIA_STATES = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
+  "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram",
+  "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
+  "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
+  // Union Territories
+  "Andaman & Nicobar Islands", "Chandigarh", "Dadra & Nagar Haveli and Daman & Diu",
+  "Delhi", "Jammu & Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
+];
+
+const AUSTRALIA_STATES = [
+  "New South Wales", "Victoria", "Queensland", "Western Australia",
+  "South Australia", "Tasmania", "Australian Capital Territory", "Northern Territory"
+];
+
 // ── SOLAR PACKAGES ────────────────────────────────────────────────────────────
 function SolarPackages({ onApply, preselectedType }) {
   const [packages, setPackages] = useState([]);
@@ -490,18 +507,19 @@ function SolarPackages({ onApply, preselectedType }) {
             {isIndia ? "Apni zaroorat ke hisaab se package chunko" : "Choose a solar package that suits your property"}
           </p>
         </div>
-        {/* State selector only for India — AU/NZ don't have state-based subsidies */}
-        {isIndia && (
-          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2">
-            <MapPin className="w-3.5 h-3.5 text-slate-400" />
-            <select value={selectedState} onChange={e => setSelectedState(e.target.value)}
-              className="text-xs font-bold text-slate-700 focus:outline-none bg-transparent">
-              {["Gujarat","Maharashtra","Rajasthan","Uttar Pradesh","Delhi","Karnataka","Tamil Nadu","Kerala"].map(s => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-        )}
+        {/* State selector — India: subsidy preview, AU: region info */}
+        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2">
+          <MapPin className="w-3.5 h-3.5 text-slate-400" />
+          <select
+            value={selectedState}
+            onChange={e => setSelectedState(e.target.value)}
+            className="text-xs font-bold text-slate-700 focus:outline-none bg-transparent max-w-[160px]"
+          >
+            {(isIndia ? INDIA_STATES : AUSTRALIA_STATES).map(s => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {isIndia && stateSubsidy > 0 && (
@@ -662,7 +680,7 @@ function EpcDirectory() {
         <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
           <Building className="w-10 h-10 mx-auto mb-2 text-slate-200" />
           <p className="text-sm font-bold text-slate-500">Abhi koi active EPC partner nahi</p>
-          <p className="text-xs text-slate-400 mt-1">Sunnovative directly assign karega aapke project ke liye</p>
+          <p className="text-xs text-slate-400 mt-1">EmergeSun directly assign karega aapke project ke liye</p>
         </div>
       )}
 
@@ -721,7 +739,7 @@ function EpcDirectory() {
         <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
         <div>
           <p className="text-xs font-bold text-blue-700">Installer Selection Process</p>
-          <p className="text-xs text-blue-600 mt-0.5">Aapke project apply karne ke baad, Sunnovative aapke district ke hisaab se best rated solar installer automatically assign karega ya aapko select karne ka option dega.</p>
+          <p className="text-xs text-blue-600 mt-0.5">Aapke project apply karne ke baad, EmergeSun aapke district ke hisaab se best rated solar installer automatically assign karega ya aapko select karne ka option dega.</p>
         </div>
       </div>
     </div>
@@ -1072,9 +1090,25 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
   const fileRef = useRef();
 
   // For CUSTOMER_SELECT
+  const [modalStep, setModalStep] = useState(isAU ? 1 : 2);
   const [epcSelectionMode, setEpcSelectionMode] = useState(false);
   const [availableEpcs, setAvailableEpcs] = useState([]);
   const [selectedEpc, setSelectedEpc] = useState(null);
+
+  useEffect(() => {
+    if (isAU && modalStep === 1) {
+      const fetchEpcs = async () => {
+        try {
+          const res = await fetch(`${API}/api/customer/epcs?state=${selectedState}&country=australia`);
+          const data = await res.json();
+          if (data.success) {
+             setAvailableEpcs(data.data);
+          }
+        } catch (err) {}
+      };
+      fetchEpcs();
+    }
+  }, [isAU, modalStep, selectedState]);
 
   const token = localStorage.getItem("customer_token");
   const total = pkg.centralSubsidy + stateSubsidy;
@@ -1132,9 +1166,9 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
 
   const submit = async () => {
     if (!form.address || !form.city) return setError("Address aur city required hain");
-    if (!rooftopPhoto) return setError("Rooftop photo upload karna zaroori hai");
+    if (!rooftopPhoto) return setError(isAU ? "Utility Bill/Site Document zaroori hai" : "Rooftop photo upload karna zaroori hai");
     if (!geo.lat) return setError("Location capture nahi hui. Photo upload retry karein aur location allow karein.");
-    if (!form.preferredInstallDate) return setError("Install date select karein");
+    if (!isAU && !form.preferredInstallDate) return setError("Install date select karein");
 
     setSubmitting(true);
     const fd = new FormData();
@@ -1179,7 +1213,7 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
             key: d.key_id,
             amount: d.amount * 100,
             currency: "INR",
-            name: "Sunnovative Solar",
+            name: "EmergeSun Solar",
             description: "Project Application Signup Token",
             order_id: d.razorpayOrderId,
             handler: async function (response) {
@@ -1258,7 +1292,36 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
         </div>
 
         <div className="p-5 space-y-5">
-          {epcSelectionMode ? (
+          {modalStep === 1 ? (
+            <div>
+              <h4 className="text-sm font-black text-slate-700 mb-3 border-b border-slate-100 pb-1">Select Your Solar Installer (EPC)</h4>
+              <p className="text-xs text-slate-500 mb-4">Aapke area ke mutabiq available certified installers ki list. Kripya kisi ek ko select karein.</p>
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                {availableEpcs.length === 0 ? (
+                  <p className="text-xs text-slate-500 text-center py-4"><Loader2 className="w-5 h-5 animate-spin mx-auto text-slate-400 mb-2"/> Fetching EPCs...</p>
+                ) : (
+                  availableEpcs.map(epc => (
+                    <div 
+                      key={epc._id} 
+                      onClick={() => setSelectedEpc(epc)}
+                      className={`border p-3 rounded-xl cursor-pointer transition ${selectedEpc?._id === epc._id ? 'border-yellow-400 bg-yellow-50' : 'border-slate-200 hover:border-yellow-200'}`}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="font-bold text-slate-800 text-sm">{epc.companyName}</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5">Contact: {epc.contactPerson}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-black text-yellow-600">⭐ {epc.rating || "New"}</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5">{epc.totalInstallations || 0} Installs</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : epcSelectionMode ? (
             <div>
               <h4 className="text-sm font-black text-slate-700 mb-3 border-b border-slate-100 pb-1">Select Your Solar Installer (EPC)</h4>
               <p className="text-xs text-slate-500 mb-4">Aapke area ke mutabiq available certified installers ki list. Kripya kisi ek ko select karein.</p>
@@ -1292,23 +1355,25 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
               <div>
                 <h4 className="text-sm font-black text-slate-700 mb-3 border-b border-slate-100 pb-1">Application Details</h4>
             
-            {/* Eligibility Check */}
-            <div className="mb-4">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Consumer Number *</label>
-              <div className="flex gap-2">
-                <input type="text" value={consumerNumber} onChange={e => setConsumerNumber(e.target.value)}
-                  placeholder="e.g. 1234567890"
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-yellow-400/50" />
-                <button type="button" onClick={handleCheckEligibility} className="px-5 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-xs whitespace-nowrap hover:bg-slate-800 transition">
-                  Verify
-                </button>
-              </div>
-              {eligibilityResult && (
-                <div className="mt-2 p-2.5 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-xs font-bold text-green-700 flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Verified: {eligibilityResult.consumerName}</p>
+            {/* Eligibility Check - India Only */}
+            {!isAU && (
+              <div className="mb-4">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Consumer Number *</label>
+                <div className="flex gap-2">
+                  <input type="text" value={consumerNumber} onChange={e => setConsumerNumber(e.target.value)}
+                    placeholder="e.g. 1234567890"
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-yellow-400/50" />
+                  <button type="button" onClick={handleCheckEligibility} className="px-5 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-xs whitespace-nowrap hover:bg-slate-800 transition">
+                    Verify
+                  </button>
                 </div>
-              )}
-            </div>
+                {eligibilityResult && (
+                  <div className="mt-2 p-2.5 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-xs font-bold text-green-700 flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Verified: {eligibilityResult.consumerName}</p>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
@@ -1328,22 +1393,26 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
               </div>
             </div>
 
-            {/* Date Picker */}
-            <div className="mb-4">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Date *</label>
-              <input type="date" value={form.preferredInstallDate} min={getMinDateString()} onChange={e => setForm(p => ({ ...p, preferredInstallDate: e.target.value }))}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-yellow-400/50" />
-              <p className="text-[9px] text-amber-600 mt-1 font-medium bg-amber-50 p-1.5 rounded border border-amber-100">
-                ⚠️ Note: The final installation date will be fixed by the EPC partner within 5 days of your selected date.
-              </p>
-            </div>
+            {/* Date Picker - India only or general? Actually Australia wants "Installation Date" to not be there maybe? The user said: "Conditionally render India fields (Rooftop Photo geo-tagged, Consumer Number, Installation Date)." But wait! If Installation Date is India only, I should hide it for AU. */}
+            {!isAU && (
+              <div className="mb-4">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Date *</label>
+                <input type="date" value={form.preferredInstallDate} min={getMinDateString()} onChange={e => setForm(p => ({ ...p, preferredInstallDate: e.target.value }))}
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-yellow-400/50" />
+                <p className="text-[9px] text-amber-600 mt-1 font-medium bg-amber-50 p-1.5 rounded border border-amber-100">
+                  ⚠️ Note: The final installation date will be fixed by the EPC partner within 5 days of your selected date.
+                </p>
+              </div>
+            )}
 
-            {/* Geo-tag & Photo */}
+            {/* Geo-tag & Photo / Utility Bill */}
             <div className="mb-4">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Rooftop Photo *</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                {isAU ? "Recent Utility Bill (Required) *" : "Rooftop Photo *"}
+              </label>
               <div className={`border-2 border-dashed rounded-xl p-3 text-center cursor-pointer transition ${rooftopPhoto ? "border-green-300 bg-green-50" : "border-slate-200 hover:border-slate-300"}`}
                 onClick={() => fileRef.current?.click()}>
-                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+                <input ref={fileRef} type="file" accept={isAU ? "image/*,application/pdf" : "image/*"} className="hidden" onChange={handlePhotoChange} />
                 {rooftopPhoto ? (
                   <div>
                     <p className="text-xs font-bold text-green-700">📎 {rooftopPhoto.name}</p>
@@ -1351,7 +1420,7 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
                   </div>
                 ) : (
                   <p className="text-xs font-bold text-slate-500 flex items-center justify-center gap-2">
-                    <Camera className="w-4 h-4" /> Tap to upload terrace photo
+                    <Camera className="w-4 h-4" /> {isAU ? "Tap to upload utility bill or site document" : "Tap to upload terrace photo"}
                   </p>
                 )}
               </div>
@@ -1366,14 +1435,27 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
             <div className="flex flex-col sm:flex-row justify-end gap-3 pt-3">
               <button onClick={onClose} disabled={submitting} className="px-5 py-2.5 rounded-xl font-bold text-sm text-slate-500 hover:bg-slate-100 transition w-full sm:w-auto">Cancel</button>
               <div className="w-full sm:w-auto">
-                <button onClick={submit} disabled={submitting || (epcSelectionMode && !selectedEpc)}
-                  className="w-full py-3.5 px-8 bg-yellow-400 text-yellow-900 font-black text-sm rounded-xl hover:bg-amber-400 transition flex items-center justify-center gap-2 disabled:opacity-50">
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                  {submitting ? "Processing..." : epcSelectionMode ? "Confirm EPC & Pay" : "Submit Application"}
-                </button>
-                {epcSelectionMode && (
+                {modalStep === 1 ? (
+                  <button onClick={() => setModalStep(2)} disabled={!selectedEpc}
+                    className="w-full py-3.5 px-8 bg-yellow-400 text-yellow-900 font-black text-sm rounded-xl hover:bg-amber-400 transition flex items-center justify-center gap-2 disabled:opacity-50">
+                    Next Step <ArrowRight className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button onClick={submit} disabled={submitting || (epcSelectionMode && !selectedEpc)}
+                    className="w-full py-3.5 px-8 bg-yellow-400 text-yellow-900 font-black text-sm rounded-xl hover:bg-amber-400 transition flex items-center justify-center gap-2 disabled:opacity-50">
+                    {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                    {submitting ? "Processing..." : epcSelectionMode ? "Confirm EPC & Pay" : "Submit Application"}
+                  </button>
+                )}
+                
+                {epcSelectionMode && modalStep === 2 && (
                   <button onClick={() => setEpcSelectionMode(false)} className="w-full mt-2 py-2 text-slate-500 text-xs font-bold hover:bg-slate-50 rounded-xl transition">
                     Go Back
+                  </button>
+                )}
+                {isAU && modalStep === 2 && !epcSelectionMode && (
+                  <button onClick={() => setModalStep(1)} className="w-full mt-2 py-2 text-slate-500 text-xs font-bold hover:bg-slate-50 rounded-xl transition">
+                    Back to EPC Selection
                   </button>
                 )}
               </div>
@@ -1402,6 +1484,12 @@ export default function CustomerPortal({ onClose }) {
   const [customerLead, setCustomerLead] = useState(null);
   const [backendNotifications, setBackendNotifications] = useState([]);
   const [selectedNotifIds, setSelectedNotifIds] = useState([]);
+
+  // Date negotiation states
+  const [installStatus, setInstallStatus] = useState('accepted');
+  const [installNote, setInstallNote] = useState('');
+  const [installAlternateDate, setInstallAlternateDate] = useState('');
+  const [isSubmittingInstallResponse, setIsSubmittingInstallResponse] = useState(false);
 
   const toggleSelectNotif = (id) => {
     setSelectedNotifIds(prev => 
@@ -1546,6 +1634,34 @@ export default function CustomerPortal({ onClose }) {
       console.error("Error fetching active project detail:", e);
     } finally {
       setLoadingDetail(false);
+    }
+  };
+
+  const handleRespondInstallDate = async (projectId) => {
+    setIsSubmittingInstallResponse(true);
+    try {
+      const res = await authFetch(`/api/project-orders/${projectId}/install-date/respond`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role: "customer",
+          status: installStatus,
+          note: installNote,
+          alternateDate: installStatus === "rejected" ? installAlternateDate : null
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Installation date response sent!");
+        fetchActiveProjectDetail(projectId);
+      } else {
+        toast.error("Failed: " + (data.message || "Unknown error"));
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Error sending response");
+    } finally {
+      setIsSubmittingInstallResponse(false);
     }
   };
 
@@ -1800,7 +1916,7 @@ export default function CustomerPortal({ onClose }) {
                       Welcome Back / Swagat Hai
                     </span>
                     <h2 className="text-xl md:text-2xl font-black">{customer?.fullName || "Solar Partner"}</h2>
-                    <p className="text-xs text-slate-400">Sunnovative energy ecosystem dashboard. Track, manage and monitor your solar installation.</p>
+                    <p className="text-xs text-slate-400">EmergeSun energy ecosystem dashboard. Track, manage and monitor your solar installation.</p>
                   </div>
                   <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl p-3 md:min-w-[240px]">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-400 to-amber-400 flex items-center justify-center text-yellow-950 font-black text-lg">
@@ -2084,7 +2200,7 @@ export default function CustomerPortal({ onClose }) {
                       <Bell className="w-4 h-4 text-blue-500" /> Notifications Center
                     </p>
                     <p className="text-[10px] text-slate-500 leading-normal font-sans">
-                      A central hub for real-time status updates, grid connection approvals, payment milestones, and important alerts from the Sunnovative operations desk.
+                      A central hub for real-time status updates, grid connection approvals, payment milestones, and important alerts from the EmergeSun operations desk.
                     </p>
                   </div>
                   <div className="bg-white p-3.5 rounded-2xl border border-slate-150 space-y-1">
@@ -2159,7 +2275,7 @@ export default function CustomerPortal({ onClose }) {
                   <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-amber-200 shadow-sm">
                     <Bell className="w-7 h-7 animate-bounce" />
                   </div>
-                  <h3 className="text-base font-black text-slate-800">👋 Welcome to Sunnovative Solar!</h3>
+                  <h3 className="text-base font-black text-slate-800">👋 Welcome to EmergeSun Solar!</h3>
                   <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto leading-relaxed">
                     Aapne abhi tak koi rooftop solar project apply nahi kiya hai. Apne pehle solar system ke liye <strong>"Create First Project"</strong> tab par click karein aur govt rebate claim karein!
                   </p>
@@ -2602,7 +2718,7 @@ export default function CustomerPortal({ onClose }) {
                     </div>
                     <div>
                       <h3 className="font-black text-slate-800 text-lg">{activeProjectDetail.assignedEPCName}</h3>
-                      <p className="text-xs text-slate-500 mt-0.5">Sunnovative Empanelled Installation Partner</p>
+                      <p className="text-xs text-slate-500 mt-0.5">EmergeSun Empanelled Installation Partner</p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-[10px] bg-green-50 text-green-700 font-bold px-2 py-0.5 rounded-full border border-green-200 flex items-center gap-0.5">
                           <Check className="w-2.5 h-2.5" />Verified Partner
@@ -2635,6 +2751,125 @@ export default function CustomerPortal({ onClose }) {
                       </div>
                     </div>
                   </div>
+
+                  {/* Installation Date Negotiation UI */}
+                  {activeProjectDetail.installDateNegotiation && activeProjectDetail.installDateNegotiation.proposedDateByBde && (
+                    <div className="border-t border-slate-100 pt-4 mt-4">
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-amber-500" /> Installation Date
+                      </h4>
+
+                      {activeProjectDetail.isInstallDateFixed ? (
+                        /* ── Final Date Fixed ── */
+                        <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-4">
+                          <p className="text-[10px] font-black text-green-700 uppercase tracking-widest mb-1">✅ Date Confirmed</p>
+                          <p className="text-base font-black text-green-900 leading-snug">
+                            {new Date(
+                              activeProjectDetail.installDateNegotiation.finalInstallationDate ||
+                              activeProjectDetail.preferredInstallDate
+                            ).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                          </p>
+                          <p className="text-[10px] text-green-600 mt-1">Your installation is scheduled. We'll see you then!</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {/* Proposed Date Pill */}
+                          <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3">
+                            <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-0.5">Proposed Date</p>
+                            <p className="text-sm font-black text-amber-900">
+                              {new Date(activeProjectDetail.installDateNegotiation.proposedDateByBde).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
+                            </p>
+                          </div>
+
+                          {activeProjectDetail.installDateNegotiation.customerStatus !== 'pending' ? (
+                            /* ── Already Responded ── */
+                            <div className={`rounded-2xl p-4 border text-sm ${
+                              activeProjectDetail.installDateNegotiation.customerStatus === 'accepted'
+                                ? 'bg-green-50 border-green-200 text-green-800'
+                                : 'bg-orange-50 border-orange-200 text-orange-800'
+                            }`}>
+                              <p className="font-bold text-sm mb-1">
+                                {activeProjectDetail.installDateNegotiation.customerStatus === 'accepted'
+                                  ? '✅ You accepted this date'
+                                  : '📅 You suggested a new date'}
+                              </p>
+                              {activeProjectDetail.installDateNegotiation.customerNote && (
+                                <p className="text-xs opacity-80 mt-1">Note: "{activeProjectDetail.installDateNegotiation.customerNote}"</p>
+                              )}
+                              {activeProjectDetail.installDateNegotiation.customerProposedAlternateDate && (
+                                <p className="text-xs font-semibold mt-1">
+                                  Alt Date: {new Date(activeProjectDetail.installDateNegotiation.customerProposedAlternateDate).toLocaleDateString()}
+                                </p>
+                              )}
+                              <p className="text-[10px] font-bold mt-2 opacity-60">Waiting for final confirmation from your account manager.</p>
+                            </div>
+                          ) : (
+                            /* ── Response Form ── */
+                            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-3">
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Your Response</p>
+
+                              {/* Pill Radio Buttons */}
+                              <div className="grid grid-cols-2 gap-2">
+                                {[
+                                  { val: 'accepted', label: '✅ Accept Date', active: 'bg-green-500 text-white border-green-500', inactive: 'bg-white text-slate-500 border-slate-200' },
+                                  { val: 'rejected', label: '📅 New Date', active: 'bg-orange-500 text-white border-orange-500', inactive: 'bg-white text-slate-500 border-slate-200' }
+                                ].map(opt => (
+                                  <label key={opt.val} className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border-2 cursor-pointer text-xs font-black transition-all active:scale-95 ${
+                                    installStatus === opt.val ? opt.active : opt.inactive
+                                  }`}>
+                                    <input type="radio" name="customerInstallStatus" value={opt.val}
+                                      checked={installStatus === opt.val}
+                                      onChange={() => setInstallStatus(opt.val)}
+                                      className="hidden" />
+                                    {opt.label}
+                                  </label>
+                                ))}
+                              </div>
+
+                              {installStatus === 'rejected' && (
+                                <div>
+                                  <label className="block text-xs font-bold text-slate-600 mb-1.5">Your Preferred Date</label>
+                                  <input
+                                    type="date"
+                                    value={installAlternateDate}
+                                    onChange={e => setInstallAlternateDate(e.target.value)}
+                                    className="border border-slate-200 bg-white px-3 py-2.5 rounded-xl text-sm w-full focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-100 transition"
+                                  />
+                                </div>
+                              )}
+
+                              <div>
+                                <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                                  Note <span className="font-normal text-slate-400">(optional)</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  value={installNote}
+                                  onChange={e => setInstallNote(e.target.value)}
+                                  placeholder="e.g. I'm only available after 2 PM"
+                                  className="border border-slate-200 bg-white px-3 py-2.5 rounded-xl text-sm w-full focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-100 transition"
+                                />
+                              </div>
+
+                              <button
+                                onClick={() => handleRespondInstallDate(activeProjectDetail._id)}
+                                disabled={isSubmittingInstallResponse || (installStatus === 'rejected' && !installAlternateDate)}
+                                className="w-full bg-amber-400 hover:bg-amber-500 active:scale-95 disabled:opacity-50 text-amber-950 font-black py-3 rounded-xl text-sm transition-all"
+                              >
+                                {isSubmittingInstallResponse ? (
+                                  <span className="flex items-center justify-center gap-2">
+                                    <span className="w-4 h-4 border-2 border-amber-900 border-t-transparent rounded-full animate-spin" />
+                                    Sending...
+                                  </span>
+                                ) : 'Send Response'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
 
                   {/* Rating Section (Visible when project is completed) */}
                   {(() => {
@@ -2720,7 +2955,7 @@ export default function CustomerPortal({ onClose }) {
                 <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center">
                   <Clock className="w-8 h-8 text-slate-350 mx-auto mb-2 animate-pulse" />
                   <p className="text-sm font-bold text-slate-700">Assigning Partner Soon...</p>
-                  <p className="text-xs text-slate-500 mt-1">Your Solar Partner is being assigned by Sunnovative. Once finalized, their contact details will appear here.</p>
+                  <p className="text-xs text-slate-500 mt-1">Your Solar Partner is being assigned by EmergeSun. Once finalized, their contact details will appear here.</p>
                 </div>
               )}
             </div>

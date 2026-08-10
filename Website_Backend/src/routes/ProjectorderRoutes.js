@@ -22,6 +22,7 @@ import {
   markEpcPayoutReceived,
   confirmEpcPayout
 } from "../controllers/projectOrderController.js";
+import { proposeDate, respondToDate, fixFinalDate } from "../controllers/installDateController.js";
 import upload from "../middleware/multer.js";
 
 const router = express.Router();
@@ -29,6 +30,11 @@ const router = express.Router();
 // Stats & pending actions (before /:id routes)
 router.get("/stats", getProjectOrderStats);
 router.get("/pending-actions", getPendingActions);
+
+// Installation Date Negotiation Flow
+router.post("/:id/install-date/propose", proposeDate);
+router.post("/:id/install-date/respond", respondToDate);
+router.post("/:id/install-date/fix", fixFinalDate);
 
 // CRUD
 router.get("/", getAllProjectOrders);

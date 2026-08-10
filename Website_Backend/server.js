@@ -16,6 +16,8 @@ import notificationRoutes from "./src/routes/notificationRoutes.js";
 import discomRoutes from "./src/routes/discomRoutes.js";
 import countryWebsiteSettingsRoutes from "./src/routes/countryWebsiteSettingsRoutes.js";
 import brandRoutes from "./src/routes/brandRoutes.js";
+import epcRateCardRoutes from "./src/routes/epcRateCardRoutes.js";
+import customerPaymentSettingsRoutes from "./src/routes/customerPaymentSettingsRoutes.js";
 
 // ── EPC Routes (converted to ESM, all under src/routes now) ─────────────────
 import epcAuthRoutes from "./src/routes/epcAuthRoutes.js";
@@ -129,6 +131,10 @@ app.use("/api/leads", leadRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/demand-supply", demandSupplyRoutes);
 app.use("/api/country-settings", countryWebsiteSettingsRoutes);
+
+// Custom Australia Journeys
+app.use("/api/epc-rates", epcRateCardRoutes);
+app.use("/api/admin/payment-settings", customerPaymentSettingsRoutes);
 
 // ══════════════════════════════════════════════════════════════════════════
 // EPC PARTNER PORTAL ROUTES

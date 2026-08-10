@@ -144,7 +144,7 @@ const EpcWallet = () => {
         amount: order.amount,
         currency: order.currency,
         order_id: order.orderId,
-        name: 'Sunnovative EPC Portal',
+        name: 'EmergeSun EPC Portal',
         description: `${order.kw} KW credits — ${order.projectType}`,
         theme: { color: '#2563eb' },
         handler: async (response) => {

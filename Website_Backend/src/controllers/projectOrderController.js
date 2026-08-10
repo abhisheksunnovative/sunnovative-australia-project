@@ -627,7 +627,7 @@ export const confirmInstallDate = async (req, res) => {
       // Customer SMS/Email
       await sendNotificationSMS(
         projectOrder.customerMobile, 
-        `Dear ${projectOrder.customerName}, your solar installation with ${projectOrder.assignedEPCName || 'Sunnovative EPC Partner'} is CONFIRMED for ${dateFormatted}. Thank you for choosing Sunnovative!`
+        `Dear ${projectOrder.customerName}, your solar installation with ${projectOrder.assignedEPCName || 'EmergeSun EPC Partner'} is CONFIRMED for ${dateFormatted}. Thank you for choosing EmergeSun!`
       );
 
       // EPC Partner SMS/Email

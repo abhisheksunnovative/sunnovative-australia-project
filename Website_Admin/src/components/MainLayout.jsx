@@ -107,6 +107,11 @@ export const MainLayout = ({
       icon: <UserCheck className="w-5 h-5" />,
     },
     {
+      name: "BDE Uploaded Leads",
+      id: "bde-leads-admin",
+      icon: <Users className="w-5 h-5" />,
+    },
+    {
       name: "Plans & Subscriptions",
       id: "subscriptions",
       icon: <CreditCard className="w-5 h-5" />,
@@ -160,6 +165,16 @@ export const MainLayout = ({
       name: "STC Management (AU)",
       id: "stc-management",
       icon: <FileCheck className="w-5 h-5" />,
+    },
+    {
+      name: "Australia EPC Rates",
+      id: "australia-epc-rates",
+      icon: <Award className="w-5 h-5" />,
+    },
+    {
+      name: "Australia Payments",
+      id: "australia-payments",
+      icon: <CreditCard className="w-5 h-5" />,
     },
       {
         name: "Brand Management",
@@ -236,7 +251,7 @@ export const MainLayout = ({
     allMenuItems.find((item) => item.id === currentTab)?.name ||
     websiteContentItems.find((item) => item.id === currentTab)?.name ||
     eligibilityItems.find((item) => item.id === currentTab)?.name ||
-    "Sunnovative";
+    "EmergeSun";
 
   const [notifications, setNotifications] = useState([]);
   const [selectedNotifIds, setSelectedNotifIds] = useState([]);
@@ -434,18 +449,11 @@ export const MainLayout = ({
 
       {/* --- DESKTOP SIDEBAR --- */}
       <aside className="hidden lg:flex flex-col w-64 bg-primary text-white border-r border-[#154E6F] flex-shrink-0 z-30 transition-all duration-300">
-        <div className="h-16 flex items-center px-6 gap-3 border-b border-[#154E6F]">
-          <div className="p-2 bg-secondary rounded-xl text-primary font-bold">
-            <Sun className="w-6 h-6 animate-spin-slow rotate-12" />
-          </div>
-          <div>
-            <span className="font-extrabold text-lg tracking-tight font-display select-none block">
-              SUNNOVATIVE
-            </span>
-            <span className="text-[10px] text-sky-200 uppercase tracking-widest font-mono">
-              {portalName}
-            </span>
-          </div>
+        <div className="h-16 flex flex-col justify-center px-6 border-b border-[#154E6F]">
+          <img src="/logo-white.png" alt="EmergeSun" className="w-32 h-auto object-contain object-left" />
+          <span className="text-[10px] text-sky-200 uppercase tracking-widest font-mono">
+            {portalName}
+          </span>
         </div>
 
         {/* Sidebar Nav Items */}
@@ -581,18 +589,11 @@ export const MainLayout = ({
               </button>
             </div>
 
-            <div className="flex flex-shrink-0 items-center px-6 gap-3 mb-4">
-              <div className="p-2 bg-secondary rounded-xl text-primary font-bold">
-                <Sun className="w-6 h-6 rotate-12" />
-              </div>
-              <div>
-                <span className="font-extrabold text-lg tracking-tight font-display text-white">
-                  SUNNOVATIVE
-                </span>
-                <span className="text-[10px] text-sky-200 block uppercase tracking-wider font-mono">
-                  {portalName}
-                </span>
-              </div>
+            <div className="flex flex-col justify-center px-6 mb-4">
+              <img src="/logo-white.png" alt="EmergeSun" className="w-32 h-auto object-contain object-left" />
+              <span className="text-[10px] text-sky-200 block uppercase tracking-wider font-mono">
+                {portalName}
+              </span>
             </div>
 
             <div className="mt-5 h-0 flex-1 overflow-y-auto px-4 space-y-1.5 pb-8">
@@ -702,7 +703,7 @@ export const MainLayout = ({
               <Menu className="w-5 h-5" />
             </button>
             <span className="font-extrabold text-sm font-display tracking-tight text-primary">
-              SUNNOVATIVE
+              emergesun
             </span>
           </div>
 

@@ -70,7 +70,7 @@ export default function EpcProjectsAndStats() {
       savings: "₹2,450 Saved / Mo",
       subsidyStatus: "₹78,000 Subsidy Credited",
       review:
-        "“I was hesitant about government subsidy procedures but Sunnovative and Ambika Solar engineers took care of all PGVCL paperwork. My bank credit was settled in just 22 days! My light bill is now virtually ₹0.”",
+        "“I was hesitant about government subsidy procedures but EmergeSun and Ambika Solar engineers took care of all PGVCL paperwork. My bank credit was settled in just 22 days! My light bill is now virtually ₹0.”",
       rating: 5,
       projectImg:
         "https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?auto=format&fit=crop&w=800&q=80",
@@ -87,7 +87,7 @@ export default function EpcProjectsAndStats() {
       savings: "₹4,800 Saved / Mo",
       subsidyStatus: "₹78,000 Cap Subsidy Settled",
       review:
-        "“With 3 air conditioners running throughout daytime, our bills were sky high. Apex team installed bifacial tier-1 panels under Sunnovative guidance. Highly cooperative engineers who knew every detail of National Portal submission.”",
+        "“With 3 air conditioners running throughout daytime, our bills were sky high. Apex team installed bifacial tier-1 panels under EmergeSun guidance. Highly cooperative engineers who knew every detail of National Portal submission.”",
       rating: 5,
       projectImg:
         "https://images.unsplash.com/photo-1548613053-220ef31815bb?auto=format&fit=crop&w=800&q=80",
@@ -104,7 +104,7 @@ export default function EpcProjectsAndStats() {
       savings: "₹14,600 Saved / Mo",
       subsidyStatus: "GEDA Net-Metering Activated",
       review:
-        "“We compiled light bills for the entire cooperative housing block. Vertex and Sunnovative designed a flawless micro-grid solution. Cleanest workmanship, GEDA testing was certified within 48 hours is what built absolute trust!”",
+        "“We compiled light bills for the entire cooperative housing block. Vertex and EmergeSun designed a flawless micro-grid solution. Cleanest workmanship, GEDA testing was certified within 48 hours is what built absolute trust!”",
       rating: 5,
       projectImg:
         "https://images.unsplash.com/photo-1613665813446-82a78c468a1d?auto=format&fit=crop&w=800&q=80",
@@ -132,7 +132,7 @@ export default function EpcProjectsAndStats() {
             EPC Completed Projects & Real Client Testimonials
           </h2>
           <p className="text-slate-600 mt-4 text-xs md:text-sm leading-relaxed max-w-2xl mx-auto">
-            Sunnovative Solar System Pvt Ltd handles complete premium component
+            EmergeSun Solar System Pvt Ltd handles complete premium component
             logistics while our network of authorized EPC partners installs
             rooftop projects safely, back-tested by real families inside Rajkot.
           </p>

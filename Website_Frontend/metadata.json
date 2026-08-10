@@ -1,6 +1,6 @@
 {
-  "name": "Sunnovative Solar - PM Surya Ghar Yojana",
-  "description": "Frontend website for Sunnovative Solar System Pvt Ltd in Rajkot, Gujarat, focusing on PM Surya Ghar Yojana rooftop solar lead generation.",
+  "name": "EmergeSun Solar - PM Surya Ghar Yojana",
+  "description": "Frontend website for EmergeSun Solar System Pvt Ltd in Rajkot, Gujarat, focusing on PM Surya Ghar Yojana rooftop solar lead generation.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

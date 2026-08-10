@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 /**
- * Universal SMS Service for Sunnovative using YourBulkSMS / ControlSMS
+ * Universal SMS Service for EmergeSun using YourBulkSMS / ControlSMS
  * @param {string} mobile - 10-digit mobile number
  * @param {string} otp - OTP code to send
  * @returns {Promise<Object>} API Response

@@ -1342,7 +1342,7 @@ const INDIA_BASE_SETTINGS = {
     badge: "PM Surya Ghar Yojana - Gujarat Resident Portal",
     headingLine1: "Surya Ghar Yojana ke liye",
     headingHighlight: "Rooftop Solar Lagvao!",
-    subtext: "Bijli bill bachao, subsidy ka benefit lo, aur trusted solar expert ke saath solar installation karao. Get up to ₹78,000 subsidy transferred directly to your bank account with Sunnovative Solar System Pvt Ltd.",
+    subtext: "Bijli bill bachao, subsidy ka benefit lo, aur trusted solar expert ke saath solar installation karao. Get up to ₹78,000 subsidy transferred directly to your bank account with EmergeSun Solar System Pvt Ltd.",
     ctaPrimary: "Free Solar Consultation",
     ctaSecondary: "Check Eligibility (Guj)",
     socialProofText: "Rajkot Residents: Save up to ₹78,000 on Solar Subsidy!"
@@ -1355,7 +1355,7 @@ const INDIA_BASE_SETTINGS = {
   benefits: {
     sectionTitle: "Why Install Solar Now?",
     sectionSubtitle: "PM Surya Ghar Yojana ke Benefits & Savings",
-    sectionDesc: "Sarkari Subsidy and Sunnovative Solar System's advanced German engineering make Rooftop Solar the single smartest investment for every home in Rajkot.",
+    sectionDesc: "Sarkari Subsidy and EmergeSun Solar System's advanced German engineering make Rooftop Solar the single smartest investment for every home in Rajkot.",
     items: [
       {
         title: "Government Subsidy Support",
@@ -1394,7 +1394,7 @@ const INDIA_BASE_SETTINGS = {
     sectionSubtitle: "Solar Installation Kaise Kaam Karta Hai?",
     steps: [
       { stepNum: "01", timeLabel: "In 2 Minutes", title: "Light Bill Details Submit Kare", desc: "Hamari system me apna Consumer Number ya Average monthly bill enter kare. High-resolution utility bill upload option available." },
-      { stepNum: "02", timeLabel: "Within 1 Hour", title: "Team Eligibility Check Karegi", desc: "Sunnovative experts PGVCL database se load allocation aur sanjay-yojana slab details match karke optimal solar size estimate karenge." },
+      { stepNum: "02", timeLabel: "Within 1 Hour", title: "Team Eligibility Check Karegi", desc: "EmergeSun experts PGVCL database se load allocation aur sanjay-yojana slab details match karke optimal solar size estimate karenge." },
       { stepNum: "03", timeLabel: "In 24 Hours", title: "Free Site Survey & Quotation", desc: "Rajkot ke field officers aapke rooftop area, shadow profiles aur tile strength check kareke high-durability customized quote design karenge." },
       { stepNum: "04", timeLabel: "Direct Transfer", title: "Installation & Subsidy Credit", desc: "Within 10-15 days, structure setup and net-meter commissioning are finalized. Government subsidy amount directly transfers into your bank account." }
     ]
@@ -1407,7 +1407,7 @@ const INDIA_BASE_SETTINGS = {
   },
   trust: {
     sectionTitle: "Local Trusted Expert",
-    sectionSubtitle: "Sunnovative Solar System Pvt Ltd",
+    sectionSubtitle: "EmergeSun Solar System Pvt Ltd",
     sectionDesc: "As the leading epc service firm in Rajkot & Saurashtra region, we combine world-class PV component logistics with rigorous local engineering standards, protecting families against volatile power rates for the next 25+ years.",
     points: [
       { title: "Empaneled Solar Contractor", desc: "Proud GEDA (Gujarat Energy Development Agency) authorized empanelled solar installer. Certified to load subsidy directly on the National Portal." },
@@ -1422,7 +1422,7 @@ const INDIA_BASE_SETTINGS = {
     phone: "+91 98982 31245",
     email: "info@sunnovative.com",
     gedaCertNo: "#RJK-20412",
-    copyrightText: "Sunnovative Solar System Pvt Ltd is Rajkot's premium GEDA registered EPC service provider specialized in standard residential PM Surya Ghar Yojana. Turns rooftop shadows into guaranteed cash savings."
+    copyrightText: "EmergeSun Solar System Pvt Ltd is Rajkot's premium GEDA registered EPC service provider specialized in standard residential PM Surya Ghar Yojana. Turns rooftop shadows into guaranteed cash savings."
   },
   projectForm: {
     title: "Apply for Solar",
@@ -1461,7 +1461,7 @@ const INDIA_COMMERCIAL_SETTINGS = {
     topBannerText: "Commercial & Industrial Solar Solutions | 40% Accelerated Depreciation & GST input credit"
   },
   hero: {
-    badge: "Sunnovative Commercial Solar",
+    badge: "EmergeSun Commercial Solar",
     headingLine1: "Industrial & Commercial",
     headingHighlight: "Solar ROI Optimized!",
     subtext: "Reduce factory, corporate or hospital operational energy costs up to 90%. Benefit from 40% accelerated depreciation write-offs and claim 18% GST input credit with our tier-1 engineering setups.",
@@ -1564,7 +1564,7 @@ const AUSTRALIA_BASE_SETTINGS = {
   },
   trust: {
     sectionTitle: "Australian Solar Experts",
-    sectionSubtitle: "Sunnovative Energy Systems",
+    sectionSubtitle: "EmergeSun Energy Systems",
     sectionDesc: "Connecting Australian homeowners with verified, high-quality SAA accredited solar installers.",
     points: [
       { title: "SAA Accredited Installers", desc: "All installations are performed by Solar Accreditation Australia (SAA) certified professionals." },
@@ -1579,7 +1579,7 @@ const AUSTRALIA_BASE_SETTINGS = {
     phone: "1300 123 456",
     email: "info@sunnovative.com.au",
     gedaCertNo: "ABN: 12 345 678 910",
-    copyrightText: "Sunnovative Energy Systems is an SAA accredited solar provider, helping Australians slash power bills with premium tier-1 solar solutions."
+    copyrightText: "EmergeSun Energy Systems is an SAA accredited solar provider, helping Australians slash power bills with premium tier-1 solar solutions."
   },
   projectForm: {
     title: "Apply for Solar",

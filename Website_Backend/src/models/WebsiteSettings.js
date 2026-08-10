@@ -28,7 +28,7 @@ const websiteSettingsSchema = new mongoose.Schema(
       subtext: {
         type: String,
         default:
-          "Bijli bill bachao, subsidy ka benefit lo, aur trusted solar expert ke saath solar installation karao. Get up to ₹78,000 subsidy transferred directly to your bank account with Sunnovative Solar System Pvt Ltd.",
+          "Bijli bill bachao, subsidy ka benefit lo, aur trusted solar expert ke saath solar installation karao. Get up to ₹78,000 subsidy transferred directly to your bank account with EmergeSun Solar System Pvt Ltd.",
       },
       ctaPrimary: { type: String, default: "Free Solar Consultation" },
       ctaSecondary: { type: String, default: "Check Eligibility (Guj)" },
@@ -50,7 +50,7 @@ const websiteSettingsSchema = new mongoose.Schema(
       sectionDesc: {
         type: String,
         default:
-          "Sarkari Subsidy and Sunnovative Solar System's advanced German engineering make Rooftop Solar the single smartest investment for every home in Rajkot.",
+          "Sarkari Subsidy and EmergeSun Solar System's advanced German engineering make Rooftop Solar the single smartest investment for every home in Rajkot.",
       },
       items: [
         {
@@ -91,7 +91,7 @@ const websiteSettingsSchema = new mongoose.Schema(
     // ── TRUST SECTION ────────────────────────────────────────────
     trust: {
       sectionTitle: { type: String, default: "Local Trusted Expert" },
-      sectionSubtitle: { type: String, default: "Sunnovative Solar System Pvt Ltd" },
+      sectionSubtitle: { type: String, default: "EmergeSun Solar System Pvt Ltd" },
       sectionDesc: {
         type: String,
         default:
@@ -138,7 +138,7 @@ const websiteSettingsSchema = new mongoose.Schema(
       copyrightText: {
         type: String,
         default:
-          "Sunnovative Solar System Pvt Ltd is Rajkot's premium GEDA registered EPC service provider specialized in standard residential PM Surya Ghar Yojana.",
+          "EmergeSun Solar System Pvt Ltd is Rajkot's premium GEDA registered EPC service provider specialized in standard residential PM Surya Ghar Yojana.",
       },
     },
 
@@ -188,6 +188,19 @@ const websiteSettingsSchema = new mongoose.Schema(
     usps: {
       title: { type: String, default: "Why Choose Us" },
       items: [{ text: { type: String } }]
+    },
+    userReviews: {
+      sectionTitle: { type: String, default: "User Reviews" },
+      reviews: [
+        {
+          userName: { type: String },
+          userPhoto: { type: String },
+          rating: { type: Number, min: 1, max: 5 },
+          feedback: { type: String },
+          epcName: { type: String },
+          epcRating: { type: Number, min: 1, max: 5 }
+        }
+      ]
     }
   },
   { timestamps: true }

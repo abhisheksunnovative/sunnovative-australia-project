@@ -213,13 +213,7 @@ const EpcLogin = () => {
 
       <div className="w-full max-w-sm">
         <div className="text-center mb-6">
-          <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-            <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800">Sunnovative EPC</h1>
+          <img src="/logo.png" alt="EmergeSun" className="w-48 h-auto mx-auto mb-4 object-contain" />
           <p className="text-gray-500 text-sm">EPC Partner Portal</p>
         </div>
 
@@ -283,9 +277,10 @@ const EpcLogin = () => {
               )}
               <button onClick={handleContinue} disabled={!selected || loading}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-sm">
-                {loading ? 'Please wait...' : 'Continue'}
+                {loading ? 'Please wait...' : 'Login'}
               </button>
               <p className="text-center text-gray-400 text-xs">
+                If you don't find your EPC company name in the dropdown, please register first.<br/><br/>
                 New EPC? <Link to="/epc/register" className="text-blue-600 font-medium">Register here</Link>
               </p>
             </div>

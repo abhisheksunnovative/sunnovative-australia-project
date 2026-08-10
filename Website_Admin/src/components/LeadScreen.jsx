@@ -13,6 +13,7 @@ import {
   Upload, TrendingUp, Phone, Mail, MapPin, Zap, X, ArrowRight,
   UserCheck, BarChart2, Download, Calendar, Clock
 } from "lucide-react";
+import UnifiedAddLeadModal from "./UnifiedAddLeadModal";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
@@ -37,6 +38,16 @@ const SOURCE_COLORS = {
   "bulk-upload":  "bg-violet-50 text-violet-700",
   "epc-portal":   "bg-orange-50 text-orange-700",
 };
+
+const solarTypes = [
+  { value: "residential", label: "Residential" },
+  { value: "au-standard-family", label: "AU Standard Family" },
+  { value: "surya-ghar", label: "Surya Ghar Yojana" },
+  { value: "group-solar", label: "Group Solar" },
+  { value: "commercial", label: "Commercial Solar" },
+  { value: "village", label: "Village Solar Campaign" },
+  { value: "msme", label: "MSME" }
+];
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 const Toast = ({ toast }) => toast ? (
@@ -309,7 +320,7 @@ const UploadModal = ({ onClose, onSuccess }) => {
 };
 
 // ── Main LeadsScreen ──────────────────────────────────────────────────────────
-export const LeadsScreen = () => {
+const LeadScreen = ({ uploadSource = 'website' }) => {
   const [leads, setLeads] = useState([]);
   const [stats, setStats] = useState({ total: 0, newLeads: 0, converted: 0, today: 0 });
   const [loading, setLoading] = useState(true);
@@ -631,7 +642,7 @@ export const LeadsScreen = () => {
 
       {/* Modals */}
       {showCreate && <CreateLeadModal onClose={() => setShowCreate(false)} onSuccess={fetchLeads} solarTypes={solarTypes} filterCountry={filterCountry} />}
-      {showUpload && <UploadModal onClose={() => setShowUpload(false)} onSuccess={() => { setShowUpload(false); fetchLeads(1); showToast("success", "Leads uploaded!"); }} />}
+      {showUpload && <UnifiedAddLeadModal isBDE={false} onClose={() => setShowUpload(false)} onSuccess={() => { setShowUpload(false); fetchLeads(1); showToast("success", "Lead Added/Uploaded!"); }} />}
       {selectedLead && (
         <LeadDetailModal
           lead={selectedLead}
@@ -644,4 +655,4 @@ export const LeadsScreen = () => {
   );
 };
 
-export default LeadsScreen;
+export default LeadScreen;

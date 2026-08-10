@@ -191,7 +191,7 @@ export const SubscriptionScreen = ({
               SaaS Partner Revenue Metrics
             </h4>
             <p className="text-xs text-gray-55 leading-relaxed">
-              Our Sunnovative platform leverages volume pricing models: Premium
+              Our EmergeSun platform leverages volume pricing models: Premium
               plans feature full Installer App support allowing field
               technicians to complete structure logs offline, accelerating
               approvals with dispatch inspectors.

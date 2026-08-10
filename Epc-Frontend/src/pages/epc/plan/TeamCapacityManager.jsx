@@ -44,7 +44,7 @@ const TeamCapacityManager = ({ myPlan }) => {
         key: data.keyId,
         amount: data.amount,
         currency: data.currency,
-        name: "Sunnovative EPC",
+        name: "EmergeSun EPC",
         description: `Add ${additionalInstallers} Installer Team(s) for ${targetDistrict}`,
         order_id: data.orderId,
         handler: async function (response) {

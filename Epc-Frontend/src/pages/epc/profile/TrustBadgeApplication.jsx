@@ -73,7 +73,7 @@ export const TrustBadgeApplication = ({ epcData, onClose, onApplySuccess }) => {
                 <ShieldCheck className="w-4 h-4" /> PREMIUM PARTNER
               </div>
               <h2 className="text-3xl font-bold mb-2">Trust Badge Application</h2>
-              <p className="text-blue-100 max-w-lg leading-relaxed">Elevate your EPC profile and unlock exclusive benefits with the official Sunnovative Trust Badge.</p>
+              <p className="text-blue-100 max-w-lg leading-relaxed">Elevate your EPC profile and unlock exclusive benefits with the official EmergeSun Trust Badge.</p>
             </div>
             <button onClick={onClose} className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -140,7 +140,7 @@ export const TrustBadgeApplication = ({ epcData, onClose, onApplySuccess }) => {
                 className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-slate-300"
               />
               <span className="text-sm font-semibold text-slate-800">
-                I have read and agree to the above terms and conditions, and I authorize Sunnovative to verify my eligibility for the Trust Badge.
+                I have read and agree to the above terms and conditions, and I authorize EmergeSun to verify my eligibility for the Trust Badge.
               </span>
             </label>
           </div>

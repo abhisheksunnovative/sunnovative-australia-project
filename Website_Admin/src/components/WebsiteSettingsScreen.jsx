@@ -652,6 +652,32 @@ export default function WebsiteSettingsScreen() {
               </div>
             </SectionCard>
 
+            <SectionCard title="8. User Reviews" icon={<Users className="w-5 h-5 text-amber-500" />}>
+              <div className="space-y-4 pt-4">
+                <Field label="Section Title" value={settings.userReviews?.sectionTitle} onChange={(v) => updatePath(["userReviews", "sectionTitle"], v)} />
+                
+                {(settings.userReviews?.reviews || []).map((rev, i) => (
+                  <div key={i} className="border border-slate-200 rounded-xl p-4 bg-slate-50 space-y-4 relative">
+                    <button onClick={() => removeItem(["userReviews", "reviews"], i)} className="absolute top-2 right-2 p-1 text-red-400 hover:bg-red-100 rounded-md">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Field label="User Name" value={rev.userName} onChange={(v) => updateItem(["userReviews", "reviews"], i, "userName", v)} />
+                      <Field label="User Photo URL" value={rev.userPhoto} onChange={(v) => updateItem(["userReviews", "reviews"], i, "userPhoto", v)} />
+                      <Field label="User Rating (1-5)" type="number" value={rev.rating} onChange={(v) => updateItem(["userReviews", "reviews"], i, "rating", Number(v))} />
+                      <Field label="EPC Name" value={rev.epcName} onChange={(v) => updateItem(["userReviews", "reviews"], i, "epcName", v)} />
+                      <Field label="EPC Rating (1-5)" type="number" value={rev.epcRating} onChange={(v) => updateItem(["userReviews", "reviews"], i, "epcRating", Number(v))} />
+                    </div>
+                    <Field label="Feedback / Review Text" value={rev.feedback} onChange={(v) => updateItem(["userReviews", "reviews"], i, "feedback", v)} isTextarea />
+                  </div>
+                ))}
+                <button onClick={() => addItem(["userReviews", "reviews"], { userName: "", userPhoto: "", rating: 5, feedback: "", epcName: "", epcRating: 5 })} className="flex items-center gap-2 text-xs font-semibold text-solar-yellow hover:text-amber-600 transition">
+                  <Plus className="w-4 h-4" /> Add Review
+                </button>
+              </div>
+            </SectionCard>
+
+
             {/* Legacy Sections mapping */}
             <SectionCard title="Legacy: Benefits Section" icon={<Globe className="w-5 h-5" />} defaultOpen={false}>
                <div className="space-y-4 pt-4">

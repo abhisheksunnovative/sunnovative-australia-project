@@ -8,7 +8,7 @@
 const NOMINATIM_BASE = "https://nominatim.openstreetmap.org";
 
 // Required by Nominatim usage policy — identify your app
-const USER_AGENT = "SunnovativeEnergySystems/1.0 (contact: info@sunnovative.com)";
+const USER_AGENT = "EmergeSunEnergySystems/1.0 (contact: info@sunnovative.com)";
 
 /**
  * Reverse Geocode — Lat/Long se district, taluka, pincode, address nikalo

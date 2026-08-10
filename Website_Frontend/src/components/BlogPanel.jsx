@@ -33,7 +33,7 @@ const BLOG_POSTS = [
       "Wondering how to get up to ₹78,000 subsidy on residential solar systems in Rajkot, Gujarat? Read our comprehensive 2026 step-by-step guide covering GEDA empanelment rules, portal application, and net-metering approval.",
     paragraphs: [
       "Under the PM Surya Ghar: Muft Bijli Yojana launched by the Central Government, residential houses in Rajkot can avail of substantial financial subsidies to set up grid-connected solar power systems. For system sizes up to 2 kW, a subsidy of ₹30,000 per kW is provided. For systems between 2 kW and 3 kW, an additional ₹18,000 per kW is granted. This caps the maximum central subsidy at a generous ₹78,000.",
-      "To claim this seamless direct-benefit transfer (DBT), Rajkot homeowners must install systems only through a GEDA (Gujarat Energy Development Agency) empanelled vendor like Sunnovative Solar System Pvt Ltd. All hardware, including the photovoltaic modules, must comply strictly with the Domestic Content Requirement (DCR) parameters certified by the Ministry of New and Renewable Energy (MNRE).",
+      "To claim this seamless direct-benefit transfer (DBT), Rajkot homeowners must install systems only through a GEDA (Gujarat Energy Development Agency) empanelled vendor like EmergeSun Solar System Pvt Ltd. All hardware, including the photovoltaic modules, must comply strictly with the Domestic Content Requirement (DCR) parameters certified by the Ministry of New and Renewable Energy (MNRE).",
       "The step-by-step installation process is fully digitized. First, register on the National Portal (pmsuryaghar.gov.in) with your 11-digit PGVCL consumer number (located on your light bill). After submit, the local DISCOM, Paschim Gujarat Vij Company Limited, will carry out a technical feasibility analysis to authorize your request. Once approved, our engineers will install the DCR-approved panels, prepare the net-metering application, and coordinate with PGVCL inspectors for official meter testing. Your subsidy is directly credited to your submitted bank account within 30 days of standard commissioning!",
     ],
     keyTakeaways: [
@@ -90,7 +90,7 @@ const BLOG_POSTS = [
       },
       {
         q: "How do I request a sanctioned load expansion from PGVCL?",
-        a: "You can apply for load expansion directly via the PGVCL consumer portal or let Sunnovative team handle the documentation alongside your solar file.",
+        a: "You can apply for load expansion directly via the PGVCL consumer portal or let EmergeSun team handle the documentation alongside your solar file.",
       },
     ],
   },
@@ -361,7 +361,7 @@ export default function BlogPanel({ onBackToHome, onScrollToForm }) {
                   </div>
                   <div className="space-y-1">
                     <h4 className="font-extrabold text-white text-sm">
-                      Sunnovative Solar Desk
+                      EmergeSun Solar Desk
                     </h4>
                     <p className="text-[11px] text-slate-500">
                       Rajkot Empanelled Solar Experts
@@ -588,7 +588,7 @@ export default function BlogPanel({ onBackToHome, onScrollToForm }) {
                 <p className="text-xs text-slate-400 leading-normal">
                   PM Surya Ghar Yojana ke rules dynamic hain. GEDA registry
                   vendor, PGVCL light bill unit slabs aur actual standard
-                  Mono-PERC arrays select karein. Sunnovative solar system
+                  Mono-PERC arrays select karein. EmergeSun solar system
                   experts are 24/7 available in Rajkot hub!
                 </p>
               </div>

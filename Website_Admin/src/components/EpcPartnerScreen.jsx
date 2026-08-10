@@ -20,6 +20,8 @@ import { StatusBadge, RatingStars, DetailDrawer, EmptyState } from "./CommonUI";
 import { COUNTRY_DATA } from "../utils/geography";
 import { useAdminSettings } from "../hooks/useAdminSettings";
 
+const availableCountries = Object.keys(COUNTRY_DATA);
+
 export const EpcPartnerScreen = ({
   partners,
   projects,
@@ -1332,7 +1334,7 @@ export const EpcPartnerScreen = ({
                       {selectedPartner.experience} Years
                     </strong>{" "}
                     and installer size, the following qualification rules govern
-                    assignments on Sunnovative SaaS:
+                    assignments on EmergeSun SaaS:
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                     <div className="p-3 border rounded-xl">

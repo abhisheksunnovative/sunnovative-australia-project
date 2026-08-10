@@ -19,6 +19,11 @@ export default function BDEProjectTracking({ bdeId }) {
   const [bdeUploadFile, setBdeUploadFile] = useState(null);
   const [bdeEvidenceNote, setBdeEvidenceNote] = useState("");
   const [expandedStepIndex, setExpandedStepIndex] = useState(null);
+  
+  // Date negotiation states
+  const [proposedDate, setProposedDate] = useState("");
+  const [finalDate, setFinalDate] = useState("");
+  const [isSubmittingDate, setIsSubmittingDate] = useState(false);
 
   const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
@@ -97,6 +102,56 @@ export default function BDEProjectTracking({ bdeId }) {
     }
   };
 
+  const handleProposeDate = async (projectId) => {
+    if (!proposedDate) return alert("Please select a date to propose.");
+    setIsSubmittingDate(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/bde/projects/${projectId}/install-date/propose`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ proposedDate }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("Installation Date Proposed successfully!");
+        setProposedDate("");
+        fetchProjects();
+      } else {
+        alert("Failed: " + (data.message || "Something went wrong"));
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error proposing date");
+    } finally {
+      setIsSubmittingDate(false);
+    }
+  };
+
+  const handleFixFinalDate = async (projectId) => {
+    if (!finalDate) return alert("Please select a final date to fix.");
+    setIsSubmittingDate(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/bde/projects/${projectId}/install-date/fix`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ finalDate }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("Final Installation Date Fixed!");
+        setFinalDate("");
+        fetchProjects();
+      } else {
+        alert("Failed: " + (data.message || "Something went wrong"));
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error fixing final date");
+    } finally {
+      setIsSubmittingDate(false);
+    }
+  };
+
   const filteredProjects = projects.filter(p => 
     p.customerName?.toLowerCase().includes(search.toLowerCase()) || 
     p.orderNumber?.toLowerCase().includes(search.toLowerCase()) ||
@@ -105,7 +160,8 @@ export default function BDEProjectTracking({ bdeId }) {
 
   const selectedProject = projects.find(p => p._id === selectedProjectId);
 
-  if (loading) return <div className="p-8 text-center text-slate-500 font-bold flex items-center justify-center gap-2"><Loader2 className="w-5 h-5 animate-spin text-yellow-500" /> Loading Active Projects...</div>;  // ── DETAIL TRACKING VIEW (When a BDE clicks a customer card) ──
+  if (loading) return <div className="p-8 text-center text-slate-500 font-bold flex items-center justify-center gap-2"><Loader2 className="w-5 h-5 animate-spin text-yellow-500" /> Loading Active Projects...</div>;
+  // ── DETAIL TRACKING VIEW (When a BDE clicks a customer card) ──
   if (selectedProject) {
     const isAU = selectedProject.country === "australia" || filterCountry === "australia";
     const currencySymbol = isAU ? "$" : "₹";
@@ -339,10 +395,125 @@ export default function BDEProjectTracking({ bdeId }) {
               <div><p className="text-slate-400 font-medium">Location</p><p className="font-bold text-slate-800">{selectedProject.epcDetails?.city || "City"}, {selectedProject.epcDetails?.state || "State"}</p></div>
             </div>
           ) : (
-            <p className="text-xs text-blue-700 font-medium italic">Sunnovative / BDE is curating the best certified installer partner for this property.</p>
+            <p className="text-xs text-blue-700 font-medium italic">EmergeSun / BDE is curating the best certified installer partner for this property.</p>
           )}
         </div>
 
+        {/* Installation Date Negotiation UI */}
+        {selectedProject.assignedEPCId && (
+          <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
+            <h3 className="font-black text-slate-800 text-base flex items-center gap-2 border-b border-slate-100 pb-2">
+              <Clock className="w-5 h-5 text-amber-500" /> Installation Date Scheduling
+            </h3>
+            
+            {selectedProject.isInstallDateFixed ? (
+              <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-green-800 uppercase tracking-wider">Final Date Fixed</p>
+                  <p className="text-xl font-black text-green-900 mt-1">
+                    {new Date(selectedProject.preferredInstallDate || selectedProject.installDateNegotiation?.finalInstallationDate).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                  </p>
+                </div>
+                <CheckCircle className="w-8 h-8 text-green-500" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Propose Date (if not proposed yet) */}
+                {!selectedProject.installDateNegotiation?.proposedDateByBde && (
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                    <p className="text-sm text-slate-700 font-medium mb-3">
+                      Propose an initial installation date to the EPC and Customer:
+                    </p>
+                    <div className="flex gap-3">
+                      <input 
+                        type="date"
+                        value={proposedDate}
+                        onChange={(e) => setProposedDate(e.target.value)}
+                        className="px-3 py-2 rounded-lg border border-slate-300 text-sm focus:border-amber-400 focus:outline-none flex-1"
+                      />
+                      <button 
+                        onClick={() => handleProposeDate(selectedProject._id)}
+                        disabled={isSubmittingDate || !proposedDate}
+                        className="bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold px-4 py-2 rounded-lg text-sm transition disabled:opacity-50"
+                      >
+                        {isSubmittingDate ? 'Submitting...' : 'Propose Date'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Status of Proposed Date */}
+                {selectedProject.installDateNegotiation?.proposedDateByBde && (
+                  <div className="space-y-3">
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                      <p className="text-xs font-bold text-blue-800 uppercase tracking-wider">Proposed Date</p>
+                      <p className="text-lg font-black text-blue-900">
+                        {new Date(selectedProject.installDateNegotiation.proposedDateByBde).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* EPC Status */}
+                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                        <p className="text-xs text-slate-500 font-bold uppercase mb-1">EPC Partner Response</p>
+                        <div className="flex items-center gap-2">
+                          {selectedProject.installDateNegotiation.epcStatus === 'pending' && <span className="text-slate-600 font-bold text-sm">Pending</span>}
+                          {selectedProject.installDateNegotiation.epcStatus === 'accepted' && <span className="text-green-600 font-bold text-sm flex items-center gap-1"><CheckCircle className="w-4 h-4"/> Accepted</span>}
+                          {selectedProject.installDateNegotiation.epcStatus === 'rejected' && <span className="text-red-600 font-bold text-sm flex items-center gap-1"><XCircle className="w-4 h-4"/> Rejected</span>}
+                        </div>
+                        {selectedProject.installDateNegotiation.epcNote && (
+                          <p className="text-xs text-slate-600 mt-2 bg-white p-2 rounded border border-slate-100">"{selectedProject.installDateNegotiation.epcNote}"</p>
+                        )}
+                        {selectedProject.installDateNegotiation.epcProposedAlternateDate && (
+                          <p className="text-[10px] text-amber-600 font-bold mt-1">Suggested: {new Date(selectedProject.installDateNegotiation.epcProposedAlternateDate).toLocaleDateString()}</p>
+                        )}
+                      </div>
+
+                      {/* Customer Status */}
+                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                        <p className="text-xs text-slate-500 font-bold uppercase mb-1">Customer Response</p>
+                        <div className="flex items-center gap-2">
+                          {selectedProject.installDateNegotiation.customerStatus === 'pending' && <span className="text-slate-600 font-bold text-sm">Pending</span>}
+                          {selectedProject.installDateNegotiation.customerStatus === 'accepted' && <span className="text-green-600 font-bold text-sm flex items-center gap-1"><CheckCircle className="w-4 h-4"/> Accepted</span>}
+                          {selectedProject.installDateNegotiation.customerStatus === 'rejected' && <span className="text-red-600 font-bold text-sm flex items-center gap-1"><XCircle className="w-4 h-4"/> Rejected</span>}
+                        </div>
+                        {selectedProject.installDateNegotiation.customerNote && (
+                          <p className="text-xs text-slate-600 mt-2 bg-white p-2 rounded border border-slate-100">"{selectedProject.installDateNegotiation.customerNote}"</p>
+                        )}
+                        {selectedProject.installDateNegotiation.customerProposedAlternateDate && (
+                          <p className="text-[10px] text-amber-600 font-bold mt-1">Suggested: {new Date(selectedProject.installDateNegotiation.customerProposedAlternateDate).toLocaleDateString()}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Fix Final Date (Visible once both have responded, or BDE decides to force it) */}
+                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 mt-4 text-white">
+                      <p className="text-sm font-medium mb-3">
+                        Fix the Final Installation Date (this locks the date for both parties):
+                      </p>
+                      <div className="flex gap-3">
+                        <input 
+                          type="date"
+                          value={finalDate}
+                          onChange={(e) => setFinalDate(e.target.value)}
+                          className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm focus:border-amber-400 focus:outline-none flex-1"
+                        />
+                        <button 
+                          onClick={() => handleFixFinalDate(selectedProject._id)}
+                          disabled={isSubmittingDate || !finalDate}
+                          className="bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold px-4 py-2 rounded-lg text-sm transition disabled:opacity-50"
+                        >
+                          {isSubmittingDate ? 'Fixing...' : 'Fix Final Date'}
+                        </button>
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   }

@@ -80,6 +80,7 @@ export const createLead = async (req, res) => {
       tariff,
       meterCategory,
       sourceOfMedia, profession, notes,
+      uploadSource: req.body.uploadSource || 'website',
       history: [{ action: 'Created' }],
     });
 
@@ -240,9 +241,14 @@ export const getAllLeads = async (req, res) => {
       cardFilter,
       startDate,
       endDate,
+      uploadSource,
     } = req.query;
 
     const query = { isActive: true };
+
+    if (uploadSource) {
+      query.uploadSource = uploadSource;
+    }
 
     // Card filter overrides
     if (cardFilter === 'today') {
@@ -428,6 +434,8 @@ export const uploadLeads = async (req, res) => {
       return res.status(400).json({ success: false, message: 'File required' });
 
     const project = req.body.project || 'general';
+    const solarType = req.body.solarType || 'residential';
+    const country = req.body.country || 'India';
     const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
@@ -454,10 +462,12 @@ export const uploadLeads = async (req, res) => {
         city: row.city || undefined,
         pincode: row.pincode ? String(row.pincode) : undefined,
         address: row.address || undefined,
-        solarType: project,
+        solarType: solarType,
+        country: country,
         kw: row.systemCapacity ? String(row.systemCapacity) : '0',
         billAmount: row.billAmount ? Number(row.billAmount) : 0,
         notes: row.notes || undefined,
+        uploadSource: 'bde_manual',
         history: [{ action: 'Bulk uploaded' }],
       });
     }

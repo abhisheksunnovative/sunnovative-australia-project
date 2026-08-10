@@ -24,14 +24,14 @@ export const sendLowBalanceAlert = async ({ toEmail, epcName, totalCredits, lowB
 
   try {
     await transporter.sendMail({
-      from: `"Sunnovative EPC Portal" <${process.env.BREVO_SENDER_EMAIL}>`,
+      from: `"EmergeSun EPC Portal" <${process.env.BREVO_SENDER_EMAIL}>`,
       to: toEmail,
       subject: `⚠️ Low Wallet Balance — ${totalCredits} KW remaining`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
           <h2 style="color:#d97706;">Wallet Balance Low</h2>
           <p>Hi ${epcName || 'Partner'},</p>
-          <p>Your Sunnovative EPC wallet balance has dropped to
+          <p>Your EmergeSun EPC wallet balance has dropped to
              <strong>${totalCredits} KW</strong>, which is at or below your
              alert threshold of ${lowBalanceAlertKW} KW.</p>
           <p>Recharge soon to keep accepting new project orders without interruption.</p>
@@ -41,7 +41,7 @@ export const sendLowBalanceAlert = async ({ toEmail, epcName, totalCredits, lowB
             Recharge Wallet
           </a>
           <p style="color:#94a3b8;font-size:12px;margin-top:24px;">
-            This is an automated alert from Sunnovative EPC Portal.
+            This is an automated alert from EmergeSun EPC Portal.
           </p>
         </div>
       `,

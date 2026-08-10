@@ -24,17 +24,7 @@ export default function Footer({ onScrollToForm, settings: propSettings }) {
         {/* Brand Column */}
         <div className="space-y-4">
           <a href="#" onClick={handleLogoClick} className="flex items-center gap-2 group">
-            <div className="w-9 h-9 rounded-xl bg-solar-yellow flex items-center justify-center text-slate-950">
-              <Sun className="w-5 h-5 fill-amber-300 text-slate-900" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-black font-display tracking-tight text-white">
-                {brand.companyName || "SUNNOVATIVE"}
-              </span>
-              <span className="text-[9px] font-mono font-black text-solar-sky tracking-widest leading-none">
-                {brand.tagline || "SOLAR SYSTEM"}
-              </span>
-            </div>
+            <img src="/logo-white.png" alt="EmergeSun" className="w-32 h-auto object-contain" />
           </a>
           <p className="text-xs text-slate-400 leading-relaxed pt-1">
             {footer.copyrightText}
@@ -70,7 +60,7 @@ export default function Footer({ onScrollToForm, settings: propSettings }) {
         {/* Contact info */}
         <div className="space-y-4">
           <h4 className="text-sm font-bold font-display text-white uppercase tracking-wider">
-            {brand.companyName || "Sunnovative"} Headquarters
+            {brand.companyName || "EmergeSun"} Headquarters
           </h4>
           <ul className="space-y-3 text-xs">
             <li className="flex items-start gap-2">
@@ -124,7 +114,7 @@ export default function Footer({ onScrollToForm, settings: propSettings }) {
       {/* Bottom Bar */}
       <div className="bg-slate-950 text-slate-500 py-6 text-center text-[10.5px] border-t border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-3">
-          <p>© 2026 {brand.companyName || "Sunnovative"} Solar System Pvt Ltd. All rights reserved.</p>
+          <p>© 2026 {brand.companyName || "EmergeSun"} Solar System Pvt Ltd. All rights reserved.</p>
           <div className="flex gap-4">
             <span>Geda Authorized Partner</span>
             <span>•</span>
