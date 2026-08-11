@@ -10,7 +10,7 @@ import {
   Zap, Save, RefreshCw, Plus, Trash2,
   ChevronDown, ChevronUp, AlertCircle, CheckCircle,
   Loader2, Info, ToggleLeft, ToggleRight, SlidersHorizontal,
-  MapPin, IndianRupee,
+  MapPin, IndianRupee, ArrowLeft,
 } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
@@ -123,29 +123,76 @@ const SECTION_TITLES = {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
+
 export const CustomerEligibilityScreen = ({ section = null }) => {
+  const [countries, setCountries] = React.useState([]);
+  const [selectedCountryObj, setSelectedCountryObj] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
+
+  React.useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/countries`);
+        const data = await res.json();
+        if (data.success && data.data) {
+          setCountries(data.data.filter(c => c.isActive));
+        } else if (Array.isArray(data)) {
+          setCountries(data.filter(c => c.isActive));
+        }
+      } catch (err) {
+        console.error('Failed to fetch countries:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCountries();
+  }, []);
+
+  if (loading) {
+    return <div className="p-8 text-center text-slate-500">Loading countries...</div>;
+  }
+
+  if (!selectedCountryObj) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">Customer Eligibility Settings</h1>
+          <p className="text-slate-500">Select a country to configure its eligibility rules and subsidies.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {countries.map(country => (
+            <div 
+              key={country._id || country.code}
+              onClick={() => setSelectedCountryObj(country)}
+              className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-[#28377f] cursor-pointer transition-all flex flex-col items-center justify-center gap-3 group"
+            >
+              <span className="text-4xl group-hover:scale-110 transition-transform duration-300">{country.flagEmoji}</span>
+              <span className="font-bold text-slate-700 group-hover:text-[#28377f]">{country.name}</span>
+            </div>
+          ))}
+          {countries.length === 0 && (
+            <p className="text-slate-500 col-span-full">No active countries found. Please configure them in Country Settings.</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return <CustomerEligibilityContent section={section} selectedCountryObj={selectedCountryObj} onBack={() => setSelectedCountryObj(null)} />;
+};
+
+
+export const CustomerEligibilityContent = ({ section = null, selectedCountryObj, onBack }) => {
+  const selectedCountry = selectedCountryObj.code;
+  const selectedCountryName = selectedCountryObj.name;
+
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
   const [usingFallback, setUsingFallback] = useState(false);
-  const [selectedCountry, setSelectedCountry] = useState("india");
-  const [countries, setCountries] = useState([]);
 
-  useEffect(() => {
-    const fetchCountries = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/countries`);
-        const data = await res.json();
-        if (data.success) {
-          setCountries(data.data.map(c => ({ code: c.code, label: `${c.flagEmoji || ""} ${c.name}` })));
-        }
-      } catch (err) {
-        console.error("Error fetching countries:", err);
-      }
-    };
-    fetchCountries();
-  }, []);
 
   const [previewState, setPreviewState] = useState("Gujarat");
   const [previewBill, setPreviewBill] = useState(2500);
@@ -322,26 +369,12 @@ export const CustomerEligibilityScreen = ({ section = null }) => {
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
 
-      {/* ── Country Pill Selector Bar (Matching Image 2) ────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2 bg-slate-100/80 p-2 rounded-2xl border border-slate-200">
-        {countries.map((c) => (
-          <button
-            key={c.code}
-            onClick={() => setSelectedCountry(c.code)}
-            className={`px-5 py-2.5 rounded-xl font-black text-xs transition-all flex items-center gap-2 ${
-              selectedCountry === c.code
-                ? "bg-slate-900 text-white shadow-md shadow-slate-900/20 scale-[1.02]"
-                : "bg-white text-slate-700 hover:bg-slate-200/80 border border-slate-200/60"
-            }`}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
-
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
+          <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
           <div className="w-10 h-10 rounded-xl bg-yellow-50 border border-yellow-200 flex items-center justify-center">
             <Zap className="w-5 h-5 text-yellow-500" />
           </div>

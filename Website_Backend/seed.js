@@ -2,74 +2,62 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 dotenv.config();
 
-const run = async () => {
-  await mongoose.connect(process.env.MONGODB_URL);
-  console.log('Connected to DB');
+const countrySchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  code: { type: String, required: true, unique: true },
+  currencySymbol: { type: String, default: '$' },
+  phoneCode: { type: String, default: '+1' },
+  timezone: { type: String, default: 'UTC' },
+  flagEmoji: { type: String },
+  isActive: { type: Boolean, default: true }
+}, { timestamps: true });
+const CountryConfig = mongoose.model('CountryConfig', countrySchema);
 
-  const { ProjectOrder } = await import('./src/models/ProjectModel.js');
-  const EpcPartner = (await import('./src/models/EpcPartner.js')).default;
-  const EpcWallet = (await import('./src/models/EpcWallet.js')).default;
+const projectTypeSchema = new mongoose.Schema({
+  country: { type: String, required: true },
+  projectType: { type: String, required: true },
+  projectTypeLabel: { type: String },
+  isActive: { type: Boolean, default: true },
+  availableKw: [{ type: String }]
+}, { timestamps: true });
+const ProjectType = mongoose.model('ProjectType', projectTypeSchema);
 
-  // Find an EPC
-  const epc = await EpcPartner.findOne({});
-  if (!epc) { console.log('No EPC found'); process.exit(); }
-  console.log('Seeding data for EPC:', epc.companyName, epc._id);
+// Replace with your actual MongoDB connection string from .env
+const MONGO_URI = process.env.MONGODB_URL;
 
-  // Upgrade their plan to Enterprise to allow cross-district
-  epc.plan = 'Enterprise';
-  epc.activeDistricts = ['Surat', 'Ahmedabad', 'Vadodara'];
-  await epc.save();
-  console.log('Set EPC plan to Enterprise and active districts to Surat, Ahmedabad, Vadodara');
+mongoose.connect(MONGO_URI)
+  .then(async () => {
+    console.log('Connected to DB');
 
-  // Find or create wallet
-  let wallet = await EpcWallet.findOne({ epcPartner: epc._id });
-  if (!wallet) {
-    wallet = new EpcWallet({ epcPartner: epc._id, credits: [], transactions: [] });
-  }
+    const countries = [
+      { code: 'IN', name: 'India', flagEmoji: '🇮🇳' },
+      { code: 'AU', name: 'Australia', flagEmoji: '🇦🇺' },
+      { code: 'NZ', name: 'New Zealand', flagEmoji: '🇳🇿' },
+      { code: 'UK', name: 'United Kingdom', flagEmoji: '🇬🇧' },
+      { code: 'US', name: 'United States', flagEmoji: '🇺🇸' }
+    ];
 
-  // Set wallet credits to have excess supply in Ahmedabad, and some in Vadodara
-  wallet.credits = [
-    { district: 'Ahmedabad', projectType: 'Surya Ghar Yojana', credits: 100 }, // Lot of supply
-    { district: 'Vadodara', projectType: 'Surya Ghar Yojana', credits: 50 },
-    { district: 'Surat', projectType: 'Surya Ghar Yojana', credits: 10 }
-  ];
-  await wallet.save();
-  console.log('Added credits to wallet.');
+    for (let c of countries) {
+      await CountryConfig.findOneAndUpdate({ code: c.code }, { ...c, isActive: true }, { upsert: true });
+    }
+    
+    // Seed IN project types
+    await ProjectType.findOneAndUpdate({ country: 'IN', projectType: 'Residential Solar' }, { projectTypeLabel: 'Residential Solar', availableKw: ['3','5','10'] }, { upsert: true });
+    await ProjectType.findOneAndUpdate({ country: 'IN', projectType: 'Commercial Solar' }, { projectTypeLabel: 'Commercial Solar', availableKw: ['10','50','100'] }, { upsert: true });
 
-  // Create High Demand in Surat (No supply, lots of leads)
-  // Create Low Demand in Ahmedabad (Lots of supply, no leads)
-  
-  // Clear recent dummy leads to avoid conflicts
-  await ProjectOrder.deleteMany({ 'location.district': { $in: ['Surat', 'Ahmedabad', 'Vadodara'] }, customerName: 'Dummy Tester' });
+    // Seed AU project types
+    const auTypes = [
+      'Residential Solar', 'Commercial Solar', 'Residential Battery', 
+      'Commercial Battery', 'Solar and Battery', 'Heat Pump'
+    ];
+    for (let t of auTypes) {
+       await ProjectType.findOneAndUpdate({ country: 'AU', projectType: t }, { projectTypeLabel: t, availableKw: ['6.6','10','13.2'] }, { upsert: true });
+    }
 
-  for (let i = 0; i < 20; i++) {
-    // 20 leads of 5 KW in Surat = 100 KW demand
-    await ProjectOrder.create({
-      customerName: 'Dummy Tester',
-      customerMobile: '9999999999',
-      projectType: 'residential',
-      systemSizeKW: 5,
-      location: { district: 'Surat', state: 'Gujarat' },
-      status: 'lead'
-    });
-  }
-
-  for (let i = 0; i < 2; i++) {
-    // 2 leads of 5 KW in Vadodara = 10 KW demand
-    await ProjectOrder.create({
-      customerName: 'Dummy Tester',
-      customerMobile: '9999999999',
-      projectType: 'residential',
-      systemSizeKW: 5,
-      location: { district: 'Vadodara', state: 'Gujarat' },
-      status: 'lead'
-    });
-  }
-  // Ahmedabad gets 0 leads (0 Demand).
-
-  console.log('Inserted Dummy Leads for Demand.');
-  console.log('DONE!');
-  process.exit();
-};
-
-run();
+    console.log('Seed completed successfully. You can now check the Admin panel.');
+    process.exit(0);
+  })
+  .catch(err => {
+    console.error('Failed to connect to MongoDB', err);
+    process.exit(1);
+  });

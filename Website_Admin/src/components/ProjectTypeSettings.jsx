@@ -3,7 +3,7 @@ import { Plus, Edit2, Trash2, X } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4005';
 
-const ProjectTypeSettings = ({ selectedCountry }) => {
+const ProjectTypeSettings = ({ selectedCountry, readOnly = false }) => {
   const [projectTypes, setProjectTypes] = useState([]);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);

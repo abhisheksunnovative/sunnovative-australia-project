@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4005';
 
-const ProductConfigSettings = ({ selectedCountry }) => {
+const ProductConfigSettings = ({ selectedCountry, readOnly = false }) => {
   const [projectTypes, setProjectTypes] = useState([]);
   const [selectedProjectType, setSelectedProjectType] = useState('');
   const [productConfigs, setProductConfigs] = useState([]);
@@ -39,7 +39,13 @@ const ProductConfigSettings = ({ selectedCountry }) => {
       const response = await fetch(`${backendUrl}/api/project-types?country=${selectedCountry}`);
       if (!response.ok) throw new Error('Failed to fetch project types');
       const data = await response.json();
-      setProjectTypes(data);
+      if (data.success && data.data) {
+        setProjectTypes(data.data);
+      } else if (Array.isArray(data)) {
+        setProjectTypes(data);
+      } else {
+        setProjectTypes([]);
+      }
     } catch (err) {
       console.error(err);
       setError('Error loading project types.');
@@ -52,7 +58,13 @@ const ProductConfigSettings = ({ selectedCountry }) => {
       const response = await fetch(`${backendUrl}/api/product-configs?country=${selectedCountry}&projectType=${selectedProjectType}`);
       if (!response.ok) throw new Error('Failed to fetch product configs');
       const data = await response.json();
-      setProductConfigs(data);
+      if (data.success && data.data) {
+        setProductConfigs(data.data);
+      } else if (Array.isArray(data)) {
+        setProductConfigs(data);
+      } else {
+        setProductConfigs([]);
+      }
     } catch (err) {
       console.error(err);
       setError('Error loading product configs.');
@@ -122,25 +134,32 @@ const ProductConfigSettings = ({ selectedCountry }) => {
       ) : (
         <>
           <div className="mb-6">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Select Project Type</label>
-            <select 
-              className="w-full md:w-1/2 p-2 border border-slate-300 rounded focus:ring-[#f97316] focus:border-[#f97316]"
-              value={selectedProjectType}
-              onChange={(e) => setSelectedProjectType(e.target.value)}
-            >
-              <option value="">-- Select Project Type --</option>
-              {projectTypes.map(pt => (
-                <option key={pt._id || pt.key || pt.projectType} value={pt.key || pt.projectType}>
-                  {pt.label || pt.projectType}
-                </option>
-              ))}
-            </select>
-          </div>
+  <label className="block text-sm font-medium text-slate-700 mb-3">Select Project Type</label>
+  <div className="flex flex-wrap gap-3">
+    {projectTypes.map(pt => {
+      const ptValue = pt.key || pt.projectType;
+      const isSelected = selectedProjectType === ptValue;
+      return (
+        <button
+          key={pt._id || ptValue}
+          onClick={() => setSelectedProjectType(ptValue)}
+          className={`px-4 py-3 border rounded-xl text-sm font-semibold transition-all shadow-sm flex items-center justify-center min-w-[140px] ${isSelected ? 'bg-[#28377f] text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
+        >
+          {pt.label || pt.projectTypeLabel || pt.projectType}
+        </button>
+      );
+    })}
+    {projectTypes.length === 0 && (
+      <div className="text-slate-500 text-sm italic">No project types found for this country.</div>
+    )}
+  </div>
+</div>
 
           {selectedProjectType && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               
               {/* Form Section */}
+              {!readOnly && (
               <div className="md:col-span-1 bg-slate-50 p-4 rounded border border-slate-200 h-fit">
                 <h3 className="text-lg font-medium text-slate-800 mb-3">Add New Product</h3>
                 <form onSubmit={handleAddProduct} className="space-y-4">
@@ -185,9 +204,10 @@ const ProductConfigSettings = ({ selectedCountry }) => {
                   </button>
                 </form>
               </div>
+              )}
 
               {/* List Section */}
-              <div className="md:col-span-2">
+              <div className={readOnly ? "md:col-span-3" : "md:col-span-2"}>
                 <h3 className="text-lg font-medium text-slate-800 mb-3">Configured Products</h3>
                 {loading ? (
                   <p className="text-slate-500">Loading products...</p>
@@ -213,12 +233,14 @@ const ProductConfigSettings = ({ selectedCountry }) => {
                             <td className="p-3 text-sm text-slate-600">{config.techSpec || '-'}</td>
                             <td className="p-3 text-sm text-slate-600">{config.capacity || '-'}</td>
                             <td className="p-3 text-center">
+                              {!readOnly && (
                               <button 
                                 onClick={() => handleDeleteProduct(config._id)}
                                 className="text-red-500 hover:text-red-700 text-sm font-medium"
                               >
                                 Delete
                               </button>
+                              )}
                             </td>
                           </tr>
                         ))}

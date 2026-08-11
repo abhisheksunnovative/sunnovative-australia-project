@@ -4,6 +4,68 @@ import { Save, Plus, Trash2, Edit, Loader2 } from "lucide-react";
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
 export const DiscomManagementScreen = () => {
+  const [countries, setCountries] = React.useState([]);
+  const [selectedCountryObj, setSelectedCountryObj] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/countries`);
+        const data = await res.json();
+        if (data.success && data.data) {
+          setCountries(data.data.filter(c => c.isActive));
+        } else if (Array.isArray(data)) {
+          setCountries(data.filter(c => c.isActive));
+        }
+      } catch (err) {
+        console.error('Failed to fetch countries:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCountries();
+  }, []);
+
+  if (loading) {
+    return <div className="p-8 text-center text-slate-500">Loading countries...</div>;
+  }
+
+  if (!selectedCountryObj) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">Discom Management</h1>
+          <p className="text-slate-500">Select a country to manage its Distribution Companies.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {countries.map(country => (
+            <div 
+              key={country._id || country.code}
+              onClick={() => setSelectedCountryObj(country)}
+              className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-[#28377f] cursor-pointer transition-all flex flex-col items-center justify-center gap-3 group"
+            >
+              <span className="text-4xl group-hover:scale-110 transition-transform duration-300">{country.flagEmoji}</span>
+              <span className="font-bold text-slate-700 group-hover:text-[#28377f]">{country.name}</span>
+            </div>
+          ))}
+          {countries.length === 0 && (
+            <p className="text-slate-500 col-span-full">No active countries found. Please configure them in Country Settings.</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return <DiscomManagementContent selectedCountryObj={selectedCountryObj} onBack={() => setSelectedCountryObj(null)} />;
+};
+
+
+
+export const DiscomManagementContent = ({ selectedCountryObj, onBack }) => {
+  const selectedCountry = selectedCountryObj.code;
+  const selectedCountryName = selectedCountryObj.name;
+
   const [discoms, setDiscoms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
@@ -22,8 +84,9 @@ export const DiscomManagementScreen = () => {
   }, []);
 
   const fetchDiscoms = async () => {
+    if (!selectedCountry) return;
     try {
-      const res = await fetch(`${API_BASE}/api/discoms`);
+      const res = await fetch(`${API_BASE}/api/discoms?country=${selectedCountry}`);
       const data = await res.json();
       if (data.success) {
         setDiscoms(data.data);
@@ -112,17 +175,7 @@ export const DiscomManagementScreen = () => {
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Discom Name</label>
-            <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="e.g. TATA Power" className="w-full border p-2 rounded-xl text-sm" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Country</label>
-            <select value={formData.country} onChange={(e) => setFormData({...formData, country: e.target.value})} className="w-full border p-2 rounded-xl text-sm">
-              <option value="India">India</option>
-              <option value="Australia">Australia</option>
-              <option value="USA">USA</option>
-              <option value="UK">UK</option>
-            </select>
+            <input type="hidden" name="country" value={formData.country} />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">State</label>

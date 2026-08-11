@@ -29,6 +29,8 @@ import LeadScreen from "./components/LeadScreen";
 import { DemandSupplyScreen } from "./components/DemandSupplyScreen";
 import { DiscomManagementScreen } from "./components/DiscomManagementScreen";
 import BrandManagementScreen from "./components/BrandManagementScreen";
+import ProductsScreen from "./components/ProductsScreen";
+import ProjectsScreen from "./components/ProjectsScreen";
 import CountryWebsiteScreen from "./components/country/CountryWebsiteScreen";
 import StcManagementDashboard from "./components/country/StcManagementDashboard";
 
@@ -486,6 +488,10 @@ export default function App() {
         return <BDEManagementScreen />;
       case "brand-management":
         return <BrandManagementScreen />;
+      case "products-configuration":
+        return <ProductsScreen />;
+      case "projects-configuration":
+        return <ProjectsScreen />;
       case "country-websites":
         return <CountryWebsiteScreen />;
       case "epc-rates-brands":

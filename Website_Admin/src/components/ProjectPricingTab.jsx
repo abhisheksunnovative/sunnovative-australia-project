@@ -1,7 +1,8 @@
+import { useGeography } from "../hooks/useGeography";
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { MasterFilterBar } from "./common/MasterFilterBar";
-import { SUPPORTED_COUNTRIES, getStatesForCountry, getDistrictsForState } from "../utils/geography";
+import { SUPPORTED_COUNTRIES,  } from "../utils/geography";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
@@ -15,19 +16,21 @@ export default function ProjectPricingTab({ defaultCountry, defaultProjectType, 
   const [filterCountry, setFilterCountry] = useState(defaultCountry || 'australia');
   const [filterProjectType, setFilterProjectType] = useState(defaultProjectType || 'residential');
   const [filterRegion, setFilterRegion] = useState('');
+  const { states: availableStates, districts: availableDistricts } = useGeography(filterCountry, filterRegion);
   const [filterDistrict, setFilterDistrict] = useState('');
   const [filterKw, setFilterKw] = useState('');
   const [search, setSearch] = useState('');
 
   const [filterProjectTypesList, setFilterProjectTypesList] = useState([]);
   const [formProjectTypesList, setFormProjectTypesList] = useState([]);
+  const [modalDistricts, setModalDistricts] = useState([]);
 
   const [formData, setFormData] = useState({
     country: 'australia',
     region: '',
     district: '',
     projectType: 'residential',
-    kw: 5,
+    kw: "",
     panelBrand: '',
     inverterBrand: '',
     finalPrice: 0,
@@ -153,7 +156,7 @@ export default function ProjectPricingTab({ defaultCountry, defaultProjectType, 
         region: p.region || '',
         district: p.district || '',
         projectType: p.projectType,
-        kw: p.kw,
+        kw: p.kw || "",
         panelBrand: p.panelBrand?._id || '',
         inverterBrand: p.inverterBrand?._id || '',
         finalPrice: p.projectPrice || p.finalPrice, // Mapping new schema field
@@ -168,7 +171,7 @@ export default function ProjectPricingTab({ defaultCountry, defaultProjectType, 
         region: filterRegion || '',
         district: filterDistrict || '',
         projectType: filterProjectType || 'residential',
-        kw: 5,
+        kw: "",
         panelBrand: '',
         inverterBrand: '',
         finalPrice: 0,
@@ -210,7 +213,7 @@ export default function ProjectPricingTab({ defaultCountry, defaultProjectType, 
                 component: (
                   <select value={filterRegion} onChange={e => { setFilterRegion(e.target.value); setFilterDistrict(''); }} className="w-32 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/40 font-medium bg-white">
                     <option value="">Region</option>
-                    {getStatesForCountry(filterCountry).map(r => <option key={r} value={r}>{r}</option>)}
+                    {(filterCountry).map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
                 )
               },
@@ -219,7 +222,7 @@ export default function ProjectPricingTab({ defaultCountry, defaultProjectType, 
                 component: (
                   <select value={filterDistrict} onChange={e => setFilterDistrict(e.target.value)} className="w-32 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/40 font-medium bg-white" disabled={!filterRegion}>
                     <option value="">District</option>
-                    {getDistrictsForState(filterCountry, filterRegion).map(d => <option key={d} value={d}>{d}</option>)}
+                    {(filterCountry, filterRegion).map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 )
               },
@@ -292,45 +295,32 @@ export default function ProjectPricingTab({ defaultCountry, defaultProjectType, 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Country</label>
-                  <select value={formData.country} onChange={e => setFormData({...formData, country: e.target.value, region: '', district: ''})} className="w-full border rounded-lg px-3 py-2 text-sm">
-                    <option value="">Select Country</option>
-                    {SUPPORTED_COUNTRIES.map(c => (
-                      <option key={c.value} value={c.value}>{c.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Project Type</label>
-                  <select required value={formData.projectType} onChange={e => setFormData({...formData, projectType: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm bg-white">
-                    <option value="">Select Project Type</option>
-                    {formProjectTypesList.map(pt => {
-                      const val = typeof pt === 'string' ? pt : pt.name || pt.type;
-                      return <option key={val} value={val}>{val}</option>;
-                    })}
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Region</label>
-                  <select value={formData.region} onChange={e => setFormData({...formData, region: e.target.value, district: ''})} className="w-full border rounded-lg px-3 py-2 text-sm bg-white">
-                    <option value="">Select Region</option>
-                    {getStatesForCountry(formData.country).map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
+                  <label className="block text-sm font-medium mb-1">Region (Manual)</label>
+                  <input required type="text" value={formData.region} onChange={e => setFormData({...formData, region: e.target.value})} placeholder="Enter Region..." className="w-full border rounded-lg px-3 py-2 text-sm bg-white" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">District</label>
-                  <select value={formData.district} onChange={e => setFormData({...formData, district: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm bg-white" disabled={!formData.region}>
+                  <select required value={formData.district} onChange={e => setFormData({...formData, district: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm bg-white">
                     <option value="">Select District</option>
-                    {getDistrictsForState(formData.country, formData.region).map(d => <option key={d} value={d}>{d}</option>)}
+                    {modalDistricts.map(d => (
+                      <option key={d._id || d.district} value={d.district}>{d.district}</option>
+                    ))}
                   </select>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">KW Size</label>
-                  <input required type="number" step="0.1" value={formData.kw} onChange={e => setFormData({...formData, kw: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm" />
+                  <select required value={formData.kw} onChange={e => setFormData({...formData, kw: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm bg-white">
+                    <option value="">Select KW</option>
+                    {(() => {
+                      const selectedPtObj = formProjectTypesList.find(pt => (pt.projectType || pt.name || pt) === formData.projectType);
+                      const availableKw = selectedPtObj?.availableKw || [];
+                      return availableKw.map(kw => (
+                        <option key={kw} value={kw}>{kw} kW</option>
+                      ));
+                    })()}
+                  </select>
                 </div>
                 <div className="col-span-2">
                   <label className="block text-sm font-medium mb-1">Final Price</label>
@@ -349,7 +339,7 @@ export default function ProjectPricingTab({ defaultCountry, defaultProjectType, 
                   <label className="block text-sm font-medium mb-1">Panel Brand</label>
                   <select value={formData.panelBrand} onChange={e => setFormData({...formData, panelBrand: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm">
                     <option value="">Select Panel</option>
-                    {brands.filter(b => b.type === 'Solar').map(b => (
+                    {brands.filter(b => b.products?.includes('Solar Panel') && (!b.country || b.country.length === 0 || b.country.includes(formData.country)) && (!b.projectTypes || b.projectTypes.length === 0 || b.projectTypes.includes(formData.projectType))).map(b => (
                       <option key={b._id} value={b._id}>{b.name}</option>
                     ))}
                   </select>
@@ -358,7 +348,7 @@ export default function ProjectPricingTab({ defaultCountry, defaultProjectType, 
                   <label className="block text-sm font-medium mb-1">Inverter Brand</label>
                   <select value={formData.inverterBrand} onChange={e => setFormData({...formData, inverterBrand: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm">
                     <option value="">Select Inverter</option>
-                    {brands.filter(b => b.type === 'Inverter').map(b => (
+                    {brands.filter(b => b.products?.includes('Inverter') && (!b.country || b.country.length === 0 || b.country.includes(formData.country)) && (!b.projectTypes || b.projectTypes.length === 0 || b.projectTypes.includes(formData.projectType))).map(b => (
                       <option key={b._id} value={b._id}>{b.name}</option>
                     ))}
                   </select>

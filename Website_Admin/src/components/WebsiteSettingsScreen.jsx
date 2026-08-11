@@ -18,7 +18,8 @@ import {
   Image as ImageIcon,
   MessageSquare,
   MousePointerClick,
-  Award
+  Award,
+  Users
 } from "lucide-react";
 
 // Helper components inside the file for simplicity

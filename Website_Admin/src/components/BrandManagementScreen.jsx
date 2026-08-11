@@ -31,7 +31,13 @@ const BrandManagementScreen = () => {
       const res = await fetch(`${API_BASE}/api/countries`);
       if (!res.ok) throw new Error('Failed to fetch countries');
       const data = await res.json();
-      setCountries(data);
+      if (data.success && data.data) {
+        setCountries(data.data);
+      } else if (Array.isArray(data)) {
+        setCountries(data);
+      } else {
+        setCountries([]);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -45,7 +51,13 @@ const BrandManagementScreen = () => {
       const res = await fetch(`${API_BASE}/api/project-types?country=${countryCode}`);
       if (!res.ok) throw new Error('Failed to fetch project types');
       const data = await res.json();
-      setProjectTypes(data);
+      if (data.success && data.data) {
+        setProjectTypes(data.data);
+      } else if (Array.isArray(data)) {
+        setProjectTypes(data);
+      } else {
+        setProjectTypes([]);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -59,9 +71,15 @@ const BrandManagementScreen = () => {
       const res = await fetch(`${API_BASE}/api/product-configs?country=${countryCode}&projectType=${projectType}`);
       if (!res.ok) throw new Error('Failed to fetch product configs');
       const data = await res.json();
+      let productsList = [];
+      if (data.success && data.data) {
+        productsList = data.data;
+      } else if (Array.isArray(data)) {
+        productsList = data;
+      }
       
       // Extract unique categories
-      const categories = [...new Set(data.map(item => item.productCategory))].filter(Boolean);
+      const categories = [...new Set(productsList.map(item => item.productCategory))].filter(Boolean);
       setProductCategories(categories);
     } catch (err) {
       setError(err.message);

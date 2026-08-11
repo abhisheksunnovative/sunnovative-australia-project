@@ -6,7 +6,7 @@ import ProductConfigSettings from './ProductConfigSettings';
 import DistrictPincodeSettings from './DistrictPincodeSettings';
 import OnboardingChecklist from './OnboardingChecklist';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4005';
 
 export default function UnifiedCountrySettings() {
   const [countries, setCountries] = useState([]);
@@ -102,9 +102,9 @@ export default function UnifiedCountrySettings() {
 
         <div className="flex-1 overflow-auto p-6">
           {activeTab === 'checklist' && <OnboardingChecklist selectedCountry={selectedCountry.code} />}
-          {activeTab === 'orderJourney' && <OrderJourneyScreen selectedCountry={selectedCountry.code} />}
-          {activeTab === 'projectTypes' && <ProjectTypeSettings selectedCountry={selectedCountry.code} />}
-          {activeTab === 'products' && <ProductConfigSettings selectedCountry={selectedCountry.code} />}
+          {activeTab === 'orderJourney' && <OrderJourneyScreen selectedCountry={selectedCountry.code} readOnly={true} />}
+          {activeTab === 'projectTypes' && <ProjectTypeSettings selectedCountry={selectedCountry.code} readOnly={true} />}
+          {activeTab === 'products' && <ProductConfigSettings selectedCountry={selectedCountry.code} readOnly={true} />}
           {activeTab === 'districts' && <DistrictPincodeSettings selectedCountry={selectedCountry.code} />}
         </div>
       </div>

@@ -82,7 +82,8 @@ const DEFAULT_SETTINGS = {
 // GET /api/eligibility-settings
 export const getEligibilitySettings = async (req, res) => {
   try {
-    let settings = await EligibilitySettings.findOne();
+    const country = req.query.country || req.headers['x-country'] || 'india';
+    let settings = await EligibilitySettings.findOne({ country: country.toLowerCase() });
 
     // Pehli baar — seed defaults
     if (!settings) {
@@ -99,16 +100,16 @@ export const getEligibilitySettings = async (req, res) => {
 // PUT /api/eligibility-settings
 export const updateEligibilitySettings = async (req, res) => {
   try {
-    const countryHeader = req.headers['x-country'] || 'india';
-    const country = countryHeader === 'india' ? 'india' : countryHeader === 'australia' ? 'australia' : countryHeader;
+    const countryQuery = req.query.country || req.headers['x-country'] || 'india';
+    const country = countryQuery.toLowerCase();
 
-    let settings = await EligibilitySettings.findOne();
+    let settings = await EligibilitySettings.findOne({ country });
 
     if (!settings) {
       settings = await EligibilitySettings.create(req.body);
     } else {
       settings = await EligibilitySettings.findOneAndUpdate(
-        {},
+        { country },
         { $set: req.body },
         { new: true, runValidators: false }
       );

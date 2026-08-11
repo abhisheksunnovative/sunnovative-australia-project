@@ -6,7 +6,8 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useAdminSettings } from "../hooks/useAdminSettings";
-import { SUPPORTED_COUNTRIES, getStatesForCountry, getDistrictsForState } from "../utils/geography";
+import { useGeography } from "../hooks/useGeography";
+import { SUPPORTED_COUNTRIES,  } from "../utils/geography";
 import {
   Users, Plus, RefreshCw, Search, Filter, Trash2, Eye,
   CheckCircle, AlertCircle, Loader2, ChevronLeft, ChevronRight,
@@ -391,6 +392,7 @@ const LeadScreen = ({ uploadSource = 'website' }) => {
     }
   }, []);
 
+  const { states: availableStates, districts: availableDistricts } = useGeography(filterCountry, filterState);
   useEffect(() => {
     fetchBdes(filterCountry);
   }, [filterCountry, fetchBdes]);

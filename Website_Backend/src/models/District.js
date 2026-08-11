@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 const schema = new mongoose.Schema({
   country: { type: String, required: true, lowercase: true },
+  state: { type: String, required: true },
   district: { type: String, required: true },
   pincodes: [{ type: String }],
   isActive: { type: Boolean, default: true }

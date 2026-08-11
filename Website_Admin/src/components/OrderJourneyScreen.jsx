@@ -801,7 +801,7 @@ const JourneyCard = ({ journey, journeyIndex, onUpdateJourney, onRemoveJourney, 
 };
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
-export const OrderJourneyScreen = ({ selectedCountry: propCountry }) => {
+export const OrderJourneyScreen = ({ selectedCountry: propCountry, readOnly = false }) => {
   const [dbCountries, setDbCountries] = useState([]);
   const [internalCountry, setInternalCountry] = useState("india");
   const selectedCountry = propCountry || internalCountry;
@@ -842,8 +842,12 @@ export const OrderJourneyScreen = ({ selectedCountry: propCountry }) => {
       try {
         const res = await fetch(`${API_BASE}/api/project-types?country=${selectedCountry}`);
         const data = await res.json();
-        if (data.success) {
+        if (data.success && data.data) {
           setProjectTypes(data.data);
+        } else if (Array.isArray(data)) {
+          setProjectTypes(data);
+        } else {
+          setProjectTypes([]);
         }
       } catch (err) {
         console.error("Error fetching project types:", err);
@@ -851,6 +855,43 @@ export const OrderJourneyScreen = ({ selectedCountry: propCountry }) => {
     };
     fetchProjectTypes();
   }, [selectedCountry]);
+
+  // Auto-sync journeys with global project types
+  useEffect(() => {
+    if (projectTypes.length > 0 && settings && settings.journeys) {
+      let changed = false;
+      const nextSettings = JSON.parse(JSON.stringify(settings));
+      nextSettings.journeys = nextSettings.journeys || [];
+      
+      // Add missing project types
+      projectTypes.forEach(pt => {
+        const exists = nextSettings.journeys.find(j => j.projectType === pt.projectType);
+        if (!exists) {
+          nextSettings.journeys.push({
+            projectType: pt.projectType,
+            projectTypeLabel: pt.projectTypeLabel || pt.projectType,
+            enabled: true,
+            description: "",
+            signupToken: { enabled: false, amount: 0 },
+            epcSelectionType: "FCFS",
+            steps: []
+          });
+          changed = true;
+        }
+      });
+
+      // Remove orphaned journeys
+      const originalLength = nextSettings.journeys.length;
+      nextSettings.journeys = nextSettings.journeys.filter(j => 
+        projectTypes.some(pt => pt.projectType === j.projectType)
+      );
+      if (nextSettings.journeys.length !== originalLength) changed = true;
+
+      if (changed) {
+        setSettings(nextSettings);
+      }
+    }
+  }, [projectTypes, settings]);
 
   const showToast = (type, msg) => {
     setToast({ type, msg });
@@ -955,14 +996,14 @@ export const OrderJourneyScreen = ({ selectedCountry: propCountry }) => {
 
   const handleAddJourneyConfirm = () => {
     if (!selectedNewProjectType) return;
-    const pt = projectTypes.find(p => p.id === selectedNewProjectType);
+    const pt = projectTypes.find(p => p.projectType === selectedNewProjectType);
     if (!pt) return;
 
     setSettings((prev) => {
       const next = clone(prev);
       next.journeys.push({
-        projectType: pt.id,
-        projectTypeLabel: pt.name,
+        projectType: pt.projectType,
+        projectTypeLabel: pt.projectTypeLabel,
         enabled: true,
         description: pt.description || "",
         signupToken: { enabled: false, amount: 0 },

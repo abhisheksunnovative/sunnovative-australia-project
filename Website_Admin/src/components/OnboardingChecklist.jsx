@@ -10,6 +10,10 @@ export default function OnboardingChecklist({ selectedCountry }) {
     journeys: { configured: false, count: 0 },
     products: { configured: false, count: 0 },
     brands: { configured: false, count: 0 },
+    demandSupply: { configured: false, count: 0 },
+    discoms: { configured: false, count: 0 },
+    bdes: { configured: false, count: 0 },
+    eligibility: { configured: false, count: 0 },
   });
   const [loading, setLoading] = useState(true);
 
@@ -19,12 +23,16 @@ export default function OnboardingChecklist({ selectedCountry }) {
     const checkStatus = async () => {
       setLoading(true);
       try {
-        const [ptRes, distRes, journeyRes, prodRes, brandRes] = await Promise.all([
+        const [ptRes, distRes, journeyRes, prodRes, brandRes, dsRes, discomRes, bdeRes, eligRes] = await Promise.all([
           fetch(`${API_BASE}/api/project-types?country=${selectedCountry}`),
           fetch(`${API_BASE}/api/districts?country=${selectedCountry}`),
           fetch(`${API_BASE}/api/order-journey/${selectedCountry}`),
           fetch(`${API_BASE}/api/product-configs?country=${selectedCountry}`),
-          fetch(`${API_BASE}/api/brands?country=${selectedCountry}`)
+          fetch(`${API_BASE}/api/brands?country=${selectedCountry}`),
+          fetch(`${API_BASE}/api/demand-supply?country=${selectedCountry}`),
+          fetch(`${API_BASE}/api/discoms?country=${selectedCountry}`),
+          fetch(`${API_BASE}/api/bde?country=${selectedCountry}`),
+          fetch(`${API_BASE}/api/eligibility-settings?country=${selectedCountry}`)
         ]);
 
         const pt = await ptRes.json();
@@ -32,13 +40,21 @@ export default function OnboardingChecklist({ selectedCountry }) {
         const journey = await journeyRes.json();
         const prod = await prodRes.json();
         const brand = await brandRes.json();
+        const ds = await dsRes.json();
+        const discom = await discomRes.json();
+        const bde = await bdeRes.json();
+        const elig = await eligRes.json();
 
         setStatus({
           projectTypes: { configured: pt.data?.length > 0, count: pt.data?.length || 0 },
           districts: { configured: dist.data?.length > 0, count: dist.data?.length || 0 },
           journeys: { configured: journey.projectTypes?.length > 0, count: journey.projectTypes?.length || 0 },
           products: { configured: prod.data?.length > 0, count: prod.data?.length || 0 },
-          brands: { configured: brand.data?.length > 0, count: brand.data?.length || 0 }
+          brands: { configured: brand.data?.length > 0, count: brand.data?.length || 0 },
+          demandSupply: { configured: true, count: ds.data?.regions?.filter(r => r.country.toLowerCase() === selectedCountry.toLowerCase()).length || 0 },
+          discoms: { configured: discom.data?.length > 0, count: discom.data?.length || 0 },
+          bdes: { configured: bde.bdes?.length > 0, count: bde.bdes?.length || 0 },
+          eligibility: { configured: elig.data?.country?.toLowerCase() === selectedCountry.toLowerCase(), count: (elig.data?.country?.toLowerCase() === selectedCountry.toLowerCase()) ? 1 : 0 }
         });
       } catch (e) {
         console.error('Error fetching checklist status', e);
@@ -56,7 +72,11 @@ export default function OnboardingChecklist({ selectedCountry }) {
     { key: 'districts', label: 'Districts & Pincodes', desc: 'Define serviceable areas' },
     { key: 'journeys', label: 'Order Journeys', desc: 'Setup step-by-step workflows for each project type' },
     { key: 'products', label: 'Product Config', desc: 'Add Solar Panels, Inverters, etc.' },
-    { key: 'brands', label: 'Brands', desc: 'Assign brands to the products' }
+    { key: 'brands', label: 'Brands', desc: 'Assign brands to the products' },
+    { key: 'demandSupply', label: 'Demand & Supply Rules', desc: 'Configure regional rules' },
+    { key: 'discoms', label: 'Discom Management', desc: 'Map Discoms to districts' },
+    { key: 'bdes', label: 'BDE Management', desc: 'Add Business Development Executives' },
+    { key: 'eligibility', label: 'Customer Eligibility', desc: 'Configure subsidy and criteria rules' }
   ];
 
   const total = checks.length;
@@ -94,7 +114,7 @@ export default function OnboardingChecklist({ selectedCountry }) {
               </div>
               <div className="text-right">
                 <span className={`text-xs font-bold px-3 py-1 rounded-full ${isDone ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                  {isDone ? `${count} Configured` : 'Not Configured'}
+                  {isDone ? (check.key === 'demandSupply' ? (count > 0 ? `${count} Regional Overrides` : 'Global Rules Active') : `${count} Configured`) : 'Not Configured'}
                 </span>
               </div>
             </div>

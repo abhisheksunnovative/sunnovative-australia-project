@@ -1,16 +1,78 @@
-import React, { useState, useEffect } from "react";
-import { Plus, Edit2, Trash2, Save, X, Activity, UserCheck, MapPin, Building, ArrowLeft, Briefcase } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Plus, Edit2, Trash2, Save, X, Activity, UserCheck, MapPin, Building, ArrowLeft, Briefcase, Map } from "lucide-react";
+import { useGeography } from "../hooks/useGeography";
 
 export default function BDEManagementScreen() {
+  const [countries, setCountries] = React.useState([]);
+  const [selectedCountryObj, setSelectedCountryFilterObj] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
+
+  React.useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/countries`);
+        const data = await res.json();
+        if (data.success && data.data) {
+          setCountries(data.data.filter(c => c.isActive));
+        } else if (Array.isArray(data)) {
+          setCountries(data.filter(c => c.isActive));
+        }
+      } catch (err) {
+        console.error('Failed to fetch countries:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCountries();
+  }, []);
+
+  if (loading) {
+    return <div className="p-8 text-center text-slate-500">Loading countries...</div>;
+  }
+
+  if (!selectedCountryObj) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">BDE Management</h1>
+          <p className="text-slate-500">Select a country to manage its Business Development Executives.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {countries.map(country => (
+            <div 
+              key={country._id || country.code}
+              onClick={() => setSelectedCountryFilterObj(country)}
+              className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-[#28377f] cursor-pointer transition-all flex flex-col items-center justify-center gap-3 group"
+            >
+              <span className="text-4xl group-hover:scale-110 transition-transform duration-300">{country.flagEmoji}</span>
+              <span className="font-bold text-slate-700 group-hover:text-[#28377f]">{country.name}</span>
+            </div>
+          ))}
+          {countries.length === 0 && (
+            <p className="text-slate-500 col-span-full">No active countries found. Please configure them in Country Settings.</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return <BDEManagementContent selectedCountryObj={selectedCountryObj} onBack={() => setSelectedCountryFilterObj(null)} />;
+}
+
+export function BDEManagementContent({ selectedCountryObj, onBack }) {
+  const selectedCountry = selectedCountryObj.code;
+  const selectedCountryName = selectedCountryObj.name;
+
   const [bdes, setBdes] = useState([]);
   const [loading, setLoading] = useState(false);
   
   // Drill-down state
-  const [selectedCountry, setSelectedCountry] = useState(null);
+  const [selectedState, setSelectedState] = useState(null);
   const [selectedDistrict, setSelectedDistrict] = useState(null);
+  
   const [searchQuery, setSearchQuery] = useState("");
-  const [manualDistricts, setManualDistricts] = useState([]);
-  const [filterType, setFilterType] = useState("all"); // "all", "active", "freelancer", "employee", "india", "australia", "commission"
+  const [filterType, setFilterType] = useState("all"); 
   
   // Modal state
   const [isEditing, setIsEditing] = useState(false);
@@ -26,11 +88,15 @@ export default function BDEManagementScreen() {
   const projectTypeOptions = ["residential", "commercial", "group", "common-meter", "surya-ghar", "au-small-home", "au-standard-family", "au-large-home", "au-ev-owners", "au-solar-battery"];
   const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
+  // Dynamic Geography Hook
+  const { states: availableStates, districts: availableDistricts } = useGeography(selectedCountry, selectedState !== 'unassigned' ? selectedState : '');
+
   useEffect(() => {
     fetchBDEs();
-  }, []);
+  }, [selectedCountry]);
 
   const fetchBDEs = async () => {
+    if (!selectedCountry) return;
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/bde`);
@@ -52,9 +118,9 @@ export default function BDEManagementScreen() {
       email: bde.email,
       mobile: bde.mobile,
       isActive: bde.isActive,
-      assignedCountries: bde.assignedCountries?.join(", ") || (selectedCountry || "india"),
-      assignedStates: bde.assignedStates?.join(", ") || "",
-      assignedDistricts: bde.assignedDistricts?.join(", ") || (selectedDistrict || ""),
+      assignedCountries: bde.assignedCountries?.join(", ") || selectedCountry,
+      assignedStates: bde.assignedStates?.join(", ") || (selectedState && selectedState !== 'unassigned' ? selectedState : ""),
+      assignedDistricts: bde.assignedDistricts?.join(", ") || (selectedDistrict && selectedDistrict !== 'unassigned' ? selectedDistrict : ""),
       assignedRegions: bde.assignedRegions?.join(", ") || "",
       assignedPincodes: bde.assignedPincodes?.join(", ") || "",
       assignedProjectTypes: bde.assignedProjectTypes || [],
@@ -72,8 +138,10 @@ export default function BDEManagementScreen() {
     setIsEditing(true);
     setFormData({
       name: "", email: "", mobile: "", isActive: true,
-      assignedCountries: selectedCountry || "india", assignedStates: "", 
-      assignedDistricts: selectedDistrict || "", assignedRegions: "", assignedPincodes: "",
+      assignedCountries: selectedCountry, 
+      assignedStates: selectedState && selectedState !== 'unassigned' ? selectedState : "", 
+      assignedDistricts: selectedDistrict && selectedDistrict !== 'unassigned' ? selectedDistrict : "", 
+      assignedRegions: "", assignedPincodes: "",
       assignedProjectTypes: ["residential"], targetLeads: 0, targetConversions: 0,
       bdeType: "Employee", commissionType: "Fixed", commissionAmount: 0, projectTypeCommissions: []
     });
@@ -137,157 +205,147 @@ export default function BDEManagementScreen() {
     });
   };
 
-  // Grouping logic
-  const countryMap = {
-    "india": {
-      districts: {
-        "Uttar Pradesh": [], "Rajkot": [], "Ahmedabad": [], "Surat": [], "Vadodara": [], "Mumbai": [], "Delhi": [], "Bangalore": [], "Pune": [], "Jaipur": [], "Lucknow": []
-      }
-    },
-    "australia": {
-      districts: {
-        "Sydney": [], "Melbourne": [], "Brisbane": [], "Perth": [], "Adelaide": [], "Hobart": [], "Darwin": [], "Canberra": []
-      }
-    },
-    "new zealand": {
-      districts: {
-        "Auckland": [], "Wellington": [], "Christchurch": [], "Hamilton": [], "Tauranga": [], "Napier-Hastings": [], "Dunedin": []
-      }
-    },
-    "uk": {
-      districts: {
-        "London": [], "Birmingham": [], "Manchester": [], "Glasgow": [], "Liverpool": [], "Edinburgh": [], "Bristol": []
-      }
-    },
-    "usa": {
-      districts: {
-        "New York": [], "Los Angeles": [], "Chicago": [], "Houston": [], "Phoenix": [], "Philadelphia": [], "San Antonio": [], "San Diego": [], "Dallas": [], "Austin": []
-      }
-    }
-  };
-
-  manualDistricts.forEach(d => {
-    if (!countryMap["india"].districts[d]) {
-      countryMap["india"].districts[d] = [];
-    }
+  // ----- DYNAMIC FILTERING LOGIC -----
+  
+  // 1. Get country BDEs
+  const countryBDEs = bdes.filter(bde => {
+    const assignedC = bde.assignedCountries || [];
+    if (assignedC.length === 0 && selectedCountry === 'india') return true; 
+    return assignedC.map(c => c.toLowerCase()).includes(selectedCountry.toLowerCase());
   });
 
-  bdes.forEach(bde => {
-    // Default to "india" if older BDE records have no country assigned
-    const countries = bde.assignedCountries?.length > 0 ? bde.assignedCountries : ["india"];
-    countries.forEach(rawC => {
-      const c = rawC.toLowerCase();
-      if (!countryMap[c]) countryMap[c] = { districts: {} };
-      
-      const dists = bde.assignedDistricts?.length > 0 ? bde.assignedDistricts : ["unassigned"];
-      dists.forEach(rawD => {
-        let d = rawD;
-        const existingKey = Object.keys(countryMap[c].districts).find(k => k.toLowerCase() === rawD.toLowerCase());
-        if (existingKey) {
-            d = existingKey;
-        } else {
-            d = rawD.charAt(0).toUpperCase() + rawD.slice(1).toLowerCase();
-        }
-        
-        if (!countryMap[c].districts[d]) countryMap[c].districts[d] = [];
-        countryMap[c].districts[d].push(bde);
-      });
-    });
-  });
+  // 2. Get state BDEs
+  const stateBDEs = selectedState ? countryBDEs.filter(bde => {
+    const bdeStates = bde.assignedStates || [];
+    if (selectedState === 'unassigned') {
+       return bdeStates.length === 0 || !bdeStates.some(bs => availableStates.find(a => a.toLowerCase() === bs.toLowerCase()));
+    }
+    return bdeStates.some(bs => bs.toLowerCase() === selectedState.toLowerCase());
+  }) : countryBDEs;
 
-  const renderCountries = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold text-slate-800">Select Country</h2>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {Object.keys(countryMap).filter(c => c !== 'unassigned').map(c => {
-          const totalBdes = Object.values(countryMap[c].districts).reduce((acc, curr) => acc + curr.length, 0);
-          return (
-            <div 
-              key={c} 
-              onClick={() => setSelectedCountry(c)}
-              className="bg-white p-6 rounded-xl border border-slate-200 hover:border-blue-300 shadow-sm hover:shadow-md cursor-pointer transition-all"
-            >
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
-                  <MapPin className="w-8 h-8" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold uppercase text-slate-800">{c}</h3>
-                  <p className="text-sm text-slate-500">{totalBdes} active BDEs</p>
+  // 3. Get district BDEs
+  const districtBDEs = selectedDistrict ? stateBDEs.filter(bde => {
+    const bdeDists = bde.assignedDistricts || [];
+    if (selectedDistrict === 'unassigned') return bdeDists.length === 0;
+    return bdeDists.some(bd => bd.toLowerCase() === selectedDistrict.toLowerCase());
+  }) : stateBDEs;
+
+  // Scoped list for summaries
+  const currentScopedBDEs = districtBDEs;
+
+  const renderStates = () => {
+    const statesToRender = [...availableStates, 'unassigned'];
+    
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4 mb-4">
+          <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <h2 className="text-xl font-bold uppercase text-slate-800">States in {selectedCountryName}</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {statesToRender.map(stateName => {
+            // Count BDEs in this state
+            const count = countryBDEs.filter(bde => {
+              const bdeStates = bde.assignedStates || [];
+              if (stateName === 'unassigned') {
+                 // Unassigned BDEs: those with no state assigned OR a state not in the available list
+                 return bdeStates.length === 0 || !bdeStates.some(bs => availableStates.find(a => a.toLowerCase() === bs.toLowerCase()));
+              }
+              return bdeStates.some(bs => bs.toLowerCase() === stateName.toLowerCase());
+            }).length;
+
+            return (
+              <div 
+                key={stateName} 
+                onClick={() => setSelectedState(stateName)}
+                className="bg-white p-6 rounded-xl border border-slate-200 hover:border-blue-300 shadow-sm hover:shadow-md cursor-pointer transition-all"
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`p-3 rounded-lg ${stateName === 'unassigned' ? 'bg-slate-50 text-slate-500' : 'bg-blue-50 text-blue-600'}`}>
+                    <Map className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold uppercase text-slate-800">
+                      {stateName === 'unassigned' ? "Unassigned / Other" : stateName}
+                    </h3>
+                    <p className="text-sm text-slate-500">{count} active BDEs</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderDistricts = () => {
-    const distMap = countryMap[selectedCountry]?.districts || {};
-    
-    const filteredDistricts = Object.keys(distMap)
-      .filter(d => d !== 'unassigned')
-      .filter(d => d.toLowerCase().includes(searchQuery.toLowerCase()));
+    // If selectedState is unassigned, we look for BDEs that fell into the unassigned state bucket
+    // (We now use stateBDEs calculated at the top)
 
-    const handleAddDistrict = () => {
-      const newD = prompt("Enter new district name:");
-      if (newD && newD.trim()) {
-        setManualDistricts([...manualDistricts, newD.trim()]);
-        setSearchQuery("");
-      }
-    };
+    // Determine district categories to show: Database districts + any distinct strings from the old BDEs
+    let allDistrictNames = new Set(availableDistricts);
+    stateBDEs.forEach(b => {
+       const dists = b.assignedDistricts || [];
+       dists.forEach(d => allDistrictNames.add(d));
+    });
+
+    const distsToRender = [...Array.from(allDistrictNames), 'unassigned'].filter(d => d.toLowerCase().includes(searchQuery.toLowerCase()));
 
     return (
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-4">
           <div className="flex items-center gap-4">
-            <button onClick={() => { setSelectedCountry(null); setSearchQuery(""); }} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600">
+            <button onClick={() => { setSelectedState(null); setSearchQuery(""); }} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600">
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <h2 className="text-xl font-bold uppercase text-slate-800">Districts in {selectedCountry}</h2>
+            <h2 className="text-xl font-bold uppercase text-slate-800">
+              Districts in {selectedState === 'unassigned' ? "Unassigned" : selectedState}
+            </h2>
           </div>
-          <div className="flex items-center gap-3">
-            <input 
-              type="text" 
-              placeholder="Search district..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm"
-            />
-            <button onClick={handleAddDistrict} className="px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm transition-colors">
-              <Plus className="w-4 h-4" /> Add District
-            </button>
-          </div>
+
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {filteredDistricts.map(d => (
-            <div 
-              key={d} 
-              onClick={() => setSelectedDistrict(d)}
-              className="bg-white p-5 rounded-xl border border-slate-200 hover:border-blue-300 shadow-sm hover:shadow-md cursor-pointer transition-all"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Building className="w-5 h-5 text-blue-500" />
-                  <h3 className="font-bold capitalize text-slate-800">{d}</h3>
+          {distsToRender.map(d => {
+            // Count BDEs
+            const count = stateBDEs.filter(bde => {
+              const bdeDists = bde.assignedDistricts || [];
+              if (d === 'unassigned') {
+                 return bdeDists.length === 0;
+              }
+              return bdeDists.some(bd => bd.toLowerCase() === d.toLowerCase());
+            }).length;
+
+            return (
+              <div 
+                key={d} 
+                onClick={() => { setSelectedDistrict(d); setSearchQuery(""); }}
+                className="bg-white p-5 rounded-xl border border-slate-200 hover:border-blue-300 shadow-sm hover:shadow-md cursor-pointer transition-all"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Building className={`w-5 h-5 ${d === 'unassigned' ? 'text-slate-400' : 'text-blue-500'}`} />
+                    <h3 className="font-bold capitalize text-slate-800">
+                      {d === 'unassigned' ? "Unassigned / Other" : d}
+                    </h3>
+                  </div>
+                  <span className="bg-blue-50 px-2.5 py-1 rounded-full text-xs font-bold text-blue-600">
+                    {count}
+                  </span>
                 </div>
-                <span className="bg-blue-50 px-2.5 py-1 rounded-full text-xs font-bold text-blue-600">
-                  {distMap[d].length}
-                </span>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );
   };
 
   const renderBDEs = () => {
-    const bdesList = countryMap[selectedCountry]?.districts[selectedDistrict] || [];
-    const filteredBDEs = bdesList.filter(bde => bde.name.toLowerCase().includes(searchQuery.toLowerCase()) || bde.email.toLowerCase().includes(searchQuery.toLowerCase()));
+    // We now use districtBDEs calculated at the top
+    const filteredBDEs = districtBDEs.filter(bde => bde.name.toLowerCase().includes(searchQuery.toLowerCase()) || bde.email.toLowerCase().includes(searchQuery.toLowerCase()));
 
     return (
       <div className="space-y-6">
@@ -296,20 +354,9 @@ export default function BDEManagementScreen() {
             <button onClick={() => { setSelectedDistrict(null); setSearchQuery(""); }} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600">
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <h2 className="text-xl font-bold uppercase text-slate-800">BDEs in {selectedDistrict}</h2>
+            <h2 className="text-xl font-bold uppercase text-slate-800">BDEs in {selectedDistrict === 'unassigned' ? "Unassigned" : selectedDistrict}</h2>
           </div>
-          <div className="flex items-center gap-3">
-            <input 
-              type="text" 
-              placeholder="Search BDE..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm"
-            />
-            <button onClick={handleAddNew} className="px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm transition-colors">
-              <Plus className="w-4 h-4" /> Add BDE
-            </button>
-          </div>
+
         </div>
 
         {filteredBDEs.length === 0 && (
@@ -399,28 +446,24 @@ export default function BDEManagementScreen() {
     );
   };
 
-  const activeBdesCount = bdes.filter(b => b.isActive).length;
-  const freelancerBdesCount = bdes.filter(b => b.bdeType === "Freelancer").length;
-  const employeeBdesCount = bdes.filter(b => b.bdeType === "Employee").length;
-  const totalBdes = bdes.length;
-
-  const totalLeads = bdes.reduce((acc, curr) => acc + (curr.performance?.leadsAcquired || 0), 0);
-  const totalConversions = bdes.reduce((acc, curr) => acc + (curr.performance?.leadsConverted || 0), 0);
+  const activeBdesCount = currentScopedBDEs.filter(b => b.isActive).length;
+  const freelancerBdesCount = currentScopedBDEs.filter(b => b.bdeType === "Freelancer").length;
+  const employeeBdesCount = currentScopedBDEs.filter(b => b.bdeType === "Employee").length;
+  const totalLeads = currentScopedBDEs.reduce((acc, curr) => acc + (curr.performance?.leadsAcquired || 0), 0);
+  const totalConversions = currentScopedBDEs.reduce((acc, curr) => acc + (curr.performance?.leadsConverted || 0), 0);
   const conversionRatio = totalLeads > 0 ? ((totalConversions / totalLeads) * 100).toFixed(1) : "0.0";
+  const totalCommissions = currentScopedBDEs.reduce((acc, curr) => acc + (curr.freelancerSettings?.totalEarnings || 0), 0);
+  const indiaConversions = currentScopedBDEs.filter(b => b.assignedCountries?.includes("india")).reduce((acc, curr) => acc + (curr.performance?.leadsConverted || 0), 0);
+  const ausConversions = currentScopedBDEs.filter(b => b.assignedCountries?.includes("australia")).reduce((acc, curr) => acc + (curr.performance?.leadsConverted || 0), 0);
 
-  const totalCommissions = bdes.reduce((acc, curr) => acc + (curr.freelancerSettings?.totalEarnings || 0), 0);
-
-  const indiaConversions = bdes.filter(b => b.assignedCountries?.includes("india")).reduce((acc, curr) => acc + (curr.performance?.leadsConverted || 0), 0);
-  const ausConversions = bdes.filter(b => b.assignedCountries?.includes("australia")).reduce((acc, curr) => acc + (curr.performance?.leadsConverted || 0), 0);
-
-  const getFilteredBdes = () => {
-    let list = bdes;
-    if (filterType === "active") list = bdes.filter(b => b.isActive);
-    if (filterType === "freelancer") list = bdes.filter(b => b.bdeType === "Freelancer");
-    if (filterType === "employee") list = bdes.filter(b => b.bdeType === "Employee");
-    if (filterType === "india") list = bdes.filter(b => b.assignedCountries?.includes("india"));
-    if (filterType === "australia") list = bdes.filter(b => b.assignedCountries?.includes("australia"));
-    if (filterType === "commission") list = bdes.filter(b => b.bdeType === "Freelancer" && (b.freelancerSettings?.totalEarnings || 0) > 0);
+  const getFilteredBdesList = () => {
+    let list = currentScopedBDEs;
+    if (filterType === "active") list = currentScopedBDEs.filter(b => b.isActive);
+    if (filterType === "freelancer") list = currentScopedBDEs.filter(b => b.bdeType === "Freelancer");
+    if (filterType === "employee") list = currentScopedBDEs.filter(b => b.bdeType === "Employee");
+    if (filterType === "india") list = currentScopedBDEs.filter(b => b.assignedCountries?.includes("india"));
+    if (filterType === "australia") list = currentScopedBDEs.filter(b => b.assignedCountries?.includes("australia"));
+    if (filterType === "commission") list = currentScopedBDEs.filter(b => b.bdeType === "Freelancer" && (b.freelancerSettings?.totalEarnings || 0) > 0);
     return list;
   };
 
@@ -433,11 +476,20 @@ export default function BDEManagementScreen() {
           </h1>
           <p className="text-slate-500 mt-2">Manage Business Development Executives by region and project type.</p>
         </div>
-        <div>
-          <button onClick={handleAddNew} className="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 flex items-center gap-2 text-sm transition-all shadow-md">
-            <Plus className="w-4 h-4" /> Add New BDE
-          </button>
-        </div>
+      </div>
+
+      {/* Global Actions */}
+      <div className="flex justify-end items-center gap-3 mb-6">
+        <input
+          type="text"
+          placeholder="Search BDEs or Districts..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm w-64 shadow-sm"
+        />
+        <button onClick={handleAddNew} className="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 flex items-center gap-2 text-sm transition-all shadow-md">
+          <Plus className="w-4 h-4" /> Add New BDE
+        </button>
       </div>
 
       {/* Summary Cards */}
@@ -445,8 +497,6 @@ export default function BDEManagementScreen() {
         <div 
           onClick={() => {
             setFilterType(filterType === "active" ? "all" : "active");
-            setSelectedCountry(null);
-            setSelectedDistrict(null);
           }}
           className={`p-4 rounded-2xl border transition-all cursor-pointer shadow-sm ${
             filterType === "active" ? "bg-blue-50 border-blue-500 ring-2 ring-blue-500/20" : "bg-white border-slate-200 hover:border-blue-300"
@@ -460,8 +510,6 @@ export default function BDEManagementScreen() {
         <div 
           onClick={() => {
             setFilterType(filterType === "freelancer" ? "all" : "freelancer");
-            setSelectedCountry(null);
-            setSelectedDistrict(null);
           }}
           className={`p-4 rounded-2xl border transition-all cursor-pointer shadow-sm ${
             filterType === "freelancer" ? "bg-amber-50 border-amber-500 ring-2 ring-amber-500/20" : "bg-white border-slate-200 hover:border-amber-300"
@@ -475,8 +523,6 @@ export default function BDEManagementScreen() {
         <div 
           onClick={() => {
             setFilterType(filterType === "employee" ? "all" : "employee");
-            setSelectedCountry(null);
-            setSelectedDistrict(null);
           }}
           className={`p-4 rounded-2xl border transition-all cursor-pointer shadow-sm ${
             filterType === "employee" ? "bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20" : "bg-white border-slate-200 hover:border-emerald-300"
@@ -496,8 +542,6 @@ export default function BDEManagementScreen() {
         <div 
           onClick={() => {
             setFilterType(filterType === "australia" ? "india" : filterType === "india" ? "all" : "australia");
-            setSelectedCountry(null);
-            setSelectedDistrict(null);
           }}
           className={`p-4 rounded-2xl border transition-all cursor-pointer shadow-sm ${
             filterType === "australia" || filterType === "india" ? "bg-indigo-50 border-indigo-500 ring-2 ring-indigo-500/20" : "bg-white border-slate-200 hover:border-indigo-300"
@@ -513,8 +557,6 @@ export default function BDEManagementScreen() {
         <div 
           onClick={() => {
             setFilterType(filterType === "commission" ? "all" : "commission");
-            setSelectedCountry(null);
-            setSelectedDistrict(null);
           }}
           className={`p-4 rounded-2xl border transition-all cursor-pointer shadow-sm ${
             filterType === "commission" ? "bg-rose-50 border-rose-500 ring-2 ring-rose-500/20" : "bg-white border-slate-200 hover:border-rose-300"
@@ -532,7 +574,7 @@ export default function BDEManagementScreen() {
         <div className="space-y-6 animate-fadeIn">
           <div className="flex justify-between items-center bg-slate-50 p-4 border border-slate-200 rounded-2xl text-slate-700">
             <p className="text-sm font-bold capitalize">
-              Showing Filtered BDE list: <span className="text-blue-700 font-black">{filterType} BDEs</span> ({getFilteredBdes().length} found)
+              Showing Filtered BDE list: <span className="text-blue-700 font-black">{filterType} BDEs</span> ({getFilteredBdesList().length} found)
             </p>
             <button 
               onClick={() => setFilterType("all")} 
@@ -543,7 +585,7 @@ export default function BDEManagementScreen() {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {getFilteredBdes().map(bde => {
+            {getFilteredBdesList().map(bde => {
               const isFreelancer = bde.bdeType === "Freelancer";
               const commType = bde.freelancerSettings?.commissionType || "Fixed";
               const commAmt = bde.freelancerSettings?.commissionAmount || 0;
@@ -610,9 +652,9 @@ export default function BDEManagementScreen() {
         </div>
       ) : (
         <>
-          {!selectedCountry && renderCountries()}
-          {selectedCountry && !selectedDistrict && renderDistricts()}
-          {selectedCountry && selectedDistrict && renderBDEs()}
+          {!selectedState && renderStates()}
+          {selectedState && !selectedDistrict && renderDistricts()}
+          {selectedState && selectedDistrict && renderBDEs()}
         </>
       )}
 
@@ -699,7 +741,11 @@ export default function BDEManagementScreen() {
                     <span className="font-semibold text-slate-800 capitalize">{selectedCountry || "India"}</span>
                     <span>→</span>
                     <span className="font-semibold text-slate-800 capitalize">
-                      {selectedDistrict || formData.assignedDistricts}
+                      {formData.assignedStates}
+                    </span>
+                    <span>→</span>
+                    <span className="font-semibold text-slate-800 capitalize">
+                      {formData.assignedDistricts}
                     </span>
                   </div>
                   <div>

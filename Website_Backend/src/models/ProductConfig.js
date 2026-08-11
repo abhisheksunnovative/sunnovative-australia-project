@@ -6,6 +6,7 @@ const schema = new mongoose.Schema({
   productCategory: { type: String, required: true }, // e.g. "Solar Panel", "Inverter", "Battery"
   techSpec: { type: String }, // e.g. "Monocrystalline", "String Inverter"
   capacity: { type: String }, // e.g. "500W", "5kW"
+  allowedKw: [{ type: String }], // Array of system kW sizes where this product can be used
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 

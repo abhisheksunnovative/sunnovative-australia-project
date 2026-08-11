@@ -5,7 +5,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useAdminSettings } from "../hooks/useAdminSettings";
-import { SUPPORTED_COUNTRIES, getStatesForCountry, getDistrictsForState } from "../utils/geography";
+import { useGeography } from "../hooks/useGeography";
+import { SUPPORTED_COUNTRIES,  } from "../utils/geography";
 import {
   Plus,
   Eye,

@@ -5,8 +5,9 @@
  * API: /api/project-orders
  */
 
+import { useGeography } from "../hooks/useGeography";
 import React, { useState, useEffect, useCallback } from "react";
-import { SUPPORTED_COUNTRIES, getStatesForCountry, getDistrictsForState } from "../utils/geography";
+import { SUPPORTED_COUNTRIES,  } from "../utils/geography";
 import {
   GitBranch, Search, RefreshCw, X, MapPin, Phone, Mail,
   CheckCircle, Circle, Clock, AlertCircle, ChevronRight,
@@ -233,6 +234,7 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
     }
   }, [orderId]);
 
+  const { states: availableStates, districts: availableDistricts } = useGeography(filterCountry, filterState);
   useEffect(() => { fetchOrder(); }, [fetchOrder]);
 
   const handleCompleteStep = async (stepId, file = null, note = "") => {

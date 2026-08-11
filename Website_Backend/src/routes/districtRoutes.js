@@ -1,8 +1,9 @@
 import express from "express";
-import { getDistricts, createDistrict, updateDistrict, deleteDistrict } from "../controllers/districtController.js";
+import { getDistricts, getStates, createDistrict, updateDistrict, deleteDistrict } from "../controllers/districtController.js";
 
 const router = express.Router();
 
+router.get("/states", getStates);
 router.get("/", getDistricts);
 router.post("/", createDistrict);
 router.put("/:id", updateDistrict);

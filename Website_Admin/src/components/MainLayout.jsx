@@ -15,6 +15,7 @@ import {
   Award,
   CreditCard,
   Sun,
+  Home,
   Package,
   CalendarRange,
   Sliders,
@@ -178,6 +179,16 @@ export const MainLayout = ({
       name: "EPC Rates for Brands",
       id: "epc-rates-brands",
       icon: <Award className="w-5 h-5" />,
+    },
+      {
+        name: "Projects Configuration",
+      id: "projects-configuration",
+      icon: <Home className="w-5 h-5" />,
+    },
+      {
+        name: "Products Configuration",
+      id: "products-configuration",
+      icon: <Package className="w-5 h-5" />,
     },
       {
         name: "Brand Management",

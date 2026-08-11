@@ -1,11 +1,25 @@
 import District from "../models/District.js";
 
-export const getDistricts = async (req, res) => {
+export const getStates = async (req, res) => {
   try {
     const { country } = req.query;
     const filter = country ? { country: country.toLowerCase() } : {};
+    const states = await District.distinct('state', filter);
+    res.status(200).json({ success: true, data: states });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getDistricts = async (req, res) => {
+  try {
+    const { country, state } = req.query;
+    const filter = {};
+    if (country) filter.country = country.toLowerCase();
+    if (state) filter.state = state;
     const districts = await District.find(filter);
-    res.status(200).json(districts);
+    // existing API returned array directly, so keep it for backward compatibility unless we find issues.
+    res.status(200).json({ success: true, data: districts });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -13,7 +27,7 @@ export const getDistricts = async (req, res) => {
 
 export const createDistrict = async (req, res) => {
   try {
-    const { country, district, pincodes, isActive } = req.body;
+    const { country, state, district, pincodes, isActive } = req.body;
     let parsedPincodes = [];
     if (typeof pincodes === "string") {
       parsedPincodes = pincodes.split(",").map(p => p.trim()).filter(p => p);
@@ -23,6 +37,7 @@ export const createDistrict = async (req, res) => {
     
     const newDistrict = new District({
       country,
+      state,
       district,
       pincodes: parsedPincodes,
       isActive
@@ -37,7 +52,7 @@ export const createDistrict = async (req, res) => {
 export const updateDistrict = async (req, res) => {
   try {
     const { id } = req.params;
-    const { country, district, pincodes, isActive } = req.body;
+    const { country, state, district, pincodes, isActive } = req.body;
     
     let parsedPincodes;
     if (typeof pincodes === "string") {
@@ -50,6 +65,7 @@ export const updateDistrict = async (req, res) => {
       id,
       {
         ...(country && { country }),
+        ...(state && { state }),
         ...(district && { district }),
         ...(parsedPincodes && { pincodes: parsedPincodes }),
         ...(isActive !== undefined && { isActive }),

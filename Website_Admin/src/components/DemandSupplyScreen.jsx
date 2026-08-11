@@ -5,16 +5,78 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveCont
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
 export const DemandSupplyScreen = () => {
+  const [countries, setCountries] = React.useState([]);
+  const [selectedCountryObj, setSelectedCountryObj] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/countries`);
+        const data = await res.json();
+        if (data.success && data.data) {
+          setCountries(data.data.filter(c => c.isActive));
+        } else if (Array.isArray(data)) {
+          setCountries(data.filter(c => c.isActive));
+        }
+      } catch (err) {
+        console.error('Failed to fetch countries:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCountries();
+  }, []);
+
+  if (loading) {
+    return <div className="p-8 text-center text-slate-500">Loading countries...</div>;
+  }
+
+  if (!selectedCountryObj) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">Demand & Supply Management</h1>
+          <p className="text-slate-500">Select a country to manage its regional demand and supply rules.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {countries.map(country => (
+            <div 
+              key={country._id || country.code}
+              onClick={() => setSelectedCountryObj(country)}
+              className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-[#28377f] cursor-pointer transition-all flex flex-col items-center justify-center gap-3 group"
+            >
+              <span className="text-4xl group-hover:scale-110 transition-transform duration-300">{country.flagEmoji}</span>
+              <span className="font-bold text-slate-700 group-hover:text-[#28377f]">{country.name}</span>
+            </div>
+          ))}
+          {countries.length === 0 && (
+            <p className="text-slate-500 col-span-full">No active countries found. Please configure them in Country Settings.</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return <DemandSupplyContent selectedCountryObj={selectedCountryObj} onBack={() => setSelectedCountryObj(null)} />;
+};
+
+
+
+export const DemandSupplyContent = ({ selectedCountryObj, onBack }) => {
+  const selectedCountry = selectedCountryObj.code;
+  const selectedCountryName = selectedCountryObj.name;
+
   const [settings, setSettings] = useState(null);
   const [analytics, setAnalytics] = useState([]);
   const [globalSuggestions, setGlobalSuggestions] = useState([]);
   const [showPopup, setShowPopup] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [discoms, setDiscoms] = useState([]);
+  const [districtsData, setDistrictsData] = useState([]);
   
   // Master Filters
   const [filters, setFilters] = useState({
-    country: "",
+    country: selectedCountry,
     state: "",
     district: "",
     projectType: "",
@@ -33,7 +95,7 @@ export const DemandSupplyScreen = () => {
 
   // Regional Rules Form
   const [ruleForm, setRuleForm] = useState({
-    country: "",
+    country: selectedCountry,
     state: "",
     district: "",
     projectType: "",
@@ -80,11 +142,9 @@ export const DemandSupplyScreen = () => {
         }
       }
       
-      const discomRes = await fetch(`${API_BASE}/api/discoms`);
-      const discomData = await discomRes.json();
-      if (discomData.success) {
-        setDiscoms(discomData.data);
-      }
+      const distRes = await fetch(`${API_BASE}/api/districts?country=${selectedCountry}`);
+      const distData = await distRes.json();
+      setDistrictsData(distData.data || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -190,6 +250,12 @@ export const DemandSupplyScreen = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6 relative">
+      <div className="flex items-center gap-4 mb-2">
+        <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors">
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+        <h1 className="text-2xl font-bold text-slate-800">Demand & Supply - {selectedCountryName}</h1>
+      </div>
       
       {/* ── POPUP NOTIFICATION ── */}
       {showPopup && suggestions.length > 0 && (
@@ -224,45 +290,19 @@ export const DemandSupplyScreen = () => {
           <h2 className="text-lg font-bold text-slate-800">Master Filters</h2>
         </div>
         
-        {/* Country Tabs */}
-        <div>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Select Country</p>
-          <div className="flex flex-wrap gap-2">
-            {['India', 'Australia', 'USA', 'UK', 'New Zealand'].map(country => {
-              const shortCode = country === 'India' ? 'IN' : country === 'Australia' ? 'AU' : country === 'USA' ? 'US' : country === 'UK' ? 'GB' : 'NZ';
-              return (
-                <button
-                  key={country}
-                  onClick={() => {
-                    const newCountry = filters.country === country ? '' : country;
-                    setFilters(prev => ({ ...prev, country: newCountry, state: '', district: '', projectType: '' }));
-                    setRuleForm(prev => ({ ...prev, country: newCountry, state: '', district: '', projectType: '' }));
-                  }}
-                  className={`px-4 py-1.5 rounded-full border text-xs font-semibold transition-all ${
-                    filters.country === country 
-                      ? 'bg-slate-800 text-white border-slate-800 shadow-sm' 
-                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-100'
-                  }`}
-                >
-                  {shortCode} - {country}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
+        {/* Country Tabs (Removed, locked to {selectedCountryName}) */}
         {/* State, District, Date Filters */}
         <div className="flex flex-wrap items-center gap-3 pt-2">
           <select name="state" value={filters.state} onChange={(e) => { handleFilterChange(e); setFilters(prev => ({...prev, state: e.target.value, district: ""})); setRuleForm(prev => ({...prev, state: e.target.value, district: ""})); }} className="border p-2.5 rounded-xl text-sm min-w-[150px] bg-white focus:ring-2 focus:ring-blue-100 outline-none">
             <option value="">All States</option>
-            {[...new Set(discoms.filter(d => !filters.country || d.country === filters.country).map(d => d.state))].map(state => (
+            {[...new Set(districtsData.map(d => d.state))].map(state => (
               <option key={state} value={state}>{state}</option>
             ))}
           </select>
           
           <select name="district" value={filters.district} onChange={handleFilterChange} className="border p-2.5 rounded-xl text-sm min-w-[150px] bg-white focus:ring-2 focus:ring-blue-100 outline-none">
             <option value="">All Districts</option>
-            {[...new Set(discoms.filter(d => (!filters.country || d.country === filters.country) && (!filters.state || d.state === filters.state)).flatMap(d => d.districts))].map(district => (
+            {[...new Set(districtsData.filter(d => (!filters.state || d.state === filters.state)).flatMap(d => d.pincodes && Array.isArray(d.pincodes) ? d.pincodes : (typeof d.pincodes === 'string' ? d.pincodes.split(",").map(p => p.trim()) : [d.district])))].map(district => (
               <option key={district} value={district}>{district}</option>
             ))}
           </select>
@@ -379,7 +419,7 @@ export const DemandSupplyScreen = () => {
                   <label className="block text-xs font-semibold text-slate-600 mb-1">State</label>
                   <select value={ruleForm.state} onChange={(e) => setRuleForm({...ruleForm, state: e.target.value, district: ""})} className="w-full border p-2.5 rounded-xl text-sm bg-white" required>
                     <option value="">Select State</option>
-                    {[...new Set(discoms.map(d => d.state))].map(state => (
+                    {[...new Set(districtsData.map(d => d.state))].map(state => (
                       <option key={state} value={state}>{state}</option>
                     ))}
                   </select>
@@ -388,7 +428,7 @@ export const DemandSupplyScreen = () => {
                   <label className="block text-xs font-semibold text-slate-600 mb-1">District</label>
                   <select value={ruleForm.district} onChange={(e) => setRuleForm({...ruleForm, district: e.target.value})} className="w-full border p-2.5 rounded-xl text-sm bg-white" required>
                     <option value="">Select District</option>
-                    {[...new Set(discoms.filter(d => d.state === ruleForm.state).flatMap(d => d.districts))].map(district => (
+                    {[...new Set(districtsData.filter(d => d.state === ruleForm.state).flatMap(d => d.pincodes && Array.isArray(d.pincodes) ? d.pincodes : (typeof d.pincodes === 'string' ? d.pincodes.split(",").map(p => p.trim()) : [d.district])))].map(district => (
                       <option key={district} value={district}>{district}</option>
                     ))}
                   </select>
