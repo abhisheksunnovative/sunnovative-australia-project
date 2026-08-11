@@ -11,6 +11,7 @@
 
 import EligibilitySettings from '../models/EligibilitySettings.js';
 import ProjectPricing from '../models/ProjectPricing.js';
+import EpcOrder from '../models/EpcOrder.js';
 import { getStateSubsidyData, calcCentralSubsidy } from '../utils/stateSubsidyData.js';
 
 // ── Match OCR category → admin DB category ───────────────────────────────────
@@ -262,18 +263,37 @@ export const checkBillEligibility = async (req, res) => {
 
     const totalSubsidy = centralSubsidy + stateSubsidyAmount;
 
-    // Fetch pricing from ProjectPricing model (India, Residential)
+    // Fetch pricing from ProjectPricing model (Generalised for all countries/projectTypes)
     const countryStr = req.headers['x-country'] || 'india';
+    const projTypeStr = req.body.projectType || (matchedCategory?.category?.includes('Residential') ? 'residential' : 'commercial');
     let basePrice = suggestedKW * 60000; // default fallback
     
     try {
       const pricingObj = await ProjectPricing.findOne({
         country: countryStr.toLowerCase(),
+        projectType: { $regex: new RegExp(projTypeStr, 'i') },
         systemSizeKW: suggestedKW
       }).sort({ createdAt: -1 });
 
-      if (pricingObj && pricingObj.projectPrice) {
-        basePrice = pricingObj.projectPrice;
+      if (pricingObj) {
+        if (pricingObj.pricingResponsibility === 'EPC') {
+            // Pull the price from the specific EpcOrder if a mobile/email is provided and an order exists
+            if (req.body.mobile || req.body.email) {
+                const epcOrder = await EpcOrder.findOne({
+                    $or: [{ customerMobile: req.body.mobile }, { customerEmail: req.body.email }]
+                }).sort({ createdAt: -1 });
+                
+                if (epcOrder && epcOrder.epcSubmittedPrice) {
+                    basePrice = epcOrder.epcSubmittedPrice;
+                } else if (pricingObj.projectPrice) {
+                    basePrice = pricingObj.projectPrice; // Fallback to company suggested rate
+                }
+            } else if (pricingObj.projectPrice) {
+               basePrice = pricingObj.projectPrice;
+            }
+        } else if (pricingObj.projectPrice) {
+            basePrice = pricingObj.projectPrice;
+        }
       }
     } catch (pricingErr) {
       console.warn("Could not fetch ProjectPricing in eligibility check:", pricingErr);

@@ -167,14 +167,14 @@ export const MainLayout = ({
       icon: <FileCheck className="w-5 h-5" />,
     },
     {
-      name: "Australia EPC Rates",
-      id: "australia-epc-rates",
-      icon: <Award className="w-5 h-5" />,
-    },
-    {
       name: "Australia Payments",
       id: "australia-payments",
       icon: <CreditCard className="w-5 h-5" />,
+    },
+    {
+      name: "EPC Rates for Brands",
+      id: "epc-rates-brands",
+      icon: <Award className="w-5 h-5" />,
     },
       {
         name: "Brand Management",
@@ -448,10 +448,10 @@ export const MainLayout = ({
       <div className="absolute bottom-0 left-0 w-80 h-80 bg-secondary/5 rounded-full filter blur-3xl pointer-events-none -z-10" />
 
       {/* --- DESKTOP SIDEBAR --- */}
-      <aside className="hidden lg:flex flex-col w-64 bg-orange-600 text-white border-r border-orange-700 flex-shrink-0 z-30 transition-all duration-300">
-        <div className="min-h-24 flex flex-col items-center justify-center py-6 px-4 border-b border-orange-700">
+      <aside className="hidden lg:flex flex-col w-64 bg-[#28377f] text-white border-r border-[#1e2a60] flex-shrink-0 z-30 transition-all duration-300">
+        <div className="min-h-24 flex flex-col items-center justify-center py-6 px-4 border-b border-[#1e2a60]">
           <img src="/logo-white.png" alt="EmergeSun" className="w-40 h-auto object-contain object-center" />
-          <span className="text-[10px] text-orange-100 uppercase tracking-widest font-mono mt-2 text-center w-full">
+          <span className="text-[10px] text-blue-100 uppercase tracking-widest font-mono mt-2 text-center w-full">
             {portalName}
           </span>
         </div>
@@ -467,8 +467,8 @@ export const MainLayout = ({
                 onClick={() => onTabChange(item.id)}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${
                   isActive
-                    ? "bg-yellow-400 text-orange-900 font-bold shadow-md shadow-yellow-400/20 transform translate-x-1.5"
-                    : "text-orange-100 hover:bg-orange-700 hover:text-white"
+                    ? "bg-yellow-400 text-blue-900 font-bold shadow-md shadow-yellow-400/20 transform translate-x-1.5"
+                    : "text-blue-100 hover:bg-[#1e2a60] hover:text-white"
                 }`}
               >
                 {item.icon}
@@ -499,8 +499,8 @@ export const MainLayout = ({
                 onClick={() => onTabChange(item.id)}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${
                   isActive
-                    ? "bg-yellow-400 text-orange-900 font-bold shadow-md shadow-yellow-400/15 transform translate-x-1.5"
-                    : "text-orange-100 hover:bg-orange-700 hover:text-white"
+                    ? "bg-yellow-400 text-blue-900 font-bold shadow-md shadow-yellow-400/15 transform translate-x-1.5"
+                    : "text-blue-100 hover:bg-[#1e2a60] hover:text-white"
                 }`}
               >
                 {item.icon}
@@ -532,8 +532,8 @@ export const MainLayout = ({
               onClick={() => onTabChange("website-content")}
               className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${
                 currentTab === "website-content"
-                  ? "bg-yellow-400 text-orange-900 font-bold shadow-md shadow-yellow-400/15 transform translate-x-1.5"
-                  : "text-orange-100 hover:bg-orange-700 hover:text-white"
+                  ? "bg-yellow-400 text-blue-900 font-bold shadow-md shadow-yellow-400/15 transform translate-x-1.5"
+                  : "text-blue-100 hover:bg-[#1e2a60] hover:text-white"
               }`}
             >
               <Globe className="w-5 h-5" />
@@ -543,7 +543,7 @@ export const MainLayout = ({
         </nav>
 
         {/* Sidebar footer account banner */}
-        <div className="p-4 border-t border-orange-700 bg-orange-700 flex items-center justify-between">
+        <div className="p-4 border-t border-[#1e2a60] bg-[#1e2a60] flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-full bg-yellow-400/20 border border-yellow-400/30 flex items-center justify-center font-bold text-yellow-300 text-xs">
               {displayInitials}
@@ -578,7 +578,7 @@ export const MainLayout = ({
             onClick={() => setMobileMenuOpen(false)}
           />
 
-          <div className="relative flex w-full max-w-xs flex-col bg-orange-600 pt-5 pb-4 text-white shadow-xl">
+          <div className="relative flex w-full max-w-xs flex-col bg-[#28377f] pt-5 pb-4 text-white shadow-xl">
             <div className="absolute top-2 right-2 pt-2">
               <button
                 type="button"

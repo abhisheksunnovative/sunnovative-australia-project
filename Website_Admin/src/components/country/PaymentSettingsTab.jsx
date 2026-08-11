@@ -3,7 +3,7 @@ import { Save, RefreshCw, CheckCircle2, CheckSquare, Settings } from "lucide-rea
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
-export default function AustraliaPaymentSettings() {
+export default function PaymentSettingsTab() {
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

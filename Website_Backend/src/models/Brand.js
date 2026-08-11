@@ -6,16 +6,14 @@ const brandSchema = new mongoose.Schema({
     required: true, 
     trim: true 
   },
-  type: { 
+  products: [{ 
     type: String, 
-    required: true, 
-    enum: ['Solar', 'Inverter', 'Battery'] 
-  },
-  country: { 
+    enum: ['Solar Panel', 'Inverter', 'Battery'] 
+  }],
+  country: [{ 
     type: String, 
-    default: 'australia',
     lowercase: true
-  },
+  }],
   logoUrl: { 
     type: String, 
     default: '' 
@@ -24,6 +22,7 @@ const brandSchema = new mongoose.Schema({
   wattage: { type: String, default: '' },
   technology: { type: String, default: '' },
   inverterType: { type: String, default: '' },
+  inverterCapacity: { type: String },
   availableKw: [{ type: String }],
   projectTypes: [{ type: String }],
   isActive: { 

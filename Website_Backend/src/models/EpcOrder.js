@@ -19,6 +19,8 @@ const epcOrderSchema = new mongoose.Schema({
   city:     { type: String },
   address:  { type: String },
   totalProjectValue: { type: Number, default: 0 },
+  epcSubmittedPrice: { type: Number, default: null },
+  epcPriceSubmittedAt: { type: Date, default: null },
   payment90: {
     amount:     { type: Number, default: 0 },
     status:     { type: String, enum: ['Pending', 'Released'], default: 'Pending' },

@@ -17,7 +17,7 @@ const EpcMyTeam            = lazy(() => import('../pages/epc/team/EpcMyTeam'));
 const EpcAdminSettings     = lazy(() => import('../pages/epc/settings/EpcAdminSettings'));
 const EpcMyPlan            = lazy(() => import('../pages/epc/plan/EpcMyPlan'));
 const EpcMyProfile         = lazy(() => import('../pages/epc/profile/EpcMyProfile'));
-const EpcMyRateCard        = lazy(() => import('../pages/epc/profile/MyRateCard'));
+const EpcBrandPricing      = lazy(() => import('../pages/epc/profile/BrandAndPricing'));
 const EpcWallet            = lazy(() => import('../pages/epc/wallet/EpcWallet')); // ✅ ADDED
 const EpcRewardsDashboard  = lazy(() => import('../pages/epc/rewards/EpcRewardsDashboard')); // ✅ ADDED
 const EpcCalendarView      = lazy(() => import('../pages/epc/calendar/EpcCalendarView'));
@@ -60,7 +60,7 @@ const EpcRoutes = () => (
         <Route path="settings"      element={<Suspense fallback={<PageLoader />}><EpcAdminSettings /></Suspense>} />
         <Route path="plan"          element={<Suspense fallback={<PageLoader />}><EpcMyPlan /></Suspense>} />
         <Route path="profile"       element={<Suspense fallback={<PageLoader />}><EpcMyProfile /></Suspense>} />
-        <Route path="rate-card"     element={<Suspense fallback={<PageLoader />}><EpcMyRateCard /></Suspense>} />
+        <Route path="brand-pricing" element={<Suspense fallback={<PageLoader />}><EpcBrandPricing /></Suspense>} />
         <Route path="calendar"      element={<Suspense fallback={<PageLoader />}><EpcCalendarView /></Suspense>} />
         <Route path="wallet"        element={<Suspense fallback={<PageLoader />}><EpcWallet /></Suspense>} />
         <Route path="rewards"       element={<Suspense fallback={<PageLoader />}><EpcRewardsDashboard /></Suspense>} />

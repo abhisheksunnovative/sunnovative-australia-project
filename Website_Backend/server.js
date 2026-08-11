@@ -16,9 +16,10 @@ import notificationRoutes from "./src/routes/notificationRoutes.js";
 import discomRoutes from "./src/routes/discomRoutes.js";
 import countryWebsiteSettingsRoutes from "./src/routes/countryWebsiteSettingsRoutes.js";
 import brandRoutes from "./src/routes/brandRoutes.js";
-import epcRateCardRoutes from "./src/routes/epcRateCardRoutes.js";
+
 import customerPaymentSettingsRoutes from "./src/routes/customerPaymentSettingsRoutes.js";
 import pricingRoutes from "./src/routes/pricingRoutes.js";
+import pricingSystemSettingsRoutes from "./src/routes/pricingSystemSettingsRoutes.js";
 
 // ── EPC Routes (converted to ESM, all under src/routes now) ─────────────────
 import epcAuthRoutes from "./src/routes/epcAuthRoutes.js";
@@ -133,9 +134,10 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/demand-supply", demandSupplyRoutes);
 app.use("/api/country-settings", countryWebsiteSettingsRoutes);
 app.use("/api/project-pricing", pricingRoutes);
+app.use("/api/pricing-system-settings", pricingSystemSettingsRoutes);
 
 // Custom Australia Journeys
-app.use("/api/epc-rates", epcRateCardRoutes);
+
 app.use("/api/admin/payment-settings", customerPaymentSettingsRoutes);
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -180,7 +182,10 @@ app.use("/api/blogs", blogRoutes);
 // ── Order Journey Project Types Route (For Frontend Compatibility) ────────────
 app.get("/api/order-journey/:country", async (req, res) => {
   try {
-    const rawCountry = req.params.country.toLowerCase();
+    let rawCountry = req.params.country.toLowerCase();
+    if (rawCountry === 'project-types' && req.query.country) {
+      rawCountry = req.query.country.toLowerCase();
+    }
     const countryMap = {
       au: "australia",
       nz: "new_zealand",

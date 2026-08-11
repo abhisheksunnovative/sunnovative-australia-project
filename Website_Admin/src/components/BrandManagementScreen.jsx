@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { MasterFilterBar } from "./common/MasterFilterBar";
-import ProjectPricingTab from "./ProjectPricingTab";
-
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
@@ -14,13 +12,13 @@ export default function BrandManagementScreen() {
   
   // Filters
   const [filterCountry, setFilterCountry] = useState('Australia');
-  const [filterType, setFilterType] = useState('all');
+  const [filterProduct, setFilterProduct] = useState('all');
   const [search, setSearch] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
-    type: 'Solar',
-    country: 'Australia',
+    products: ['Solar Panel'],
+    country: ['australia'],
     logoUrl: '',
     district: 'all',
     wattage: '',
@@ -35,7 +33,7 @@ export default function BrandManagementScreen() {
     setLoading(true);
     try {
       let url = `${API_BASE}/api/brands?country=${filterCountry.toLowerCase()}`;
-      if (filterType !== 'all') url += `&type=${filterType}`;
+      if (filterProduct !== 'all') url += `&products=${filterProduct}`;
       
       const res = await fetch(url);
       const data = await res.json();
@@ -55,7 +53,7 @@ export default function BrandManagementScreen() {
 
   useEffect(() => {
     fetchBrands();
-  }, [filterCountry, filterType, search]);
+  }, [filterCountry, filterProduct, search]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -110,8 +108,8 @@ export default function BrandManagementScreen() {
       setEditingId(brand._id);
       setFormData({
         name: brand.name,
-        type: brand.type,
-        country: brand.country,
+        products: brand.products || (brand.type ? [brand.type === 'Solar' ? 'Solar Panel' : brand.type] : []),
+        country: brand.country ? (Array.isArray(brand.country) ? brand.country : [brand.country]) : [filterCountry.toLowerCase()],
         logoUrl: brand.logoUrl || '',
         district: brand.district || 'all',
         wattage: brand.wattage || '',
@@ -125,8 +123,8 @@ export default function BrandManagementScreen() {
       setEditingId(null);
       setFormData({
         name: '',
-        type: 'Solar',
-        country: filterCountry.toLowerCase(),
+        products: ['Solar Panel'],
+        country: [filterCountry.toLowerCase()],
         logoUrl: '',
         district: 'all',
         wattage: '',
@@ -140,55 +138,34 @@ export default function BrandManagementScreen() {
     setShowModal(true);
   };
 
-  const [activeTab, setActiveTab] = useState('brands');
 
   return (
     <div className="p-6 max-w-7xl mx-auto pb-24">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Brand Management</h1>
-          <p className="text-slate-500 text-sm">Manage Solar and Inverter Brands per country</p>
-        </div>
-      </div>
-
-      <div className="flex gap-4 border-b border-slate-200 mb-6">
-        <button 
-          onClick={() => setActiveTab('brands')}
-          className={`pb-2 px-1 font-semibold ${activeTab === 'brands' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-        >
-          Brands & Products
-        </button>
-        <button 
-          onClick={() => setActiveTab('pricing')}
-          className={`pb-2 px-1 font-semibold ${activeTab === 'pricing' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-        >
-          Project Pricing
-        </button>
-      </div>
-
-      {activeTab === 'brands' && (
-        <>
-          <div className="flex justify-end mb-4">
-            <button onClick={() => openModal()} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2">
-              <Plus className="w-4 h-4" /> Add Brand
-            </button>
+      {/* Master Filter Bar Moved to Top */}
+      <div className="mb-6 sticky top-0 z-10 bg-slate-50 pt-2 pb-4 border-b border-slate-200">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800">Brand Management</h1>
+            <p className="text-slate-500 text-sm">Manage Solar and Inverter Brands per country</p>
           </div>
-          {/* Filters */}
-      <div className="mb-6">
+          <button onClick={() => openModal()} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2">
+            <Plus className="w-4 h-4" /> Add Brand
+          </button>
+        </div>
         <MasterFilterBar
           search={search}
           setSearch={setSearch}
           countryFilter={filterCountry}
           setCountryFilter={setFilterCountry}
-          onClear={() => { setFilterCountry('Australia'); setFilterType('all'); setSearch(''); }}
+          onClear={() => { setFilterCountry('Australia'); setFilterProduct('all'); setSearch(''); }}
           extraFilters={[
             {
-              isActive: filterType !== 'all',
+              isActive: filterProduct !== 'all',
               component: (
-                <select value={filterType} onChange={(e) => setFilterType(e.target.value)} 
+                <select value={filterProduct} onChange={(e) => setFilterProduct(e.target.value)} 
                   className="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-primary/40 font-medium">
-                  <option value="all">All Types</option>
-                  <option value="Solar">Solar Panels</option>
+                  <option value="all">All Products</option>
+                  <option value="Solar Panel">Solar Panels</option>
                   <option value="Inverter">Inverters</option>
                   <option value="Battery">Batteries</option>
                 </select>
@@ -198,12 +175,13 @@ export default function BrandManagementScreen() {
         />
       </div>
 
+
       <div className="bg-white border rounded-xl overflow-hidden">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-slate-500 border-b">
             <tr>
               <th className="p-4 font-semibold uppercase">Brand Name</th>
-              <th className="p-4 font-semibold uppercase">Type</th>
+              <th className="p-4 font-semibold uppercase">Products</th>
               <th className="p-4 font-semibold uppercase">Status</th>
               <th className="p-4 font-semibold uppercase text-right">Actions</th>
             </tr>
@@ -224,7 +202,7 @@ export default function BrandManagementScreen() {
                     )}
                     {brand.name}
                   </td>
-                  <td className="p-4 text-slate-600">{brand.type}</td>
+                  <td className="p-4 text-slate-600">{brand.products ? brand.products.join(', ') : (brand.type || '')}</td>
                   <td className="p-4">
                     {brand.isActive ? (
                       <span className="flex items-center gap-1 text-green-600 bg-green-50 px-2 py-1 rounded text-xs font-bold w-fit"><CheckCircle className="w-3 h-3"/> Active</span>
@@ -254,22 +232,46 @@ export default function BrandManagementScreen() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Type</label>
-                  <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm">
-                    <option value="Solar">Solar Panel</option>
-                    <option value="Inverter">Inverter</option>
-                    <option value="Battery">Battery</option>
-                  </select>
+                  <label className="block text-sm font-medium mb-1">Products</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Solar Panel', 'Inverter', 'Battery'].map(prod => (
+                      <label key={prod} className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded border cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={formData.products.includes(prod)}
+                          onChange={e => {
+                            if(e.target.checked) {
+                              setFormData({...formData, products: [...formData.products, prod]});
+                            } else {
+                              setFormData({...formData, products: formData.products.filter(p => p !== prod)});
+                            }
+                          }}
+                        />
+                        <span className="text-xs">{prod}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Country</label>
-                  <select value={formData.country} onChange={e => setFormData({...formData, country: e.target.value})} className="w-full border rounded-lg px-3 py-2 text-sm">
-                    <option value="india">India</option>
-                    <option value="australia">Australia</option>
-                    <option value="newzealand">New Zealand</option>
-                    <option value="uk">UK</option>
-                    <option value="usa">USA</option>
-                  </select>
+                  <label className="block text-sm font-medium mb-1">Countries</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['india', 'australia', 'newzealand', 'uk', 'usa'].map(c => (
+                      <label key={c} className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded border cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={formData.country.includes(c)}
+                          onChange={e => {
+                            if(e.target.checked) {
+                              setFormData({...formData, country: [...formData.country, c]});
+                            } else {
+                              setFormData({...formData, country: formData.country.filter(x => x !== c)});
+                            }
+                          }}
+                        />
+                        <span className="text-xs capitalize">{c === 'newzealand' ? 'New Zealand' : c === 'uk' ? 'UK' : c === 'usa' ? 'USA' : c}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </div>
               <div>
@@ -277,7 +279,7 @@ export default function BrandManagementScreen() {
                 <input type="text" value={formData.logoUrl} onChange={e => setFormData({...formData, logoUrl: e.target.value})} placeholder="https://..." className="w-full border rounded-lg px-3 py-2 text-sm" />
               </div>
               
-              {formData.type === 'Solar' && (
+              {formData.products.includes('Solar Panel') && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">Wattage</label>
@@ -289,7 +291,7 @@ export default function BrandManagementScreen() {
                   </div>
                 </div>
               )}
-              {formData.type === 'Inverter' && (
+              {formData.products.includes('Inverter') && (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-2">
                     <label className="block text-sm font-medium mb-1">Inverter Type</label>
@@ -317,12 +319,7 @@ export default function BrandManagementScreen() {
           </div>
         </div>
       )}
-      </>
-      )}
 
-      {activeTab === 'pricing' && (
-        <ProjectPricingTab />
-      )}
     </div>
   );
 }

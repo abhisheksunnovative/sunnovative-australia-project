@@ -1327,6 +1327,20 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
               : `* Note: Aapko upfront ${displayCost} pay karna hoga. Subsidy of ${displaySubsidy} project complete hone ke baad seedha aapke bank account mein aayegi.`
             }
           </p>
+
+          {/* Applicable Payment Options */}
+          {paymentSettings && paymentSettings.projectConfigs && paymentSettings.projectConfigs.find(c => c.projectType.toLowerCase() === (pkg.suitable?.[0]?.replace(" Solar","").toLowerCase() || "residential"))?.options.length > 0 && (
+            <div className="mt-3 bg-white/10 border border-white/20 p-3 rounded-lg">
+              <p className="text-xs text-orange-200 font-bold uppercase tracking-wider mb-2">Applicable Payment Options</p>
+              <div className="flex flex-wrap gap-2">
+                {paymentSettings.projectConfigs.find(c => c.projectType.toLowerCase() === (pkg.suitable?.[0]?.replace(" Solar","").toLowerCase() || "residential")).options.map((opt, i) => (
+                  <span key={i} className="text-xs px-2 py-1 bg-orange-500/20 text-orange-100 rounded border border-orange-500/30">
+                    {opt.method} {opt.provider ? `via ${opt.provider}` : ''}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="p-5 flex-1 overflow-y-auto space-y-5">
@@ -1558,6 +1572,7 @@ export default function CustomerPortal({ onClose }) {
   const [appliedProject, setAppliedProject] = useState(null);
   const { country } = useCountry();
   const [journeySettings, setJourneySettings] = useState(null);
+  const [paymentSettings, setPaymentSettings] = useState(null);
   const [customerLead, setCustomerLead] = useState(null);
   const [backendNotifications, setBackendNotifications] = useState([]);
   const [selectedNotifIds, setSelectedNotifIds] = useState([]);
@@ -1742,17 +1757,22 @@ export default function CustomerPortal({ onClose }) {
     }
   };
 
-  const fetchJourney = async () => {
+  const fetchJourneyAndPayment = async () => {
     try {
       const res = await fetch(`${API}/api/order-journey/${country || "IN"}`);
       if(res.ok) {
         const d = await res.json();
         setJourneySettings(d);
       }
+      const payRes = await fetch(`${API}/api/customer-payment-settings/${country || "IN"}`);
+      if(payRes.ok) {
+        const p = await payRes.json();
+        setPaymentSettings(p);
+      }
     } catch(err) { console.error(err); }
   };
 
-  useEffect(() => { fetchJourney(); }, [country]);
+  useEffect(() => { fetchJourneyAndPayment(); }, [country]);
 
   const fetchProjects = async () => {
     setProjLoading(true);

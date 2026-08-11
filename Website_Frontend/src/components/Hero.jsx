@@ -106,14 +106,7 @@ export default function Hero({ settings: propSettings, onScrollToForm, projectTy
 
           {/* Main Hero CTA Buttons */}
           <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-            <button
-              onClick={() => onScrollToForm("survey")}
-              className="px-6 py-4 rounded-xl text-white bg-solar-orange hover:bg-[#f5e90d] font-bold text-sm tracking-wide shadow-lg shadow-[#154E6F]/20 cursor-pointer text-center transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
-              id="hero-primary-cta"
-            >
-              {hero.ctaPrimary?.replace(/free\s*/ig, '') || "Solar Consultation"}
-              <ChevronRight className="w-4 h-4 text-solar-navy stroke-[3]" />
-            </button>
+            
 
             <button
               onClick={() => onScrollToForm("calculator")}

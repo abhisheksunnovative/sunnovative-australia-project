@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 import { useEpcAuth } from '../../context/EpcAuthContext';
 import epcApi from '../../api/epcApi';
+import { Tag } from 'lucide-react';
 
 const planColors = {
   Standard:     'bg-gray-700 text-gray-300',
@@ -117,7 +118,7 @@ const EpcSidebar = ({ collapsed, setCollapsed, darkMode, setDarkMode, setMobileO
       path: '/epc/orders',
       label: 'Orders',
       badge: (newOrderCount + overdueCount) || 0,
-      badgeColor: overdueCount > 0 ? 'bg-orange-500' : 'bg-emerald-500',
+      badgeColor: overdueCount > 0 ? 'bg-blue-600' : 'bg-emerald-500',
       badgeLabel: `${newOrderCount} new, ${overdueCount} overdue`,
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -181,6 +182,11 @@ const EpcSidebar = ({ collapsed, setCollapsed, darkMode, setDarkMode, setMobileO
       ),
     },
     {
+      path: '/epc/brand-pricing',
+      label: 'Brand & Pricing',
+      icon: <Tag className="w-5 h-5" />,
+    },
+    {
       path: '/epc/rate-card',
       label: 'Rate Card',
       icon: (
@@ -210,21 +216,21 @@ const EpcSidebar = ({ collapsed, setCollapsed, darkMode, setDarkMode, setMobileO
   ];
 
   return (
-    <aside className={`${collapsed ? 'w-16' : 'w-60'} transition-all duration-300 bg-orange-600 border-r border-orange-700 flex flex-col h-screen sticky top-0 z-40`}>
+    <aside className={`${collapsed ? 'w-16' : 'w-60'} transition-all duration-300 bg-[#28377f] border-r border-[#1e2a60] flex flex-col h-screen sticky top-0 z-40`}>
 
       {/* Logo */}
-      <div className="flex items-center gap-3 px-4 py-5 border-b border-orange-700">
+      <div className="flex items-center gap-3 px-4 py-5 border-b border-[#1e2a60]">
         {!collapsed ? (
           <div className="flex-1 overflow-hidden flex flex-col items-center justify-center">
             <img src="/logo-white.png" alt="EmergeSun" className="w-28 h-auto object-contain object-center mb-1" />
-            <p className="text-orange-200 text-[10px] uppercase tracking-wider text-center w-full">EPC Portal</p>
+            <p className="text-blue-200 text-[10px] uppercase tracking-wider text-center w-full">EPC Portal</p>
           </div>
         ) : (
-          <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
             <span className="text-white font-bold text-xs">ES</span>
           </div>
         )}
-        <button onClick={() => setCollapsed(!collapsed)} className="ml-auto text-orange-200 hover:text-white flex-shrink-0">
+        <button onClick={() => setCollapsed(!collapsed)} className="ml-auto text-blue-200 hover:text-white flex-shrink-0">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={collapsed ? 'M9 5l7 7-7 7' : 'M15 19l-7-7 7-7'} />
           </svg>
@@ -244,8 +250,8 @@ const EpcSidebar = ({ collapsed, setCollapsed, darkMode, setDarkMode, setMobileO
               className={({ isActive }) =>
                 `relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 hover:translate-x-1 ${
                   isActive
-                    ? 'bg-yellow-400 text-orange-900 font-bold shadow-md shadow-yellow-400/20'
-                    : 'text-orange-100 hover:bg-orange-700 hover:text-white'
+                    ? 'bg-yellow-400 text-blue-900 font-bold shadow-md shadow-yellow-400/20'
+                    : 'text-blue-100 hover:bg-[#1e2a60] hover:text-white'
                 }`
               }
             >
@@ -280,13 +286,13 @@ const EpcSidebar = ({ collapsed, setCollapsed, darkMode, setDarkMode, setMobileO
       </nav>
 
       {/* Bottom */}
-      <div className="border-t border-orange-700 p-3 space-y-2">
+      <div className="border-t border-[#1e2a60] p-3 space-y-2">
 
         {/* Dark / Light toggle */}
         <button
           onClick={() => setDarkMode(!darkMode)}
           title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-orange-200 hover:bg-orange-700 hover:text-white ${collapsed ? 'justify-center' : ''}`}
+          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-blue-200 hover:bg-[#1e2a60] hover:text-white ${collapsed ? 'justify-center' : ''}`}
         >
           {darkMode ? (
             <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -305,25 +311,25 @@ const EpcSidebar = ({ collapsed, setCollapsed, darkMode, setDarkMode, setMobileO
         {/* User info + logout */}
         {!collapsed ? (
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0">
-              <span className="text-orange-200 text-xs font-bold">
+            <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+              <span className="text-blue-200 text-xs font-bold">
                 {epc?.companyName?.charAt(0)?.toUpperCase() || 'E'}
               </span>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-white text-xs font-medium truncate">{epc?.companyName}</p>
-              <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${planColors[epc?.plan] || 'bg-orange-700 text-orange-200'}`}>
+              <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${planColors[epc?.plan] || 'bg-[#1e2a60] text-blue-200'}`}>
                 {epc?.plan}
               </span>
             </div>
-            <button onClick={logout} className="text-orange-200 hover:text-red-300 flex-shrink-0" title="Logout">
+            <button onClick={logout} className="text-blue-200 hover:text-red-300 flex-shrink-0" title="Logout">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
             </button>
           </div>
         ) : (
-          <button onClick={logout} className="w-full flex justify-center text-orange-200 hover:text-red-300 py-1" title="Logout">
+          <button onClick={logout} className="w-full flex justify-center text-blue-200 hover:text-red-300 py-1" title="Logout">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>

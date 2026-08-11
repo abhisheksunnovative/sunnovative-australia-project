@@ -10,6 +10,7 @@ const projectPricingSchema = new mongoose.Schema({
   estimatedSubsidy: { type: Number, default: 0 },
   pricingResponsibility: { type: String, enum: ['Company', 'EPC'], default: 'Company' },
   allowEpcToSetPrice: { type: Boolean, default: false },
+  isApproved: { type: Boolean, default: false },
   epcId: { type: mongoose.Schema.Types.ObjectId, ref: 'EpcPartner', default: null } // If EPC sets the price
 }, { timestamps: true });
 

@@ -2,10 +2,16 @@ import Brand from "../models/Brand.js";
 
 export const getBrands = async (req, res) => {
   try {
-    const { country, type, projectType, isActive } = req.query;
+    const { country, products, projectType, isActive } = req.query;
     const filter = {};
     if (country) filter.country = country.toLowerCase();
-    if (type) filter.type = type;
+    if (products) {
+      if (Array.isArray(products)) {
+        filter.products = { $in: products };
+      } else {
+        filter.products = products;
+      }
+    }
     if (projectType) {
       // The frontend sends projectType like "Residential", but it could be "residential" or in an array
       filter.$or = [
@@ -26,8 +32,8 @@ export const getBrands = async (req, res) => {
 
 export const createBrand = async (req, res) => {
   try {
-    const { name, type, country, logoUrl, isActive } = req.body;
-    const newBrand = new Brand({ name, type, country, logoUrl, isActive });
+    const { name, products, country, logoUrl, isActive } = req.body;
+    const newBrand = new Brand({ name, products, country, logoUrl, isActive });
     await newBrand.save();
     res.status(201).json({ success: true, data: newBrand, message: "Brand created successfully" });
   } catch (error) {

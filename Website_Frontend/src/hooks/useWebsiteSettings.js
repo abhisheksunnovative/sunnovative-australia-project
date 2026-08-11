@@ -194,15 +194,36 @@ export function useWebsiteSettings(selectedPt = "default") {
     const load = async () => {
       try {
         let code = "india";
-        if (country === "AU") code = "australia";
-        if (country === "NZ") code = "new_zealand";
+        let countryCode = "IN";
+        if (country === "AU") { code = "australia"; countryCode = "AU"; }
+        if (country === "NZ") { code = "new_zealand"; countryCode = "NZ"; }
         
         const pt = selectedPt ? selectedPt.toLowerCase() : "default";
 
+        // Fetch old legacy settings
         const res = await fetch(`${API_BASE}/api/website-settings/${code}/${pt}`);
         const result = await res.json();
-        if (active && result.success && result.data) {
-          setData(result.data);
+        
+        // Fetch new country settings (which contain dynamicSections & projectTypeConfigs)
+        const countryRes = await fetch(`${API_BASE}/api/country-settings/public/${countryCode}`);
+        
+        let mergedData = { ...DEFAULTS };
+        
+        if (result.success && result.data) {
+          mergedData = { ...mergedData, ...result.data };
+        }
+        
+        if (countryRes.ok) {
+           const countryData = await countryRes.json();
+           mergedData = { ...mergedData, ...countryData };
+           // Explicitly assign websiteContent if missing but exists in countryData
+           if (countryData && !mergedData.websiteContent) {
+             mergedData.websiteContent = countryData; 
+           }
+        }
+
+        if (active) {
+          setData(mergedData);
         }
       } catch (err) {
         console.error("Error loading website settings:", err);
