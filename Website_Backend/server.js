@@ -14,8 +14,12 @@ import geoLocationRoutes from "./src/routes/GeolocationRoutes.js";
 import demandSupplyRoutes from "./src/routes/demandSupplyRoutes.js";
 import notificationRoutes from "./src/routes/notificationRoutes.js";
 import discomRoutes from "./src/routes/discomRoutes.js";
+import countryRoutes from "./src/routes/countryRoutes.js";
 import countryWebsiteSettingsRoutes from "./src/routes/countryWebsiteSettingsRoutes.js";
 import brandRoutes from "./src/routes/brandRoutes.js";
+import districtRoutes from "./src/routes/districtRoutes.js";
+import projectTypeRoutes from "./src/routes/projectTypeRoutes.js";
+import productConfigRoutes from "./src/routes/productConfigRoutes.js";
 
 import customerPaymentSettingsRoutes from "./src/routes/customerPaymentSettingsRoutes.js";
 import pricingRoutes from "./src/routes/pricingRoutes.js";
@@ -126,8 +130,10 @@ app.use("/api/eligibility-settings", eligibilitySettingsRoutes);
 app.use("/api/order-journey-settings", orderJourneySettingsRoutes);
 app.use("/api/project-orders", projectOrderRoutes);
 app.use("/api/geo", geoLocationRoutes);
+app.use("/api/countries", countryRoutes);
 app.use("/api/discoms", discomRoutes);
 app.use("/api/brands", brandRoutes);
+app.use("/api/districts", districtRoutes);
 app.use("/api/country-website-settings", countryWebsiteSettingsRoutes);
 app.use("/api/leads", leadRoutes);
 app.use("/api/notifications", notificationRoutes);
@@ -135,6 +141,8 @@ app.use("/api/demand-supply", demandSupplyRoutes);
 app.use("/api/country-settings", countryWebsiteSettingsRoutes);
 app.use("/api/project-pricing", pricingRoutes);
 app.use("/api/pricing-system-settings", pricingSystemSettingsRoutes);
+app.use("/api/project-types", projectTypeRoutes);
+app.use("/api/product-configs", productConfigRoutes);
 
 // Custom Australia Journeys
 

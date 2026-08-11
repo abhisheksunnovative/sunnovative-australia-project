@@ -77,9 +77,14 @@ export const MainLayout = ({
 
   const allMenuItems = [
     {
-      name: "Dashboard",
+      name: "Overview",
       id: "dashboard",
       icon: <LayoutDashboard className="w-5 h-5" />,
+    },
+    {
+      name: "Country Settings",
+      id: "country-settings",
+      icon: <Globe className="w-5 h-5" />,
     },
     {
       name: "EPC Partners",
@@ -126,9 +131,7 @@ export const MainLayout = ({
   id: "epc-system-settings",
   icon: <Settings className="w-5 h-5" />,
 },
-    { name: "Projects", id: "projects", icon: <Sun className="w-5 h-5" /> },
     { name: "Live Project Tracking", id: "project-orders", icon: <ListChecks className="w-5 h-5" /> },
-    { name: "Products", id: "products", icon: <Package className="w-5 h-5" /> },
     { name: "Demand & Supply", id: "demand-supply", icon: <Activity className="w-5 h-5" /> },
     {
       name: "Project Order Settings",

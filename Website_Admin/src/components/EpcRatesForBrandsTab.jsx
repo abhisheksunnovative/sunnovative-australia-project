@@ -5,15 +5,29 @@ import ProjectPricingTab from "./ProjectPricingTab";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
-const mockCountries = [
+/* const mockCountries = [
   { id: 'AU', code: 'australia', name: 'Australia', flag: '🇦🇺', desc: 'Manage AU EPC and Company Rates' },
   { id: 'IN', code: 'india', name: 'India', flag: '🇮🇳', desc: 'Manage IN EPC and Company Rates' },
   { id: 'US', code: 'us', name: 'United States', flag: '🇺🇸', desc: 'Manage US EPC and Company Rates' },
-];
+]; */
 
 export default function EpcRatesForBrandsTab() {
   const [settings, setSettings] = useState({});
   const [projectTypes, setProjectTypes] = useState({}); // { countryCode: [ types ] }
+  const [countries, setCountries] = useState([]);
+
+  const fetchCountries = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/countries`);
+      const data = await res.json();
+      if (data.success) setCountries(data.data);
+    } catch (err) { console.error(err); }
+  };
+
+  useEffect(() => {
+    fetchCountries();
+  }, []);
+
   
   const [selectedCountry, setSelectedCountry] = useState(null); // country object
   const [selectedPt, setSelectedPt] = useState(null); // string (e.g. 'Residential Solar')
@@ -152,7 +166,7 @@ export default function EpcRatesForBrandsTab() {
       {!selectedCountry ? (
         // 1. Country Cards View
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mockCountries.filter(c => c.name.toLowerCase().includes(search.toLowerCase())).map(country => (
+          {countries.filter(c => c.name.toLowerCase().includes(search.toLowerCase())).map(country => (
             <div 
               key={country.id} 
               onClick={() => setSelectedCountry(country)}

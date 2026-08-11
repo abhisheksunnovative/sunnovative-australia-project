@@ -35,6 +35,8 @@ import StcManagementDashboard from "./components/country/StcManagementDashboard"
 import PaymentSettingsTab from "./components/country/PaymentSettingsTab";
 import EpcRatesForBrandsTab from "./components/EpcRatesForBrandsTab";
 
+import UnifiedCountrySettings from "./components/UnifiedCountrySettings";
+
 // ── BDE Portal ─────────────────────────────────────────────────────────────
 import BDELayout from "./components/bde/BDELayout";
 import BDEDashboard from "./components/bde/BDEDashboard";
@@ -243,6 +245,9 @@ export default function App() {
   // VIEW OUTLET ROUTING ENGINE
   const renderTabContent = () => {
     switch (currentTab) {
+      case "country-settings":
+        return <UnifiedCountrySettings />;
+
       case "dashboard":
         return (
           <DashboardScreen

@@ -801,19 +801,56 @@ const JourneyCard = ({ journey, journeyIndex, onUpdateJourney, onRemoveJourney, 
 };
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
-export const OrderJourneyScreen = () => {
+export const OrderJourneyScreen = ({ selectedCountry: propCountry }) => {
+  const [dbCountries, setDbCountries] = useState([]);
+  const [internalCountry, setInternalCountry] = useState("india");
+  const selectedCountry = propCountry || internalCountry;
+
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/countries`);
+        const data = await res.json();
+        if (data.success) {
+          setDbCountries(data.data);
+        }
+      } catch (err) {
+        console.error("Error fetching countries:", err);
+      }
+    };
+    if (!propCountry) fetchCountries();
+  }, [propCountry]);
+
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [toast, setToast] = useState(null);
   
-  const [selectedCountry, setSelectedCountry] = useState("india");
   const [selectedState, setSelectedState] = useState("all");
   const [selectedDistrict, setSelectedDistrict] = useState("all");
   const [selectedDiscom, setSelectedDiscom] = useState("all");
   const [discomsList, setDiscomsList] = useState([]);
   const [usingFallback, setUsingFallback] = useState(false);
+  
+  const [projectTypes, setProjectTypes] = useState([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedNewProjectType, setSelectedNewProjectType] = useState("");
+
+  useEffect(() => {
+    const fetchProjectTypes = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/project-types?country=${selectedCountry}`);
+        const data = await res.json();
+        if (data.success) {
+          setProjectTypes(data.data);
+        }
+      } catch (err) {
+        console.error("Error fetching project types:", err);
+      }
+    };
+    fetchProjectTypes();
+  }, [selectedCountry]);
 
   const showToast = (type, msg) => {
     setToast({ type, msg });
@@ -912,13 +949,22 @@ export const OrderJourneyScreen = () => {
   };
 
   const addJourney = () => {
+    setShowAddModal(true);
+    setSelectedNewProjectType("");
+  };
+
+  const handleAddJourneyConfirm = () => {
+    if (!selectedNewProjectType) return;
+    const pt = projectTypes.find(p => p.id === selectedNewProjectType);
+    if (!pt) return;
+
     setSettings((prev) => {
       const next = clone(prev);
       next.journeys.push({
-        projectType: `type-${Date.now()}`,
-        projectTypeLabel: "New Project Type",
+        projectType: pt.id,
+        projectTypeLabel: pt.name,
         enabled: true,
-        description: "",
+        description: pt.description || "",
         signupToken: { enabled: false, amount: 0 },
         epcSelectionType: "FCFS",
         steps: [
@@ -946,6 +992,7 @@ export const OrderJourneyScreen = () => {
       });
       return next;
     });
+    setShowAddModal(false);
   };
 
   const handleSave = async () => {
@@ -1037,20 +1084,21 @@ export const OrderJourneyScreen = () => {
 
       {/* ── Country / Region Filters ── */}
       <div className="bg-slate-800 p-4 rounded-2xl shadow-inner flex gap-6 overflow-x-auto items-end">
-        <div className="flex flex-col flex-1 min-w-[200px]">
-          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Global Market / Country</label>
-          <select 
-            value={selectedCountry} 
-            onChange={(e) => setSelectedCountry(e.target.value)}
-            className="text-sm font-bold text-white border-2 border-slate-600 rounded-xl px-4 py-2.5 bg-slate-700 focus:outline-none focus:border-yellow-400 focus:bg-slate-800 transition"
-          >
-            <option value="india">🇮🇳 India</option>
-            <option value="australia">🇦🇺 Australia</option>
-            <option value="newzealand">🇳🇿 New Zealand</option>
-            <option value="uk">🇬🇧 United Kingdom</option>
-            <option value="usa">🇺🇸 United States</option>
-          </select>
-        </div>
+        {!propCountry && (
+          <div className="flex flex-col flex-1 min-w-[200px]">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Global Market / Country</label>
+            <select 
+              value={internalCountry} 
+              onChange={(e) => setInternalCountry(e.target.value)}
+              className="text-sm font-bold text-white border-2 border-slate-600 rounded-xl px-4 py-2.5 bg-slate-700 focus:outline-none focus:border-yellow-400 focus:bg-slate-800 transition"
+            >
+              {dbCountries.map(c => (
+                <option key={c.code} value={c.code}>{c.flagEmoji} {c.name}</option>
+              ))}
+              {dbCountries.length === 0 && <option value="india">Loading...</option>}
+            </select>
+          </div>
+        )}
         <div className="flex flex-col flex-1 min-w-[150px]">
           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">State (Optional)</label>
           <select value={selectedState} onChange={(e) => { setSelectedState(e.target.value); setSelectedDistrict("all"); setSelectedDiscom("all"); }}
@@ -1185,6 +1233,42 @@ export const OrderJourneyScreen = () => {
         ))}
       </div>
 
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <h3 className="text-lg font-bold text-slate-800">Add New Journey Workflow</h3>
+            <p className="text-sm text-slate-500">Select a project type to create its order workflow.</p>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">Project Type</label>
+              <select
+                className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-yellow-400/40"
+                value={selectedNewProjectType}
+                onChange={(e) => setSelectedNewProjectType(e.target.value)}
+              >
+                <option value="">-- Select Project Type --</option>
+                {projectTypes.filter(pt => !(settings.journeys || []).some(j => j.projectType === pt.id)).map(pt => (
+                  <option key={pt.id} value={pt.id}>{pt.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+              <button
+                className="px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition"
+                onClick={() => setShowAddModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 text-sm font-bold text-slate-900 bg-yellow-400 rounded-xl hover:bg-yellow-500 transition shadow-sm disabled:opacity-50"
+                onClick={handleAddJourneyConfirm}
+                disabled={!selectedNewProjectType}
+              >
+                Add Journey
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

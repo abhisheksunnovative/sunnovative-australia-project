@@ -130,6 +130,22 @@ export const CustomerEligibilityScreen = ({ section = null }) => {
   const [toast, setToast] = useState(null);
   const [usingFallback, setUsingFallback] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState("india");
+  const [countries, setCountries] = useState([]);
+
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/countries`);
+        const data = await res.json();
+        if (data.success) {
+          setCountries(data.data.map(c => ({ code: c.code, label: `${c.flagEmoji || ""} ${c.name}` })));
+        }
+      } catch (err) {
+        console.error("Error fetching countries:", err);
+      }
+    };
+    fetchCountries();
+  }, []);
 
   const [previewState, setPreviewState] = useState("Gujarat");
   const [previewBill, setPreviewBill] = useState(2500);
@@ -139,24 +155,54 @@ export const CustomerEligibilityScreen = ({ section = null }) => {
   const fetchSettings = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/eligibility-settings`, {
-        headers: { 'x-country': selectedCountry }
+      const [settingsRes, typesRes] = await Promise.all([
+        fetch(`${API_BASE}/api/eligibility-settings`, {
+          headers: { 'x-country': selectedCountry }
+        }),
+        fetch(`${API_BASE}/api/project-types?country=${selectedCountry}`)
+      ]);
+
+      const data = await settingsRes.json();
+      const typesData = await typesRes.json();
+
+      let dbProjectTypes = [];
+      if (typesData.success && typesData.data) {
+        dbProjectTypes = typesData.data;
+      }
+
+      const existingSettingsCategories = data.success ? data.data?.projectCategories : [];
+      const baseCategories = (existingSettingsCategories?.length > 0) ? existingSettingsCategories : clone(DEFAULT_SETTINGS.projectCategories);
+
+      let countryCategories = dbProjectTypes.map(pt => {
+        const existing = baseCategories.find(c => c.id === (pt.id || pt._id) || c.name === pt.name) || {};
+        return {
+          id: pt.id || pt._id,
+          name: pt.name,
+          description: pt.description || existing.description || "",
+          enabled: existing.enabled !== undefined ? existing.enabled : true,
+          minKW: existing.minKW !== undefined ? existing.minKW : 1,
+          maxKW: existing.maxKW !== undefined ? existing.maxKW : 10,
+          subsidyEligible: existing.subsidyEligible !== undefined ? existing.subsidyEligible : false,
+          maxSubsidyAmount: existing.maxSubsidyAmount !== undefined ? existing.maxSubsidyAmount : 0
+        };
       });
-      const data = await res.json();
-      const countryCategories = selectedCountry === 'india' 
-        ? [
-            { id: "residential", name: "Residential Solar", enabled: true, minKW: 1, maxKW: 10, subsidyEligible: true, maxSubsidyAmount: 78000, description: "Single family homes, apartments" },
-            { id: "commercial", name: "Commercial Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Shops, offices, factories" }
-          ]
-        : selectedCountry === 'australia'
-        ? [
-            { id: "residential", name: "Residential Solar", enabled: true, minKW: 1, maxKW: 10, subsidyEligible: true, maxSubsidyAmount: 0, description: "Residential solar systems (CEC 12 Steps)" },
-            { id: "commercial", name: "Commercial Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Commercial rooftop solar (14 Steps)" },
-            { id: "solar-battery", name: "Solar + Battery", enabled: true, minKW: 5, maxKW: 50, subsidyEligible: true, maxSubsidyAmount: 0, description: "Solar PV + BESS battery storage (13 Steps)" },
-            { id: "farm-rural", name: "Farm / Rural Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Agricultural, rural & off-grid solar (14 Steps)" },
-            { id: "community-strata", name: "Community / Strata Solar", enabled: true, minKW: 20, maxKW: 1000, subsidyEligible: false, maxSubsidyAmount: 0, description: "Multi-tenant body corporate embedded network (15 Steps)" }
-          ]
-        : clone(DEFAULT_SETTINGS.projectCategories);
+
+      if (countryCategories.length === 0) {
+        countryCategories = selectedCountry === 'india' 
+          ? [
+              { id: "residential", name: "Residential Solar", enabled: true, minKW: 1, maxKW: 10, subsidyEligible: true, maxSubsidyAmount: 78000, description: "Single family homes, apartments" },
+              { id: "commercial", name: "Commercial Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Shops, offices, factories" }
+            ]
+          : selectedCountry === 'australia'
+          ? [
+              { id: "residential", name: "Residential Solar", enabled: true, minKW: 1, maxKW: 10, subsidyEligible: true, maxSubsidyAmount: 0, description: "Residential solar systems (CEC 12 Steps)" },
+              { id: "commercial", name: "Commercial Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Commercial rooftop solar (14 Steps)" },
+              { id: "solar-battery", name: "Solar + Battery", enabled: true, minKW: 5, maxKW: 50, subsidyEligible: true, maxSubsidyAmount: 0, description: "Solar PV + BESS battery storage (13 Steps)" },
+              { id: "farm-rural", name: "Farm / Rural Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Agricultural, rural & off-grid solar (14 Steps)" },
+              { id: "community-strata", name: "Community / Strata Solar", enabled: true, minKW: 20, maxKW: 1000, subsidyEligible: false, maxSubsidyAmount: 0, description: "Multi-tenant body corporate embedded network (15 Steps)" }
+            ]
+          : clone(DEFAULT_SETTINGS.projectCategories);
+      }
 
       if (data.success) {
         const merged = {
@@ -272,14 +318,6 @@ export const CustomerEligibilityScreen = ({ section = null }) => {
 
   const pageTitle = section ? SECTION_TITLES[section] || "Customer Eligibility" : "Customer Eligibility Settings";
   const preview = getSubsidyPreview();
-
-  const countries = [
-    { code: "india", label: "IN India" },
-    { code: "australia", label: "AU Australia" },
-    { code: "new_zealand", label: "NZ New Zealand" },
-    { code: "united_kingdom", label: "GB United Kingdom" },
-    { code: "usa", label: "US USA" },
-  ];
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
