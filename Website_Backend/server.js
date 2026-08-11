@@ -18,6 +18,7 @@ import countryWebsiteSettingsRoutes from "./src/routes/countryWebsiteSettingsRou
 import brandRoutes from "./src/routes/brandRoutes.js";
 import epcRateCardRoutes from "./src/routes/epcRateCardRoutes.js";
 import customerPaymentSettingsRoutes from "./src/routes/customerPaymentSettingsRoutes.js";
+import pricingRoutes from "./src/routes/pricingRoutes.js";
 
 // ── EPC Routes (converted to ESM, all under src/routes now) ─────────────────
 import epcAuthRoutes from "./src/routes/epcAuthRoutes.js";
@@ -131,6 +132,7 @@ app.use("/api/leads", leadRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/demand-supply", demandSupplyRoutes);
 app.use("/api/country-settings", countryWebsiteSettingsRoutes);
+app.use("/api/project-pricing", pricingRoutes);
 
 // Custom Australia Journeys
 app.use("/api/epc-rates", epcRateCardRoutes);
@@ -169,6 +171,10 @@ app.use("/api/bde", bdeRoutes);
 
 // ── Payment Routes ────────────────────────────────────────────────────────────
 app.use("/api/payments", paymentRoutes);
+
+// ── Blog Routes ───────────────────────────────────────────────────────────────
+import blogRoutes from "./src/routes/blogRoutes.js";
+app.use("/api/blogs", blogRoutes);
 
 
 // ── Order Journey Project Types Route (For Frontend Compatibility) ────────────

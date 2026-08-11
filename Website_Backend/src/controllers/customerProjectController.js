@@ -438,13 +438,36 @@ export const getAvailableEpcs = async (req, res) => {
     if (isAu) {
       query.country = "australia";
     }
-    query.serviceAreas = {
-      $elemMatch: {
-        state: state || 'Gujarat'
-      }
-    };
+    
+    // Support existing serviceAreas or activeDistricts
+    query.$or = [
+      { serviceAreas: { $elemMatch: { state: state || 'Gujarat' } } },
+      { activeDistricts: state || 'Gujarat' }
+    ];
+
     if (district && district !== 'All') {
-       query.serviceAreas.$elemMatch.district = district;
+       query.$or[0].serviceAreas.$elemMatch.district = district;
+       query.$or[1].activeDistricts = district;
+    }
+
+    if (req.query.brands) {
+      let brandsQuery = typeof req.query.brands === 'string' ? req.query.brands.split(',') : req.query.brands;
+      const { default: Brand } = await import('../models/Brand.js');
+      const brandDocs = await Brand.find({ name: { $in: brandsQuery.map(b => new RegExp('^' + b.trim() + '$', 'i')) } });
+      const brandIds = brandDocs.map(b => b._id);
+      
+      if (brandIds.length > 0) {
+        query.brandOfferings = {
+          $elemMatch: {
+            $or: [
+              { solarBrands: { $in: brandIds } },
+              { inverterBrands: { $in: brandIds } }
+            ]
+          }
+        };
+      } else {
+        return res.json({ success: true, count: 0, data: [] });
+      }
     }
 
     let epcs = await EpcPartner.find(query)
@@ -476,6 +499,10 @@ export const getAvailableEpcs = async (req, res) => {
               const bTrust = b.trustBadge?.status === 'Approved' ? 1 : 0;
               const aTrust = a.trustBadge?.status === 'Approved' ? 1 : 0;
               if (bTrust !== aTrust) return bTrust - aTrust;
+            }
+            if (prio === 'lowestLeads') {
+               // Sort ascending by total leads/projects
+               if (a.totalInstallations !== b.totalInstallations) return (a.totalInstallations || 0) - (b.totalInstallations || 0);
             }
           }
           return 0;

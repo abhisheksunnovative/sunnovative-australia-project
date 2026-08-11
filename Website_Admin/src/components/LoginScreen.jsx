@@ -38,12 +38,12 @@ export const LoginScreen = ({ onLoginSuccess }) => {
       label: "Primary Owner",
     },
     {
-      email: "admin@sunnovative.com",
+      email: "admin@emergesun.com",
       role: "SaaS Director",
       label: "SaaS Administrator",
     },
     {
-      email: "veneet@sunnovative.com",
+      email: "veneet@emergesun.com",
       role: "Viewer",
       label: "Veneet (Order Journey)",
     },
@@ -218,7 +218,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@sunnovative.com"
+                  placeholder="name@emergesun.com"
                   required
                   className="block w-full pl-11 pr-4 py-3 rounded-xl bg-[#061824]/90 border border-sky-900/50 text-sm text-white focus:outline-hidden focus:ring-1 focus:ring-secondary focus:border-secondary transition-all"
                 />

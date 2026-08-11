@@ -132,12 +132,34 @@ const BLOG_POSTS = [
   },
 ];
 
-export default function BlogPanel({ onBackToHome, onScrollToForm }) {
+export default function BlogPanel({ onBackToHome, onScrollToForm, country, projectType }) {
   const [selectedPost, setSelectedPost] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [copiedLink, setCopiedLink] = useState(false);
   const [likedPosts, setLikedPosts] = useState({});
+  const [blogs, setBlogs] = useState(BLOG_POSTS); // Fallback to static if API fails
+
+  useEffect(() => {
+    const fetchBlogs = async () => {
+      try {
+        const c = country === "AU" ? "australia" : country === "NZ" ? "newzealand" : "india";
+        let url = `${import.meta.env.VITE_API_URL || "http://localhost:4005"}/api/blogs?country=${c}`;
+        if (projectType) url += `&projectType=${projectType}`;
+        
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.success && data.data.length > 0) {
+          setBlogs(data.data);
+        } else {
+          setBlogs(BLOG_POSTS);
+        }
+      } catch (err) {
+        console.error("Failed to fetch blogs:", err);
+      }
+    };
+    fetchBlogs();
+  }, [country, projectType]);
 
   // Reset selected post view if category filters are changed from header
   const handleCategorySelect = (category) => {
@@ -161,13 +183,13 @@ export default function BlogPanel({ onBackToHome, onScrollToForm }) {
   };
 
   // Filter logic
-  const filteredPosts = BLOG_POSTS.filter((post) => {
+  const filteredPosts = blogs.filter((post) => {
     const matchesSearch =
-      post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.summary.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.tags.some((tag) =>
+      post.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      post.summary?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (post.tags && post.tags.some((tag) =>
         tag.toLowerCase().includes(searchQuery.toLowerCase()),
-      );
+      ));
     const matchesCategory =
       selectedCategory === "All" || post.category === selectedCategory;
     return matchesSearch && matchesCategory;
@@ -204,7 +226,7 @@ export default function BlogPanel({ onBackToHome, onScrollToForm }) {
           <div className="mt-8 flex justify-center">
             <button
               onClick={onBackToHome}
-              className="inline-flex items-center gap-2 text-xs font-extrabold text-slate-400 hover:text-solar-yellow transition-colors bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl cursor-pointer"
+              className="inline-flex items-center gap-2 text-xs font-extrabold text-slate-400 hover:text-solar-yellow transition-colors bg-orange-600 border border-slate-800 px-4 py-2 rounded-xl cursor-pointer"
             >
               <ArrowLeft className="w-3.5 h-3.5" /> Back To Interactive
               Calculator
@@ -231,7 +253,7 @@ export default function BlogPanel({ onBackToHome, onScrollToForm }) {
               </button>
 
               <div className="flex items-center gap-2">
-                <span className="text-xs bg-slate-900 border border-slate-800 text-slate-400 px-3 py-1 rounded-full text-[10.5px] font-bold">
+                <span className="text-xs bg-orange-600 border border-slate-800 text-slate-400 px-3 py-1 rounded-full text-[10.5px] font-bold">
                   Category:{" "}
                   <strong className="text-white">
                     {selectedPost.category}
@@ -240,7 +262,7 @@ export default function BlogPanel({ onBackToHome, onScrollToForm }) {
 
                 <button
                   onClick={() => handleShare(selectedPost.slug)}
-                  className="bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-350 hover:text-white transition px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+                  className="bg-orange-600 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-350 hover:text-white transition px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-bold cursor-pointer"
                 >
                   <Share2 className="w-3.5 h-3.5" />{" "}
                   {copiedLink ? "Copied Link!" : "Share Article"}
@@ -297,7 +319,7 @@ export default function BlogPanel({ onBackToHome, onScrollToForm }) {
                 </div>
 
                 {/* Structured Key Takeaways list */}
-                <div className="bg-slate-900/60 border border-[#0081C9]/20 p-5 rounded-3xl space-y-4 shadow-xl">
+                <div className="bg-orange-600/60 border border-[#0081C9]/20 p-5 rounded-3xl space-y-4 shadow-xl">
                   <div className="flex items-center gap-2 border-b border-slate-850 pb-3">
                     <Zap className="w-4.5 h-4.5 text-solar-yellow fill-solar-yellow/20" />
                     <h3 className="text-xs font-black uppercase text-white tracking-wider">
@@ -323,7 +345,7 @@ export default function BlogPanel({ onBackToHome, onScrollToForm }) {
                     {selectedPost.faqs.map((faq, idx) => (
                       <div
                         key={idx}
-                        className="bg-slate-900 border border-slate-850 p-5 rounded-2xl space-y-2"
+                        className="bg-orange-600 border border-slate-850 p-5 rounded-2xl space-y-2"
                       >
                         <h4 className="font-extrabold text-white text-xs sm:text-sm flex items-start gap-2 text-solar-yellow">
                           <span>Q:</span> {faq.q}
@@ -344,7 +366,7 @@ export default function BlogPanel({ onBackToHome, onScrollToForm }) {
                   {selectedPost.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="bg-slate-900 text-slate-400 text-[11px] font-semibold px-3 py-1 rounded-lg border border-slate-850"
+                      className="bg-orange-600 text-slate-400 text-[11px] font-semibold px-3 py-1 rounded-lg border border-slate-850"
                     >
                       #{tag}
                     </span>
@@ -355,7 +377,7 @@ export default function BlogPanel({ onBackToHome, onScrollToForm }) {
               {/* Right column - Sidebar layout */}
               <div className="space-y-8">
                 {/* Author badge box */}
-                <div className="bg-slate-900 border border-slate-850 p-6 rounded-3xl space-y-4 text-center">
+                <div className="bg-orange-600 border border-slate-850 p-6 rounded-3xl space-y-4 text-center">
                   <div className="w-16 h-16 rounded-full bg-[#0081C9]/20 border border-[#0081C9]/30 text-[#0081C9] flex items-center justify-center font-extrabold mx-auto text-xl">
                     SS
                   </div>
@@ -403,7 +425,7 @@ export default function BlogPanel({ onBackToHome, onScrollToForm }) {
                 </div>
 
                 {/* Other popular solar guides */}
-                <div className="bg-slate-900/40 border border-slate-900 p-6 rounded-3xl space-y-4">
+                <div className="bg-orange-600/40 border border-slate-900 p-6 rounded-3xl space-y-4">
                   <h4 className="text-xs font-black uppercase text-white tracking-widest border-b border-slate-900 pb-2 flex items-center gap-1.5">
                     <TrendingUp className="w-4 h-4 text-solar-yellow" />{" "}
                     Recommended Solar Guides
@@ -418,7 +440,7 @@ export default function BlogPanel({ onBackToHome, onScrollToForm }) {
                         onClick={() => setSelectedPost(pop)}
                         className="pt-4 first:pt-0 group cursor-pointer space-y-2 block"
                       >
-                        <span className="text-[9px] bg-slate-900 text-slate-400 px-2 py-0.5 rounded border border-slate-850 uppercase font-black">
+                        <span className="text-[9px] bg-orange-600 text-slate-400 px-2 py-0.5 rounded border border-slate-850 uppercase font-black">
                           {pop.category}
                         </span>
 
@@ -442,7 +464,7 @@ export default function BlogPanel({ onBackToHome, onScrollToForm }) {
           /* GENERAL DIRECTORY LISTING VIEW */
           <div className="space-y-10">
             {/* Top filters bar */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-slate-900/60 p-4 rounded-2xl border border-slate-850">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-orange-600/60 p-4 rounded-2xl border border-slate-850">
               {/* Category selector pills */}
               <div className="flex flex-wrap gap-2">
                 {["All", "Subsidy", "Technical", "Brands", "Sizing"].map(
@@ -477,7 +499,7 @@ export default function BlogPanel({ onBackToHome, onScrollToForm }) {
 
             {/* Empty stats screen if filtered list is empty */}
             {filteredPosts.length === 0 ? (
-              <div className="text-center py-16 bg-slate-900/40 rounded-3xl border border-dashed border-slate-850 space-y-4">
+              <div className="text-center py-16 bg-orange-600/40 rounded-3xl border border-dashed border-slate-850 space-y-4">
                 <AlertCircle className="w-12 h-12 text-slate-600 mx-auto" />
                 <p className="text-sm font-bold text-slate-400">
                   Mujhe aapke search keyword ke solar content nahi mile.
@@ -488,7 +510,7 @@ export default function BlogPanel({ onBackToHome, onScrollToForm }) {
                     setSearchQuery("");
                     setSelectedCategory("All");
                   }}
-                  className="bg-slate-900 border border-slate-800 text-slate-300 hover:text-white px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
+                  className="bg-orange-600 border border-slate-800 text-slate-300 hover:text-white px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
                 >
                   Clear Filters & Reset
                 </button>
@@ -503,7 +525,7 @@ export default function BlogPanel({ onBackToHome, onScrollToForm }) {
                     <article
                       key={post.id}
                       onClick={() => setSelectedPost(post)}
-                      className="bg-slate-900/70 hover:bg-slate-900 rounded-[24px] overflow-hidden border border-slate-850 hover:border-slate-700 hover:shadow-xl transition-all duration-300 flex flex-col justify-between group h-full relative cursor-pointer"
+                      className="bg-orange-600/70 hover:bg-orange-600 rounded-[24px] overflow-hidden border border-slate-850 hover:border-slate-700 hover:shadow-xl transition-all duration-300 flex flex-col justify-between group h-full relative cursor-pointer"
                     >
                       {/* Image header banner */}
                       <div className="h-52 bg-slate-950 relative overflow-hidden">
@@ -604,7 +626,7 @@ export default function BlogPanel({ onBackToHome, onScrollToForm }) {
                 <button
                   type="button"
                   onClick={onBackToHome}
-                  className="bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 px-6 py-3.5 rounded-xl text-xs font-black uppercase cursor-pointer"
+                  className="bg-orange-600 hover:bg-slate-800 text-slate-300 border border-slate-800 px-6 py-3.5 rounded-xl text-xs font-black uppercase cursor-pointer"
                 >
                   Configure e-Shop
                 </button>

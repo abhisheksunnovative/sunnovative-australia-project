@@ -827,14 +827,18 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
                   </span>
                   {isAU && <span className="text-[9px] text-emerald-700 block">{Math.floor(sliderKw * (getStcZone(postcode) === 1 ? 1.622 : getStcZone(postcode) === 2 ? 1.536 : getStcZone(postcode) === 4 ? 1.185 : 1.382) * (stcSettings?.deemingYears || 5))} STCs</span>}
                 </div>
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-center">
-                  <span className="text-[10px] text-slate-500 block uppercase font-bold tracking-tight">Install Cost</span>
-                  <span className="text-sm font-bold text-slate-700 mt-0.5 block">{isAU ? "$" : "₹"}{sliderCost.toLocaleString()}</span>
-                </div>
-                <div className="p-3 bg-blue-50 rounded-xl border border-blue-200 text-center">
-                  <span className="text-[10px] text-blue-600 block uppercase font-bold tracking-tight">Net Investment</span>
-                  <span className="text-sm font-black text-blue-900 mt-0.5 block">{isAU ? "$" : "₹"}{sliderNet.toLocaleString()}</span>
-                </div>
+                {!isAU && (
+                  <>
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-center">
+                      <span className="text-[10px] text-slate-500 block uppercase font-bold tracking-tight">Install Cost</span>
+                      <span className="text-sm font-bold text-slate-700 mt-0.5 block">₹{sliderCost.toLocaleString()}</span>
+                    </div>
+                    <div className="p-3 bg-blue-50 rounded-xl border border-blue-200 text-center">
+                      <span className="text-[10px] text-blue-600 block uppercase font-bold tracking-tight">Net Investment</span>
+                      <span className="text-sm font-black text-blue-900 mt-0.5 block">₹{sliderNet.toLocaleString()}</span>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="flex items-center gap-2 p-3 bg-white rounded-xl border border-slate-100 text-[11px] text-slate-600">
@@ -908,7 +912,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
               {/* ─── AUSTRALIA: Live STC Breakdown ─── */}
               {isAU && customStcCalc && (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                     <div className="p-3 bg-white rounded-xl border border-slate-100 text-center">
                       <span className="text-[9px] text-slate-400 block uppercase font-bold tracking-tight">System Size</span>
                       <span className="text-base font-black text-slate-900 mt-0.5 block">{effectiveCustomKw} kW</span>
@@ -917,14 +921,6 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
                       <span className="text-[9px] text-emerald-600 block uppercase font-bold tracking-tight">STC Rebate</span>
                       <span className="text-base font-black text-solar-green mt-0.5 block">${customStcCalc.stcValue.toLocaleString()}</span>
                       <span className="text-[9px] text-emerald-600">{customStcCalc.stcs} STCs × ${customStcCalc.stcPrice}</span>
-                    </div>
-                    <div className="p-3 bg-white rounded-xl border border-slate-100 text-center">
-                      <span className="text-[9px] text-slate-400 block uppercase font-bold tracking-tight">Install Cost</span>
-                      <span className="text-base font-bold text-slate-700 mt-0.5 block">${customStcCalc.installCost.toLocaleString()}</span>
-                    </div>
-                    <div className="p-3 bg-blue-50 rounded-xl border border-blue-200 text-center">
-                      <span className="text-[9px] text-blue-600 block uppercase font-bold tracking-tight">You Pay</span>
-                      <span className="text-base font-black text-blue-900 mt-0.5 block">${customStcCalc.netCost.toLocaleString()}</span>
                     </div>
                   </div>
                   {/* STC breakdown explainer */}

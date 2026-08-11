@@ -22,6 +22,7 @@ import { LiveProjectTrackingScreen } from "./components/LiveProjectTrackingScree
 import { LoginScreen } from "./components/LoginScreen";
 import { EpcWalletSettingsScreen } from "./components/Epcwalletsettingsscreen";
 import EpcSystemSettingsScreen from "./components/EpcSystemSettingsScreen";
+import BlogManagementScreen from "./components/BlogManagementScreen";
 import BDEManagementScreen from "./components/BDEManagementScreen";
 import { EpcRewardsScreen } from "./components/EpcRewardsScreen";
 import LeadScreen from "./components/LeadScreen";
@@ -281,6 +282,7 @@ export default function App() {
             isFormOpenExternal={partnerFormOpen}
             onCloseFormExternal={() => setPartnerFormOpen(false)}
             searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
           />
         );
 
@@ -439,6 +441,9 @@ export default function App() {
 
       case "website-content":
         return <WebsiteSettingsScreen />;
+        
+      case "blog-management":
+        return <BlogManagementScreen />;
 
       case "customer-eligibility":
       case "eligibility-categories":

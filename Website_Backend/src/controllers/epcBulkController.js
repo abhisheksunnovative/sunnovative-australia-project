@@ -58,33 +58,58 @@ export const uploadLeads = async (req, res) => {
     let imported = 0;
     let duplicates = 0;
     let errors = [];
+    let failedRows = [];
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const mobileRegex = /^\d{10}$/; // India 10-digit
+    // A sample list of known districts for validation
+    const validDistricts = ["Mumbai", "Pune", "Delhi", "Bengaluru", "Ahmedabad", "Chennai", "Kolkata", "Hyderabad", "Jaipur", "Surat", "Nashik", "Nagpur", "Thane", "Indore", "Bhopal", "Patna", "Vadodara", "Agra", "Lucknow", "Kanpur"];
 
     for (let i = 0; i < leads.length; i++) {
       const row = leads[i];
       try {
         // Validation checks
-        if (!row.email || !row.mobile || !row.companyName) {
-          errors.push({ row: i + 1, message: 'Missing mandatory fields (Email, Mobile, or Company Name)' });
+        if (!row.companyName) {
+          errors.push({ row: i + 1, message: 'Missing mandatory field: Company Name' });
+          failedRows.push(row);
+          continue;
+        }
+        if (row.email && !emailRegex.test(row.email)) {
+          errors.push({ row: i + 1, message: 'Invalid Email format' });
+          failedRows.push(row);
+          continue;
+        }
+        if (row.mobile && !mobileRegex.test(row.mobile)) {
+          errors.push({ row: i + 1, message: 'Invalid Mobile format (must be 10 digits)' });
+          failedRows.push(row);
+          continue;
+        }
+        if (!row.district || !validDistricts.includes(row.district)) {
+          errors.push({ row: i + 1, message: 'District must match a known India district list' });
+          failedRows.push(row);
           continue;
         }
 
-        // Check if exists in EpcPartner
+        // Duplicate EPC check (by mobile + company name combination)
         const existingPartner = await EpcPartner.findOne({ 
-          $or: [{ email: row.email }, { phone: row.mobile }, { gstNumber: row.gstNumber }] 
+          phone: row.mobile,
+          companyName: row.companyName
         });
-
         if (existingPartner) {
           duplicates++;
+          errors.push({ row: i + 1, message: 'Duplicate: Mobile + Company Name already exists in EPC Partners' });
+          failedRows.push(row);
           continue;
         }
 
-        // Check if exists in EpcBulkLead
         const existingBulkLead = await EpcBulkLead.findOne({ 
-          $or: [{ email: row.email }, { mobile: row.mobile }] 
+          mobile: row.mobile,
+          companyName: row.companyName
         });
-
         if (existingBulkLead) {
           duplicates++;
+          errors.push({ row: i + 1, message: 'Duplicate: Mobile + Company Name already exists in Bulk Leads' });
+          failedRows.push(row);
           continue;
         }
 
@@ -97,6 +122,7 @@ export const uploadLeads = async (req, res) => {
         imported++;
       } catch (err) {
         errors.push({ row: i + 1, message: err.message });
+        failedRows.push(row);
       }
     }
 
@@ -105,6 +131,7 @@ export const uploadLeads = async (req, res) => {
       imported, 
       duplicates, 
       errors,
+      failedRows, // Added for frontend CSV download
       total: leads.length
     });
   } catch (error) {

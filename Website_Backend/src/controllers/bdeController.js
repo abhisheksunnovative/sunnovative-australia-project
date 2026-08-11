@@ -27,7 +27,18 @@ export const createBDE = async (req, res) => {
 
 export const getAllBDEs = async (req, res) => {
   try {
-    const bdes = await BDE.find().select("-password");
+    const { country } = req.query;
+    let query = {};
+    if (country) {
+      // BDEs can have an array of assignedCountries or a single country field
+      query = {
+        $or: [
+          { assignedCountries: country.toLowerCase() },
+          { country: { $regex: new RegExp(`^${country}$`, 'i') } }
+        ]
+      };
+    }
+    const bdes = await BDE.find(query).select("-password");
     res.json({ success: true, bdes });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

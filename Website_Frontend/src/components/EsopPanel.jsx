@@ -49,7 +49,7 @@ function CustomFilterSelect({ label, value, options, onChange }) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700/80 rounded-xl px-3.5 py-3 text-xs text-white outline-none flex items-center justify-between transition-all duration-200 cursor-pointer text-left focus:ring-1 focus:ring-solar-yellow focus:border-solar-yellow"
+        className="w-full bg-orange-600 border border-slate-800 hover:border-slate-700/80 rounded-xl px-3.5 py-3 text-xs text-white outline-none flex items-center justify-between transition-all duration-200 cursor-pointer text-left focus:ring-1 focus:ring-solar-yellow focus:border-solar-yellow"
       >
         <span className="font-bold truncate">
           {selectedOption ? selectedOption.label : String(value)}
@@ -76,7 +76,7 @@ function CustomFilterSelect({ label, value, options, onChange }) {
                 className={`w-full px-4 py-2.5 text-left text-xs transition-colors duration-150 flex items-center justify-between ${
                   isSelected
                     ? "bg-[#0081C9]/25 text-white font-extrabold"
-                    : "text-slate-400 hover:bg-slate-900 hover:text-white"
+                    : "text-slate-400 hover:bg-orange-600 hover:text-white"
                 }`}
               >
                 <span>{opt.label}</span>
@@ -835,7 +835,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
             <div className="space-y-3">
               <button
                 onClick={() => setViewMode("home")}
-                className="inline-flex items-center gap-2 text-xs font-black uppercase text-solar-yellow hover:text-white transition-all bg-slate-900/80 border border-slate-800 px-3 py-1.5 rounded-xl cursor-pointer"
+                className="inline-flex items-center gap-2 text-xs font-black uppercase text-solar-yellow hover:text-white transition-all bg-orange-600/80 border border-slate-800 px-3 py-1.5 rounded-xl cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5" /> Back to Landing Page
               </button>
@@ -891,7 +891,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
           <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800 shadow-xl mb-12 animate-fadeIn space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-850 pb-5">
               <div>
-                <span className="text-[9px] bg-slate-900 border border-slate-800 text-slate-400 font-black px-2.5 py-1 rounded">
+                <span className="text-[9px] bg-orange-600 border border-slate-800 text-slate-400 font-black px-2.5 py-1 rounded">
                   Paschim Gujarat Vij (PGVCL) File Profile
                 </span>
                 <h3 className="text-lg font-black text-white mt-2">
@@ -904,7 +904,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
               </div>
 
               {/* Assigned EPC Installer Contact */}
-              <div className="bg-slate-900 border border-slate-800 p-3 rounded-2xl flex items-center gap-3 max-w-sm">
+              <div className="bg-orange-600 border border-slate-800 p-3 rounded-2xl flex items-center gap-3 max-w-sm">
                 <img
                   src={currentAccount.assignedEpc.avatar}
                   alt={currentAccount.assignedEpc.engineer}
@@ -969,7 +969,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
                 </div>
 
                 {/* Economic Breakdown Ledger */}
-                <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div className="bg-orange-600/60 border border-slate-800 p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-3 gap-6">
                   <div>
                     <span className="text-[9px] text-slate-500 font-black uppercase">
                       Project gross Contract Cost
@@ -1010,7 +1010,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
             {/* TECHNICAL BLUEPRINTS SPECIFICATIONS TAB */}
             {activeTrackerTab === "technical" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-slate-900 border border-slate-850 p-4 rounded-2xl space-y-4">
+                <div className="bg-orange-600 border border-slate-850 p-4 rounded-2xl space-y-4">
                   <h5 className="text-xs font-black uppercase tracking-wider text-[#0081C9] border-b border-slate-800 pb-2">
                     ☀️ Dynamic Rooftop Components
                   </h5>
@@ -1053,7 +1053,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
                   </div>
                 </div>
 
-                <div className="bg-slate-900 border border-slate-850 p-4 rounded-2xl space-y-4">
+                <div className="bg-orange-600 border border-slate-850 p-4 rounded-2xl space-y-4">
                   <h5 className="text-xs font-black uppercase tracking-wider text-solar-yellow border-b border-slate-800 pb-2">
                     🛡️ Civil Foundations & Safety
                   </h5>
@@ -1097,7 +1097,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
             {/* REAL-TIME TELEMETRY LAB */}
             {activeTrackerTab === "telemetry" && (
               <div className="space-y-5">
-                <div className="bg-slate-900/40 p-5 rounded-2xl flex flex-col items-center justify-center text-center space-y-4 border border-slate-850">
+                <div className="bg-orange-600/40 p-5 rounded-2xl flex flex-col items-center justify-center text-center space-y-4 border border-slate-850">
                   <span className="inline-flex items-center gap-1.5 text-[9px] font-mono font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full animate-pulse-subtle">
                     <Activity className="w-3.5 h-3.5" /> Synchronized Remote
                     Telemetry
@@ -1132,7 +1132,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
             )}
 
             {/* Quick controller option for testing/demo progress step-up */}
-            <div className="bg-slate-900/60 p-3 rounded-2xl border border-slate-850 text-xs flex flex-wrap items-center justify-between gap-3 px-4">
+            <div className="bg-orange-600/60 p-3 rounded-2xl border border-slate-850 text-xs flex flex-wrap items-center justify-between gap-3 px-4">
               <span className="text-[10px] text-slate-400 font-bold uppercase	 tracking-wider">
                 🎮 DEMO CONTROL (Simulate GEDA progress updates):
               </span>
@@ -1237,7 +1237,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
 
                 <div className="grid grid-cols-2 gap-4">
                   {/* From value stepper */}
-                  <div className="bg-slate-900 border border-slate-850 p-3.5 rounded-2xl space-y-1.5">
+                  <div className="bg-orange-600 border border-slate-850 p-3.5 rounded-2xl space-y-1.5">
                     <span className="text-[9px] uppercase font-black tracking-widest text-slate-500 block leading-none">
                       From (Minimum)
                     </span>
@@ -1273,7 +1273,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
                   </div>
 
                   {/* To value stepper */}
-                  <div className="bg-slate-900 border border-slate-850 p-3.5 rounded-2xl space-y-1.5">
+                  <div className="bg-orange-600 border border-slate-850 p-3.5 rounded-2xl space-y-1.5">
                     <span className="text-[9px] uppercase font-black tracking-widest text-slate-500 block leading-none">
                       To (Maximum)
                     </span>
@@ -1308,7 +1308,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center text-[10px] text-slate-400 mt-2 bg-slate-900/40 px-3 py-2 rounded-xl border border-slate-900">
+                <div className="flex justify-between items-center text-[10px] text-slate-400 mt-2 bg-orange-600/40 px-3 py-2 rounded-xl border border-slate-900">
                   <span className="flex items-center gap-1.5 font-bold">
                     <Sun className="w-3.5 h-3.5 text-solar-yellow" /> Sizing
                     Calculated Average:
@@ -1320,7 +1320,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
               </div>
 
               {/* Stepper with increase/decrease target capacity KW */}
-              <div className="bg-slate-900 border border-slate-850 p-4 rounded-2xl">
+              <div className="bg-orange-600 border border-slate-850 p-4 rounded-2xl">
                 <div className="flex items-center justify-between gap-4">
                   <div className="space-y-1">
                     <span className="text-[9px] uppercase tracking-wider text-slate-500 font-extrabold">
@@ -1348,7 +1348,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
                         setCustomKw((prev) => Math.max(1, prev - 1));
                         setIsOverridden(true);
                       }}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-900 hover:bg-slate-800 disabled:opacity-20 text-white transition-all cursor-pointer"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center bg-orange-600 hover:bg-slate-800 disabled:opacity-20 text-white transition-all cursor-pointer"
                     >
                       <Minus className="w-3.5 h-3.5" />
                     </button>
@@ -1371,7 +1371,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
                         );
                         setIsOverridden(true);
                       }}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-900 hover:bg-slate-800 disabled:opacity-20 text-white transition-all cursor-pointer"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center bg-orange-600 hover:bg-slate-800 disabled:opacity-20 text-white transition-all cursor-pointer"
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </button>
@@ -1395,7 +1395,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
 
               {/* Technical Specifications Grid inside advisor */}
               <div className="grid grid-cols-2 gap-4 text-xs">
-                <div className="bg-slate-900/60 p-3 rounded-xl">
+                <div className="bg-orange-600/60 p-3 rounded-xl">
                   <span className="text-[9px] text-slate-500 uppercase block font-bold leading-none">
                     Total Solar Modules
                   </span>
@@ -1406,7 +1406,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
                     High Output 550Wp Monocrystalline
                   </span>
                 </div>
-                <div className="bg-slate-900/60 p-3 rounded-xl">
+                <div className="bg-orange-600/60 p-3 rounded-xl">
                   <span className="text-[9px] text-slate-500 uppercase block font-bold leading-none">
                     Roof Area Needed
                   </span>
@@ -1417,7 +1417,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
                     Clear south-facing shading headroom
                   </span>
                 </div>
-                <div className="bg-slate-900/60 p-3 rounded-xl">
+                <div className="bg-orange-600/60 p-3 rounded-xl">
                   <span className="text-[9px] text-slate-500 uppercase block font-bold leading-none">
                     Estimated Daily Yield
                   </span>
@@ -1428,7 +1428,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
                     Avg clean electricity units generated
                   </span>
                 </div>
-                <div className="bg-slate-900/60 p-3 rounded-xl">
+                <div className="bg-orange-600/60 p-3 rounded-xl">
                   <span className="text-[9px] text-slate-500 uppercase block font-bold leading-none">
                     Estimated Annual Savings
                   </span>
@@ -1468,7 +1468,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
               </div>
 
               {/* Live search catalog recommendations overlay feedback */}
-              <div className="bg-slate-900/50 p-3 rounded-xl border border-slate-805/40 text-[10.5px] text-slate-400 flex items-center justify-between gap-3">
+              <div className="bg-orange-600/50 p-3 rounded-xl border border-slate-805/40 text-[10.5px] text-slate-400 flex items-center justify-between gap-3">
                 <span>
                   🔍 Our catalogue includes pre-configured{" "}
                   <strong className="text-white">{customKw}kW</strong> grid
@@ -1636,7 +1636,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
                 step={50000}
                 value={maxBudgetCost}
                 onChange={(e) => setMaxBudgetCost(parseInt(e.target.value))}
-                className="w-full accent-solar-yellow cursor-pointer bg-slate-900 h-1.5 rounded-lg appearance-none outline-none"
+                className="w-full accent-solar-yellow cursor-pointer bg-orange-600 h-1.5 rounded-lg appearance-none outline-none"
               />
 
               <div className="flex justify-between text-[8px] text-slate-550 leading-none font-mono">
@@ -1656,7 +1656,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
                   placeholder="Search solar kits, capacities, brands..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 outline-none focus:ring-1 focus:ring-solar-yellow"
+                  className="w-full bg-orange-600 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 outline-none focus:ring-1 focus:ring-solar-yellow"
                 />
 
                 <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-2.5" />
@@ -1748,7 +1748,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
                       }`}
                     >
                       {/* Big Solar Panel Image */}
-                      <div className="h-56 bg-slate-900 relative overflow-hidden">
+                      <div className="h-56 bg-orange-600 relative overflow-hidden">
                         <img
                           src={pkg.image}
                           alt={pkg.title}
@@ -1783,7 +1783,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
                             >
                               {pkg.brand}
                             </span>
-                            <span className="text-[9.5px] bg-slate-900 text-slate-400 font-mono px-2 py-0.5 rounded border border-slate-800 uppercase font-bold">
+                            <span className="text-[9.5px] bg-orange-600 text-slate-400 font-mono px-2 py-0.5 rounded border border-slate-800 uppercase font-bold">
                               {pkg.dcrType} Approved
                             </span>
                           </div>
@@ -1843,7 +1843,7 @@ export default function EsopPanel({ viewMode, setViewMode }) {
            ========================================= */}
       {isCheckoutOpen && checkoutProduct && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-xl w-full overflow-hidden shadow-2xl relative animate-scaleUp">
+          <div className="bg-orange-600 border border-slate-800 rounded-3xl max-w-xl w-full overflow-hidden shadow-2xl relative animate-scaleUp">
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-[#0081C9] to-sky-900 p-5 text-white flex justify-between items-center">
               <div>

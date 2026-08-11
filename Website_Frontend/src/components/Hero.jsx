@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useWebsiteSettings } from "../hooks/useWebsiteSettings";
 
-const STAT_COLORS = ["text-solar-yellow", "text-solar-green", "text-solar-sky"];
+const STAT_COLORS = ["text-orange-400", "text-yellow-300", "text-orange-300"];
 
 export default function Hero({ settings: propSettings, onScrollToForm, projectTypes, selectedPt, onSelectPt }) {
   const baseSettings = useWebsiteSettings();
@@ -24,11 +24,11 @@ export default function Hero({ settings: propSettings, onScrollToForm, projectTy
   return (
     <section
       id="surya-ghar-section"
-      className="relative overflow-hidden bg-slate-900 text-white min-h-[580px] md:min-h-[640px] flex items-center"
+      className="relative overflow-hidden bg-orange-50 text-slate-900 min-h-[580px] md:min-h-[640px] flex items-center"
     >
       {/* Dynamic background element representing brilliant sunlight */}
-      <div className="absolute top-0 right-0 w-full md:w-1/2 h-full z-0 opacity-45 md:opacity-90">
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-900/40 to-transparent z-10"></div>
+      <div className="absolute top-0 right-0 w-full md:w-1/2 h-full z-0 opacity-45 md:opacity-100">
+        <div className="absolute inset-0 bg-gradient-to-r from-orange-50 via-orange-50/40 to-transparent z-10 md:bg-gradient-to-r md:from-orange-50 md:via-orange-50/80 md:to-transparent"></div>
         <img
           src="https://images.unsplash.com/photo-1509391366360-2e959784a276?auto=format&fit=crop&w=1200&q=80"
           alt="Rooftop Solar Panels bathed in bright gujarat sunlight"
@@ -42,9 +42,9 @@ export default function Hero({ settings: propSettings, onScrollToForm, projectTy
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 z-10 w-full">
         <div className="max-w-2xl">
-          <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full glass-panel-dark text-solar-yellow font-bold uppercase tracking-wider mb-6 animate-pulse-subtle">
-            <Sun className="w-3.5 h-3.5 fill-solar-yellow text-solar-yellow" />
-            {hero.badge}
+          <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-solar-orange text-white font-bold uppercase tracking-wider mb-6 animate-pulse-subtle">
+            <Sun className="w-3.5 h-3.5 fill-white text-white" />
+            {hero.badge || "welcome to solarkits"}
           </div>
 
           {/* Dynamic Project Type Selector */}
@@ -65,7 +65,7 @@ export default function Hero({ settings: propSettings, onScrollToForm, projectTy
                         : "text-slate-300 hover:text-white hover:bg-slate-700/60"
                     }`}
                   >
-                    {selectedPt === pt.type && <span className="w-2 h-2 rounded-full bg-slate-900" />}
+                    {selectedPt === pt.type && <span className="w-2 h-2 rounded-full bg-orange-600" />}
                     {pt.projectTypeLabel || pt.type.replace("-", " ")}
                   </button>
                 ))}
@@ -74,21 +74,21 @@ export default function Hero({ settings: propSettings, onScrollToForm, projectTy
           )}
 
           {/* Majestic Hero Headline */}
-          <h1 className="text-4.5xl sm:text-5xl lg:text-5.5xl font-display font-extrabold tracking-tight leading-[1.1] text-white">
-            {hero.headingLine1} <br className="hidden sm:inline" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-solar-yellow via-amber-400 to-solar-green">
+          <h1 className="text-4.5xl sm:text-5xl lg:text-5.5xl font-display font-extrabold tracking-tight leading-[1.1] text-solar-navy">
+            {hero.headingLine1 || "Powering a Sustainable Future with Smart Solar Solutions"} <br className="hidden sm:inline" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-solar-navy to-solar-navy">
               {hero.headingHighlight}
             </span>
           </h1>
 
           {/* Accessible Subtitle */}
-          <p className="mt-6 text-base sm:text-lg text-slate-300 font-medium leading-relaxed">
-            {hero.subtext}
+          <p className="mt-6 text-base sm:text-lg text-slate-600 font-medium leading-relaxed">
+            {hero.subtext || "SolarKits is committed to delivering reliable, efficient, and affordable solar energy solutions for homes, businesses, and industries."}
           </p>
 
           {/* Live counters — dynamic from admin */}
           {stats.length > 0 && (
-            <div className="mt-8 grid gap-4 glass-panel-dark py-4 px-6 rounded-2xl max-w-lg"
+            <div className="mt-8 grid gap-4 bg-[#1c2340] border border-orange-500/30 shadow-2xl backdrop-blur-xl py-4 px-6 rounded-2xl max-w-lg"
               style={{ gridTemplateColumns: `repeat(${stats.length}, 1fr)` }}
             >
               {stats.map((stat, i) => (
@@ -108,16 +108,16 @@ export default function Hero({ settings: propSettings, onScrollToForm, projectTy
           <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
             <button
               onClick={() => onScrollToForm("survey")}
-              className="px-6 py-4 rounded-xl text-solar-navy bg-solar-yellow hover:bg-yellow-405 font-bold text-sm tracking-wide shadow-lg shadow-yellow-500/10 cursor-pointer text-center transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
+              className="px-6 py-4 rounded-xl text-white bg-solar-orange hover:bg-[#f5e90d] font-bold text-sm tracking-wide shadow-lg shadow-[#154E6F]/20 cursor-pointer text-center transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
               id="hero-primary-cta"
             >
-              {hero.ctaPrimary}
+              {hero.ctaPrimary?.replace(/free\s*/ig, '') || "Solar Consultation"}
               <ChevronRight className="w-4 h-4 text-solar-navy stroke-[3]" />
             </button>
 
             <button
               onClick={() => onScrollToForm("calculator")}
-              className="px-6 py-4 rounded-xl text-white bg-slate-800 hover:bg-slate-750 font-bold text-sm border border-slate-700 cursor-pointer text-center transition-all flex items-center justify-center gap-2"
+              className="px-6 py-4 rounded-xl text-solar-orange bg-white hover:bg-orange-50 font-bold text-sm border-2 border-solar-orange cursor-pointer text-center transition-all flex items-center justify-center gap-2"
               id="hero-secondary-cta"
             >
               <BadgePercent className="w-4 h-4 text-solar-sky" />

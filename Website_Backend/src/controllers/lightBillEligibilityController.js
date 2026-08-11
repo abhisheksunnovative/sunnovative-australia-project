@@ -10,6 +10,7 @@
  */
 
 import EligibilitySettings from '../models/EligibilitySettings.js';
+import ProjectPricing from '../models/ProjectPricing.js';
 import { getStateSubsidyData, calcCentralSubsidy } from '../utils/stateSubsidyData.js';
 
 // ── Match OCR category → admin DB category ───────────────────────────────────
@@ -261,6 +262,23 @@ export const checkBillEligibility = async (req, res) => {
 
     const totalSubsidy = centralSubsidy + stateSubsidyAmount;
 
+    // Fetch pricing from ProjectPricing model (India, Residential)
+    const countryStr = req.headers['x-country'] || 'india';
+    let basePrice = suggestedKW * 60000; // default fallback
+    
+    try {
+      const pricingObj = await ProjectPricing.findOne({
+        country: countryStr.toLowerCase(),
+        systemSizeKW: suggestedKW
+      }).sort({ createdAt: -1 });
+
+      if (pricingObj && pricingObj.projectPrice) {
+        basePrice = pricingObj.projectPrice;
+      }
+    } catch (pricingErr) {
+      console.warn("Could not fetch ProjectPricing in eligibility check:", pricingErr);
+    }
+
     // ── 9. Response ────────────────────────────────────────────────────────
     res.json({
       success: true,
@@ -280,8 +298,8 @@ export const checkBillEligibility = async (req, res) => {
         stateAgency:  stateInfo?.agency       || null,
       },
       estimatedInvestment: {
-        approxSystemCost:  suggestedKW * 60000,
-        netAfterSubsidy:   Math.max(10000, (suggestedKW * 60000) - totalSubsidy),
+        approxSystemCost:  basePrice,
+        netAfterSubsidy:   Math.max(10000, basePrice - totalSubsidy),
       },
     });
 

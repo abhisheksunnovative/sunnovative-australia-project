@@ -7,11 +7,11 @@
   --font-mono: "JetBrains Mono", monospace;
 
   /* Custom solar-theme colors */
+  --color-solar-navy: #1e3a8a;
+  --color-solar-orange: #ea580c;
   --color-solar-yellow: #facc15;
-  --color-solar-yellow-dark: #ca8a04;
   --color-solar-sky: #0ea5e9;
   --color-solar-green: #22c55e;
-  --color-solar-navy: #0f172a;
 }
 
 @keyframes float {
@@ -22,6 +22,10 @@
 @keyframes pulse-subtle {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.9; transform: scale(1.02); }
+}
+
+body {
+  overflow-x: hidden;
 }
 
 .animate-float {

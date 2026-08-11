@@ -129,7 +129,7 @@ export default function BDELayout({ children, currentTab, onTabChange, onLogout,
     <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
       {/* Sidebar */}
       <aside className="w-64 bg-slate-900 text-white flex flex-col shadow-xl z-20 flex-shrink-0">
-        <div className="h-16 flex flex-col justify-center px-6 border-b border-white/10 shrink-0 mt-4 mb-4">
+        <div className="min-h-16 py-3 flex flex-col justify-center px-6 border-b border-white/10 shrink-0 mt-4 mb-4">
           <img src="/logo-white.png" alt="EmergeSun" className="w-32 h-auto object-contain object-left" />
           <p className="text-[10px] uppercase tracking-wider text-amber-500/80 font-bold mt-1">BDE Portal</p>
         </div>
@@ -169,7 +169,7 @@ export default function BDELayout({ children, currentTab, onTabChange, onLogout,
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 bg-gray-50/50 overflow-hidden relative">
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0 z-10 sticky top-0 backdrop-blur-md bg-white/80">
+        <header className="min-h-16 py-3 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0 z-10 sticky top-0 backdrop-blur-md bg-white/80">
           <h1 className="text-xl font-bold text-gray-800">
             {navItems.find(i => i.id === currentTab)?.name || "Dashboard"}
           </h1>

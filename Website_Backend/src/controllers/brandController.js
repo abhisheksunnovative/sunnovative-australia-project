@@ -2,10 +2,18 @@ import Brand from "../models/Brand.js";
 
 export const getBrands = async (req, res) => {
   try {
-    const { country, type, isActive } = req.query;
+    const { country, type, projectType, isActive } = req.query;
     const filter = {};
     if (country) filter.country = country.toLowerCase();
     if (type) filter.type = type;
+    if (projectType) {
+      // The frontend sends projectType like "Residential", but it could be "residential" or in an array
+      filter.$or = [
+        { projectTypes: { $in: [new RegExp(`^${projectType}$`, 'i')] } },
+        { projectTypes: { $size: 0 } }, // Include brands available for all if array is empty
+        { projectTypes: { $exists: false } }
+      ];
+    }
     if (isActive !== undefined) filter.isActive = isActive === 'true';
 
     const brands = await Brand.find(filter).sort({ name: 1 });

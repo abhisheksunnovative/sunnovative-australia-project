@@ -619,7 +619,7 @@ function SolarPackages({ onApply, preselectedType }) {
               <button onClick={() => onApply(pkg, selectedState, stateSubsidy, minBookingDays)}
                 className={`w-full py-3 text-sm font-black rounded-xl flex items-center justify-center gap-2 transition-all ${
                   isPopular ? "bg-yellow-400 hover:bg-amber-400 text-yellow-900 shadow-md" :
-                  "bg-slate-900 hover:bg-slate-700 text-white"
+                  "bg-orange-600 hover:bg-slate-700 text-white"
                 }`}>
                 Apply Now <ArrowRight className="w-4 h-4" />
               </button>
@@ -1090,16 +1090,51 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
   const fileRef = useRef();
 
   // For CUSTOMER_SELECT
-  const [modalStep, setModalStep] = useState(isAU ? 1 : 2);
+  const [modalStep, setModalStep] = useState(1);
   const [epcSelectionMode, setEpcSelectionMode] = useState(false);
   const [availableEpcs, setAvailableEpcs] = useState([]);
   const [selectedEpc, setSelectedEpc] = useState(null);
 
+  // Multi-step additions
+  const [availableCapacities, setAvailableCapacities] = useState([]);
+  const [selectedCapacity, setSelectedCapacity] = useState(null);
+  const [availableBrands, setAvailableBrands] = useState([]);
+  const [selectedBrands, setSelectedBrands] = useState([]);
+
   useEffect(() => {
-    if (isAU && modalStep === 1) {
+    const fetchCapacities = async () => {
+      try {
+        const res = await fetch(`${API}/api/project-pricing/capacities?country=${country}`);
+        const data = await res.json();
+        if (data.success) {
+          setAvailableCapacities(data.data);
+        }
+      } catch (err) {}
+    };
+
+    const fetchBrands = async () => {
+      try {
+        const pType = pkg?.projectType || "Residential";
+        const res = await fetch(`${API}/api/brands?country=${country}&projectType=${pType}`);
+        const data = await res.json();
+        if (data.success) {
+          setAvailableBrands(data.data);
+        }
+      } catch (err) {}
+    };
+
+    if (modalStep === 1) {
+      if (isAU) fetchCapacities();
+    }
+    if (modalStep === 2) {
+      fetchBrands();
+    }
+    
+    if (modalStep === 3 && isAU) {
       const fetchEpcs = async () => {
         try {
-          const res = await fetch(`${API}/api/customer/epcs?state=${selectedState}&country=australia`);
+          const brandQuery = selectedBrands.map(b => b._id || b.id || b.name).join(',');
+          const res = await fetch(`${API}/api/customer/epcs?state=${selectedState}&country=australia&brands=${brandQuery}`);
           const data = await res.json();
           if (data.success) {
              setAvailableEpcs(data.data);
@@ -1108,7 +1143,7 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
       };
       fetchEpcs();
     }
-  }, [isAU, modalStep, selectedState]);
+  }, [isAU, modalStep, selectedState, country, selectedBrands, pkg?.projectType]);
 
   const token = localStorage.getItem("customer_token");
   const total = pkg.centralSubsidy + stateSubsidy;
@@ -1175,15 +1210,16 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
     const payload = {
         projectType: pkg.projectType || pkg.suitable?.[0]?.toLowerCase().replace(" solar","").replace(/[\s/]/g,"-").replace("+-","") || "residential",
         projectTypeLabel: pkg.name,
-        systemSizeKW: pkg.kw,
+        systemSizeKW: isAU && selectedCapacity ? selectedCapacity.systemSizeKW : pkg.kw,
         monthlyBillAmount: 0,
-        estimatedSubsidy: total,
+        estimatedSubsidy: isAU && selectedCapacity ? selectedCapacity.estimatedSubsidy : total,
         totalProjectCost: pkg.installCost,
         state: selectedState,
         location: { address: form.address, city: form.city, pincode: form.pincode, state: selectedState },
         preferredInstallDate: form.preferredInstallDate,
         latitude: geo.lat,
-        longitude: geo.lng
+        longitude: geo.lng,
+        selectedBrands: selectedBrands.map(b => b._id || b.id || b.name)
     };
     if (selectedEpc) {
       payload.selectedEpcId = selectedEpc._id;
@@ -1265,9 +1301,9 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md">
-        <div className="bg-slate-900 rounded-t-3xl p-5 border-b border-slate-800">
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 md:pl-64">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col">
+        <div className="bg-orange-600 rounded-t-3xl p-5 border-b border-slate-800 shrink-0">
           <div className="flex justify-between items-start">
             <div>
               <h3 className="font-black text-2xl text-white">{pkg.name}</h3>
@@ -1275,45 +1311,43 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
             </div>
             <button onClick={onClose} className="p-1.5 hover:bg-slate-800 text-slate-400 rounded-xl transition"><X className="w-5 h-5" /></button>
           </div>
-          <div className="mt-5 grid grid-cols-3 gap-2">
+          <div className={`mt-5 grid ${isAU ? 'grid-cols-2' : 'grid-cols-3'} gap-2`}>
             <div><p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Project Type</p><p className="text-base font-black text-white">{pkg.suitable?.[0]?.replace(" Solar","") || "Residential"}</p></div>
             <div><p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">KW Capacity</p><p className="text-base font-black text-white">{displayKw} KW</p></div>
-            <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total Payment</p>
-              <p className="text-base font-black text-white">{displayCost}</p>
-            </div>
+            {!isAU && (
+              <div>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total Payment</p>
+                <p className="text-base font-black text-white">{displayCost}</p>
+              </div>
+            )}
           </div>
           <p className="text-[10px] text-amber-400 font-bold mt-3 bg-amber-950/80 border border-amber-800/60 p-2 rounded-lg block leading-relaxed">
             {isAU 
-              ? `* Note: Australian Govt STC Rebate of ${displaySubsidy} applied. Upfront Payable: ${displayCost}.`
+              ? `* Note: Australian Govt STC Rebate of ${displaySubsidy} will be applied. Final EPC pricing will be shown in your dashboard after selection.`
               : `* Note: Aapko upfront ${displayCost} pay karna hoga. Subsidy of ${displaySubsidy} project complete hone ke baad seedha aapke bank account mein aayegi.`
             }
           </p>
         </div>
 
-        <div className="p-5 space-y-5">
-          {modalStep === 1 ? (
+        <div className="p-5 flex-1 overflow-y-auto space-y-5">
+          {modalStep === 1 && isAU ? (
             <div>
-              <h4 className="text-sm font-black text-slate-700 mb-3 border-b border-slate-100 pb-1">Select Your Solar Installer (EPC)</h4>
-              <p className="text-xs text-slate-500 mb-4">Aapke area ke mutabiq available certified installers ki list. Kripya kisi ek ko select karein.</p>
-              <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-                {availableEpcs.length === 0 ? (
-                  <p className="text-xs text-slate-500 text-center py-4"><Loader2 className="w-5 h-5 animate-spin mx-auto text-slate-400 mb-2"/> Fetching EPCs...</p>
+              <h4 className="text-sm font-black text-slate-700 mb-3 border-b border-slate-100 pb-1">Step 1: Select System Capacity</h4>
+              <p className="text-xs text-slate-500 mb-4">Choose your recommended system size based on your requirements.</p>
+              <div className="space-y-3">
+                {availableCapacities.length === 0 ? (
+                  <p className="text-xs text-slate-500 text-center py-4"><Loader2 className="w-5 h-5 animate-spin mx-auto text-slate-400 mb-2"/> Fetching options...</p>
                 ) : (
-                  availableEpcs.map(epc => (
-                    <div 
-                      key={epc._id} 
-                      onClick={() => setSelectedEpc(epc)}
-                      className={`border p-3 rounded-xl cursor-pointer transition ${selectedEpc?._id === epc._id ? 'border-yellow-400 bg-yellow-50' : 'border-slate-200 hover:border-yellow-200'}`}
-                    >
+                  availableCapacities.map(cap => (
+                    <div key={cap._id} onClick={() => setSelectedCapacity(cap)}
+                      className={`border p-3 rounded-xl cursor-pointer transition ${selectedCapacity?._id === cap._id ? 'border-yellow-400 bg-yellow-50' : 'border-slate-200 hover:border-yellow-200'}`}>
                       <div className="flex justify-between items-center">
                         <div>
-                          <p className="font-bold text-slate-800 text-sm">{epc.companyName}</p>
-                          <p className="text-[10px] text-slate-500 mt-0.5">Contact: {epc.contactPerson}</p>
+                          <p className="font-bold text-slate-800 text-sm">{cap.systemSizeKW} kW System</p>
+                          <p className="text-[10px] text-slate-500">Estimated STC Rebate: ${cap.estimatedSubsidy}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-xs font-black text-yellow-600">⭐ {epc.rating || "New"}</p>
-                          <p className="text-[10px] text-slate-500 mt-0.5">{epc.totalInstallations || 0} Installs</p>
+                        <div className="w-4 h-4 rounded-full border-2 border-slate-300 flex items-center justify-center">
+                          {selectedCapacity?._id === cap._id && <div className="w-2 h-2 bg-yellow-500 rounded-full" />}
                         </div>
                       </div>
                     </div>
@@ -1321,23 +1355,61 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
                 )}
               </div>
             </div>
-          ) : epcSelectionMode ? (
+          ) : modalStep === (isAU ? 2 : 2) ? (
             <div>
-              <h4 className="text-sm font-black text-slate-700 mb-3 border-b border-slate-100 pb-1">Select Your Solar Installer (EPC)</h4>
-              <p className="text-xs text-slate-500 mb-4">Aapke area ke mutabiq available certified installers ki list. Kripya kisi ek ko select karein.</p>
+              <h4 className="text-sm font-black text-slate-700 mb-3 border-b border-slate-100 pb-1">Step {isAU ? 2 : 2}: Select Preferred Brands</h4>
+              <p className="text-xs text-slate-500 mb-4">Select the Solar Panels and Inverters you prefer.</p>
+              <div className="space-y-4 max-h-60 overflow-y-auto pr-1">
+                {availableBrands.length === 0 ? (
+                  <p className="text-xs text-slate-500 text-center py-4"><Loader2 className="w-5 h-5 animate-spin mx-auto text-slate-400 mb-2"/> Fetching brands...</p>
+                ) : (
+                  ['Solar', 'Inverter', 'Battery'].map(type => {
+                    const typeBrands = availableBrands.filter(b => b.type === type);
+                    if (typeBrands.length === 0) return null;
+                    return (
+                      <div key={type}>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">{type} Brands</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {typeBrands.map(b => {
+                            const isSelected = selectedBrands.find(sb => sb._id === b._id);
+                            return (
+                              <div key={b._id} onClick={() => {
+                                if (isSelected) {
+                                  setSelectedBrands(prev => prev.filter(sb => sb._id !== b._id));
+                                } else {
+                                  setSelectedBrands(prev => [...prev, b]);
+                                }
+                              }}
+                              className={`border p-2 flex items-center justify-between rounded-lg cursor-pointer transition ${isSelected ? 'border-yellow-400 bg-yellow-50' : 'border-slate-200'}`}>
+                                <span className="font-bold text-xs text-slate-700">{b.name}</span>
+                                {isSelected && <CheckCircle2 className="w-4 h-4 text-yellow-600" />}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          ) : modalStep === (isAU ? 3 : 3) && (isAU || epcSelectionMode) ? (
+            <div>
+              <h4 className="text-sm font-black text-slate-700 mb-3 border-b border-slate-100 pb-1">Step {isAU ? 3 : 3}: Select Your Solar Installer (EPC)</h4>
+              <p className="text-xs text-slate-500 mb-4">Aapke area ke mutabiq available certified installers ki list. (Filtered by your preferred brands)</p>
               <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
                 {availableEpcs.length === 0 ? (
-                  <p className="text-xs text-slate-500 text-center py-4">Koi installer available nahi hai. Kripya support se sampark karein.</p>
+                  <p className="text-xs text-slate-500 text-center py-4"><Loader2 className="w-5 h-5 animate-spin mx-auto text-slate-400 mb-2"/> Fetching EPCs...</p>
                 ) : (
                   availableEpcs.map(epc => (
-                    <div 
-                      key={epc._id} 
-                      onClick={() => setSelectedEpc(epc)}
-                      className={`border p-3 rounded-xl cursor-pointer transition ${selectedEpc?._id === epc._id ? 'border-yellow-400 bg-yellow-50' : 'border-slate-200 hover:border-yellow-200'}`}
-                    >
+                    <div key={epc._id} onClick={() => setSelectedEpc(epc)}
+                      className={`border p-3 rounded-xl cursor-pointer transition ${selectedEpc?._id === epc._id ? 'border-yellow-400 bg-yellow-50' : 'border-slate-200 hover:border-yellow-200'}`}>
                       <div className="flex justify-between items-center">
                         <div>
-                          <p className="font-bold text-slate-800 text-sm">{epc.companyName}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-slate-800 text-sm">{epc.companyName}</p>
+                            {epc.trustBadge && <span className="bg-blue-100 text-blue-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase">Trusted</span>}
+                          </div>
                           <p className="text-[10px] text-slate-500 mt-0.5">Contact: {epc.contactPerson}</p>
                         </div>
                         <div className="text-right">
@@ -1363,7 +1435,7 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
                   <input type="text" value={consumerNumber} onChange={e => setConsumerNumber(e.target.value)}
                     placeholder="e.g. 1234567890"
                     className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-yellow-400/50" />
-                  <button type="button" onClick={handleCheckEligibility} className="px-5 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-xs whitespace-nowrap hover:bg-slate-800 transition">
+                  <button type="button" onClick={handleCheckEligibility} className="px-5 py-2.5 bg-orange-600 text-white rounded-xl font-bold text-xs whitespace-nowrap hover:bg-slate-800 transition">
                     Verify
                   </button>
                 </div>
@@ -1435,21 +1507,26 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
             <div className="flex flex-col sm:flex-row justify-end gap-3 pt-3">
               <button onClick={onClose} disabled={submitting} className="px-5 py-2.5 rounded-xl font-bold text-sm text-slate-500 hover:bg-slate-100 transition w-full sm:w-auto">Cancel</button>
               <div className="w-full sm:w-auto">
-                {modalStep === 1 ? (
-                  <button onClick={() => setModalStep(2)} disabled={!selectedEpc}
+                {modalStep < (isAU ? 4 : 3) ? (
+                  <button onClick={() => setModalStep(s => s + 1)} 
+                    disabled={
+                      (modalStep === 1 && isAU && !selectedCapacity) ||
+                      (modalStep === 2 && selectedBrands.length === 0) ||
+                      (modalStep === 3 && isAU && !selectedEpc)
+                    }
                     className="w-full py-3.5 px-8 bg-yellow-400 text-yellow-900 font-black text-sm rounded-xl hover:bg-amber-400 transition flex items-center justify-center gap-2 disabled:opacity-50">
                     Next Step <ArrowRight className="w-4 h-4" />
                   </button>
                 ) : (
-                  <button onClick={submit} disabled={submitting || (epcSelectionMode && !selectedEpc)}
+                  <button onClick={submit} disabled={submitting || (!isAU && epcSelectionMode && !selectedEpc)}
                     className="w-full py-3.5 px-8 bg-yellow-400 text-yellow-900 font-black text-sm rounded-xl hover:bg-amber-400 transition flex items-center justify-center gap-2 disabled:opacity-50">
                     {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                    {submitting ? "Processing..." : epcSelectionMode ? "Confirm EPC & Pay" : "Submit Application"}
+                    {submitting ? "Processing..." : (isAU ? "Confirm & Place Order" : (epcSelectionMode ? "Confirm EPC & Pay" : "Submit Application"))}
                   </button>
                 )}
                 
-                {epcSelectionMode && modalStep === 2 && (
-                  <button onClick={() => setEpcSelectionMode(false)} className="w-full mt-2 py-2 text-slate-500 text-xs font-bold hover:bg-slate-50 rounded-xl transition">
+                {modalStep > 1 && (
+                  <button onClick={() => setModalStep(s => s - 1)} className="w-full mt-2 py-2 text-slate-500 text-xs font-bold hover:bg-slate-50 rounded-xl transition">
                     Go Back
                   </button>
                 )}
@@ -1781,19 +1858,15 @@ export default function CustomerPortal({ onClose }) {
       <ToastContainer />
       
       {/* Sidebar */}
-      <div className="md:w-64 bg-solar-navy shrink-0 flex flex-col md:h-full overflow-y-auto">
+      <div className="md:w-64 bg-orange-600 shrink-0 flex flex-col md:h-full overflow-y-auto hide-scrollbar">
         
         {/* Brand */}
-        <div className="px-4 py-4 flex items-center gap-3">
+        <div className="px-4 py-4 flex items-center justify-between md:justify-center">
           <button onClick={onClose} className="p-2 -ml-2 rounded-xl hover:bg-white/10 transition text-white/70 hover:text-white md:hidden">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div className="w-9 h-9 rounded-xl bg-solar-yellow flex items-center justify-center shrink-0">
-            <Sun className="w-5 h-5 text-slate-900 fill-amber-300" />
-          </div>
-          <div className="flex-1">
-            <p className="font-bold text-white text-sm truncate">{customer?.fullName}</p>
-          </div>
+          <img src="/logo-white.png" alt="EmergeSun" className="w-28 h-auto object-contain" />
+          <div className="w-9 md:hidden"></div> {/* Spacer for centering on mobile */}
         </div>
 
         {/* Dynamic Sidebar Nav */}
@@ -1908,24 +1981,24 @@ export default function CustomerPortal({ onClose }) {
           {tab === "home" && (
             <div className="space-y-6 animate-fadeIn">
               {/* Welcome Header */}
-              <div className="bg-slate-900 rounded-3xl p-5 md:p-6 text-white shadow-xl relative overflow-hidden border border-slate-800 text-left">
-                <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-yellow-500/10 rounded-full blur-2xl pointer-events-none" />
+              <div className="bg-gradient-to-br from-orange-600 to-orange-700 rounded-3xl p-5 md:p-6 text-white shadow-xl relative overflow-hidden border border-orange-700 text-left">
+                <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none" />
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
                   <div className="space-y-1.5">
                     <span className="text-[10px] font-black uppercase text-yellow-400 tracking-widest bg-yellow-500/10 px-2.5 py-1 rounded-full border border-yellow-500/20">
                       Welcome Back / Swagat Hai
                     </span>
                     <h2 className="text-xl md:text-2xl font-black">{customer?.fullName || "Solar Partner"}</h2>
-                    <p className="text-xs text-slate-400">EmergeSun energy ecosystem dashboard. Track, manage and monitor your solar installation.</p>
+                    <p className="text-xs text-orange-100">EmergeSun energy ecosystem dashboard. Track, manage and monitor your solar installation.</p>
                   </div>
-                  <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl p-3 md:min-w-[240px]">
+                  <div className="flex items-center gap-3 bg-white/10 border border-white/20 rounded-2xl p-3 md:min-w-[240px]">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-400 to-amber-400 flex items-center justify-center text-yellow-950 font-black text-lg">
                       {customer?.fullName?.charAt(0).toUpperCase() || "S"}
                     </div>
                     <div className="text-left">
-                      <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider">Registered Profile</p>
-                      <p className="text-xs font-bold text-slate-200 truncate max-w-[170px]">{customer?.mobile}</p>
-                      <p className="text-[10px] text-slate-450 truncate max-w-[170px]">{customer?.email || "No Email Provided"}</p>
+                      <p className="text-[10px] text-orange-100 font-bold uppercase tracking-wider">Registered Profile</p>
+                      <p className="text-xs font-bold text-white truncate max-w-[170px]">{customer?.mobile}</p>
+                      <p className="text-[10px] text-orange-100 truncate max-w-[170px]">{customer?.email || "No Email Provided"}</p>
                     </div>
                   </div>
                 </div>
@@ -2058,21 +2131,30 @@ export default function CustomerPortal({ onClose }) {
                               <p className="text-sm font-black text-slate-800 mt-0.5">{size} kW</p>
                               <p className="text-[9px] text-slate-500 font-bold mt-0.5">~{panelsCount} Panels</p>
                             </div>
-                            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center">
-                              <p className="text-[9px] font-black uppercase text-slate-450">Total Value</p>
-                              <p className="text-sm font-black text-slate-800 mt-0.5">{isAU ? "$" : "₹"}{cost.toLocaleString()}</p>
-                              <p className="text-[9px] text-slate-500 font-bold mt-0.5">Project Cost</p>
-                            </div>
-                            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center">
-                              <p className="text-[9px] font-black uppercase text-slate-450">{isAU ? "STC Rebate" : "Govt Subsidy"}</p>
-                              <p className="text-sm font-black text-green-600 mt-0.5">-{isAU ? "$" : "₹"}{subsidy.toLocaleString()}</p>
-                              <p className="text-[9px] text-slate-500 font-bold mt-0.5 font-sans">Upfront discount</p>
-                            </div>
-                            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center">
-                              <p className="text-[9px] font-black uppercase text-slate-450">Net Cost</p>
-                              <p className="text-sm font-black text-blue-600 mt-0.5">{isAU ? "$" : "₹"}{netPayable.toLocaleString()}</p>
-                              <p className="text-[9px] text-slate-500 font-bold mt-0.5">Payable amount</p>
-                            </div>
+                            {isAU && !p.assignedEPCName ? (
+                              <div className="bg-amber-50 p-3 rounded-2xl border border-amber-100 text-center col-span-1 sm:col-span-3 flex flex-col justify-center items-center">
+                                <p className="text-[10px] font-black uppercase text-amber-600">Pending Selection</p>
+                                <p className="text-xs text-amber-700 mt-0.5 font-medium leading-tight">Final cost & STC details will appear once an installer is selected.</p>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center">
+                                  <p className="text-[9px] font-black uppercase text-slate-450">Total Value</p>
+                                  <p className="text-sm font-black text-slate-800 mt-0.5">{isAU ? "$" : "₹"}{cost.toLocaleString()}</p>
+                                  <p className="text-[9px] text-slate-500 font-bold mt-0.5">Project Cost</p>
+                                </div>
+                                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center">
+                                  <p className="text-[9px] font-black uppercase text-slate-450">{isAU ? "STC Rebate" : "Govt Subsidy"}</p>
+                                  <p className="text-sm font-black text-green-600 mt-0.5">-{isAU ? "$" : "₹"}{subsidy.toLocaleString()}</p>
+                                  <p className="text-[9px] text-slate-500 font-bold mt-0.5 font-sans">Upfront discount</p>
+                                </div>
+                                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center">
+                                  <p className="text-[9px] font-black uppercase text-slate-450">Net Cost</p>
+                                  <p className="text-sm font-black text-blue-600 mt-0.5">{isAU ? "$" : "₹"}{netPayable.toLocaleString()}</p>
+                                  <p className="text-[9px] text-slate-500 font-bold mt-0.5">Payable amount</p>
+                                </div>
+                              </>
+                            )}
                           </div>
 
                           <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-3 flex items-center justify-between text-xs text-emerald-800">
@@ -2536,7 +2618,7 @@ export default function CustomerPortal({ onClose }) {
                         <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
                           <p className="text-xs text-slate-600 flex items-center gap-2"><strong>Contact Person:</strong> {activeProjectDetail.epcDetails.contactPerson || activeProjectDetail.epcDetails.ownerName || "David Miller"}</p>
                           <p className="text-xs text-slate-600 flex items-center gap-2"><strong>Phone:</strong> {activeProjectDetail.epcDetails.contactPersonMobile || activeProjectDetail.epcDetails.mobile || activeProjectDetail.epcDetails.phone || "0412345671"}</p>
-                          <p className="text-xs text-slate-600 flex items-center gap-2"><strong>Email:</strong> {activeProjectDetail.epcDetails.contactPersonEmail || activeProjectDetail.epcDetails.email || "epc@sunnovative.com"}</p>
+                          <p className="text-xs text-slate-600 flex items-center gap-2"><strong>Email:</strong> {activeProjectDetail.epcDetails.contactPersonEmail || activeProjectDetail.epcDetails.email || "epc@emergesun.com"}</p>
                           <p className="text-xs text-slate-600 flex items-center gap-2"><strong>Location:</strong> {activeProjectDetail.epcDetails.address || [activeProjectDetail.epcDetails.city, activeProjectDetail.epcDetails.state].filter(Boolean).join(", ") || "Sydney, NSW"}</p>
                           {activeProjectDetail.epcDetails.kycDocuments?.cecAccreditationNumber && (
                             <p className="text-xs text-blue-700 font-bold flex items-center gap-2"><strong>CEC License:</strong> {activeProjectDetail.epcDetails.kycDocuments.cecAccreditationNumber}</p>

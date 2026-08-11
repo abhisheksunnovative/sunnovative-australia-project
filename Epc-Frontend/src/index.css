@@ -19,6 +19,9 @@
   --header-border: #e5e7eb;
   --row-hover:     #f9fafb;
   --table-head:    #f9fafb;
+
+  --color-primary: #ea580c;
+  --color-secondary: #f59e0b;
 }
 
 /* ── Dark mode ── */
@@ -132,7 +135,7 @@ thead tr {
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
 }
 .text-gradient-primary {
-  background: linear-gradient(135deg, #2563EB 0%, #1e40af 100%);
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -157,7 +160,7 @@ thead tr {
   border-radius: 0.5rem;
 }
 .page-header {
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
   border-radius: 1rem;
   padding: 1.5rem;
   color: white;
@@ -186,7 +189,7 @@ thead tr {
   transition: all 0.2s;
 }
 .card-row:hover {
-  border-color: #3b82f6;
-  box-shadow: 0 4px 16px -4px rgba(59, 130, 246, 0.15);
+  border-color: #ea580c;
+  box-shadow: 0 4px 16px -4px rgba(234, 88, 12, 0.20);
   transform: translateY(-1px);
 }

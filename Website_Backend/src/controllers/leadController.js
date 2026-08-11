@@ -94,9 +94,12 @@ export const createLead = async (req, res) => {
 // ─── EXPORT UNASSIGNED LEADS (CSV FOR BDE DISTRIBUTION) ─────────────────────
 export const exportUnassignedLeads = async (req, res) => {
   try {
-    const { country, state, district, status, search } = req.query;
+    const { country, state, district, status, search, uploadSource } = req.query;
 
     const query = { isActive: true, assignedBde: null };
+    if (uploadSource) {
+      query.uploadSource = uploadSource;
+    }
 
     if (status && status !== 'All') {
       query.status = status;
@@ -199,14 +202,24 @@ export const exportUnassignedLeads = async (req, res) => {
 // ─── GET LEAD STATS ───────────────────────────────────────────────────────────
 export const getLeadStats = async (req, res) => {
   try {
+    const { uploadSource } = req.query;
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
+    const baseQuery = { isActive: true };
+    if (uploadSource) {
+      if (uploadSource === 'website') {
+        baseQuery.uploadSource = { $in: ['website', null] };
+      } else {
+        baseQuery.uploadSource = uploadSource;
+      }
+    }
+
     const [total, today, newLeads, converted] = await Promise.all([
-      Lead.countDocuments({ isActive: true }),
-      Lead.countDocuments({ isActive: true, createdAt: { $gte: todayStart } }),
-      Lead.countDocuments({ isActive: true, $or: [{ status: 'New' }, { assignedBde: null }] }),
-      Lead.countDocuments({ isActive: true, status: 'Converted' }),
+      Lead.countDocuments({ ...baseQuery }),
+      Lead.countDocuments({ ...baseQuery, createdAt: { $gte: todayStart } }),
+      Lead.countDocuments({ ...baseQuery, $or: [{ status: 'New' }, { assignedBde: null }] }),
+      Lead.countDocuments({ ...baseQuery, status: 'Converted' }),
     ]);
 
     res.json({
@@ -242,12 +255,25 @@ export const getAllLeads = async (req, res) => {
       startDate,
       endDate,
       uploadSource,
+      assignedBde,
     } = req.query;
 
     const query = { isActive: true };
 
     if (uploadSource) {
-      query.uploadSource = uploadSource;
+      if (uploadSource === 'website') {
+        query.uploadSource = { $in: ['website', null] };
+      } else {
+        query.uploadSource = uploadSource;
+      }
+    }
+
+    if (assignedBde) {
+      if (assignedBde === 'unassigned') {
+        query.assignedBde = null;
+      } else {
+        query.assignedBde = assignedBde;
+      }
     }
 
     // Card filter overrides

@@ -222,7 +222,7 @@ export const ProductInstallerScreen = ({
 
               <button
                 onClick={handleOpenAddProduct}
-                className="inline-flex items-center gap-1 bg-[#0B3A53] text-white hover:bg-[#124b69] text-xs font-semibold px-4 py-2.5 rounded-xl cursor-pointer"
+                className="inline-flex items-center gap-1 bg-orange-600 text-white hover:bg-orange-700 text-xs font-semibold px-4 py-2.5 rounded-xl cursor-pointer"
               >
                 <Plus className="w-4 h-4 text-secondary animate-pulse" />
                 Add Product Item
@@ -430,7 +430,7 @@ export const ProductInstallerScreen = ({
           {!showProductForm && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
               <table className="min-w-full divide-y text-xs text-left">
-                <thead className="bg-[#0B3A53] text-white">
+                <thead className="bg-orange-600 text-white">
                   <tr>
                     <th className="px-5 py-3.5 font-bold font-display uppercase">
                       Model specs
@@ -743,7 +743,7 @@ export const ProductInstallerScreen = ({
           {!showInstallerForm && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
               <table className="min-w-full divide-y text-xs text-left">
-                <thead className="bg-[#0B3A53] text-white">
+                <thead className="bg-orange-600 text-white">
                   <tr>
                     <th className="px-5 py-3.5 font-bold font-display uppercase">
                       Crew member Name

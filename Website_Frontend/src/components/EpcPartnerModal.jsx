@@ -53,7 +53,7 @@ export default function EpcPartnerModal({ isOpen, onClose }) {
   return (
     <div
       id="epc-modal-overlay"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-orange-600/60 backdrop-blur-sm transition-opacity duration-300"
     >
       <div
         id="epc-modal"

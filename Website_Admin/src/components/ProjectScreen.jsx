@@ -335,7 +335,7 @@ export const ProjectScreen = ({
 
           <button
             onClick={handleOpenAdd}
-            className="inline-flex items-center gap-1.5 bg-[#0B3A53] hover:bg-[#124b69] text-white font-semibold text-xs px-4 py-2.5 rounded-xl cursor-pointer shadow-xs"
+            className="inline-flex items-center gap-1.5 bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs px-4 py-2.5 rounded-xl cursor-pointer shadow-xs"
           >
             <Plus className="w-4.5 h-4.5 text-secondary animate-pulse" />
             Create Project Booking
@@ -641,7 +641,7 @@ export const ProjectScreen = ({
         <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
           <div className="overflow-x-auto min-w-full">
             <table className="min-w-full divide-y divide-gray-105 text-left text-xs">
-              <thead className="bg-[#0B3A53] text-white">
+              <thead className="bg-orange-600 text-white">
                 <tr>
                   <th className="px-5 py-3.5 font-bold uppercase tracking-wider font-display">
                     Project Name / Client

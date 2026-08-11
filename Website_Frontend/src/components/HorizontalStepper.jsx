@@ -37,7 +37,7 @@ const HorizontalStepper = ({ steps, currentStatus, theme = "light" }) => {
                     isCompleted
                       ? "bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/30"
                       : isDark
-                        ? "bg-slate-900 border-slate-700 text-slate-400"
+                        ? "bg-orange-600 border-slate-700 text-slate-400"
                         : "bg-white border-slate-300 text-slate-400"
                   } ${isCurrent ? "ring-4 ring-emerald-500/20" : ""}`}
                 >

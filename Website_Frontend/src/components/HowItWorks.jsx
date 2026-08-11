@@ -127,7 +127,7 @@ export default function HowItWorks({ onScrollToForm, settings }) {
                 {item.icon}
 
                 {/* Micro timing tag */}
-                <div className="absolute -bottom-2 px-1.5 py-0.5 bg-slate-900 text-[9px] text-white font-semibold rounded shadow">
+                <div className="absolute -bottom-2 px-1.5 py-0.5 bg-orange-600 text-[9px] text-white font-semibold rounded shadow">
                   {item.badge}
                 </div>
               </div>
@@ -169,7 +169,7 @@ export default function HowItWorks({ onScrollToForm, settings }) {
               <h3 className="text-2xl font-display font-bold text-slate-900">Watch the Process in Action</h3>
               <p className="text-slate-500 mt-2 text-sm">See how quickly your home can be upgraded to solar.</p>
             </div>
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl bg-slate-900 border-4 border-white aspect-video">
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl bg-orange-600 border-4 border-white aspect-video">
               <iframe 
                 className="absolute top-0 left-0 w-full h-full"
                 src={activeVideo.url || "https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0"}

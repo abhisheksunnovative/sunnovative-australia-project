@@ -19,27 +19,27 @@ export default function Footer({ onScrollToForm, settings: propSettings }) {
   };
 
   return (
-    <footer className="bg-slate-900 text-slate-400 font-sans border-t-8 border-solar-yellow">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+    <footer className="bg-orange-600 text-slate-400 font-sans border-t-4 border-solar-navy">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-16">
         {/* Brand Column */}
-        <div className="space-y-4">
-          <a href="#" onClick={handleLogoClick} className="flex items-center gap-2 group">
-            <img src="/logo-white.png" alt="EmergeSun" className="w-32 h-auto object-contain" />
+        <div className="space-y-5">
+          <a href="#" onClick={handleLogoClick} className="inline-block group mb-2">
+            <img src="/logo-white.png" alt="EmergeSun" className="w-40 h-auto object-contain" />
           </a>
-          <p className="text-xs text-slate-400 leading-relaxed pt-1">
-            {footer.copyrightText}
+          <p className="text-sm text-slate-400 leading-relaxed">
+            {footer.copyrightText || "Sunnovative Solar System Pvt Ltd is Rajkot's premium GEDA registered EPC service provider specialized in standard residential PM Surya Ghar Yojana. Turns rooftop shadows into guaranteed cash savings."}
           </p>
-          <div className="flex items-center gap-1.5 text-[10.5px] text-emerald-500 font-bold">
-            <ShieldCheck className="w-4 h-4" /> GEDA Certified Empanelment: {footer.gedaCertNo}
+          <div className="flex items-center gap-2 text-xs text-emerald-400 font-medium bg-slate-800/50 w-fit px-3 py-1.5 rounded-lg border border-slate-700/50">
+            <ShieldCheck className="w-4 h-4 text-emerald-500" /> GEDA Certified: {footer.gedaCertNo || "#RJK-20412"}
           </div>
         </div>
 
         {/* Navigation Quick Links */}
-        <div className="space-y-4">
-          <h4 className="text-sm font-bold font-display text-white uppercase tracking-wider">
-            Quick Shortcuts
+        <div className="space-y-5">
+          <h4 className="text-sm font-bold font-display text-slate-200 tracking-wider">
+            QUICK SHORTCUTS
           </h4>
-          <ul className="space-y-2 text-xs">
+          <ul className="space-y-3 text-sm">
             {[
               ["#surya-ghar-section", "Surya Ghar Yojana"],
               ["#benefits", "Benefits & Savings"],
@@ -58,12 +58,12 @@ export default function Footer({ onScrollToForm, settings: propSettings }) {
         </div>
 
         {/* Contact info */}
-        <div className="space-y-4">
-          <h4 className="text-sm font-bold font-display text-white uppercase tracking-wider">
-            {brand.companyName || "EmergeSun"} Headquarters
+        <div className="space-y-5">
+          <h4 className="text-sm font-bold font-display text-slate-200 tracking-wider uppercase">
+            {brand.companyName || "Sunnovative"} HQ
           </h4>
-          <ul className="space-y-3 text-xs">
-            <li className="flex items-start gap-2">
+          <ul className="space-y-4 text-sm">
+            <li className="flex items-start gap-3">
               <MapPin className="w-4 h-4 text-solar-yellow shrink-0 mt-0.5" />
               <span>{footer.address}</span>
             </li>
@@ -83,14 +83,14 @@ export default function Footer({ onScrollToForm, settings: propSettings }) {
         </div>
 
         {/* Govt Official Resources */}
-        <div className="space-y-4">
-          <h4 className="text-sm font-bold font-display text-white uppercase tracking-wider">
-            Official Portals
+        <div className="space-y-5">
+          <h4 className="text-sm font-bold font-display text-slate-200 tracking-wider">
+            OFFICIAL PORTALS
           </h4>
-          <p className="text-xs text-slate-400">
+          <p className="text-sm text-slate-400 leading-relaxed">
             Official central websites for tracking application registration.
           </p>
-          <ul className="space-y-2 text-xs">
+          <ul className="space-y-3 text-sm">
             {[
               ["https://pmsuryaghar.gov.in/", "National Portal - PM Surya Ghar"],
               ["https://geda.gujarat.gov.in/", "GEDA Official - Gujarat Govt"],

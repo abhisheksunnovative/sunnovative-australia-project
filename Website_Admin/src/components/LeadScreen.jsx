@@ -14,6 +14,7 @@ import {
   UserCheck, BarChart2, Download, Calendar, Clock
 } from "lucide-react";
 import UnifiedAddLeadModal from "./UnifiedAddLeadModal";
+import { MasterFilterBar } from "./common/MasterFilterBar";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
@@ -39,15 +40,7 @@ const SOURCE_COLORS = {
   "epc-portal":   "bg-orange-50 text-orange-700",
 };
 
-const solarTypes = [
-  { value: "residential", label: "Residential" },
-  { value: "au-standard-family", label: "AU Standard Family" },
-  { value: "surya-ghar", label: "Surya Ghar Yojana" },
-  { value: "group-solar", label: "Group Solar" },
-  { value: "commercial", label: "Commercial Solar" },
-  { value: "village", label: "Village Solar Campaign" },
-  { value: "msme", label: "MSME" }
-];
+// Solar types are now dynamic based on Order Journey settings
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 const Toast = ({ toast }) => toast ? (
@@ -321,6 +314,12 @@ const UploadModal = ({ onClose, onSuccess }) => {
 
 // ── Main LeadsScreen ──────────────────────────────────────────────────────────
 const LeadScreen = ({ uploadSource = 'website' }) => {
+  const { settings } = useAdminSettings();
+  
+  const dynamicSolarTypes = settings?.projectTypes?.length > 0
+    ? settings.projectTypes.map(pt => ({ value: pt, label: pt }))
+    : [{ value: "Residential", label: "Residential" }];
+
   const [leads, setLeads] = useState([]);
   const [stats, setStats] = useState({ total: 0, newLeads: 0, converted: 0, today: 0 });
   const [loading, setLoading] = useState(true);
@@ -333,6 +332,8 @@ const LeadScreen = ({ uploadSource = 'website' }) => {
   const [filterCountry, setFilterCountry] = useState("");
   const [filterState, setFilterState] = useState("");
   const [filterDistrict, setFilterDistrict] = useState("");
+  const [assignedBde, setAssignedBde] = useState("");
+  const [bdes, setBdes] = useState([]);
   const [cardFilter, setCardFilter] = useState("all");
   const [showCreate, setShowCreate] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
@@ -347,17 +348,19 @@ const LeadScreen = ({ uploadSource = 'website' }) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: p, limit: 25 });
+      if (uploadSource) params.append("uploadSource", uploadSource);
       if (search) params.append("search", search);
       if (statusFilter) params.append("status", statusFilter);
       if (typeFilter) params.append("solarType", typeFilter);
       if (filterCountry) params.append("country", filterCountry);
       if (filterState) params.append("state", filterState);
       if (filterDistrict) params.append("district", filterDistrict);
+      if (assignedBde) params.append("assignedBde", assignedBde);
       if (cardFilter && cardFilter !== "all") params.append("cardFilter", cardFilter);
 
       const [leadsRes, statsRes] = await Promise.all([
         fetch(`${API_BASE}/api/leads?${params}`).then(r => r.json()),
-        fetch(`${API_BASE}/api/leads/stats`).then(r => r.json()),
+        fetch(`${API_BASE}/api/leads/stats${uploadSource ? `?uploadSource=${uploadSource}` : ''}`).then(r => r.json()),
       ]);
 
       if (leadsRes.success) {
@@ -370,7 +373,27 @@ const LeadScreen = ({ uploadSource = 'website' }) => {
       }
     } catch (e) { console.error(e); showToast("error", "Leads load nahi hue"); }
     finally { setLoading(false); }
-  }, [search, statusFilter, typeFilter, filterCountry, filterState, filterDistrict, cardFilter]);
+  }, [search, statusFilter, typeFilter, filterCountry, filterState, filterDistrict, assignedBde, cardFilter, uploadSource]);
+
+  const fetchBdes = useCallback(async (country) => {
+    try {
+      let url = `${API_BASE}/api/bde`;
+      if (country) {
+        url += `?country=${country}`;
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        setBdes(data.bdes);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBdes(filterCountry);
+  }, [filterCountry, fetchBdes]);
 
   useEffect(() => {
     const t = setTimeout(() => { fetchLeads(1); setPage(1); }, 300);
@@ -400,6 +423,7 @@ const LeadScreen = ({ uploadSource = 'website' }) => {
 
   const handleExportUnassigned = () => {
     const params = new URLSearchParams();
+    if (uploadSource) params.append("uploadSource", uploadSource);
     if (filterCountry) params.append("country", filterCountry);
     if (filterState) params.append("state", filterState);
     if (filterDistrict) params.append("district", filterDistrict);
@@ -446,6 +470,61 @@ const LeadScreen = ({ uploadSource = 'website' }) => {
         </div>
       </div>
 
+      {/* Filters (Moved Above Cards) */}
+      <MasterFilterBar
+        hideSearch={true}
+        search={search}
+        setSearch={setSearch}
+        statusFilter={statusFilter}
+        setStatusFilter={(val) => { setStatusFilter(val); setCardFilter("all"); }}
+        statusOptions={STATUS_OPTIONS}
+        countryFilter={filterCountry}
+        setCountryFilter={setFilterCountry}
+        onClear={() => { 
+          setStatusFilter(""); setTypeFilter(""); setSearch(""); 
+          setFilterCountry(""); setFilterState(""); setFilterDistrict(""); 
+          setAssignedBde("");
+          setCardFilter("all"); 
+        }}
+        extraFilters={[
+          {
+            isActive: Boolean(assignedBde),
+            component: (
+              <select value={assignedBde} onChange={e => setAssignedBde(e.target.value)}
+                className="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium">
+                <option value="">Assigned BDE</option>
+                <option value="unassigned">Unassigned</option>
+                {bdes.map(bde => <option key={bde._id} value={bde._id}>{bde.name}</option>)}
+              </select>
+            )
+          },
+          {
+            isActive: Boolean(typeFilter),
+            component: (
+              <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+                className="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium">
+                <option value="">Solar Type</option>
+                {dynamicSolarTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            )
+          },
+          {
+            isActive: Boolean(filterState),
+            component: (
+              <input type="text" value={filterState} onChange={e => setFilterState(e.target.value)} placeholder="Filter State"
+                className="w-32 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium" />
+            )
+          },
+          {
+            isActive: Boolean(filterDistrict),
+            component: (
+              <input type="text" value={filterDistrict} onChange={e => setFilterDistrict(e.target.value)} placeholder="Filter District"
+                className="w-32 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium" />
+            )
+          }
+        ]}
+      />
+
       {/* Interactive Metric Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {cardConfig.map((s) => {
@@ -471,40 +550,16 @@ const LeadScreen = ({ uploadSource = 'website' }) => {
         })}
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Name, mobile ya district se search..."
-            className="w-full pl-9 pr-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium" />
-        </div>
-        <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setCardFilter("all"); }}
-          className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium">
-          <option value="">All Status</option>
-          {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-          className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium">
-          <option value="">All Solar Types</option>
-          {solarTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-        </select>
-        <select value={filterCountry} onChange={e => setFilterCountry(e.target.value)}
-          className="text-sm border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium">
-          <option value="">All Countries</option>
-          <option value="India">India</option>
-          <option value="Australia">Australia</option>
-          <option value="New Zealand">New Zealand</option>
-        </select>
-        <input type="text" value={filterState} onChange={e => setFilterState(e.target.value)} placeholder="Filter State"
-            className="w-32 px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium" />
-        <input type="text" value={filterDistrict} onChange={e => setFilterDistrict(e.target.value)} placeholder="Filter District"
-            className="w-32 px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium" />
-        {(statusFilter || typeFilter || search || filterCountry || filterState || filterDistrict || cardFilter !== "all") && (
-          <button onClick={() => { setStatusFilter(""); setTypeFilter(""); setSearch(""); setFilterCountry(""); setFilterState(""); setFilterDistrict(""); setCardFilter("all"); }}
-            className="flex items-center gap-1 px-3 py-2.5 text-xs font-semibold text-red-500 bg-red-50 rounded-xl hover:bg-red-100 cursor-pointer">
-            <X className="w-3.5 h-3.5" /> Clear Filters
-          </button>
-        )}
+      {/* Full Width Search Bar */}
+      <div className="relative w-full mb-2">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+        <input 
+          type="text" 
+          value={search} 
+          onChange={e => setSearch(e.target.value)} 
+          placeholder="Global search..."
+          className="w-full pl-12 pr-4 py-3 text-sm border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-yellow-400/50 shadow-sm font-medium" 
+        />
       </div>
 
       {/* Table */}
@@ -540,9 +595,12 @@ const LeadScreen = ({ uploadSource = 'website' }) => {
                     </td>
                     <td className="px-4 py-3 text-slate-600 font-mono text-xs">{lead.mobile}</td>
                     <td className="px-4 py-3">
-                      <span className="text-[11px] font-semibold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg">
-                        {solarTypes.find(t => t.value === lead.solarType)?.label || lead.solarType}
-                      </span>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] w-max">
+                        <Zap className="w-3.5 h-3.5 text-amber-500" />
+                        <span className="text-[11px] font-semibold text-slate-700">
+                          {dynamicSolarTypes.find(t => t.value === lead.solarType)?.label || lead.solarType}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-500">
                       <div className="flex flex-col">
@@ -641,7 +699,7 @@ const LeadScreen = ({ uploadSource = 'website' }) => {
       )}
 
       {/* Modals */}
-      {showCreate && <CreateLeadModal onClose={() => setShowCreate(false)} onSuccess={fetchLeads} solarTypes={solarTypes} filterCountry={filterCountry} />}
+      {showCreate && <CreateLeadModal onClose={() => setShowCreate(false)} onSuccess={fetchLeads} solarTypes={dynamicSolarTypes} filterCountry={filterCountry} />}
       {showUpload && <UnifiedAddLeadModal isBDE={false} onClose={() => setShowUpload(false)} onSuccess={() => { setShowUpload(false); fetchLeads(1); showToast("success", "Lead Added/Uploaded!"); }} />}
       {selectedLead && (
         <LeadDetailModal
@@ -649,6 +707,7 @@ const LeadScreen = ({ uploadSource = 'website' }) => {
           onClose={() => setSelectedLead(null)}
           onUpdate={() => fetchLeads(page)}
           onConvert={() => { fetchLeads(page); showToast("success", "Lead converted to Project Order!"); }}
+          solarTypes={dynamicSolarTypes}
         />
       )}
     </div>

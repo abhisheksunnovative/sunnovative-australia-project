@@ -208,7 +208,7 @@ const EpcLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center p-4">
       {showPopup && <OtpSentPopup message={popupMsg} otp={popupOtp} onClose={() => setShowPopup(false)} />}
 
       <div className="w-full max-w-sm">
@@ -219,7 +219,7 @@ const EpcLogin = () => {
 
         <div className="flex gap-1 mb-5">
           {[1,2,3].map(s => (
-            <div key={s} className={`flex-1 h-1.5 rounded-full transition-all ${step >= s ? 'bg-blue-500' : 'bg-gray-200'}`} />
+            <div key={s} className={`flex-1 h-1.5 rounded-full transition-all ${step >= s ? 'bg-orange-500' : 'bg-gray-200'}`} />
           ))}
         </div>
 
@@ -260,7 +260,7 @@ const EpcLogin = () => {
                     <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-10 mt-1 overflow-hidden">
                       {companies.map(c => (
                         <button key={c._id} onClick={() => { setSelected(c); setSearch(c.companyName); setShowDrop(false); }}
-                          className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-gray-100 last:border-0">
+                          className="w-full text-left px-4 py-3 hover:bg-orange-50 border-b border-gray-100 last:border-0">
                           <p className="text-gray-800 text-sm font-medium">{c.companyName}</p>
                           <p className="text-gray-400 text-xs">{c.district}</p>
                         </button>
@@ -270,18 +270,18 @@ const EpcLogin = () => {
                 </div>
               )}
               {selected && (
-                <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-center">
-                  <p className="text-blue-600 text-xs">Registered email:</p>
-                  <p className="text-blue-800 font-bold text-sm mt-0.5">{selected.email?.replace(/(.{2}).*(@)/, '$1***$2')}</p>
+                <div className="bg-orange-50 border border-orange-100 rounded-xl px-4 py-3 text-center">
+                  <p className="text-orange-600 text-xs">Registered email:</p>
+                  <p className="text-orange-800 font-bold text-sm mt-0.5">{selected.email?.replace(/(.{2}).*(@)/, '$1***$2')}</p>
                 </div>
               )}
               <button onClick={handleContinue} disabled={!selected || loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-sm">
+                className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-sm">
                 {loading ? 'Please wait...' : 'Login'}
               </button>
               <p className="text-center text-gray-400 text-xs">
                 If you don't find your EPC company name in the dropdown, please register first.<br/><br/>
-                New EPC? <Link to="/epc/register" className="text-blue-600 font-medium">Register here</Link>
+                New EPC? <Link to="/epc/register" className="text-orange-600 font-medium">Register here</Link>
               </p>
             </div>
           )}
@@ -290,16 +290,16 @@ const EpcLogin = () => {
           {step === 2 && !showReset && (
             <div className="space-y-5">
               <div>
-                <button onClick={() => setStep(1)} className="text-gray-400 text-xs hover:text-blue-600 mb-2">← Back</button>
+                <button onClick={() => setStep(1)} className="text-gray-400 text-xs hover:text-orange-600 mb-2">← Back</button>
                 <h2 className="text-gray-800 font-bold text-lg text-center">Enter OTP</h2>
                 <p className="text-gray-400 text-xs mt-0.5 text-center">First-time login — verify via <strong>{maskedEmail}</strong></p>
               </div>
               <OtpInput length={6} value={otp} onChange={setOtp} />
               <button onClick={handleVerifyOtp} disabled={otp.length !== 6 || loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-sm">
+                className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-sm">
                 {loading ? 'Verifying...' : 'Verify OTP'}
               </button>
-              <button onClick={handleResendOtp} disabled={loading} className="w-full text-blue-500 text-xs hover:underline py-1">
+              <button onClick={handleResendOtp} disabled={loading} className="w-full text-orange-500 text-xs hover:underline py-1">
                 Resend OTP
               </button>
             </div>
@@ -318,7 +318,7 @@ const EpcLogin = () => {
               </div>
               <OtpInput length={4} value={pin} onChange={setPin} secret={true} />
               <button onClick={isSetPin ? handleSetPin : handleLoginWithPin} disabled={pin.length !== 4 || loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-sm">
+                className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-sm">
                 {loading ? 'Please wait...' : isSetPin ? 'Set PIN & Login' : 'Login'}
               </button>
               {!isSetPin && (

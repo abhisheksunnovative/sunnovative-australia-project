@@ -6,12 +6,16 @@ const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
 const EPC_CATEGORIES = ["Solar Installer", "EPC", "Distributor", "Channel Partner"];
 const DEFAULT_FIELDS = [
+  { fieldName: 'state', fieldLabel: 'State', isMandatory: false, dataType: 'string' },
+  { fieldName: 'district', fieldLabel: 'District', isMandatory: true, dataType: 'string' },
   { fieldName: 'companyName', fieldLabel: 'Company Name', isMandatory: true, dataType: 'string' },
-  { fieldName: 'contactPersonName', fieldLabel: 'Contact Person Name', isMandatory: false, dataType: 'string' },
-  { fieldName: 'email', fieldLabel: 'Email Address', isMandatory: true, dataType: 'email' },
-  { fieldName: 'mobile', fieldLabel: 'Mobile Number', isMandatory: true, dataType: 'phone' },
-  { fieldName: 'gstNumber', fieldLabel: 'GST/Tax Number', isMandatory: false, dataType: 'string' },
-  { fieldName: 'country', fieldLabel: 'Country', isMandatory: true, dataType: 'string' },
+  { fieldName: 'contactPersonName', fieldLabel: 'Contact Person', isMandatory: false, dataType: 'string' },
+  { fieldName: 'email', fieldLabel: 'Email', isMandatory: true, dataType: 'email' },
+  { fieldName: 'mobile', fieldLabel: 'Mobile', isMandatory: true, dataType: 'phone' },
+  { fieldName: 'projectTypes', fieldLabel: 'Project Types', isMandatory: false, dataType: 'string' },
+  { fieldName: 'serviceAreas', fieldLabel: 'Service Areas', isMandatory: false, dataType: 'string' },
+  { fieldName: 'epcType', fieldLabel: 'EPC/Solar Installer Type', isMandatory: false, dataType: 'string' },
+  { fieldName: 'existingEpcStatus', fieldLabel: 'Existing EPC Status', isMandatory: false, dataType: 'string' },
 ];
 
 export const EpcBulkUploadScreen = () => {
@@ -90,6 +94,29 @@ export const EpcBulkUploadScreen = () => {
     const file = e.target.files[0];
     if (!file) return;
     setUploadFile(file);
+  };
+
+  const handleDownloadErrorReport = () => {
+    if (!uploadResult || !uploadResult.errors) return;
+    
+    const csvRows = [];
+    csvRows.push(['Row Number', 'Error Message', 'Failed Record Details']);
+    
+    uploadResult.errors.forEach((err, index) => {
+      const rowData = uploadResult.failedRows && uploadResult.failedRows[index] 
+          ? JSON.stringify(uploadResult.failedRows[index]).replace(/,/g, ';').replace(/"/g, '""') 
+          : '';
+      csvRows.push([err.row, `"${err.message}"`, `"${rowData}"`]);
+    });
+    
+    const csvString = csvRows.map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'epc_upload_errors.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const processUpload = () => {
@@ -211,7 +238,12 @@ export const EpcBulkUploadScreen = () => {
               
               {uploadResult.errors?.length > 0 && (
                 <div className="mt-4">
-                  <p className="text-xs font-bold text-red-600 uppercase mb-2">Errors ({uploadResult.errors.length})</p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-bold text-red-600 uppercase">Errors ({uploadResult.errors.length})</p>
+                    <button onClick={handleDownloadErrorReport} className="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1 transition">
+                      <Download className="w-3 h-3" /> Error Report (CSV)
+                    </button>
+                  </div>
                   <ul className="text-xs text-slate-600 max-h-32 overflow-y-auto space-y-1">
                     {uploadResult.errors.map((e, i) => <li key={i}>Row {e.row}: {e.message}</li>)}
                   </ul>

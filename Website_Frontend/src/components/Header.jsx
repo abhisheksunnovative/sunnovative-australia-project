@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from "react";
-import { Sun, Menu, X, PhoneCall, ShieldCheck, Zap, User } from "lucide-react";
+import { Sun, Menu, X, PhoneCall, ShieldCheck, Zap, User, ChevronDown } from "lucide-react";
 import { useWebsiteSettings } from "../hooks/useWebsiteSettings";
 import { useCountry } from "../context/CountryContext";
 
@@ -30,18 +30,21 @@ export default function Header({
   const navItems = (settings.websiteContent && settings.websiteContent.navItems && settings.websiteContent.navItems.length > 0) 
     ? settings.websiteContent.navItems 
     : [
-        { label: "Sectors & Benefits", href: "#benefits", isPageLink: true },
-        {
-          label: "Check Subsidy",
-          href: "#eligibility-calculator",
-          isPageLink: true,
-        },
         { label: "Solar Blogs", href: "#blog", isPageLink: false },
+        { label: "Our Platform", href: "/platform", isPageLink: false, isExternalLink: true },
+        { label: "How It Works", href: "/how-it-works", isPageLink: false, isExternalLink: true },
         { label: "FAQs", href: "#faqs", isPageLink: true },
       ];
 
-  const handleNavClick = (e, href, isPageLink) => {
+  const handleNavClick = (e, item) => {
     e.preventDefault();
+    const { href, isPageLink, isExternalLink } = item;
+
+    if (isExternalLink) {
+      window.open(href, '_blank');
+      return;
+    }
+
     setMobileMenuOpen(false);
 
     if (href === "#blog") {
@@ -85,27 +88,8 @@ export default function Header({
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white/70 backdrop-blur-md border-b border-white/25 shadow-sm">
-      {/* Top micro bar for trust declarations */}
-      <div className="bg-gradient-to-r from-solar-navy via-slate-900 to-solar-navy text-white px-4 py-1.5 text-center text-xs font-semibold tracking-wide flex items-center justify-center gap-1.5 md:gap-3 flex-wrap">
-        <span className="flex items-center gap-1 text-solar-yellow">
-          <Zap className="w-3.5 h-3.5 fill-solar-yellow text-solar-yellow" />
-          PM Surya Ghar Yojana Empaneled Vendor
-        </span>
-        <span className="hidden md:inline text-slate-400">|</span>
-        <span className="flex items-center gap-1 text-emerald-400">
-          <ShieldCheck className="w-3.5 h-3.5" />
-          Up to ₹78,000 Govt Subsidy Guaranteed
-        </span>
-        <span className="hidden md:inline text-slate-400">|</span>
-        <a
-          href="tel:+919898231245"
-          className="hover:text-solar-yellow font-bold text-white transition-all flex items-center gap-1"
-        >
-          📞 {brand.hubLabel || "Call Rajkot Hub"}: {brand.phone || "+91 98982 31245"}
-        </a>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-[72px] py-3 flex items-center justify-between">
         {/* Logo and Brand */}
         <a
           href="#"
@@ -133,7 +117,7 @@ export default function Header({
             <a
               key={item.label}
               href={item.href}
-              onClick={(e) => handleNavClick(e, item.href, item.isPageLink)}
+              onClick={(e) => handleNavClick(e, item)}
               className="text-[14px] font-semibold text-slate-700 hover:text-solar-sky transition-colors px-1"
             >
               {item.label}
@@ -143,30 +127,57 @@ export default function Header({
 
         {/* Action Button & Menu Toggler */}
         <div className="flex items-center gap-3">
-          {/* Country Switcher */}
-          <div className="hidden sm:flex items-center bg-slate-100 rounded-xl p-0.5 gap-0.5">
-            {[{ code: "IN", flag: "🇮🇳", label: "IN" }, { code: "AU", flag: "🇦🇺", label: "AU" }, { code: "NZ", flag: "🇳🇿", label: "NZ" }].map(c => (
-              <button key={c.code} onClick={() => window.location.href = c.code === 'IN' ? '/' : `/${c.code.toLowerCase()}/`}
-                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  country === c.code ? "bg-white shadow text-slate-800" : "text-slate-500 hover:text-slate-700"
-                }`}>
-                <span>{c.flag}</span><span>{c.label}</span>
-              </button>
-            ))}
+          {/* Country Switcher Dropdown */}
+          <div className="relative group hidden sm:flex items-center">
+            <button className="flex items-center gap-1.5 px-3 py-2 text-sm font-bold text-slate-700 hover:text-solar-navy transition-all">
+              <span className="uppercase">{country || "IN"}</span>
+              <span>{country === "IN" ? "IND" : country === "AU" ? "AUS" : "NZ"}</span>
+              <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-solar-navy" />
+            </button>
+            <div className="absolute top-full right-0 mt-1 w-40 bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 py-2">
+              {[
+                { code: "IN", label: "India" },
+                { code: "US", label: "USA" },
+                { code: "GB", label: "UK" },
+                { code: "CA", label: "Canada" },
+                { code: "AU", label: "Australia" },
+                { code: "DE", label: "Germany" },
+                { code: "JP", label: "Japan" }
+              ].map(c => (
+                <button
+                  key={c.code}
+                  onClick={() => window.location.href = c.code === 'IN' ? '/' : `/${c.code.toLowerCase()}/`}
+                  className="w-full text-left px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-solar-navy transition-colors flex items-center gap-3"
+                >
+                  <span className="font-bold text-slate-400 w-6">{c.code}</span>
+                  {c.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* My Account button */}
+          {/* Signup/Login Button */}
           <button
             onClick={onOpenCustomerLogin}
-            className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer border ${
+            className={`hidden sm:inline-flex items-center justify-center px-6 py-2.5 text-sm font-bold rounded-xl transition-all cursor-pointer ${
               isCustomerLoggedIn
-                ? "bg-solar-yellow/10 text-yellow-700 border-yellow-300 hover:bg-solar-yellow/20"
-                : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                ? "bg-orange-600 text-white hover:bg-orange-600/90 shadow-lg shadow-solar-navy/20"
+                : "bg-orange-600 text-white hover:bg-orange-600/90 shadow-lg shadow-solar-navy/20"
             }`}
           >
-            <User className="w-3.5 h-3.5" />
-            {isCustomerLoggedIn ? (customerName?.split(" ")[0] || "My Account") : "Login"}
+            {isCustomerLoggedIn ? (customerName?.split(" ")[0] || "My Account") : "Customer Login"}
           </button>
+
+          {/* EPC Installer Button */}
+          <a
+            href={import.meta.env.VITE_EPC_PORTAL_URL || 'http://localhost:5173'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden sm:inline-flex items-center justify-center px-4 py-2.5 text-sm font-bold rounded-xl bg-orange-500 hover:bg-orange-600 text-white transition-all cursor-pointer shadow-lg shadow-orange-500/20 gap-1.5"
+          >
+            <Zap className="w-4 h-4" />
+            Installer Login
+          </a>
 
 
           <button
@@ -233,7 +244,7 @@ export default function Header({
               <a
                 key={item.label}
                 href={item.href}
-                onClick={(e) => handleNavClick(e, item.href, item.isPageLink)}
+                onClick={(e) => handleNavClick(e, item)}
                 className="flex items-center p-3 rounded-xl text-slate-700 hover:text-solar-sky hover:bg-slate-50 text-sm font-semibold transition border border-transparent hover:border-slate-100"
               >
                 {item.label}
@@ -272,16 +283,15 @@ export default function Header({
             <User className="w-3.5 h-3.5" />
             {isCustomerLoggedIn ? `My Account (${customerName?.split(" ")[0]})` : "Customer Login"}
           </button>
-          <button
-            onClick={() => {
-              setMobileMenuOpen(false);
-              onScrollToForm();
-            }}
-            className="w-full py-3 px-4 text-center rounded-xl font-bold bg-[#0081C9] hover:bg-[#005F9E] text-white text-xs uppercase tracking-wider shadow-md shadow-sky-100 transition cursor-pointer"
-            id="mobile-nav-cta"
+          <a
+            href={import.meta.env.VITE_EPC_PORTAL_URL || 'http://localhost:3001'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full py-3 px-4 text-center rounded-xl font-bold bg-orange-500 hover:bg-orange-600 text-white text-xs uppercase tracking-wider shadow-md shadow-orange-100 transition cursor-pointer flex items-center justify-center gap-2"
           >
-            Get Free Solar Quote
-          </button>
+            <Zap className="w-3.5 h-3.5" />
+            Solar Installer Login
+          </a>
         </div>
       </div>
     </header>

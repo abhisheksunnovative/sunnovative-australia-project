@@ -20,6 +20,12 @@ const brandSchema = new mongoose.Schema({
     type: String, 
     default: '' 
   },
+  district: { type: String, default: 'all' },
+  wattage: { type: String, default: '' },
+  technology: { type: String, default: '' },
+  inverterType: { type: String, default: '' },
+  availableKw: [{ type: String }],
+  projectTypes: [{ type: String }],
   isActive: { 
     type: Boolean, 
     default: true 

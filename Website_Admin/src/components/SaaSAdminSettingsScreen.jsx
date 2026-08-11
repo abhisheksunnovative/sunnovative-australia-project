@@ -373,7 +373,7 @@ export const SaaSAdminSettingsScreen = ({
             </div>
 
             <table className="min-w-full divide-y text-xs text-left">
-              <thead className="bg-[#0B3A53] text-white">
+              <thead className="bg-orange-600 text-white">
                 <tr>
                   <th className="px-5 py-3 font-bold uppercase">
                     TX Reference ID

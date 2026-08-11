@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { MasterFilterBar } from "./common/MasterFilterBar";
+import ProjectPricingTab from "./ProjectPricingTab";
 
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
@@ -11,30 +13,41 @@ export default function BrandManagementScreen() {
   const [editingId, setEditingId] = useState(null);
   
   // Filters
-  const [filterCountry, setFilterCountry] = useState('australia');
+  const [filterCountry, setFilterCountry] = useState('Australia');
   const [filterType, setFilterType] = useState('all');
+  const [search, setSearch] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
     type: 'Solar',
-    country: 'australia',
+    country: 'Australia',
     logoUrl: '',
+    district: 'all',
+    wattage: '',
+    technology: '',
+    inverterType: '',
+    availableKw: '',
+    projectTypes: '',
     isActive: true
   });
 
   const fetchBrands = async () => {
     setLoading(true);
     try {
-      let url = `${API_BASE}/api/brands?country=${filterCountry}`;
+      let url = `${API_BASE}/api/brands?country=${filterCountry.toLowerCase()}`;
       if (filterType !== 'all') url += `&type=${filterType}`;
       
       const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        setBrands(data.data);
+        let filteredBrands = data.data;
+        if (search) {
+          filteredBrands = filteredBrands.filter(b => b.name.toLowerCase().includes(search.toLowerCase()));
+        }
+        setBrands(filteredBrands);
       }
     } catch (err) {
-      alert("error", "Failed to fetch brands");
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -42,7 +55,7 @@ export default function BrandManagementScreen() {
 
   useEffect(() => {
     fetchBrands();
-  }, [filterCountry, filterType]);
+  }, [filterCountry, filterType, search]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -53,10 +66,16 @@ export default function BrandManagementScreen() {
       
       const method = editingId ? 'PUT' : 'POST';
       
+      const payload = {
+        ...formData,
+        availableKw: formData.availableKw ? formData.availableKw.split(',').map(s => s.trim()).filter(Boolean) : [],
+        projectTypes: formData.projectTypes ? formData.projectTypes.split(',').map(s => s.trim()).filter(Boolean) : []
+      };
+
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       
@@ -94,6 +113,12 @@ export default function BrandManagementScreen() {
         type: brand.type,
         country: brand.country,
         logoUrl: brand.logoUrl || '',
+        district: brand.district || 'all',
+        wattage: brand.wattage || '',
+        technology: brand.technology || '',
+        inverterType: brand.inverterType || '',
+        availableKw: brand.availableKw ? brand.availableKw.join(',') : '',
+        projectTypes: brand.projectTypes ? brand.projectTypes.join(',') : '',
         isActive: brand.isActive
       });
     } else {
@@ -101,13 +126,21 @@ export default function BrandManagementScreen() {
       setFormData({
         name: '',
         type: 'Solar',
-        country: filterCountry,
+        country: filterCountry.toLowerCase(),
         logoUrl: '',
+        district: 'all',
+        wattage: '',
+        technology: '',
+        inverterType: '',
+        availableKw: '',
+        projectTypes: '',
         isActive: true
       });
     }
     setShowModal(true);
   };
+
+  const [activeTab, setActiveTab] = useState('brands');
 
   return (
     <div className="p-6 max-w-7xl mx-auto pb-24">
@@ -116,27 +149,53 @@ export default function BrandManagementScreen() {
           <h1 className="text-2xl font-bold text-slate-800">Brand Management</h1>
           <p className="text-slate-500 text-sm">Manage Solar and Inverter Brands per country</p>
         </div>
-        <button onClick={() => openModal()} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2">
-          <Plus className="w-4 h-4" /> Add Brand
+      </div>
+
+      <div className="flex gap-4 border-b border-slate-200 mb-6">
+        <button 
+          onClick={() => setActiveTab('brands')}
+          className={`pb-2 px-1 font-semibold ${activeTab === 'brands' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+        >
+          Brands & Products
+        </button>
+        <button 
+          onClick={() => setActiveTab('pricing')}
+          className={`pb-2 px-1 font-semibold ${activeTab === 'pricing' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+        >
+          Project Pricing
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white p-4 rounded-xl border flex gap-4 mb-6">
-        <select value={filterCountry} onChange={(e) => setFilterCountry(e.target.value)} className="border rounded-lg px-3 py-2 text-sm bg-slate-50">
-          <option value="india">India</option>
-          <option value="australia">Australia</option>
-          <option value="newzealand">New Zealand</option>
-          <option value="uk">UK</option>
-          <option value="usa">USA</option>
-        </select>
-        
-        <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="border rounded-lg px-3 py-2 text-sm bg-slate-50">
-          <option value="all">All Types</option>
-          <option value="Solar">Solar Panels</option>
-          <option value="Inverter">Inverters</option>
-          <option value="Battery">Batteries</option>
-        </select>
+      {activeTab === 'brands' && (
+        <>
+          <div className="flex justify-end mb-4">
+            <button onClick={() => openModal()} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2">
+              <Plus className="w-4 h-4" /> Add Brand
+            </button>
+          </div>
+          {/* Filters */}
+      <div className="mb-6">
+        <MasterFilterBar
+          search={search}
+          setSearch={setSearch}
+          countryFilter={filterCountry}
+          setCountryFilter={setFilterCountry}
+          onClear={() => { setFilterCountry('Australia'); setFilterType('all'); setSearch(''); }}
+          extraFilters={[
+            {
+              isActive: filterType !== 'all',
+              component: (
+                <select value={filterType} onChange={(e) => setFilterType(e.target.value)} 
+                  className="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-primary/40 font-medium">
+                  <option value="all">All Types</option>
+                  <option value="Solar">Solar Panels</option>
+                  <option value="Inverter">Inverters</option>
+                  <option value="Battery">Batteries</option>
+                </select>
+              )
+            }
+          ]}
+        />
       </div>
 
       <div className="bg-white border rounded-xl overflow-hidden">
@@ -217,6 +276,35 @@ export default function BrandManagementScreen() {
                 <label className="block text-sm font-medium mb-1">Logo URL</label>
                 <input type="text" value={formData.logoUrl} onChange={e => setFormData({...formData, logoUrl: e.target.value})} placeholder="https://..." className="w-full border rounded-lg px-3 py-2 text-sm" />
               </div>
+              
+              {formData.type === 'Solar' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Wattage</label>
+                    <input type="text" value={formData.wattage} onChange={e => setFormData({...formData, wattage: e.target.value})} placeholder="e.g. 500W" className="w-full border rounded-lg px-3 py-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Technology</label>
+                    <input type="text" value={formData.technology} onChange={e => setFormData({...formData, technology: e.target.value})} placeholder="e.g. Mono PERC" className="w-full border rounded-lg px-3 py-2 text-sm" />
+                  </div>
+                </div>
+              )}
+              {formData.type === 'Inverter' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium mb-1">Inverter Type</label>
+                    <input type="text" value={formData.inverterType} onChange={e => setFormData({...formData, inverterType: e.target.value})} placeholder="e.g. String" className="w-full border rounded-lg px-3 py-2 text-sm" />
+                  </div>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium mb-1">Available kW (comma separated)</label>
+                <input type="text" value={formData.availableKw} onChange={e => setFormData({...formData, availableKw: e.target.value})} placeholder="e.g. 3, 5, 10" className="w-full border rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Project Types (comma separated)</label>
+                <input type="text" value={formData.projectTypes} onChange={e => setFormData({...formData, projectTypes: e.target.value})} placeholder="e.g. residential, commercial" className="w-full border rounded-lg px-3 py-2 text-sm" />
+              </div>
               <div className="flex items-center gap-2">
                 <input type="checkbox" checked={formData.isActive} onChange={e => setFormData({...formData, isActive: e.target.checked})} id="isAct" className="w-4 h-4" />
                 <label htmlFor="isAct" className="text-sm font-medium">Brand is Active</label>
@@ -228,6 +316,12 @@ export default function BrandManagementScreen() {
             </form>
           </div>
         </div>
+      )}
+      </>
+      )}
+
+      {activeTab === 'pricing' && (
+        <ProjectPricingTab />
       )}
     </div>
   );

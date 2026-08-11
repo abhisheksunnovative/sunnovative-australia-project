@@ -17,6 +17,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { StatusBadge, RatingStars, DetailDrawer, EmptyState } from "./CommonUI";
+import { MasterFilterBar } from "./common/MasterFilterBar";
 import { COUNTRY_DATA } from "../utils/geography";
 import { useAdminSettings } from "../hooks/useAdminSettings";
 
@@ -31,6 +32,7 @@ export const EpcPartnerScreen = ({
   isFormOpenExternal,
   onCloseFormExternal,
   searchQuery,
+  setSearchQuery,
 }) => {
   // Page states
   const { settings, loading: settingsLoading } = useAdminSettings();
@@ -383,79 +385,79 @@ export const EpcPartnerScreen = ({
     <div className="space-y-6">
       {/* FILTER & OPERATIONAL BOARD */}
       {!currentFormOpen && (
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-50 rounded-xl text-primary font-medium text-xs">
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              Quick Filters:
-            </div>
-
-            {/* Status Filter Dropdown */}
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="text-xs font-semibold bg-white border border-gray-100 rounded-xl px-3 py-2 text-primary focus:outline-hidden focus:border-primary/20"
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs flex flex-col gap-4 mb-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-bold text-slate-800">EPC Partner Management</h2>
+            <button
+              onClick={handleOpenAdd}
+              className="inline-flex items-center gap-2 bg-primary text-white hover:bg-orange-800 transition-all px-4 py-2.5 rounded-xl font-semibold text-xs cursor-pointer shadow-xs"
             >
-              <option value="All">All Statuses</option>
-              <option value="Active">Active Partners</option>
-              <option value="Pending">Pending KYC</option>
-              <option value="Suspended">Suspended Partners</option>
-              <option value="Overdue">Overdue Partners</option>
-            </select>
-
-            {/* Country Filter */}
-            <select
-              value={filterCountry}
-              onChange={(e) => {
-                const newC = e.target.value;
-                setFilterCountry(newC);
-                const newStates = Object.keys(COUNTRY_DATA[newC] || {});
-                const newS = newStates[0] || "";
-                setFilterState(newS);
-                const newDistricts = COUNTRY_DATA[newC]?.[newS] || [];
-                setFilterDistrict(newDistricts[0] || "");
-              }}
-              className="text-xs font-semibold bg-white border border-gray-100 rounded-xl px-3 py-2 text-primary focus:outline-hidden focus:border-primary/20"
-            >
-              {availableCountries.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-
-            {/* State Filter */}
-            <select
-              value={filterState}
-              onChange={(e) => {
-                const newS = e.target.value;
-                setFilterState(newS);
-                const newDistricts = COUNTRY_DATA[filterCountry]?.[newS] || [];
-                setFilterDistrict(newDistricts[0] || "");
-              }}
-              className="text-xs font-semibold bg-white border border-gray-100 rounded-xl px-3 py-2 text-primary focus:outline-hidden focus:border-primary/20"
-            >
-              {Object.keys(COUNTRY_DATA[filterCountry] || {}).map((st) => (
-                <option key={st} value={st}>{st}</option>
-              ))}
-            </select>
-
-            {/* District Filter */}
-            <select
-              value={filterDistrict}
-              onChange={(e) => setFilterDistrict(e.target.value)}
-              className="text-xs font-semibold bg-white border border-gray-100 rounded-xl px-3 py-2 text-primary focus:outline-none focus:border-primary/20"
-            >
-              {(COUNTRY_DATA[filterCountry]?.[filterState] || []).map((dst) => (
-                <option key={dst} value={dst}>{dst}</option>
-              ))}
-            </select>
-
-            </div>
-
-          <button
-            onClick={handleOpenAdd}
-            className="inline-flex items-center gap-2 bg-primary text-white hover:bg-[#072637] transition-all px-4 py-2.5 rounded-xl font-semibold text-xs cursor-pointer shadow-xs"
-          >
-            <Plus className="w-4 h-4 text-secondary" />
-            Onboard New EPC
-          </button>
+              <Plus className="w-4 h-4 text-secondary" />
+              Onboard New EPC
+            </button>
+          </div>
+          
+          <MasterFilterBar
+            search={searchQuery}
+            setSearch={setSearchQuery}
+            statusFilter={filterStatus}
+            setStatusFilter={setFilterStatus}
+            statusOptions={["Active", "Pending", "Suspended", "Overdue"]}
+            countryFilter={filterCountry}
+            setCountryFilter={(val) => {
+              const newC = val;
+              setFilterCountry(newC);
+              const newStates = Object.keys(COUNTRY_DATA[newC] || {});
+              const newS = newStates[0] || "";
+              setFilterState(newS);
+              const newDistricts = COUNTRY_DATA[newC]?.[newS] || [];
+              setFilterDistrict(newDistricts[0] || "");
+            }}
+            onClear={() => {
+              setSearchQuery("");
+              setFilterStatus("All");
+              setFilterCountry(availableCountries[0]);
+              setFilterState("All");
+              setFilterDistrict("All");
+            }}
+            extraFilters={[
+              {
+                isActive: filterState !== 'All',
+                component: (
+                  <select
+                    value={filterState}
+                    onChange={(e) => {
+                      const newS = e.target.value;
+                      setFilterState(newS);
+                      const newDistricts = COUNTRY_DATA[filterCountry]?.[newS] || [];
+                      setFilterDistrict(newDistricts[0] || "");
+                    }}
+                    className="text-sm font-semibold bg-white border border-gray-200 rounded-xl px-3 py-2 text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/40"
+                  >
+                    <option value="All">All States</option>
+                    {Object.keys(COUNTRY_DATA[filterCountry] || {}).map((st) => (
+                      <option key={st} value={st}>{st}</option>
+                    ))}
+                  </select>
+                )
+              },
+              {
+                isActive: filterDistrict !== 'All',
+                component: (
+                  <select
+                    value={filterDistrict}
+                    onChange={(e) => setFilterDistrict(e.target.value)}
+                    className="text-sm font-semibold bg-white border border-gray-200 rounded-xl px-3 py-2 text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/40"
+                  >
+                    <option value="All">All Districts</option>
+                    {(COUNTRY_DATA[filterCountry]?.[filterState] || []).map((dst) => (
+                      <option key={dst} value={dst}>{dst}</option>
+                    ))}
+                  </select>
+                )
+              }
+            ]}
+          />
         </div>
       )}
 
@@ -801,7 +803,7 @@ export const EpcPartnerScreen = ({
         <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
           <div className="overflow-x-auto min-w-full">
             <table className="min-w-full divide-y divide-gray-105 text-left">
-              <thead className="bg-[#0B3A53] text-white">
+              <thead className="bg-orange-600 text-white">
                 <tr>
                   <th className="px-5 py-3.5 text-xs font-bold font-display uppercase tracking-wider">
                     Partner & Company
@@ -1026,7 +1028,7 @@ export const EpcPartnerScreen = ({
                         key={pg}
                         onClick={() => setCurrentPage(pg)}
                         className={`w-8 h-8 text-xs font-semibold rounded-lg transition-all ${pg === currentPage
-                            ? 'bg-[#0B3A53] text-white shadow-sm'
+                            ? 'bg-orange-600 text-white shadow-sm'
                             : 'border border-gray-200 text-gray-600 hover:bg-white hover:border-primary/30'
                           }`}
                       >
@@ -1157,7 +1159,7 @@ export const EpcPartnerScreen = ({
                     </div>
                   </div>
 
-                  <div className="bg-[#0B3A53]/5 p-4 rounded-xl border border-[#0B3A53]/10">
+                  <div className="bg-orange-600/5 p-4 rounded-xl border border-orange-600/10">
                     <h5 className="text-xs font-bold text-primary mb-2">
                       Capabilities Checklist
                     </h5>

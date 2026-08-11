@@ -29,6 +29,8 @@ const UserReviewsSection = lazy(() => import("./components/UserReviewsSection"))
 const EpcPartnerModal = lazy(() => import("./components/EpcPartnerModal"));
 const CustomerLogin = lazy(() => import("./customer/CustomerLogin"));
 const CustomerPortal = lazy(() => import("./customer/CustomerPortal"));
+const OurPlatformPage = lazy(() => import("./pages/OurPlatformPage"));
+const HowItWorksPage = lazy(() => import("./pages/HowItWorksPage"));
 
 
 function AppInner() {
@@ -112,7 +114,7 @@ function AppInner() {
 
   if (loading && token) {
     return (
-      <div className="min-h-screen bg-slate-550 flex items-center justify-center bg-slate-900 text-white">
+      <div className="min-h-screen bg-slate-550 flex items-center justify-center bg-orange-600 text-white">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin" />
           <p className="text-xs font-bold text-slate-400">Securing your session...</p>
@@ -158,7 +160,7 @@ function AppInner() {
   }
 
   return (
-    <div className="min-h-screen bg-white font-sans antialiased text-slate-800 selection:bg-solar-yellow/30 selection:text-slate-900 leading-relaxed overflow-x-hidden">
+    <div className="min-h-screen bg-white font-sans antialiased text-slate-800 selection:bg-solar-yellow/30 selection:text-slate-900 leading-relaxed">
       <Header
         onOpenEpcModal={() => {}}
         onScrollToForm={scrollToForm}
@@ -185,15 +187,15 @@ function AppInner() {
         </div>
       </div>
 
-      <main className="flex-grow pt-20">
+      <main className="flex-grow">
         {viewMode === "blog" ? (
           <div className="animate-fadeIn">
-            <BlogPanel onBackToHome={() => { setViewMode("home"); window.location.hash = ""; window.scrollTo(0, 0); }} onScrollToForm={scrollToForm} />
+            <BlogPanel onBackToHome={() => { setViewMode("home"); window.location.hash = ""; window.scrollTo(0, 0); }} onScrollToForm={scrollToForm} country={country} projectType={selectedPt} />
           </div>
         ) : (
           <>
             {/* Premium Project Type Switcher */}
-            <div className="bg-slate-900 border-b border-slate-800 shadow-md">
+            <div className="bg-orange-600 border-b border-slate-800 shadow-md">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-center gap-2">
@@ -274,6 +276,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Standalone pages */}
+        <Route path="/platform" element={<CountryProvider countryProp="IN"><Suspense fallback={<div />}><OurPlatformPage /></Suspense></CountryProvider>} />
+        <Route path="/how-it-works" element={<CountryProvider countryProp="IN"><Suspense fallback={<div />}><HowItWorksPage /></Suspense></CountryProvider>} />
         {/* Match specific country prefixes */}
         <Route path="/:countryParam/*" element={<CountryWrapper />} />
         {/* Match the root path (default to India) */}

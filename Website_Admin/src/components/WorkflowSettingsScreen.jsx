@@ -134,7 +134,7 @@ export const WorkflowSettingsScreen = ({
 
             <button
               onClick={() => setShowOrderForm(true)}
-              className="inline-flex items-center gap-1 bg-[#0B3A53] hover:bg-[#154E6F] text-white text-xs font-semibold px-4 py-2.5 rounded-xl cursor-pointer"
+              className="inline-flex items-center gap-1 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl cursor-pointer"
             >
               <Plus className="w-4 h-4 text-secondary" />
               Add Scheduling Rule
@@ -295,7 +295,7 @@ export const WorkflowSettingsScreen = ({
                       <p className="text-gray-55 italic">"{ruleHighlight}"</p>
                     </div>
 
-                    <div className="text-xs space-y-1 bg-[#0B3A53]/5 p-3 rounded-xl border border-sky-100 text-primary">
+                    <div className="text-xs space-y-1 bg-orange-600/5 p-3 rounded-xl border border-sky-100 text-primary">
                       <p>
                         · Buffer period:{" "}
                         <strong>
@@ -358,7 +358,7 @@ export const WorkflowSettingsScreen = ({
 
             <button
               onClick={() => setShowProcessForm(true)}
-              className="inline-flex items-center gap-1 bg-[#0B3A53] hover:bg-[#154E6F] text-white text-xs font-semibold px-4 py-2.5 rounded-xl cursor-pointer"
+              className="inline-flex items-center gap-1 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl cursor-pointer"
             >
               <Plus className="w-4 h-4 text-secondary" />
               Add Flow routing

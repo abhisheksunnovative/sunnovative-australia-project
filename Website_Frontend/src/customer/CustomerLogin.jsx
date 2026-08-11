@@ -250,7 +250,7 @@ export default function CustomerLogin({ onClose, onSuccess }) {
                     type="button"
                     onClick={() => { setCountry("IN"); setMobile(""); clear(); }}
                     className={`py-2 px-3 rounded-xl border text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
-                      !isAU ? "bg-solar-navy text-white border-solar-navy shadow-sm" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                      !isAU ? "bg-orange-600 text-white border-solar-navy shadow-sm" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
                     }`}
                   >
                     <span>🇮🇳</span> India (+91)
@@ -259,7 +259,7 @@ export default function CustomerLogin({ onClose, onSuccess }) {
                     type="button"
                     onClick={() => { setCountry("AU"); setMobile(""); clear(); }}
                     className={`py-2 px-3 rounded-xl border text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
-                      isAU ? "bg-solar-navy text-white border-solar-navy shadow-sm" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                      isAU ? "bg-orange-600 text-white border-solar-navy shadow-sm" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
                     }`}
                   >
                     <span>🇦🇺</span> Australia (+61)

@@ -175,7 +175,7 @@ export const SubscriptionScreen = ({
 
             <button
               type="submit"
-              className="w-full text-xs font-bold bg-[#0B3A53] hover:bg-[#124b69] text-white py-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+              className="w-full text-xs font-bold bg-orange-600 hover:bg-orange-700 text-white py-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
             >
               Confirm Subscription Update
               <ArrowRight className="w-4 h-4 text-secondary" />
@@ -368,7 +368,7 @@ export const SubscriptionScreen = ({
 
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-105 text-left text-xs">
-              <thead className="bg-[#0B3A53] text-white">
+              <thead className="bg-orange-600 text-white">
                 <tr>
                   <th className="px-4 py-3 font-semibold uppercase font-display">
                     Platform Capabilities

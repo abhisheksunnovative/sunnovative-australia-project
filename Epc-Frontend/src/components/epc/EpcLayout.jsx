@@ -248,19 +248,19 @@ const EpcLayout = () => {
             {/* ✅ KW Wallet Badge */}
             <button
                onClick={() => navigate(countryPrefix ? `/${countryPrefix.toLowerCase()}/epc/wallet` : '/epc/wallet')}
-               className="flex items-center gap-1.5 md:gap-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-full px-2.5 py-1.5 md:px-3 transition-colors"
+               className="flex items-center gap-1.5 md:gap-2 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-full px-2.5 py-1.5 md:px-3 transition-colors"
                title="View Wallet"
             >
-              <svg className="w-4 h-4 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 text-orange-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              <span className="text-[11px] md:text-xs font-bold text-blue-700 whitespace-nowrap">
+              <span className="text-[11px] md:text-xs font-bold text-orange-700 whitespace-nowrap">
                 {wallet ? wallet.totalCredits : '...'} KW
               </span>
               {wallet?.freeTrialRemaining > 0 && (
                 <span className="hidden md:inline-block text-[10px] bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full font-medium">
-                  +{wallet.freeTrialRemaining} free
+                  +{wallet.freeTrialRemaining}
                 </span>
               )}
             </button>
@@ -290,7 +290,7 @@ const EpcLayout = () => {
                   <div className="flex items-center justify-between p-3 border-b border-slate-100 sticky top-0 bg-white z-10">
                     <span className="font-bold text-xs text-slate-800">Notifications ({notifications.length})</span>
                     {unreadCount > 0 && (
-                      <button onClick={markAllAsRead} className="text-[10px] text-blue-600 font-semibold hover:underline cursor-pointer">
+                      <button onClick={markAllAsRead} className="text-[10px] text-orange-600 font-semibold hover:underline cursor-pointer">
                         Mark all as read
                       </button>
                     )}

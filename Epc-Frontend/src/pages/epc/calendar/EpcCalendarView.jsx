@@ -68,13 +68,13 @@ const EpcCalendarView = () => {
         className={`min-h-[105px] border p-2 rounded-xl flex flex-col justify-between transition-all cursor-pointer shadow-xs hover:shadow-md ${
           isBooked
             ? 'bg-rose-50 border-rose-300 hover:border-rose-500'
-            : 'bg-emerald-50/60 border-emerald-300 hover:border-emerald-500'
+            : 'bg-blue-50/60 border-blue-300 hover:border-blue-500'
         }`}
       >
         {/* Top: Day number & Badge */}
         <div className="flex items-center justify-between">
           <span className={`text-xs font-black px-2 py-0.5 rounded-md ${
-            isBooked ? 'bg-rose-200 text-rose-900' : 'bg-emerald-200 text-emerald-900'
+            isBooked ? 'bg-rose-200 text-rose-900' : 'bg-blue-200 text-blue-900'
           }`}>
             {day}
           </span>
@@ -83,8 +83,8 @@ const EpcCalendarView = () => {
               🔴 Booked
             </span>
           ) : (
-            <span className="text-[9px] font-black bg-emerald-600 text-white px-1.5 py-0.5 rounded shadow-xs">
-              🟢 Free
+            <span className="text-[9px] font-black bg-blue-700 text-white px-1.5 py-0.5 rounded shadow-xs">
+              🔵 Available
             </span>
           )}
         </div>
@@ -102,8 +102,8 @@ const EpcCalendarView = () => {
               </div>
             </div>
           ) : (
-            <div className="bg-white/80 p-1.5 rounded-lg border border-emerald-200 text-[10px] text-emerald-800 font-semibold flex items-center gap-1">
-              <Clock className="w-3 h-3 text-emerald-600 shrink-0" />
+            <div className="bg-white/80 p-1.5 rounded-lg border border-blue-200 text-[10px] text-blue-800 font-semibold flex items-center gap-1">
+              <Clock className="w-3 h-3 text-blue-600 shrink-0" />
               <span>Available Slot</span>
             </div>
           )}
@@ -133,9 +133,9 @@ const EpcCalendarView = () => {
 
         {/* Legend Summary */}
         <div className="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-800 font-bold rounded-lg border border-emerald-200">
-            <span className="w-2.5 h-2.5 bg-emerald-600 rounded-full animate-pulse" />
-            <span>🟢 Open Slots ({availableCount})</span>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 text-blue-800 font-bold rounded-lg border border-blue-200">
+            <span className="w-2.5 h-2.5 bg-blue-600 rounded-full animate-pulse" />
+            <span>🔵 Open Slots ({availableCount})</span>
           </div>
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-100 text-rose-800 font-bold rounded-lg border border-rose-200">
             <span className="w-2.5 h-2.5 bg-rose-600 rounded-full animate-ping" />
