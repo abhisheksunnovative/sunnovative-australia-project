@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
+import epcApi from "../api/epcApi";
 
 const TRANSLATIONS = {
   IN: {
@@ -9,7 +10,7 @@ const TRANSLATIONS = {
     country: "Australia", currency: "A$", currencyCode: "AUD",
     solarScheme: "Small-scale Renewable Energy Scheme (SRES)",
     stc: {
-      defaultPrice: 39, // $39 per STC
+      defaultPrice: 39,
       deemingPeriod: {
         2026: 10,
         2027: 9,
@@ -38,8 +39,55 @@ export function CountryProvider({ children, countryProp = "IN" }) {
   const [country] = useState(countryProp); // 'IN', 'AU', 'NZ'
   const t = TRANSLATIONS[country] || TRANSLATIONS.IN;
 
+  // Live Location State from Admin Backend
+  const [allDistricts, setAllDistricts] = useState([]);
+  const [locationsLoading, setLocationsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const { data } = await epcApi.get('/api/districts');
+        setAllDistricts(data);
+      } catch (err) {
+        console.error("Failed to load locations:", err);
+      } finally {
+        setLocationsLoading(false);
+      }
+    };
+    fetchLocations();
+  }, []);
+
+  // Helper methods for dynamic dropdowns
+  const getCountries = () => {
+    return [...new Set(allDistricts.map(d => d.country))];
+  };
+
+  const getStates = (countryName) => {
+    if (!countryName) return [];
+    const filtered = allDistricts.filter(
+      d => d.country?.toLowerCase() === countryName.toLowerCase()
+    );
+    return [...new Set(filtered.map(d => d.stateName))];
+  };
+
+  const getDistricts = (countryName, stateName) => {
+    if (!countryName || !stateName) return [];
+    return allDistricts.filter(
+      d => d.country?.toLowerCase() === countryName.toLowerCase() &&
+           d.stateName?.toLowerCase() === stateName.toLowerCase()
+    ).map(d => d.district);
+  };
+
   return (
-    <CountryContext.Provider value={{ country, t }}>
+    <CountryContext.Provider value={{ 
+      country, 
+      t,
+      allDistricts,
+      locationsLoading,
+      getCountries,
+      getStates,
+      getDistricts
+    }}>
       {children}
     </CountryContext.Provider>
   );

@@ -21,8 +21,9 @@ import {
   estimateSubsidy,
   parseAuBillText,
   getAuStcZone,
-  calcAuStcs,
 } from '../utils/Ocrextractor.js';
+import { calculateSTC } from '../utils/stcCalculator.js';
+import ProjectPricing from '../models/ProjectPricing.js';
 
 export const scanLightBill = async (req, res) => {
   try {
@@ -130,7 +131,27 @@ export const scanLightBill = async (req, res) => {
       }
 
       // STC calculation
-      const stcCalc = calcAuStcs({ kw: recommendedKw, zone, deemingYears, stcPrice });
+      const stcCalc = calculateSTC(recommendedKw, zone, new Date().getFullYear(), stcPrice);
+      
+      // Dynamic Installation Cost (Option A)
+      let installCost = Math.round(recommendedKw * 1200); // default
+      try {
+        const pricingEntry = await ProjectPricing.findOne({ 
+          country: 'australia', 
+          projectType: 'residential', 
+          systemSizeKW: { $gte: recommendedKw } // closest size
+        }).sort('systemSizeKW').lean();
+        
+        if (pricingEntry) {
+           // Normalize rate per kw if size isn't exact
+           const ratePerKw = pricingEntry.projectPrice / pricingEntry.systemSizeKW;
+           installCost = Math.round(recommendedKw * ratePerKw);
+        }
+      } catch(e) {
+        console.warn('Could not fetch project pricing for OCR', e.message);
+      }
+      
+      const netCost = Math.max(500, installCost - stcCalc.totalRebate);
 
       const confidence = parsed.confidence;
       const response = {
@@ -192,16 +213,16 @@ export const scanLightBill = async (req, res) => {
           zoneLabel: `Zone ${zone}`,
           deemingYears,
           stcPrice,
-          stcs:        stcCalc.stcs,
-          stcValue:    stcCalc.stcValue,
-          installCost: stcCalc.installCost,
-          netCost:     stcCalc.netCost,
-          multiplier:  stcCalc.multiplier,
+          stcs:        stcCalc.stcCount,
+          stcValue:    stcCalc.totalRebate,
+          installCost: installCost,
+          netCost:     netCost,
+          multiplier:  stcCalc.breakdown.zoneRating,
         },
 
         // India-compat aliases (frontend may use these)
-        subsidyAmount: stcCalc.stcValue,
-        subsidyNote: `${stcCalc.stcs} STCs × $${stcPrice} = $${stcCalc.stcValue} rebate (Zone ${zone}, ${deemingYears}-yr deeming)`,
+        subsidyAmount: stcCalc.totalRebate,
+        subsidyNote: `${stcCalc.stcCount} STCs × $${stcPrice} = $${stcCalc.totalRebate} rebate (Zone ${zone}, ${deemingYears}-yr deeming)`,
       };
 
       return res.json(response);

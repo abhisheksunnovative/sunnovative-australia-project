@@ -18,7 +18,7 @@ export default function PaymentSettingsTab() {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/api/customer-payment-settings/australia`);
+      const res = await fetch(`${API_BASE}/api/admin/payment-settings/payment-settings?country=australia`);
       const data = await res.json();
       if (data.success && data.data) {
         setSettings(data.data);
@@ -44,7 +44,7 @@ export default function PaymentSettingsTab() {
   const handleSave = async () => {
     try {
       setSaving(true);
-      const res = await fetch(`${API_BASE}/api/customer-payment-settings/australia`, {
+      const res = await fetch(`${API_BASE}/api/admin/payment-settings/payment-settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectConfigs: settings.projectConfigs })

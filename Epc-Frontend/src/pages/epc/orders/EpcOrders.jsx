@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useEpcAuth } from '../../../context/EpcAuthContext';
+import { useCountry } from '../../../context/CountryContext';
 import epcApi from '../../../api/epcApi';
 import EpcOrdersCalendar from './EpcOrdersCalendar';
 
@@ -13,7 +14,7 @@ const statusConfig = {
   New:       { cls: 'bg-blue-50 text-blue-700 border-blue-200',   dot: 'bg-blue-500',   icon: '🆕' },
   Ongoing:   { cls: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500',  icon: '⚙️' },
   Overdue:   { cls: 'bg-red-50 text-red-700 border-red-200',      dot: 'bg-red-500',    icon: '⚠️' },
-  Completed: { cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500', icon: '✅' },
+  Completed: { cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'emerald-500', icon: '✅' },
   Cancelled: { cls: 'bg-gray-100 text-gray-500 border-gray-200',  dot: 'bg-gray-400',   icon: '❌' },
 };
 
@@ -25,6 +26,7 @@ const stageSteps = [
 
 const EpcOrders = () => {
   const { epc } = useEpcAuth();
+  const { getStates, locationsLoading } = useCountry();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const defaultStatus = searchParams.get('status') || '';
@@ -172,7 +174,15 @@ const EpcOrders = () => {
           </div>
           <div>
             <label className="block text-gray-400 text-xs mb-1 font-medium">State</label>
-            <input type="text" value={filterState} onChange={e => setFilterState(e.target.value)} placeholder="State" className={`${inputCls} w-28`} />
+            <select 
+              value={filterState} 
+              onChange={e => setFilterState(e.target.value)} 
+              className={`${inputCls} w-28`}
+              disabled={locationsLoading}
+            >
+              <option value="">All</option>
+              {getStates(epc?.country).map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
           </div>
           <div>
             <label className="block text-gray-400 text-xs mb-1 font-medium">District</label>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Save, PlayCircle, PauseCircle, Loader2, Filter, AlertTriangle, Lightbulb, Settings, MapPin } from "lucide-react";
+import { Save, PlayCircle, PauseCircle, Loader2, Filter, AlertTriangle, Lightbulb, Settings, MapPin, ArrowLeft } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
+import { useAdminSettings } from "../hooks/useAdminSettings";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
@@ -66,6 +67,12 @@ export const DemandSupplyScreen = () => {
 export const DemandSupplyContent = ({ selectedCountryObj, onBack }) => {
   const selectedCountry = selectedCountryObj.code;
   const selectedCountryName = selectedCountryObj.name;
+
+  // Dynamic project types from OrderJourney settings
+  const { projectTypes: dynamicProjectTypes } = useAdminSettings(selectedCountry);
+  const projectTypeOptions = dynamicProjectTypes.length > 0
+    ? dynamicProjectTypes.map(pt => pt.label || pt.value)
+    : [];
 
   const [settings, setSettings] = useState(null);
   const [analytics, setAnalytics] = useState([]);
@@ -310,7 +317,7 @@ export const DemandSupplyContent = ({ selectedCountryObj, onBack }) => {
           {filters.country && (
              <select name="projectType" value={filters.projectType} onChange={handleFilterChange} className="border p-2.5 rounded-xl text-sm min-w-[150px] bg-white focus:ring-2 focus:ring-blue-100 outline-none">
                 <option value="">All Project Types</option>
-                {['Residential Solar', 'Commercial Solar', 'Group Solar', 'Village Solar Campaign', 'Surya Ghar Yojana'].map(pt => (
+                {projectTypeOptions.map(pt => (
                   <option key={pt} value={pt}>{pt}</option>
                 ))}
              </select>
@@ -435,9 +442,9 @@ export const DemandSupplyContent = ({ selectedCountryObj, onBack }) => {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Project Type</label>
-                  <select value={ruleForm.projectType} onChange={(e) => setRuleForm({...ruleForm, projectType: e.target.value})} className="w-full border p-2.5 rounded-xl text-sm bg-white">
+                   <select value={ruleForm.projectType} onChange={(e) => setRuleForm({...ruleForm, projectType: e.target.value})} className="w-full border p-2.5 rounded-xl text-sm bg-white">
                     <option value="">All / Default</option>
-                    {['Residential Solar', 'Commercial Solar', 'Group Solar', 'Village Solar Campaign', 'Surya Ghar Yojana'].map(pt => (
+                    {projectTypeOptions.map(pt => (
                       <option key={pt} value={pt}>{pt}</option>
                     ))}
                   </select>

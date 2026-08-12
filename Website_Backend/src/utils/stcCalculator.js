@@ -1,11 +1,11 @@
-const ZONE_RATINGS = {
+export const ZONE_RATINGS = {
   1: 1.536,
   2: 1.382,
   3: 1.185,
   4: 1.008
 };
 
-const DEEMING_PERIODS = {
+export const DEEMING_PERIODS = {
   2026: 10,
   2027: 9,
   2028: 8,
@@ -14,7 +14,7 @@ const DEEMING_PERIODS = {
   2031: 5
 };
 
-const DEFAULT_STC_PRICE = 39;
+export const DEFAULT_STC_PRICE = 39;
 
 /**
  * Calculates STC (Small-scale Technology Certificates) for Australian solar projects.
@@ -26,7 +26,7 @@ const DEFAULT_STC_PRICE = 39;
  * @param {number} stcPrice - (Optional) Current market price per STC. Defaults to 39.
  * @returns {object} Object containing stcCount, totalRebate, and breakdown.
  */
-function calculateSTC(systemSizeKw, zone, installYear = new Date().getFullYear(), stcPrice = DEFAULT_STC_PRICE) {
+export function calculateSTC(systemSizeKw, zone, installYear = new Date().getFullYear(), stcPrice = DEFAULT_STC_PRICE) {
   if (!systemSizeKw || systemSizeKw <= 0) {
     throw new Error('System size must be greater than 0 kW');
   }
@@ -58,10 +58,3 @@ function calculateSTC(systemSizeKw, zone, installYear = new Date().getFullYear()
     }
   };
 }
-
-module.exports = {
-  calculateSTC,
-  ZONE_RATINGS,
-  DEEMING_PERIODS,
-  DEFAULT_STC_PRICE
-};

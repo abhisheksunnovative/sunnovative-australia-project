@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import epcApi from '../../../api/epcApi';
 import { useEpcAuth } from '../../../context/EpcAuthContext';
 
@@ -21,6 +21,18 @@ const TeamCapacityManager = ({ myPlan }) => {
   const [upgrading, setUpgrading] = useState('');
   const [msg, setMsg] = useState({ text: '', type: '' });
   const [additionalInstallers, setAdditionalInstallers] = useState(1);
+  const [installerConfig, setInstallerConfig] = useState(null);
+
+  useEffect(() => {
+    epcApi.get(`/api/epc-subscription-settings/installer-configs?country=${epc?.country || 'India'}`)
+      .then(res => {
+        if (res.data && res.data.data && res.data.data.length > 0) {
+          setInstallerConfig(res.data.data[0]);
+        }
+      })
+      .catch(err => console.error("Failed to load installer config", err));
+  }, [epc?.country]);
+
 
   const isAus = epc?.country === 'australia';
   const statesMap = isAus ? AUS_STATES : INDIAN_STATES;
@@ -32,7 +44,7 @@ const TeamCapacityManager = ({ myPlan }) => {
 
   const handleInstallerUpgrade = async () => {
     if (!targetDistrict) return alert("Please select a target district for the new team(s).");
-    if (!window.confirm(`Add ${additionalInstallers} Installer Team(s) in ${targetDistrict} for ₹${(additionalInstallers * 50000).toLocaleString('en-IN')}/yr?`)) return;
+    if (!window.confirm(`Add ${additionalInstallers} Installer Team(s) in ${targetDistrict} for ₹${((installerConfig?.extraInstallerPrice || 50000) * additionalInstallers).toLocaleString('en-IN')}/yr?`)) return;
     setUpgrading('installer');
     try {
       const { data } = await epcApi.post('/api/epc/plans/upgrade-installer', {
@@ -142,7 +154,7 @@ const TeamCapacityManager = ({ myPlan }) => {
           <div>
             <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
             <h3 className="font-bold text-emerald-800 mb-1">Add More Teams</h3>
-            <p className="text-xs text-emerald-600 mb-4">Each additional installer adds <b>25 KW</b> to your weekly limit for a chosen district (Yearly flat fee).</p>
+            <p className="text-xs text-emerald-600 mb-4">Each additional installer adds <b>{installerConfig?.weeklyKwCapacityPerInstaller || 25} KW</b> to your weekly limit for a chosen district (Yearly flat fee).</p>
             
             <div className="mb-4 grid grid-cols-2 gap-3">
               <div>
@@ -181,7 +193,7 @@ const TeamCapacityManager = ({ myPlan }) => {
                 <button onClick={() => setAdditionalInstallers(additionalInstallers + 1)} className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold">+</button>
               </div>
               <div className="text-sm font-bold text-gray-800">
-                ₹{(additionalInstallers * 50000).toLocaleString('en-IN')}<span className="text-xs text-gray-500 font-normal"> /yr</span>
+                ₹{((installerConfig?.extraInstallerPrice || 50000) * additionalInstallers).toLocaleString('en-IN')}<span className="text-xs text-gray-500 font-normal"> /yr</span>
               </div>
             </div>
           </div>

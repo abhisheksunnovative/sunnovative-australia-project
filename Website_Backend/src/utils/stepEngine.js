@@ -1,3 +1,4 @@
+import { calculateSTC } from './stcCalculator.js';
 export const calcCompletion = (steps) => {
   if (!steps || steps.length === 0) return 0;
   let comp = 0;
@@ -99,15 +100,6 @@ const getAuStcZone = (postcode) => {
   return 3;
 };
 
-const calcAuStcs = ({ kw, zone, deemingYears = 5, stcPrice = 38 }) => {
-  const multiplier = { 1: 1.622, 2: 1.536, 3: 1.382, 4: 1.185 }[zone] || 1.382;
-  const stcs = Math.floor(kw * multiplier * deemingYears);
-  const stcValue = Math.round(stcs * stcPrice);
-  const installCost = Math.round(kw * 1100);
-  const netCost = Math.max(500, installCost - stcValue);
-  return { zone, multiplier, deemingYears, stcPrice, stcs, stcValue, installCost, netCost };
-};
-
 /**
  * Shared engine for completing a project step.
  * Used by Customer, BDE, EPC, and Admin.
@@ -173,16 +165,19 @@ export const processStepCompletionEngine = async (
       const postcode = postcodeObj.value.trim();
       const zone = getAuStcZone(postcode);
       const systemSize = order.systemSizeKW || 6.6;
-      const stcResult = calcAuStcs({ kw: systemSize, zone });
       
-      order.estimatedSubsidy = stcResult.stcValue;
-      order.totalProjectCost = stcResult.netCost;
+      const stcResult = calculateSTC(systemSize, zone, new Date().getFullYear(), 38);
+      const installCost = Math.round(systemSize * 1200); // basic fallback estimate
+      const netCost = Math.max(500, installCost - stcResult.totalRebate);
+      
+      order.estimatedSubsidy = stcResult.totalRebate;
+      order.totalProjectCost = netCost;
       if (billObj && billObj.value) {
         const billVal = parseFloat(billObj.value.replace(/[^0-9.]/g, "")) || 0;
         order.monthlyBillAmount = billVal;
       }
       
-      const calcSummary = `[Auto-Calc: Postcode ${postcode} resolved to Zone ${zone}. System Size: ${systemSize}kW. Estimated STC Rebate: $${stcResult.stcValue}. Net Project Cost: $${stcResult.netCost}]`;
+      const calcSummary = `[Auto-Calc: Postcode ${postcode} resolved to Zone ${zone}. System Size: ${systemSize}kW. Estimated STC Rebate: $${stcResult.totalRebate}. Net Project Cost: $${netCost}]`;
       dynamicEvidenceNote = (dynamicEvidenceNote ? dynamicEvidenceNote + " | " : "") + calcSummary;
     }
   }

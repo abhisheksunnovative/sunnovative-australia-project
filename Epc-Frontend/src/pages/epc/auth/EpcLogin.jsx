@@ -3,23 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import epcApi from '../../../api/epcApi';
 import OtpInput from '../../../components/epc/OtpInput';
 import { useEpcAuth } from '../../../context/EpcAuthContext';
+import { useCountry } from '../../../context/CountryContext';
 
-const COUNTRY_STATES = {
-  india: [
-    'Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh',
-    'Goa','Gujarat','Haryana','Himachal Pradesh','Jharkhand','Karnataka',
-    'Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram',
-    'Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana',
-    'Tripura','Uttar Pradesh','Uttarakhand','West Bengal',
-    'Delhi','Jammu and Kashmir','Ladakh',
-  ],
-  australia: [
-    'New South Wales', 'Victoria', 'Queensland', 'Western Australia', 'South Australia', 'Tasmania', 'Australian Capital Territory', 'Northern Territory'
-  ],
-  new_zealand: [
-    'Auckland', 'Wellington', 'Canterbury', 'Waikato', 'Bay of Plenty', 'Otago', 'Manawatu-Wanganui', "Hawke's Bay", 'Taranaki', 'Northland', 'Nelson', 'Southland', 'Marlborough', 'Gisborne', 'Tasman', 'West Coast'
-  ]
-};
 
 const OtpSentPopup = ({ message, otp, onClose }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -50,6 +35,7 @@ const OtpSentPopup = ({ message, otp, onClose }) => (
 const EpcLogin = () => {
   const navigate = useNavigate();
   const { setEpcDirect } = useEpcAuth();
+  const { getCountries, getStates, locationsLoading } = useCountry();
 
   // step: 1=state+company, 2=otp (only first-time), 3=pin (enter or set)
   const [step, setStep]           = useState(1);
@@ -235,17 +221,36 @@ const EpcLogin = () => {
               </div>
               <div>
                 <label className="block text-gray-600 text-xs font-medium mb-1.5">Country *</label>
-                <select value={country} onChange={e => { setCountry(e.target.value); setState(''); setSelected(null); setSearch(''); }} className={inputCls}>
-                  <option value="india">India</option>
-                  <option value="australia">Australia</option>
-                  <option value="new_zealand">New Zealand</option>
+                <select 
+                  value={country} 
+                  onChange={e => { setCountry(e.target.value); setState(''); setSelected(null); setSearch(''); }} 
+                  className={inputCls}
+                  disabled={locationsLoading}
+                >
+                  <option value="">Select Country</option>
+                  {getCountries().map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                  {/* Fallbacks if DB is empty but we still want to show them temporarily, otherwise just map getCountries() */}
+                  {getCountries().length === 0 && !locationsLoading && (
+                    <>
+                      <option value="india">India</option>
+                      <option value="australia">Australia</option>
+                      <option value="new_zealand">New Zealand</option>
+                    </>
+                  )}
                 </select>
               </div>
               <div>
                 <label className="block text-gray-600 text-xs font-medium mb-1.5">State *</label>
-                <select value={state} onChange={e => { setState(e.target.value); setSelected(null); setSearch(''); }} className={inputCls}>
+                <select 
+                  value={state} 
+                  onChange={e => { setState(e.target.value); setSelected(null); setSearch(''); }} 
+                  className={inputCls}
+                  disabled={!country || locationsLoading}
+                >
                   <option value="">Select State</option>
-                  {COUNTRY_STATES[country]?.map(s => <option key={s}>{s}</option>)}
+                  {getStates(country).map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               {state && (

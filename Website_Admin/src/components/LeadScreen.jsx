@@ -314,11 +314,12 @@ const UploadModal = ({ onClose, onSuccess }) => {
 };
 
 // ── Main LeadsScreen ──────────────────────────────────────────────────────────
-const LeadScreen = ({ uploadSource = 'website' }) => {
-  const { settings } = useAdminSettings();
+const LeadScreen = ({ uploadSource = 'website' }) => {
+  const [filterCountry, setFilterCountry] = useState("");
+  const { projectTypes: dynamicProjectTypes } = useAdminSettings(filterCountry);
   
-  const dynamicSolarTypes = settings?.projectTypes?.length > 0
-    ? settings.projectTypes.map(pt => ({ value: pt, label: pt }))
+  const dynamicSolarTypes = dynamicProjectTypes.length > 0
+    ? dynamicProjectTypes
     : [{ value: "Residential", label: "Residential" }];
 
   const [leads, setLeads] = useState([]);
@@ -330,7 +331,6 @@ const LeadScreen = ({ uploadSource = 'website' }) => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
-  const [filterCountry, setFilterCountry] = useState("");
   const [filterState, setFilterState] = useState("");
   const [filterDistrict, setFilterDistrict] = useState("");
   const [assignedBde, setAssignedBde] = useState("");

@@ -26,11 +26,11 @@ const EpcMyPlan = () => {
     const fetchPlans = async () => {
       try {
         const [plansRes, myRes, analyticsRes] = await Promise.all([
-          epcApi.get('/api/epc/plans').catch(() => ({ data: [] })),
+          epcApi.get(`/api/epc-subscription-settings/plans?country=${epc?.country || 'India'}`).catch(() => ({ data: { data: [] } })),
           epcApi.get('/api/epc/plans/my-plan').catch(() => ({ data: null })),
           epcApi.get('/api/epc/orders/demand-analytics').catch(() => ({ data: { data: [] } })),
         ]);
-        setPlans(plansRes?.data || []);
+        setPlans(plansRes?.data?.data || plansRes?.data || []);
         setMyPlan(myRes?.data || null);
         setDemandStats(analyticsRes.data?.data || []);
       } catch (error) {
@@ -407,12 +407,12 @@ const EpcMyPlan = () => {
                     </ul>
                   )}
 
-                  {plan.monthlyFee > 0 && (
+                  {plan.monthlyPrice > 0 && (
                     <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
                       <p className="text-gray-400 text-xs mb-0.5">Pricing</p>
-                      <p className="text-gray-800 text-sm font-bold">₹{plan.monthlyFee?.toLocaleString('en-IN')}/mo</p>
-                      {plan.annualFee > 0 && (
-                        <p className="text-gray-400 text-xs">₹{plan.annualFee?.toLocaleString('en-IN')}/yr</p>
+                      <p className="text-gray-800 text-sm font-bold">₹{plan.monthlyPrice?.toLocaleString('en-IN')}/mo</p>
+                      {plan.annualPrice > 0 && (
+                        <p className="text-gray-400 text-xs">₹{plan.annualPrice?.toLocaleString('en-IN')}/yr</p>
                       )}
                     </div>
                   )}
@@ -423,7 +423,7 @@ const EpcMyPlan = () => {
                         className={`w-full text-xs font-medium py-2 rounded-lg border transition-colors disabled:opacity-50 ${cfg.btn}`}>
                         {upgrading === plan.name + 'Monthly' ? 'Upgrading...' : 'Monthly'}
                       </button>
-                      {plan.annualFee > 0 && (
+                      {plan.annualPrice > 0 && (
                         <button onClick={() => handleUpgrade(plan.name, 'Annual')} disabled={!!upgrading}
                           className={`w-full text-xs font-medium py-2 rounded-lg border transition-colors disabled:opacity-50 ${cfg.btn}`}>
                           {upgrading === plan.name + 'Annual' ? 'Upgrading...' : 'Annual (Save more)'}

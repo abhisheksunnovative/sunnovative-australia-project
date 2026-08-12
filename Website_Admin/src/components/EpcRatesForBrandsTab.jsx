@@ -15,6 +15,7 @@ export default function EpcRatesForBrandsTab() {
   const [settings, setSettings] = useState({});
   const [projectTypes, setProjectTypes] = useState({}); // { countryCode: [ types ] }
   const [countries, setCountries] = useState([]);
+  const [districtsConfig, setDistrictsConfig] = useState([]);
 
   const fetchCountries = async () => {
     try {
@@ -35,8 +36,13 @@ export default function EpcRatesForBrandsTab() {
   const [epcRates, setEpcRates] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const [filterCountry, setFilterCountry] = useState('australia');
+  const [filterKw, setFilterKw] = useState('All');
+  const [filterState, setFilterState] = useState('All');
+  const [filterDistrict, setFilterDistrict] = useState('All');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
   const [search, setSearch] = useState('');
+  const [filterCountry, setFilterCountry] = useState('australia');
 
   // Fetch Pricing System Settings
   const fetchSettings = async () => {
@@ -61,7 +67,7 @@ export default function EpcRatesForBrandsTab() {
   // Fetch Project Types for a country
   const fetchProjectTypes = async (countryCode) => {
     try {
-      const response = await fetch(`${API_BASE}/api/order-journey/project-types?country=${countryCode}`);
+      const response = await fetch(`${API_BASE}/api/project-types?country=${countryCode}`);
       const data = await response.json();
       if (data.projectTypes) {
         setProjectTypes(prev => ({ ...prev, [countryCode]: data.projectTypes }));
@@ -77,9 +83,22 @@ export default function EpcRatesForBrandsTab() {
     fetchSettings();
   }, []);
 
+  const fetchDistricts = async (countryCode) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/districts?country=${countryCode}`);
+      const data = await response.json();
+      if (data.success && data.data) {
+        setDistrictsConfig(data.data);
+      }
+    } catch (err) {
+      console.error("Failed to load districts", err);
+    }
+  };
+
   useEffect(() => {
     if (selectedCountry) {
       fetchProjectTypes(selectedCountry.code);
+      fetchDistricts(selectedCountry.code);
     }
   }, [selectedCountry]);
 
@@ -139,6 +158,31 @@ export default function EpcRatesForBrandsTab() {
       console.error("Failed to approve", err);
     }
   };
+
+  // Compute filtering
+  const filteredRates = epcRates.filter(rate => {
+    if (filterKw !== 'All' && rate.kw !== Number(filterKw)) return false;
+    if (filterState !== 'All' && rate.epcId?.state !== filterState) return false;
+    if (filterDistrict !== 'All' && rate.epcId?.district !== filterDistrict) return false;
+    if (minPrice && rate.finalPrice < Number(minPrice)) return false;
+    if (maxPrice && rate.finalPrice > Number(maxPrice)) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const epcName = (rate.epcId?.name || '').toLowerCase();
+      const brandsStr = rate.dynamicBrands?.map(db => db.brandIds?.map(b => b?.name || '').join(' ')).join(' ').toLowerCase() || '';
+      if (!epcName.includes(q) && !brandsStr.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const avgPrice = filteredRates.length 
+    ? (filteredRates.reduce((acc, r) => acc + (r.finalPrice || 0), 0) / filteredRates.length).toFixed(2)
+    : 0;
+
+  const currentPtConfig = projectTypes[selectedCountry?.code]?.find(pt => (pt.projectType || pt.name || pt.type) === selectedPt);
+  const uniqueKws = currentPtConfig?.availableKw || [];
+  const uniqueStates = [...new Set(districtsConfig.map(d => d.state).filter(Boolean))].sort();
+  const uniqueDistricts = [...new Set(districtsConfig.map(d => d.district).filter(Boolean))].sort();
 
   // Render
   return (
@@ -264,6 +308,63 @@ export default function EpcRatesForBrandsTab() {
           </div>
 
           {settings[selectedCountry.code]?.[selectedPt] === 'epc' ? (
+            <div className="space-y-6">
+              {/* Master Filters UI */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white p-4 rounded-xl border shadow-sm">
+                  <label className="text-xs font-bold text-slate-500 uppercase">Search</label>
+                  <div className="relative mt-1">
+                    <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                    <input 
+                      type="text" 
+                      placeholder="EPC or Brand..." 
+                      className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm"
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                    />
+                  </div>
+                </div>
+                
+                <div className="bg-white p-4 rounded-xl border shadow-sm">
+                  <label className="text-xs font-bold text-slate-500 uppercase">System Size</label>
+                  <select 
+                    className="w-full mt-1 border rounded-lg px-3 py-2 text-sm"
+                    value={filterKw}
+                    onChange={e => setFilterKw(e.target.value)}
+                  >
+                    <option value="All">All Sizes</option>
+                    {uniqueKws.map(kw => <option key={kw} value={kw}>{kw} kW</option>)}
+                  </select>
+                </div>
+
+                <div className="bg-white p-4 rounded-xl border shadow-sm">
+                  <label className="text-xs font-bold text-slate-500 uppercase">State / District</label>
+                  <div className="flex gap-2 mt-1">
+                    <select 
+                      className="w-1/2 border rounded-lg px-2 py-2 text-sm"
+                      value={filterState}
+                      onChange={e => setFilterState(e.target.value)}
+                    >
+                      <option value="All">All States</option>
+                      {uniqueStates.map(st => <option key={st} value={st}>{st}</option>)}
+                    </select>
+                    <select 
+                      className="w-1/2 border rounded-lg px-2 py-2 text-sm"
+                      value={filterDistrict}
+                      onChange={e => setFilterDistrict(e.target.value)}
+                    >
+                      <option value="All">All Districts</option>
+                      {uniqueDistricts.map(dt => <option key={dt} value={dt}>{dt}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="bg-slate-800 text-white p-4 rounded-xl shadow-sm flex flex-col justify-center items-center">
+                  <span className="text-xs font-bold text-slate-400 uppercase">Average Price</span>
+                  <span className="text-2xl font-bold text-emerald-400">${avgPrice}</span>
+                </div>
+              </div>
+
             <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
               <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2"><Settings className="w-4 h-4 text-slate-400"/> EPC Submitted Rates</h3>
@@ -279,19 +380,35 @@ export default function EpcRatesForBrandsTab() {
                       <th className="px-4 py-3 font-medium uppercase text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {loading ? (
-                      <tr><td colSpan="5" className="p-8 text-center text-slate-500">Loading...</td></tr>
-                    ) : epcRates.length === 0 ? (
-                      <tr><td colSpan="5" className="p-8 text-center text-slate-500">No EPC rates submitted for this project type yet.</td></tr>
-                    ) : (
-                      epcRates.map(rate => (
-                        <tr key={rate._id} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-4 py-4">
-                            <div className="font-bold text-slate-800">EPC-{rate.epcId?.substring(0, 6) || 'Unknown'}</div>
-                            <div className="text-xs text-slate-500">{rate.panelBrand?.name} + {rate.inverterBrand?.name}</div>
-                          </td>
-                          <td className="px-4 py-4 font-medium">{rate.systemSizeKW} kW</td>
+                    <tbody className="divide-y divide-slate-100">
+                      {loading ? (
+                        <tr><td colSpan="5" className="p-8 text-center text-slate-500">Loading...</td></tr>
+                      ) : filteredRates.length === 0 ? (
+                        <tr><td colSpan="5" className="p-8 text-center text-slate-500">No EPC rates match the selected filters.</td></tr>
+                      ) : (
+                        filteredRates.map(rate => (
+                          <tr key={rate._id} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-4 py-4">
+                              <div className="font-bold text-slate-800">{rate.epcId?.name || `EPC-${(rate.epcId?._id || rate.epcId || '').toString().substring(0, 6)}`}</div>
+                              <div className="text-xs text-slate-500">
+                                {rate.epcId?.district ? `${rate.epcId.district}, ${rate.epcId.state}` : 'Location unknown'}
+                              </div>
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {rate.dynamicBrands?.length > 0 ? (
+                                  rate.dynamicBrands.map((db, idx) => {
+                                    if (db.category === '0') return null;
+                                    return (
+                                      <span key={idx} className="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 border">
+                                        <span className="font-semibold">{db.category}:</span> {db.brandIds?.map(b => b.name).join(', ')}
+                                      </span>
+                                    )
+                                  })
+                                ) : (
+                                  <span className="text-xs text-slate-500">Old format rate</span>
+                                )}
+                              </div>
+                            </td>
+                          <td className="px-4 py-4 font-medium">{rate.kw} kW</td>
                           <td className="px-4 py-4 font-bold text-emerald-600">${rate.finalPrice}</td>
                           <td className="px-4 py-4">
                             {rate.isApproved ? (
@@ -316,6 +433,7 @@ export default function EpcRatesForBrandsTab() {
                   </tbody>
                 </table>
               </div>
+            </div>
             </div>
           ) : (
             <div className="bg-white border rounded-xl overflow-hidden shadow-sm p-4">

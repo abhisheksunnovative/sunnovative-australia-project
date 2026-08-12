@@ -40,6 +40,7 @@ import epcWalletSettingsRoutes from "./src/routes/EpcwalletsettingsRoutes.js";
 import epcSystemSettingsRoutes from "./src/routes/epcSystemSettingsRoutes.js";
 import epcAdminRoutes from "./src/routes/epcAdminRoutes.js";
 import epcBulkRoutes from "./src/routes/epcBulkRoutes.js";
+import epcSubscriptionSettingsRoutes from "./src/routes/epcSubscriptionSettingsRoutes.js";
 
 //______light bill api-------//
 import lightBillScanRoutes from "./src/routes/lightBillScanRoutes.js";
@@ -165,6 +166,7 @@ app.use("/api/epc/contests", epcContestRoutes);
 app.use("/api/admin/epc", epcAdminRoutes);
 app.use("/api/admin/contests", adminContestRoutes);
 app.use("/api/epc-bulk", epcBulkRoutes);
+app.use("/api/epc-subscription-settings", epcSubscriptionSettingsRoutes);
 
 //___admin epc wallet _____//
 app.use('/api/epc/wallet/settings', epcWalletSettingsRoutes)

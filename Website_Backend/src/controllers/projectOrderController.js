@@ -99,18 +99,37 @@ export const getAllProjectOrders = async (req, res) => {
     const { status, projectType, country, district, city, assignedEPCId, search, page = 1, limit = 20 } = req.query;
 
     const filter = {};
-    if (status && status !== 'All') filter.status = status;
-    if (projectType && projectType !== 'All') filter.projectType = projectType;
-    if (country && country !== 'All') filter.country = new RegExp(country, "i");
-    if (district && district !== 'All') filter["location.district"] = new RegExp(district, "i");
-    if (city && city !== 'All') filter["location.city"] = new RegExp(city, "i");
-    if (assignedEPCId) filter.assignedEPCId = assignedEPCId;
+    const andConditions = [];
+
+    if (status && status !== 'All') andConditions.push({ status });
+    if (projectType && projectType !== 'All') andConditions.push({ projectType });
+    if (country && country !== 'All') andConditions.push({ country: new RegExp(country, "i") });
+    
+    if (district && district !== 'All') {
+      const distRegex = new RegExp(district, "i");
+      andConditions.push({
+        $or: [
+          { district: distRegex },
+          { "installationAddress.district": distRegex }
+        ]
+      });
+    }
+
+    if (city && city !== 'All') andConditions.push({ "location.city": new RegExp(city, "i") });
+    if (assignedEPCId) andConditions.push({ assignedEPCId });
+    
     if (search) {
-      filter.$or = [
-        { customerName: new RegExp(search, "i") },
-        { customerMobile: new RegExp(search, "i") },
-        { orderNumber: new RegExp(search, "i") },
-      ];
+      andConditions.push({
+        $or: [
+          { customerName: new RegExp(search, "i") },
+          { customerMobile: new RegExp(search, "i") },
+          { orderNumber: new RegExp(search, "i") },
+        ]
+      });
+    }
+
+    if (andConditions.length > 0) {
+      filter.$and = andConditions;
     }
 
     const total = await ProjectOrder.countDocuments(filter);

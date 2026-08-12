@@ -3,16 +3,29 @@ import EpcPartner from '../models/EpcPartner.js';
 // Get all EPC partners (Admin)
 export const getAllEpcs = async (req, res) => {
   try {
-    const { country, district, city, isOverdue } = req.query;
+    const { country, district, city, isOverdue, projectType } = req.query;
     let query = {};
+    const andConditions = [];
     
-    if (country && country !== 'All') query.country = country;
-    if (district && district !== 'All') query.district = district;
-    if (city && city !== 'All') query.city = city;
+    if (country && country !== 'All') andConditions.push({ country });
+    if (city && city !== 'All') andConditions.push({ city });
+    if (projectType && projectType !== 'All') andConditions.push({ qualifiedProjectTypes: projectType });
+    
+    if (district && district !== 'All') {
+      andConditions.push({
+        $or: [{ hqLocation: district }, { activeDistricts: district }]
+      });
+    }
     
     // For Overdue, assuming we filter by overdueCount > 0 or isFrozen
     if (isOverdue === 'true') {
-      query.$or = [{ overdueCount: { $gt: 0 } }, { isFrozen: true }];
+      andConditions.push({
+        $or: [{ overdueCount: { $gt: 0 } }, { isFrozen: true }]
+      });
+    }
+
+    if (andConditions.length > 0) {
+      query.$and = andConditions;
     }
 
     const epcs = await EpcPartner.find(query).sort({ createdAt: -1 }).select('-password');

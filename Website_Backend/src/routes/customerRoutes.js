@@ -5,9 +5,12 @@ import { getCustomerNotifications } from '../controllers/notificationController.
 import { protectCustomer } from '../middleware/protectCustomer.js';
 import upload from '../middleware/upload.js';
 import EpcPartner from '../models/EpcPartner.js';
+import Brand from '../models/Brand.js';
+import InstallerRankingSettings from '../models/InstallerRankingSettings.js';
 import EligibilitySettings  from '../models/EligibilitySettings.js';
 import { OrderJourneySettings } from '../models/OrderJourneySettings.js';
 import CountryWebsiteSettings from '../models/CountryWebsiteSettings.js';
+import ProjectPricing from '../models/ProjectPricing.js';
 import { extractCountry } from '../middleware/countryMiddleware.js';
 
 const router = express.Router();
@@ -45,15 +48,45 @@ router.get ('/notifications',                     protectCustomer, getCustomerNo
 // EPC partners public list (filtered, safe fields only)
 router.get('/public/epc-partners', async (req, res) => {
   try {
-    const { district, projectType } = req.query;
+    const { district, projectType, brands } = req.query;
     const filter = { onboardingStatus: 'Active', isActive: true };
     if (district) filter.activeDistricts = district;
     if (projectType) filter.qualifiedProjectTypes = projectType;
 
-    const epcs = await EpcPartner.find(filter)
-      .select('companyName city district state plan rating totalRatings yearsOfExperience qualifiedProjectTypes activeDistricts onTimeCompletionPercent')
-      .sort({ rating: -1, onTimeCompletionPercent: -1 })
-      .limit(20);
+    // Filter by brands if provided (array of brand names)
+    if (brands && Array.isArray(brands) && brands.length > 0) {
+      const brandDocs = await Brand.find({ name: { $in: brands } });
+      const brandIds = brandDocs.map(b => b._id);
+      filter.$or = [
+        { 'brandOfferings.solarBrands': { $in: brandIds } },
+        { 'brandOfferings.inverterBrands': { $in: brandIds } }
+      ];
+    }
+
+    let epcs = await EpcPartner.find(filter)
+      .select('companyName city district state plan rating totalRatings yearsOfExperience qualifiedProjectTypes activeDistricts onTimeCompletionPercent trustBadge');
+
+    // Fetch ranking settings
+    const rankingSettings = await InstallerRankingSettings.findOne({ country: req.country || 'australia' });
+    const priorities = rankingSettings?.rankingPriority || ['trustBadge', 'rating'];
+    const limit = rankingSettings?.numberOfInstallersToDisplay || 3;
+
+    // Manual sort based on priorities since trustBadge is an object and leads might not be in DB simply
+    epcs.sort((a, b) => {
+      for (const p of priorities) {
+        if (p === 'trustBadge') {
+          const aTrust = a.trustBadge?.status === 'Approved' ? 1 : 0;
+          const bTrust = b.trustBadge?.status === 'Approved' ? 1 : 0;
+          if (aTrust !== bTrust) return bTrust - aTrust;
+        } else if (p === 'rating') {
+          if (a.rating !== b.rating) return (b.rating || 0) - (a.rating || 0);
+        }
+        // Could handle other priorities like lowest leads received if the field existed
+      }
+      return 0;
+    });
+
+    epcs = epcs.slice(0, limit);
 
     res.json({ success: true, count: epcs.length, data: epcs });
   } catch (err) {
@@ -71,10 +104,11 @@ router.get('/public/solar-packages', async (req, res) => {
     const countryCode = countryCodeMap[country] || 'IN';
 
     // 1. Fetch country-specific settings in parallel
-    const [eligibilitySettings, journeySettings, countryWebSettings] = await Promise.all([
+    const [eligibilitySettings, journeySettings, countryWebSettings, projectPricings] = await Promise.all([
       EligibilitySettings.findOne({ country }).lean(),
       OrderJourneySettings.findOne({ country }).lean(),
-      CountryWebsiteSettings.findOne({ countryCode }).lean()
+      CountryWebsiteSettings.findOne({ countryCode }).lean(),
+      ProjectPricing.find({ country }).lean()
     ]);
 
     // 2. Subsidy helpers — country-specific tiers
@@ -105,8 +139,9 @@ router.get('/public/solar-packages', async (req, res) => {
 
     const isAustralia = country === 'australia';
     const isIndia = country === 'india';
-    // Base cost per kW in local currency (AUD or INR)
-    const baseRatePerKw = isAustralia ? 1200 : isIndia ? 60000 : 1000;
+    
+    // Default base rate fallback
+    const defaultBaseRatePerKw = isAustralia ? 1200 : isIndia ? 60000 : 1000;
     const unitsPerKwPerMonth = eligibilitySettings?.eligibilityRules?.kwDerivationRules?.unitsPerKW || (isAustralia ? 130 : 90);
 
     const packages = [];
@@ -135,6 +170,18 @@ router.get('/public/solar-packages', async (req, res) => {
       const badgeMap = { 0: null, 1: 'Popular', 2: 'Max Subsidy' };
 
       kwOptions.forEach((kw, idx) => {
+        let installCost = null;
+        let pricingDependentOnEPC = false;
+
+        if (isAustralia) {
+          pricingDependentOnEPC = true;
+          // In Australia, EPC sets the pricing, so we don't display a static install cost upfront.
+        } else {
+          // Option A: Dynamically fetch install cost from ProjectPricing if available
+          const pricingEntry = projectPricings.find(p => p.projectType === projectType && p.systemSizeKW === kw);
+          installCost = pricingEntry ? pricingEntry.projectPrice : Math.round(kw * defaultBaseRatePerKw);
+        }
+        
         packages.push({
           id: `${projectType}-${kw}kw`,
           kw,
@@ -143,7 +190,8 @@ router.get('/public/solar-packages', async (req, res) => {
             ? `${kw <= 2 ? 'Small home' : kw <= 3 ? 'Medium home' : 'Large property'} ke liye ideal`
             : `${projectTypeLabel || projectType} solar — ${kw}kW`),
           centralSubsidy: calcCentralSubsidy(kw),
-          installCost: Math.round(kw * baseRatePerKw),
+          installCost,
+          pricingDependentOnEPC,
           units: Math.round(kw * unitsPerKwPerMonth),
           suitable: [projectTypeLabel || projectType],
           projectType,

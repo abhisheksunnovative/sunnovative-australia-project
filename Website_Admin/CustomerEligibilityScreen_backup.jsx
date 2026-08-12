@@ -109,20 +109,16 @@ const DEFAULT_SETTINGS = {
   },
 };
 
-// Takes country code ('australia', 'india', 'NZ', etc.) — works for any future country
-const getSectionTitles = (country = '') => {
-  const c = country.toLowerCase();
-  const isAustralia = c === 'australia' || c === 'au';
-  return {
-    projectCategories:  "Project Categories",
-    meterCategories:    "Meter Category Eligibility",
-    billStatusRules:    "Bill Status Rules",
-    kwDerivationRules:  "KW Derivation Rules",
-    subsidyCriteria:    "Subsidy Criteria",
-    dueAmountThreshold: "Due Amount Threshold",
-    billToKwRanges:     "Bill → KW Mapping",
-    stateSubsidy:       isAustralia ? "STC Rebate Config" : "State-wise Subsidy",
-  };
+const SECTION_TITLES = {
+  projectCategories: "Project Categories",
+  inverterTypes: "Inverter Types",
+  meterCategories: "Meter Category Eligibility",
+  billStatusRules: "Bill Status Rules",
+  kwDerivationRules: "KW Derivation Rules",
+  subsidyCriteria: "Subsidy Criteria",
+  dueAmountThreshold: "Due Amount Threshold",
+  billToKwRanges: "Bill → KW Mapping",
+  stateSubsidy: "State-wise Subsidy",
 };
 
 // ── Main Component ────────────────────────────────────────────────────────────
@@ -367,8 +363,7 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
     </div>
   );
 
-  const SECTION_TITLES = getSectionTitles(selectedCountry);
-  let pageTitle = section ? SECTION_TITLES[section] || "Customer Eligibility" : "Customer Eligibility Settings";
+  const pageTitle = section ? SECTION_TITLES[section] || "Customer Eligibility" : "Customer Eligibility Settings";
   const preview = getSubsidyPreview();
 
   return (
@@ -414,7 +409,7 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
       )}
 
       {/* ── LIVE SUBSIDY PREVIEW CARD ─────────────────────────── */}
-      {selectedCountry !== "australia" && (!section || section === "stateSubsidy" || section === "billToKwRanges") && (
+      {(!section || section === "stateSubsidy" || section === "billToKwRanges") && (
         <div className="bg-gradient-to-br from-yellow-50 to-amber-50 border border-yellow-200 rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <IndianRupee className="w-5 h-5 text-yellow-600" />
@@ -459,43 +454,54 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
         </div>
       )}
 
-      {/* ── AUSTRALIA STC READ-ONLY PREVIEW ───────────────────────────── */}
-      {selectedCountry === "australia" && (!section || section === "stateSubsidy") && (
+      {/* ── LIVE STC REBATE PREVIEW CARD FOR AUSTRALIA ────────────────── */}
+      {selectedCountry === "australia" && (
         <div className="bg-gradient-to-br from-sky-50 to-blue-50 border border-sky-200 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Zap className="w-5 h-5 text-sky-600" />
-              <h3 className="text-sm font-bold text-slate-800">Australia STC Rebate — Live Preview</h3>
-              <span className="text-[10px] bg-sky-200 text-sky-800 px-2 py-0.5 rounded-full font-bold">READ ONLY</span>
-            </div>
-            <a
-              href="#subsidy-management"
-              className="text-xs font-semibold text-sky-700 hover:text-sky-900 bg-sky-100 hover:bg-sky-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1"
-              onClick={(e) => { e.preventDefault(); window.dispatchEvent(new CustomEvent('navigate', { detail: 'subsidy-management' })); }}
-            >
-              ✏️ Edit in Country Subsidy Management
-            </a>
+          <div className="flex items-center gap-2 mb-4">
+            <Zap className="w-5 h-5 text-sky-600" />
+            <h3 className="text-sm font-bold text-slate-800">Australia STC Rebate Config & Live Preview</h3>
+            <span className="text-[10px] bg-sky-200 text-sky-800 px-2 py-0.5 rounded-full font-bold">AUSTRALIA LIVE</span>
           </div>
-          <div className="grid grid-cols-3 gap-3 mb-3">
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <Field label="STC Price per Certificate ($)" value={settings.stcRules?.stcPrice || 38} onChange={(v) => updatePath(["stcRules", "stcPrice"], v)} type="number" hint="Current market STC price (default $38)" />
+            <Field label="Deeming Period (Years)" value={settings.stcRules?.deemingYears || 5} onChange={(v) => updatePath(["stcRules", "deemingYears"], v)} type="number" hint="Remaining STC deeming years" />
+            <Field label="System Cost per kW ($)" value={settings.stcRules?.systemCostPerKw || 1100} onChange={(v) => updatePath(["stcRules", "systemCostPerKw"], v)} type="number" hint="Base install cost per kW (default $1,100)" />
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-4 rounded-xl border border-sky-100 mb-4">
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase">Zone 1 Rating</label>
+              <input type="number" step="0.001" value={settings.stcRules?.zones?.zone1 || 1.622} onChange={(v) => updatePath(["stcRules", "zones", "zone1"], Number(v.target.value))} className="w-full text-xs font-bold border border-slate-200 rounded-lg px-2.5 py-1.5 mt-1" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase">Zone 2 Rating</label>
+              <input type="number" step="0.001" value={settings.stcRules?.zones?.zone2 || 1.536} onChange={(v) => updatePath(["stcRules", "zones", "zone2"], Number(v.target.value))} className="w-full text-xs font-bold border border-slate-200 rounded-lg px-2.5 py-1.5 mt-1" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase">Zone 3 Rating</label>
+              <input type="number" step="0.001" value={settings.stcRules?.zones?.zone3 || 1.382} onChange={(v) => updatePath(["stcRules", "zones", "zone3"], Number(v.target.value))} className="w-full text-xs font-bold border border-slate-200 rounded-lg px-2.5 py-1.5 mt-1" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase">Zone 4 Rating</label>
+              <input type="number" step="0.001" value={settings.stcRules?.zones?.zone4 || 1.185} onChange={(v) => updatePath(["stcRules", "zones", "zone4"], Number(v.target.value))} className="w-full text-xs font-bold border border-slate-200 rounded-lg px-2.5 py-1.5 mt-1" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
             <div className="bg-white rounded-xl p-3 border border-sky-100 text-center">
-              <p className="text-[10px] text-slate-400 font-semibold uppercase mb-1">STC Price</p>
-              <p className="text-xl font-black text-sky-600">${settings.stcRules?.stcPrice || settings.stcSettings?.stcPrice || 38}</p>
-              <p className="text-[10px] text-slate-400">per certificate</p>
+              <p className="text-[10px] text-slate-500 font-semibold uppercase mb-1">Example 6.6 kW System</p>
+              <p className="text-xl font-black text-sky-600">6.6 kW</p>
             </div>
             <div className="bg-white rounded-xl p-3 border border-emerald-100 text-center">
-              <p className="text-[10px] text-slate-400 font-semibold uppercase mb-1">Deeming Period</p>
-              <p className="text-xl font-black text-emerald-600">{settings.stcRules?.deemingYears || settings.stcSettings?.deemingYears || 5} yrs</p>
-              <p className="text-[10px] text-slate-400">SRES ends 2030</p>
+              <p className="text-[10px] text-slate-500 font-semibold uppercase mb-1">Zone 3 STC Count</p>
+              <p className="text-xl font-black text-emerald-600">{Math.floor(6.6 * (settings.stcRules?.zones?.zone3 || 1.382) * (settings.stcRules?.deemingYears || 5))} STCs</p>
             </div>
-            <div className="bg-white rounded-xl p-3 border border-indigo-100 text-center">
-              <p className="text-[10px] text-slate-400 font-semibold uppercase mb-1">Example (6.6kW, Zone 3)</p>
-              <p className="text-xl font-black text-indigo-700">${(Math.floor(6.6 * (settings.stcRules?.zones?.zone3 || settings.stcSettings?.zones?.zone3 || 1.382) * (settings.stcRules?.deemingYears || settings.stcSettings?.deemingYears || 5)) * (settings.stcRules?.stcPrice || settings.stcSettings?.stcPrice || 38)).toLocaleString()}</p>
-              <p className="text-[10px] text-slate-400">est. rebate</p>
+            <div className="bg-white rounded-xl p-3 border border-blue-100 text-center">
+              <p className="text-[10px] text-slate-500 font-semibold uppercase mb-1">Est. STC Rebate Value</p>
+              <p className="text-xl font-black text-blue-700">${(Math.floor(6.6 * (settings.stcRules?.zones?.zone3 || 1.382) * (settings.stcRules?.deemingYears || 5)) * (settings.stcRules?.stcPrice || 38)).toLocaleString()}</p>
             </div>
           </div>
-          <p className="text-[11px] text-sky-700 bg-sky-100 px-3 py-2 rounded-lg">
-            Formula: System kW × Zone Rating × Deeming Years × STC Price. To edit these values, go to <strong>Country Subsidy Management</strong>.
-          </p>
         </div>
       )}
 
@@ -538,9 +544,9 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
         </SectionCard>
       )}
 
-      {/* ── 2. STATE-WISE SUBSIDY (READ-ONLY — Edit via Country Subsidy Management) ── */}
-      {selectedCountry !== "australia" && show("stateSubsidy") && (
-        <SectionCard title="State-wise Subsidy — Live View" icon={<MapPin className="w-5 h-5" />} badge={`${settings?.eligibilityRules?.stateSubsidies?.length || 0} States`}>
+      {/* ── 2. STATE-WISE SUBSIDY ─────────────────────────────── */}
+      {show("stateSubsidy") && (
+        <SectionCard title="State-wise Subsidy Configuration" icon={<MapPin className="w-5 h-5" />} badge={`${settings?.eligibilityRules?.stateSubsidies?.length || 0} States`}>
           <div className="space-y-3 pt-4">
             <p className="text-xs text-slate-500">
               Har state ka 1kW, 2kW, 3kW ke liye total subsidy (Central + State) dikh raha hai.
@@ -553,15 +559,6 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
               <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-green-100 border border-green-300 inline-block" /><span className="text-slate-500">+ State Extra Subsidy (add hogi upar se)</span></div>
             </div>
 
-            <div className="flex justify-end mb-2">
-              <a
-                href="#subsidy-management"
-                className="text-xs font-semibold text-rose-700 hover:text-rose-900 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1"
-                onClick={(e) => { e.preventDefault(); window.dispatchEvent(new CustomEvent('navigate', { detail: 'subsidy-management' })); }}
-              >
-                ✏️ Edit State Subsidies
-              </a>
-            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
@@ -571,7 +568,7 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
                     <th className="text-right px-3 py-2 font-bold text-blue-600 uppercase">2 kW Central</th>
                     <th className="text-right px-3 py-2 font-bold text-blue-700 uppercase">3 kW Central</th>
                     <th className="text-right px-3 py-2 font-bold text-green-600 uppercase">+ State Subsidy</th>
-                    <th className="text-left px-3 py-2 font-bold text-slate-500 uppercase">Details</th>
+                    <th className="text-left px-3 py-2 font-bold text-slate-500 uppercase">Agency</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -581,23 +578,35 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
                         key={idx}
                         className={`hover:bg-yellow-50/50 transition ${previewState === s.state ? "bg-yellow-50 border-l-2 border-yellow-400" : ""}`}
                       >
-                        <td className="px-3 py-3 font-bold text-slate-800">
-                          {s.state}
+                        <td className="px-2 py-2.5 font-semibold text-slate-700">
+                          <input type="text" value={s.state} onChange={(e) => updateItem(["eligibilityRules", "stateSubsidies"], idx, "state", e.target.value)}
+                            className="w-full text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-yellow-400" />
                         </td>
-                        <td className="px-3 py-3 text-right font-bold text-blue-500">₹30,000</td>
-                        <td className="px-3 py-3 text-right font-bold text-blue-600">₹60,000</td>
-                        <td className="px-3 py-3 text-right font-black text-blue-700">₹78,000</td>
-                        <td className="px-3 py-3 text-right font-bold text-green-700">
-                          <div className="flex flex-col items-end">
-                            <span>₹{s.stateSubsidyPerKW}/kW</span>
-                            <span className="text-[10px] text-slate-400">Max ₹{s.stateSubsidyMax}</span>
+                        <td className="px-2 py-2.5 text-right font-bold text-blue-500">₹30,000</td>
+                        <td className="px-2 py-2.5 text-right font-bold text-blue-600">₹60,000</td>
+                        <td className="px-2 py-2.5 text-right font-black text-blue-700">₹78,000</td>
+                        <td className="px-2 py-2.5 text-right font-bold">
+                          <div className="flex flex-col gap-1 items-end">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] font-normal text-slate-400">Max ₹</span>
+                              <input type="number" value={s.stateSubsidyMax} onChange={(e) => updateItem(["eligibilityRules", "stateSubsidies"], idx, "stateSubsidyMax", Number(e.target.value))}
+                                className="w-20 text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-green-400 text-right" />
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] font-normal text-slate-400">Per kW ₹</span>
+                              <input type="number" value={s.stateSubsidyPerKW} onChange={(e) => updateItem(["eligibilityRules", "stateSubsidies"], idx, "stateSubsidyPerKW", Number(e.target.value))}
+                                className="w-20 text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-green-400 text-right" />
+                            </div>
                           </div>
                         </td>
-                        <td className="px-3 py-3">
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-slate-700">{s.stateScheme}</span>
-                            <span className="text-[10px] text-slate-500">{s.agency}</span>
+                        <td className="px-2 py-2.5 flex items-center justify-between gap-2">
+                          <div className="flex flex-col gap-1 w-full">
+                            <input type="text" value={s.stateScheme} onChange={(e) => updateItem(["eligibilityRules", "stateSubsidies"], idx, "stateScheme", e.target.value)}
+                                className="w-full text-[10px] border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-yellow-400" placeholder="Scheme Name" />
+                            <input type="text" value={s.agency} onChange={(e) => updateItem(["eligibilityRules", "stateSubsidies"], idx, "agency", e.target.value)}
+                                className="w-full text-[10px] border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-yellow-400" placeholder="Agency" />
                           </div>
+                          <button onClick={() => removeItem(["eligibilityRules", "stateSubsidies"], idx)} className="text-red-400 hover:text-red-600 shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
                         </td>
                       </tr>
                     );
@@ -605,6 +614,13 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
                 </tbody>
               </table>
             </div>
+            <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-2">
+              <Info className="w-3 h-3 shrink-0" />
+              Values are automatically saved when you click "Save Changes" at the top.
+            </p>
+            <button onClick={() => setSettings((prev) => { const next = clone(prev); if (!next.eligibilityRules.stateSubsidies) next.eligibilityRules.stateSubsidies = []; next.eligibilityRules.stateSubsidies.push({ state: "New State", stateSubsidyPerKW: 0, stateSubsidyMax: 0, stateScheme: "", agency: "" }); return next; })} className="mt-3 flex items-center gap-2 text-xs font-semibold text-yellow-500 hover:text-amber-600 transition">
+              <Plus className="w-4 h-4" /> Add State Subsidy
+            </button>
           </div>
         </SectionCard>
       )}

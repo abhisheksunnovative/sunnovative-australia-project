@@ -17,6 +17,7 @@ import { WorkflowSettingsScreen } from "./components/WorkflowSettingsScreen";
 import { SaaSAdminSettingsScreen } from "./components/SaaSAdminSettingsScreen";
 import WebsiteSettingsScreen from "./components/WebsiteSettingsScreen";
 import { CustomerEligibilityScreen } from "./components/CustomerEligibilityScreen";
+import { CountrySubsidyManagementScreen } from "./components/CountrySubsidyManagementScreen";
 import { OrderJourneyScreen } from "./components/OrderJourneyScreen";
 import { LiveProjectTrackingScreen } from "./components/LiveProjectTrackingScreen";
 import { LoginScreen } from "./components/LoginScreen";
@@ -472,6 +473,9 @@ export default function App() {
         return <CustomerEligibilityScreen section="billToKwRanges" />;
       case "eligibility-state-subsidy":
         return <CustomerEligibilityScreen section="stateSubsidy" />;
+
+      case "subsidy-management":
+        return <CountrySubsidyManagementScreen />;
 
       // ── Order Journey Settings ──────────────────────────────────
       

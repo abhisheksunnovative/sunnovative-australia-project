@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import epcApi from '../../../api/epcApi';
 import OtpInput from '../../../components/epc/OtpInput';
+import { useCountry } from '../../../context/CountryContext';
 
 const OtpSentPopup = ({ message, otp, onClose }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -31,6 +32,7 @@ const OtpSentPopup = ({ message, otp, onClose }) => (
 
 const EpcRegister = () => {
   const navigate = useNavigate();
+  const { getCountries, getStates, getDistricts, locationsLoading } = useCountry();
 
   const [step, setStep]       = useState(1); // 1=GST, 2=Mobile+OTP, 3=Details, 4=PIN
   const [tempToken, setTempToken] = useState('');
@@ -196,10 +198,23 @@ const EpcRegister = () => {
               </div>
               <div>
                 <label className="block text-gray-600 text-xs font-medium mb-1.5">Country *</label>
-                <select value={form.country} onChange={e => setForm({...form, country: e.target.value})} className={inputCls}>
-                  <option value="india">India</option>
-                  <option value="australia">Australia</option>
-                  <option value="new_zealand">New Zealand</option>
+                <select 
+                  value={form.country} 
+                  onChange={e => setForm({...form, country: e.target.value, state: '', district: ''})} 
+                  className={inputCls}
+                  disabled={locationsLoading}
+                >
+                  <option value="">Select Country</option>
+                  {getCountries().map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                  {getCountries().length === 0 && !locationsLoading && (
+                    <>
+                      <option value="india">India</option>
+                      <option value="australia">Australia</option>
+                      <option value="new_zealand">New Zealand</option>
+                    </>
+                  )}
                 </select>
               </div>
 
@@ -320,15 +335,31 @@ const EpcRegister = () => {
                 </div>
                 <div>
                   <label className="block text-gray-600 text-xs font-medium mb-1">State</label>
-                  <input type="text" value={form.state}
-                    onChange={e => setForm({...form, state: e.target.value})}
-                    className={inputCls} placeholder="Gujarat" />
+                  <select 
+                    value={form.state}
+                    onChange={e => setForm({...form, state: e.target.value, district: ''})}
+                    className={inputCls}
+                    disabled={!form.country || locationsLoading}
+                  >
+                    <option value="">Select State</option>
+                    {getStates(form.country).map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-gray-600 text-xs font-medium mb-1">District</label>
-                  <input type="text" value={form.district}
+                  <select 
+                    value={form.district}
                     onChange={e => setForm({...form, district: e.target.value})}
-                    className={inputCls} placeholder="Surat" />
+                    className={inputCls}
+                    disabled={!form.state || locationsLoading}
+                  >
+                    <option value="">Select District</option>
+                    {getDistricts(form.country, form.state).map(d => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-gray-600 text-xs font-medium mb-1">City</label>

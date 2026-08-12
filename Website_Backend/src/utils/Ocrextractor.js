@@ -903,16 +903,3 @@ export const getAuStcZone = (postcode) => {
   return 3;
 };
 
-// ── AU STC calculator ─────────────────────────────────────────────────────────
-// zone multipliers per CEC/ORER deeming table
-const AU_ZONE_MULTIPLIERS = { 1: 1.622, 2: 1.536, 3: 1.382, 4: 1.185 };
-
-export const calcAuStcs = ({ kw, zone, deemingYears = 5, stcPrice = 38 }) => {
-  const multiplier = AU_ZONE_MULTIPLIERS[zone] || 1.382;
-  const stcs = Math.floor(kw * multiplier * deemingYears);
-  const stcValue = Math.round(stcs * stcPrice);
-  const installCost = Math.round(kw * 1100); // ~$1100/kW typical AU
-  const netCost = Math.max(500, installCost - stcValue);
-  return { zone, multiplier, deemingYears, stcPrice, stcs, stcValue, installCost, netCost };
-};
-

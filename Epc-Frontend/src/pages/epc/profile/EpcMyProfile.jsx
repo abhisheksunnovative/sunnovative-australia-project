@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useEpcAuth } from '../../../context/EpcAuthContext';
+import { useCountry } from '../../../context/CountryContext';
 import epcApi from '../../../api/epcApi';
 import { TrustBadgeApplication } from './TrustBadgeApplication';
 import { ShieldCheck } from 'lucide-react';
@@ -11,6 +12,7 @@ const PROJECT_TYPES = [
 
 const EpcMyProfile = () => {
   const { epc, updateEpcData } = useEpcAuth();
+  const { getStates, locationsLoading } = useCountry();
   const [profile, setProfile]   = useState(null);
   const [loading, setLoading]   = useState(true);
   const [editing, setEditing]   = useState(false);
@@ -318,7 +320,21 @@ const EpcMyProfile = () => {
               </div>
               <div>
                 <label className="block text-gray-500 text-xs mb-1.5 font-bold uppercase tracking-wider">State</label>
-                <input type="text" value={form.state} onChange={e => setForm({...form, state: e.target.value})} className={inputCls} />
+                <select 
+                  value={form.state} 
+                  onChange={e => setForm({...form, state: e.target.value})} 
+                  className={inputCls}
+                  disabled={locationsLoading}
+                >
+                  <option value="">Select State</option>
+                  {getStates(profile?.country || epc?.country).map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                  {/* Fallback if current state isn't in DB yet */}
+                  {form.state && !getStates(profile?.country || epc?.country).includes(form.state) && (
+                    <option value={form.state}>{form.state}</option>
+                  )}
+                </select>
               </div>
               <div>
                 <label className="block text-gray-500 text-xs mb-1.5 font-bold uppercase tracking-wider">City</label>

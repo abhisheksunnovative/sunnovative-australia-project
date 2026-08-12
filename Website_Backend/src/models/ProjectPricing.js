@@ -6,6 +6,10 @@ const projectPricingSchema = new mongoose.Schema({
   systemSizeKW: { type: Number, required: true },
   solarPanel: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand' },
   inverter: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand' },
+  dynamicBrands: [{
+    category: { type: String },
+    brandIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Brand' }]
+  }],
   projectPrice: { type: Number, required: true },
   estimatedSubsidy: { type: Number, default: 0 },
   pricingResponsibility: { type: String, enum: ['Company', 'EPC'], default: 'Company' },

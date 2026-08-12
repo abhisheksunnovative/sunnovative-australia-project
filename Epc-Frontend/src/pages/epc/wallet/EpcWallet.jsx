@@ -33,6 +33,7 @@ const EpcWallet = () => {
 
   const [wallet, setWallet]       = useState(null);
   const [loading, setLoading]     = useState(true);
+  const [packages, setPackages] = useState([]);
   const [msg, setMsg]             = useState({ text: '', type: '', code: '' });
 
   const currentProjectTypes = wallet?.availableProjectTypes || [];
@@ -89,8 +90,12 @@ const EpcWallet = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const { data } = await epcApi.get('/api/epc/wallet');
-      setWallet(data);
+      const [walletRes, pkgRes] = await Promise.all([
+        epcApi.get('/api/epc/wallet'),
+        epcApi.get(`/api/epc-subscription-settings/packages?country=${epc?.country || 'India'}`).catch(() => ({ data: { data: [] } }))
+      ]);
+      setWallet(walletRes.data);
+      setPackages(pkgRes.data?.data || pkgRes.data || []);
     } catch (err) {
       console.error('Wallet fetch error:', err);
     } finally { setLoading(false); }
@@ -112,8 +117,8 @@ const EpcWallet = () => {
   };
 
   const selectPackage = (pkg) => {
-    setSelectedPackageId(pkg.id);
-    setPurchaseKw(String(pkg.kw));
+    setSelectedPackageId(pkg._id);
+    setPurchaseKw(String(pkg.kwAmount));
   };
 
   const handlePurchase = async () => {
@@ -348,26 +353,26 @@ const EpcWallet = () => {
 
               {/* Target District automatically picked up by backend */}
 
-              {wallet?.rechargePackages?.length > 0 ? (
+              {packages.length > 0 ? (
                 <div>
                   <label className="block text-gray-600 text-xs font-medium mb-1.5">Choose a Package</label>
                   <div className="grid grid-cols-2 gap-2">
-                    {wallet.rechargePackages.map(pkg => (
-                      <button key={pkg.id} type="button" onClick={() => selectPackage(pkg)}
+                    {packages.map(pkg => (
+                      <button key={pkg._id} type="button" onClick={() => selectPackage(pkg)}
                         className={`relative text-left p-3 rounded-xl border transition-all ${
-                          selectedPackageId === pkg.id
+                          selectedPackageId === pkg._id
                             ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-400'
                             : 'border-gray-200 hover:border-blue-300'
                         }`}>
-                        {pkg.popular && (
+                        {pkg.isPopular && (
                           <span className="absolute -top-2 right-2 text-[9px] font-bold bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full">
                             Popular
                           </span>
                         )}
                         <p className="text-xs font-bold text-gray-700">{pkg.name}</p>
-                        <p className="text-blue-600 font-black text-base mt-0.5">{pkg.kw} KW</p>
-                        <p className="text-xs text-gray-600">₹{pkg.price.toLocaleString('en-IN')}</p>
-                        {pkg.discount > 0 && <p className="text-[10px] text-green-600 font-semibold">{pkg.discount}% off</p>}
+                        <p className="text-blue-600 font-black text-base mt-0.5">{pkg.kwAmount} KW</p>
+                        <p className="text-xs text-gray-600">₹{pkg.finalPrice.toLocaleString('en-IN')}</p>
+                        {pkg.discountPercent > 0 && <p className="text-[10px] text-green-600 font-semibold">{pkg.discountPercent}% off</p>}
                       </button>
                     ))}
                   </div>

@@ -35,10 +35,10 @@ export const EpcPartnerScreen = ({
   setSearchQuery,
 }) => {
   // Page states
-  const { settings, loading: settingsLoading } = useAdminSettings();
-  const dynamicProjectTypes = settings?.projectTypes?.length > 0 ? settings.projectTypes : ["Residential"];
-  const [filterStatus, setFilterStatus] = useState("All");
   const [filterCountry, setFilterCountry] = useState("All");
+  const { projectTypes: dynamicProjectTypes } = useAdminSettings(filterCountry === 'All' ? '' : filterCountry);
+  const dynamicProjectTypeList = dynamicProjectTypes.length > 0 ? dynamicProjectTypes.map(pt => pt.value) : ["Residential"];
+  const [filterStatus, setFilterStatus] = useState("All");
   const [filterState, setFilterState] = useState("All");
   const [filterDistrict, setFilterDistrict] = useState("All");
   const [filterCity, setFilterCity] = useState("All");
@@ -173,7 +173,7 @@ export const EpcPartnerScreen = ({
     district: "",
     cluster: "",
     experience: 3,
-    projectTypes: dynamicProjectTypes,
+    projectTypes: dynamicProjectTypeList,
     minKW: 5,
     maxKW: 250,
     installersCount: 2,
@@ -197,7 +197,7 @@ export const EpcPartnerScreen = ({
       district: "",
       cluster: "",
       experience: 3,
-      projectTypes: dynamicProjectTypes,
+      projectTypes: dynamicProjectTypeList,
       minKW: 5,
       maxKW: 250,
       installersCount: 2,

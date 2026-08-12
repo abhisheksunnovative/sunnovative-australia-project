@@ -1,89 +1,52 @@
 import re
 
-def update_eligibility():
-    with open('D:/sunnovative-australia-website/Website_Admin/src/components/CustomerEligibilityScreen.jsx', 'r') as f:
-        content = f.read()
+# Update MainLayout.jsx
+with open('D:/sunnovative-australia-website/Website_Admin/src/components/MainLayout.jsx', 'r', encoding='utf-8') as f:
+    main_layout = f.read()
 
-    # 1. Rename to CustomerEligibilityContent
-    content = content.replace('export const CustomerEligibilityScreen = ({ section = null }) => {', 'export const CustomerEligibilityContent = ({ section = null, selectedCountryObj, onBack }) => {\n  const selectedCountry = selectedCountryObj.code;\n  const selectedCountryName = selectedCountryObj.name;\n')
+main_layout = main_layout.replace('{ name: "State-wise Subsidy", id: "eligibility-state-subsidy" },', '{ name: "Subsidy / STC Config", id: "eligibility-state-subsidy" },')
+main_layout = re.sub(r'^\s*\{ name: "Inverter Types", id: "eligibility-inverters" \},\n', '', main_layout, flags=re.MULTILINE)
 
-    # 2. Add the new wrapper at the top
-    wrapper = """
-export const CustomerEligibilityScreen = ({ section = null }) => {
-  const [countries, setCountries] = React.useState([]);
-  const [selectedCountryObj, setSelectedCountryObj] = React.useState(null);
-  const [loading, setLoading] = React.useState(true);
-  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
+with open('D:/sunnovative-australia-website/Website_Admin/src/components/MainLayout.jsx', 'w', encoding='utf-8') as f:
+    f.write(main_layout)
 
-  React.useEffect(() => {
-    const fetchCountries = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/countries`);
-        const data = await res.json();
-        if (data.success && data.data) {
-          setCountries(data.data.filter(c => c.isActive));
-        } else if (Array.isArray(data)) {
-          setCountries(data.filter(c => c.isActive));
-        }
-      } catch (err) {
-        console.error('Failed to fetch countries:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchCountries();
-  }, []);
+# Update CustomerEligibilityScreen.jsx
+with open('D:/sunnovative-australia-website/Website_Admin/src/components/CustomerEligibilityScreen.jsx', 'r', encoding='utf-8') as f:
+    screen = f.read()
 
-  if (loading) {
-    return <div className="p-8 text-center text-slate-500">Loading countries...</div>;
+# Remove Inverter Types from SECTION_TITLES
+screen = re.sub(r'^\s*inverterTypes: "Inverter Types",\n', '', screen, flags=re.MULTILINE)
+
+# Remove Inverter Types section
+inverter_section_pattern = r'\{\s*show\("inverterTypes"\)\s*&&\s*\(\s*<SectionCard title="Inverter Configuration".*?</SectionCard>\s*\)\s*\}'
+screen = re.sub(inverter_section_pattern, '', screen, flags=re.DOTALL)
+
+# Fix STC and Subsidy logic
+# Find "const pageTitle ="
+title_replace = '''
+  let pageTitle = section ? SECTION_TITLES[section] || "Customer Eligibility" : "Customer Eligibility Settings";
+  if (section === "stateSubsidy") {
+    pageTitle = selectedCountry === "australia" ? "STC Rebate Configuration" : "State-wise Subsidy";
   }
+'''
+screen = re.sub(r'const pageTitle = section \? SECTION_TITLES\[section\] \|\| "Customer Eligibility" : "Customer Eligibility Settings";', title_replace.strip(), screen)
 
-  if (!selectedCountryObj) {
-    return (
-      <div className="p-8 max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Customer Eligibility Settings</h1>
-          <p className="text-slate-500">Select a country to configure its eligibility rules and subsidies.</p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {countries.map(country => (
-            <div 
-              key={country._id || country.code}
-              onClick={() => setSelectedCountryObj(country)}
-              className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-[#28377f] cursor-pointer transition-all flex flex-col items-center justify-center gap-3 group"
-            >
-              <span className="text-4xl group-hover:scale-110 transition-transform duration-300">{country.flagEmoji}</span>
-              <span className="font-bold text-slate-700 group-hover:text-[#28377f]">{country.name}</span>
-            </div>
-          ))}
-          {countries.length === 0 && (
-            <p className="text-slate-500 col-span-full">No active countries found. Please configure them in Country Settings.</p>
-          )}
-        </div>
-      </div>
-    );
-  }
+# Fix Live Subsidy Preview to only show for India
+subsidy_preview_target = r'\{\(!section \|\| section === "stateSubsidy" \|\| section === "billToKwRanges"\) && \(\s*<div className="bg-gradient-to-br from-yellow-50 to-amber-50'
+subsidy_preview_replace = r'{selectedCountry !== "australia" && (!section || section === "stateSubsidy" || section === "billToKwRanges") && (\n        <div className="bg-gradient-to-br from-yellow-50 to-amber-50'
+screen = re.sub(subsidy_preview_target, subsidy_preview_replace, screen)
 
-  return <CustomerEligibilityContent section={section} selectedCountryObj={selectedCountryObj} onBack={() => setSelectedCountryObj(null)} />;
-};
+# Fix STC Preview to only show when section is stateSubsidy for Australia
+stc_preview_target = r'\{selectedCountry === "australia" && \(\s*<div className="bg-gradient-to-br from-sky-50 to-blue-50'
+stc_preview_replace = r'{selectedCountry === "australia" && (!section || section === "stateSubsidy") && (\n        <div className="bg-gradient-to-br from-sky-50 to-blue-50'
+screen = re.sub(stc_preview_target, stc_preview_replace, screen)
 
-"""
-    # Insert after `export const CustomerEligibilityScreen = ...` replacement above? No, I need to insert `wrapper` before `export const CustomerEligibilityContent`
-    
-    # Let's just prepend `wrapper` right before the `export const CustomerEligibilityContent`
-    content = content.replace('export const CustomerEligibilityContent = ({ section = null, selectedCountryObj, onBack }) => {', wrapper + '\nexport const CustomerEligibilityContent = ({ section = null, selectedCountryObj, onBack }) => {')
+# Fix State-wise Subsidy Config to only show for India
+state_config_target = r'\{\s*show\("stateSubsidy"\)\s*&&\s*\(\s*<SectionCard title="State-wise Subsidy Configuration"'
+state_config_replace = r'{selectedCountry !== "australia" && show("stateSubsidy") && (\n        <SectionCard title="State-wise Subsidy Configuration"'
+screen = re.sub(state_config_target, state_config_replace, screen)
 
-    # 3. Add back button
-    content = content.replace('<div className="flex justify-between items-end mb-8 relative z-10">', '<div className="mb-6"><button onClick={onBack} className="text-sm text-blue-600 hover:underline flex items-center gap-1">← Back to Countries</button></div>\n      <div className="flex justify-between items-end mb-8 relative z-10">')
+with open('D:/sunnovative-australia-website/Website_Admin/src/components/CustomerEligibilityScreen.jsx', 'w', encoding='utf-8') as f:
+    f.write(screen)
 
-    # 4. Remove inline fetchCountries logic and state from CustomerEligibilityContent
-    content = re.sub(r'const \[selectedCountry, setSelectedCountry\] = useState\("india"\);\s*const \[countries, setCountries\] = useState\(\[\]\);\s*useEffect\(\(\) => \{[^\}]+\}\(\);\s*\}, \[\]\);', '', content, flags=re.DOTALL)
-    
-    # 5. Remove the country selector dropdown from the UI
-    country_dropdown_regex = re.compile(r'<div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6 flex items-center gap-4">.*?</div>', re.DOTALL)
-    content = country_dropdown_regex.sub('', content)
-
-    with open('D:/sunnovative-australia-website/Website_Admin/src/components/CustomerEligibilityScreen.jsx', 'w') as f:
-        f.write(content)
-
-update_eligibility()
+print("Updated MainLayout and CustomerEligibilityScreen UI logic")

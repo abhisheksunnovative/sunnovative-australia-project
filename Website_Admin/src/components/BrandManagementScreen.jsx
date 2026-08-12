@@ -94,7 +94,13 @@ const BrandManagementScreen = () => {
       const res = await fetch(`${API_BASE}/api/brands?country=${countryCode}&projectTypes=${projectType}&products=${category}`);
       if (!res.ok) throw new Error('Failed to fetch brands');
       const data = await res.json();
-      setBrands(data);
+      if (data.success && data.data) {
+        setBrands(data.data);
+      } else if (Array.isArray(data)) {
+        setBrands(data);
+      } else {
+        setBrands([]);
+      }
     } catch (err) {
       setError(err.message);
     } finally {

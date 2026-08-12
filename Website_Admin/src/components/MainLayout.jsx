@@ -88,6 +88,11 @@ export const MainLayout = ({
       icon: <Globe className="w-5 h-5" />,
     },
     {
+      name: "Subsidy Management",
+      id: "subsidy-management",
+      icon: <Globe className="w-5 h-5" />,
+    },
+    {
       name: "EPC Partners",
       id: "epc-partners",
       icon: <Users className="w-5 h-5" />,
@@ -220,9 +225,7 @@ export const MainLayout = ({
   // ── Customer Eligibility — Settings sub-pages (each is its own page with its own Save button) ──
   const eligibilityItems = [
     { name: "Bill → KW Mapping", id: "eligibility-bill-kw" },
-    { name: "State-wise Subsidy", id: "eligibility-state-subsidy" },
     { name: "Project Categories", id: "eligibility-categories" },
-    { name: "Inverter Types", id: "eligibility-inverters" },
     { name: "Meter Categories", id: "eligibility-meter" },
     { name: "Bill Status Rules", id: "eligibility-billstatus" },
     { name: "KW Derivation Rules", id: "eligibility-kw" },

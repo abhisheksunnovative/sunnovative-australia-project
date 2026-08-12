@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Plus, Edit2, Trash2, Save, X, Activity, UserCheck, MapPin, Building, ArrowLeft, Briefcase, Map } from "lucide-react";
 import { useGeography } from "../hooks/useGeography";
+import { useAdminSettings } from "../hooks/useAdminSettings";
 
 export default function BDEManagementScreen() {
   const [countries, setCountries] = React.useState([]);
@@ -85,7 +86,10 @@ export function BDEManagementContent({ selectedCountryObj, onBack }) {
     bdeType: "Employee", commissionType: "Fixed", commissionAmount: 0, projectTypeCommissions: []
   });
 
-  const projectTypeOptions = ["residential", "commercial", "group", "common-meter", "surya-ghar", "au-small-home", "au-standard-family", "au-large-home", "au-ev-owners", "au-solar-battery"];
+  const { projectTypes: dynamicProjectTypes } = useAdminSettings(selectedCountry);
+  const projectTypeOptions = dynamicProjectTypes.length > 0
+    ? dynamicProjectTypes.map(pt => pt.value)
+    : ["residential", "commercial"];
   const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
   // Dynamic Geography Hook

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useEpcAuth } from '../../../context/EpcAuthContext';
+import { useCountry } from '../../../context/CountryContext';
 import epcApi from '../../../api/epcApi';
 
 const PROJECT_TYPES = [
@@ -44,7 +45,8 @@ const statusConfig = {
 };
 
 const EpcMyEnquiries = () => {
-  const { epc } = useEpcAuth();
+  const { epc, logout }                 = useEpcAuth();
+  const { getStates, locationsLoading } = useCountry();
   const [enquiries, setEnquiries]       = useState([]);
   const [loading, setLoading]           = useState(true);
   const [accepting, setAccepting]       = useState(null);
@@ -205,7 +207,15 @@ const EpcMyEnquiries = () => {
           </div>
           <div>
             <label className="block text-gray-400 text-xs mb-1 font-medium">State</label>
-            <input type="text" value={filterState} onChange={e => setFilterState(e.target.value)} placeholder="State" className={`${inputCls} w-28`} />
+            <select 
+              value={filterState} 
+              onChange={e => setFilterState(e.target.value)} 
+              className={`${inputCls} w-28`}
+              disabled={locationsLoading}
+            >
+              <option value="">All</option>
+              {getStates(epc?.country).map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
           </div>
           <div>
             <label className="block text-gray-400 text-xs mb-1 font-medium">District</label>
