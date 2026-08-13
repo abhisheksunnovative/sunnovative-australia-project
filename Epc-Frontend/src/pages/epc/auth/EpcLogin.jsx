@@ -39,7 +39,7 @@ const EpcLogin = () => {
 
   // step: 1=state+company, 2=otp (only first-time), 3=pin (enter or set)
   const [step, setStep]           = useState(1);
-  const [country, setCountry]     = useState('india');
+  const [country, setCountry]     = useState('');
   const [state, setState]         = useState('');
   const [search, setSearch]       = useState('');
   const [companies, setCompanies] = useState([]);

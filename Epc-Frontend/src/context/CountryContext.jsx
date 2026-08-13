@@ -41,13 +41,26 @@ export function CountryProvider({ children, countryProp = "IN" }) {
 
   // Live Location State from Admin Backend
   const [allDistricts, setAllDistricts] = useState([]);
+  const [countriesList, setCountriesList] = useState([]);
   const [locationsLoading, setLocationsLoading] = useState(true);
 
   useEffect(() => {
     const fetchLocations = async () => {
       try {
-        const { data } = await epcApi.get('/api/districts');
-        setAllDistricts(data);
+        const [distRes, countryRes] = await Promise.all([
+          epcApi.get('/api/districts'),
+          epcApi.get('/api/countries')
+        ]);
+        
+        const distData = distRes.data;
+        setAllDistricts(distData.success ? distData.data : (Array.isArray(distData) ? distData : []));
+
+        const countryData = countryRes.data;
+        if (countryData.success && Array.isArray(countryData.data)) {
+          setCountriesList(countryData.data.filter(c => c.isActive).map(c => c.name));
+        } else if (Array.isArray(countryData)) {
+          setCountriesList(countryData.filter(c => c.isActive).map(c => c.name));
+        }
       } catch (err) {
         console.error("Failed to load locations:", err);
       } finally {
@@ -59,7 +72,7 @@ export function CountryProvider({ children, countryProp = "IN" }) {
 
   // Helper methods for dynamic dropdowns
   const getCountries = () => {
-    return [...new Set(allDistricts.map(d => d.country))];
+    return countriesList.length > 0 ? countriesList : [...new Set(allDistricts.map(d => d.country))];
   };
 
   const getStates = (countryName) => {
@@ -67,14 +80,14 @@ export function CountryProvider({ children, countryProp = "IN" }) {
     const filtered = allDistricts.filter(
       d => d.country?.toLowerCase() === countryName.toLowerCase()
     );
-    return [...new Set(filtered.map(d => d.stateName))];
+    return [...new Set(filtered.map(d => d.state))];
   };
 
   const getDistricts = (countryName, stateName) => {
     if (!countryName || !stateName) return [];
     return allDistricts.filter(
       d => d.country?.toLowerCase() === countryName.toLowerCase() &&
-           d.stateName?.toLowerCase() === stateName.toLowerCase()
+           d.state?.toLowerCase() === stateName.toLowerCase()
     ).map(d => d.district);
   };
 

@@ -42,7 +42,7 @@ export default function Hero({ settings: propSettings, onScrollToForm, projectTy
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 z-10 w-full">
         <div className="max-w-2xl">
-          <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-solar-orange text-white font-bold uppercase tracking-wider mb-6 animate-pulse-subtle">
+          <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-solar-navy text-white font-bold uppercase tracking-wider mb-6 animate-pulse-subtle">
             <Sun className="w-3.5 h-3.5 fill-white text-white" />
             {hero.badge || "welcome to solarkits"}
           </div>
@@ -110,7 +110,7 @@ export default function Hero({ settings: propSettings, onScrollToForm, projectTy
 
             <button
               onClick={() => onScrollToForm("calculator")}
-              className="px-6 py-4 rounded-xl text-solar-orange bg-white hover:bg-orange-50 font-bold text-sm border-2 border-solar-orange cursor-pointer text-center transition-all flex items-center justify-center gap-2"
+              className="px-6 py-4 rounded-xl text-solar-navy bg-white hover:bg-slate-50 font-bold text-sm border-2 border-solar-navy cursor-pointer text-center transition-all flex items-center justify-center gap-2"
               id="hero-secondary-cta"
             >
               <BadgePercent className="w-4 h-4 text-solar-sky" />

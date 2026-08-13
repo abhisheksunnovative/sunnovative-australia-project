@@ -20,20 +20,13 @@
   --color-info-solar: #2563EB;
 }
 
-/* Custom styles for professional scrollbars and UI crispness */
+/* Custom styles for hiding scrollbars completely while keeping functionality */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  display: none;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 body {

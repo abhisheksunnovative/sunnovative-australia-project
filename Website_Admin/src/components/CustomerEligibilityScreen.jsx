@@ -37,18 +37,18 @@ const SectionCard = ({ title, icon, children, defaultOpen = true, badge }) => {
 const Field = ({ label, value, onChange, type = "text", placeholder = "", hint }) => (
   <div className="space-y-1">
     <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</label>
-    <input type={type} className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400/40" value={value ?? ""} onChange={(e) => onChange(type === "number" ? Number(e.target.value) : e.target.value)} placeholder={placeholder} />
+    <input type={type} className="w-full text-sm border border-slate-200 bg-slate-50 text-slate-500 rounded-xl px-3 py-2 cursor-not-allowed focus:outline-none" value={value ?? ""} readOnly={true} placeholder={placeholder} />
     {hint && <p className="text-[11px] text-slate-400 mt-0.5">{hint}</p>}
   </div>
 );
 
 const Toggle = ({ label, checked, onChange, desc }) => (
-  <div className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+  <div className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0 opacity-75 pointer-events-none">
     <div>
       <p className="text-sm font-medium text-slate-700">{label}</p>
       {desc && <p className="text-xs text-slate-400 mt-0.5">{desc}</p>}
     </div>
-    <button onClick={() => onChange(!checked)} className="shrink-0 ml-4">
+    <button className="shrink-0 ml-4 cursor-not-allowed">
       {checked ? <ToggleRight className="w-8 h-8 text-yellow-500" /> : <ToggleLeft className="w-8 h-8 text-slate-300" />}
     </button>
   </div>
@@ -65,49 +65,7 @@ const calcCentralSubsidy = (kw) => {
 };
 
 // ── Default settings ──────────────────────────────────────────────────────────
-const DEFAULT_SETTINGS = {
-  projectCategories: [
-    { id: "residential", name: "Residential Solar", enabled: true, minKW: 1, maxKW: 10, subsidyEligible: true, maxSubsidyAmount: 78000, description: "Single family homes, apartments" },
-    { id: "group", name: "Group Solar", enabled: true, minKW: 5, maxKW: 50, subsidyEligible: true, maxSubsidyAmount: 78000, description: "Housing societies, RWAs" },
-    { id: "commercial", name: "Commercial Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Shops, offices, factories" },
-    { id: "common-meter", name: "Common Meter Solar", enabled: true, minKW: 2, maxKW: 20, subsidyEligible: true, maxSubsidyAmount: 78000, description: "Common area meter installations" },
-  ],
-  inverterTypes: [
-    { id: "string", name: "String Inverter", enabled: true, efficiency: 97, suitableFor: ["Residential Solar", "Commercial Solar"], description: "Most common, cost-effective for standard rooftops" },
-    { id: "micro", name: "Micro Inverter", enabled: true, efficiency: 99, suitableFor: ["Residential Solar", "Group Solar"], description: "Panel-level optimization, ideal for shaded rooftops" },
-    { id: "hybrid", name: "Hybrid Inverter", enabled: true, efficiency: 98, suitableFor: ["Residential Solar", "Group Solar", "Commercial Solar"], description: "Battery + grid compatible, future-ready" },
-  ],
-  eligibilityRules: {
-    billToKwRanges: [
-      { id: "r1", minBill: 0, maxBill: 500, suggestedKW: 0.5, label: "Very Low (₹0–₹500)" },
-      { id: "r2", minBill: 501, maxBill: 1000, suggestedKW: 1, label: "Low (₹501–₹1,000)" },
-      { id: "r3", minBill: 1001, maxBill: 1500, suggestedKW: 1.5, label: "Low-Medium (₹1,001–₹1,500)" },
-      { id: "r4", minBill: 1501, maxBill: 2500, suggestedKW: 2, label: "Medium (₹1,501–₹2,500)" },
-      { id: "r5", minBill: 2501, maxBill: 4000, suggestedKW: 3, label: "Medium-High (₹2,501–₹4,000)" },
-      { id: "r6", minBill: 4001, maxBill: 6000, suggestedKW: 4, label: "High (₹4,001–₹6,000)" },
-      { id: "r7", minBill: 6001, maxBill: 9000, suggestedKW: 6, label: "Very High (₹6,001–₹9,000)" },
-      { id: "r8", minBill: 9001, maxBill: 99999, suggestedKW: 10, label: "Ultra High (₹9,001+)" },
-    ],
-    meterCategories: [
-      { category: "Residential (LT-1)", eligible: true, minMonthlyBill: 500, maxMonthlyBill: 50000 },
-      { category: "Commercial (LT-2)", eligible: true, minMonthlyBill: 1000, maxMonthlyBill: 500000 },
-      { category: "Industrial (HT)", eligible: false, minMonthlyBill: 0, maxMonthlyBill: 0 },
-      { category: "Agricultural", eligible: false, minMonthlyBill: 0, maxMonthlyBill: 0 },
-    ],
-    billStatusRules: { paidBillAllowed: true, dueBillAllowed: true, pendingBillAllowed: false, overdueMaxMonths: 2 },
-    subsidyCriteria: { minMonthlyUnits: 100, maxMonthlyUnits: 10000, pmSuryaGharEligibleCategories: ["Residential (LT-1)"], maxSubsidyKW: 3 },
-    kwDerivationRules: { unitsPerKW: 90, safetyBuffer: 1.1, roundUpToNext: 0.5, maxAutoSuggestKW: 10 },
-    dueAmountThreshold: { enabled: true, maxAllowedDueAmount: 5000, blockIfExceeds: false, showWarningIfExceeds: true },
-    stateSubsidies: [
-      { state: "Gujarat", stateSubsidyPerKW: 13333, stateSubsidyMax: 40000, stateScheme: "SURYA Gujarat", agency: "MGVCL" }
-    ],
-    centralSubsidyTiers: [
-      { maxKW: 2, ratePerKW: 30000, fixedBaseAmount: 0 },
-      { maxKW: 3, ratePerKW: 18000, fixedBaseAmount: 60000 },
-      { maxKW: 100, ratePerKW: 0, fixedBaseAmount: 78000 }
-    ],
-  },
-};
+// Settings are now fetched exclusively from the backend to ensure read-only preview mode.
 
 // Takes country code ('australia', 'india', 'NZ', etc.) — works for any future country
 const getSectionTitles = (country = '') => {
@@ -222,7 +180,7 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
       }
 
       const existingSettingsCategories = data.success ? data.data?.projectCategories : [];
-      const baseCategories = (existingSettingsCategories?.length > 0) ? existingSettingsCategories : clone(DEFAULT_SETTINGS.projectCategories);
+      const baseCategories = (existingSettingsCategories?.length > 0) ? existingSettingsCategories : [];
 
       let countryCategories = dbProjectTypes.map(pt => {
         const ptId = pt.projectType || pt.id || pt._id;
@@ -253,55 +211,28 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
       });
 
       if (countryCategories.length === 0) {
-        countryCategories = selectedCountry === 'india' 
-          ? [
-              { id: "residential", name: "Residential Solar", enabled: true, minKW: 1, maxKW: 10, subsidyEligible: true, maxSubsidyAmount: 78000, description: "Single family homes, apartments" },
-              { id: "commercial", name: "Commercial Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Shops, offices, factories" }
-            ]
-          : selectedCountry === 'australia'
-          ? [
-              { id: "residential", name: "Residential Solar", enabled: true, minKW: 1, maxKW: 10, subsidyEligible: true, maxSubsidyAmount: 0, description: "Residential solar systems (CEC 12 Steps)" },
-              { id: "commercial", name: "Commercial Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Commercial rooftop solar (14 Steps)" },
-              { id: "solar-battery", name: "Solar + Battery", enabled: true, minKW: 5, maxKW: 50, subsidyEligible: true, maxSubsidyAmount: 0, description: "Solar PV + BESS battery storage (13 Steps)" },
-              { id: "farm-rural", name: "Farm / Rural Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Agricultural, rural & off-grid solar (14 Steps)" },
-              { id: "community-strata", name: "Community / Strata Solar", enabled: true, minKW: 20, maxKW: 1000, subsidyEligible: false, maxSubsidyAmount: 0, description: "Multi-tenant body corporate embedded network (15 Steps)" }
-            ]
-          : clone(DEFAULT_SETTINGS.projectCategories);
+        countryCategories = [
+          { id: "fallback", name: "Placeholder Solar", enabled: false, minKW: 0, maxKW: 0, description: "Couldn't load project types for this country — check connection or configure Project Types in Country Settings" }
+        ];
       }
 
       if (data.success) {
         const merged = {
-          ...clone(DEFAULT_SETTINGS),
           ...data.data,
           projectCategories: countryCategories,
-          eligibilityRules: {
-            ...clone(DEFAULT_SETTINGS.eligibilityRules),
-            ...(data.data?.eligibilityRules || {}),
-          },
         };
         setSettings(merged);
         setUsingFallback(false);
       } else {
-        const fallback = clone(DEFAULT_SETTINGS);
-        fallback.projectCategories = countryCategories;
-        setSettings(fallback);
+        setSettings({ projectCategories: countryCategories });
         setUsingFallback(true);
       }
     } catch {
-      const fallback = clone(DEFAULT_SETTINGS);
-      fallback.projectCategories = selectedCountry === 'india' 
-        ? [
-            { id: "residential", name: "Residential Solar", enabled: true, minKW: 1, maxKW: 10, subsidyEligible: true, maxSubsidyAmount: 78000, description: "Single family homes, apartments" },
-            { id: "commercial", name: "Commercial Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Shops, offices, factories" }
-          ]
-        : [
-            { id: "residential", name: "Residential Solar", enabled: true, minKW: 1, maxKW: 10, subsidyEligible: true, maxSubsidyAmount: 0, description: "Residential solar systems (CEC 12 Steps)" },
-            { id: "commercial", name: "Commercial Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Commercial rooftop solar (14 Steps)" },
-            { id: "solar-battery", name: "Solar + Battery", enabled: true, minKW: 5, maxKW: 50, subsidyEligible: true, maxSubsidyAmount: 0, description: "Solar PV + BESS battery storage (13 Steps)" },
-            { id: "farm-rural", name: "Farm / Rural Solar", enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: "Agricultural, rural & off-grid solar (14 Steps)" },
-            { id: "community-strata", name: "Community / Strata Solar", enabled: true, minKW: 20, maxKW: 1000, subsidyEligible: false, maxSubsidyAmount: 0, description: "Multi-tenant body corporate embedded network (15 Steps)" }
-          ];
-      setSettings(fallback);
+      setSettings({
+        projectCategories: [
+          { id: "fallback", name: "Placeholder Solar", enabled: false, minKW: 0, maxKW: 0, description: "Couldn't load project types for this country — check connection or configure Project Types in Country Settings" }
+        ]
+      });
       setUsingFallback(true);
     }
     finally { setLoading(false); }
@@ -309,56 +240,12 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
 
   useEffect(() => { fetchSettings(); }, [fetchSettings]);
 
-  const updatePath = (path, value) => {
-    setSettings((prev) => {
-      const next = clone(prev);
-      let ref = next;
-      for (let i = 0; i < path.length - 1; i++) ref = ref[path[i]];
-      ref[path[path.length - 1]] = value;
-      return next;
-    });
-  };
-
-  const updateItem = (arrayPath, index, field, value) => {
-    setSettings((prev) => {
-      const next = clone(prev);
-      let ref = next;
-      for (const key of arrayPath) ref = ref[key];
-      ref[index][field] = value;
-      return next;
-    });
-  };
-
-  const removeItem = (arrayPath, index) => {
-    setSettings((prev) => {
-      const next = clone(prev);
-      let ref = next;
-      for (const key of arrayPath) ref = ref[key];
-      ref.splice(index, 1);
-      return next;
-    });
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/eligibility-settings`, { 
-        method: "PUT", 
-        headers: { "Content-Type": "application/json", 'x-country': selectedCountry }, 
-        body: JSON.stringify(settings) 
-      });
-      const data = await res.json();
-      if (data.success) { showToast("success", "Settings saved!"); setUsingFallback(false); }
-      else showToast("error", "Save failed");
-    } catch { showToast("error", "Backend not connected. Saved locally only."); }
-    finally { setSaving(false); }
-  };
 
   const show = (s) => !section || section === s;
 
   const getKwForBill = (bill) => {
     if (!settings) return 1;
-    const ranges = settings.eligibilityRules?.billToKwRanges || DEFAULT_SETTINGS.eligibilityRules.billToKwRanges;
+    const ranges = settings.eligibilityRules?.billToKwRanges || [];
     const match = ranges.find(r => bill >= r.minBill && bill <= r.maxBill);
     return match ? match.suggestedKW : 1;
   };
@@ -406,26 +293,8 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
           <button onClick={fetchSettings} className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition">
             <RefreshCw className="w-3.5 h-3.5" /> Refresh
           </button>
-          <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-slate-900 bg-yellow-400 rounded-xl hover:bg-amber-400 transition shadow-sm disabled:opacity-50">
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            {saving ? "Saving..." : `Save ${selectedCountry.toUpperCase()} Settings`}
-          </button>
         </div>
       </div>
-
-      {usingFallback && (
-        <div className="flex items-start gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
-          <Info className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>Backend connect nahi hua — default settings dikh rahi hain. Save karne pe store ho jayega.</span>
-        </div>
-      )}
-
-      {toast && (
-        <div className={`fixed top-6 right-6 z-50 flex items-center gap-2 px-5 py-3 rounded-xl shadow-lg text-sm font-semibold text-white ${toast.type === "success" ? "bg-emerald-500" : "bg-red-500"}`}>
-          {toast.type === "success" ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-          {toast.msg}
-        </div>
-      )}
 
       {/* ── LIVE SUBSIDY PREVIEW CARD ─────────────────────────── */}
       {selectedCountry !== "australia" && (!section || section === "stateSubsidy" || section === "billToKwRanges") && (
@@ -445,7 +314,7 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">State</label>
               <select value={previewState} onChange={(e) => setPreviewState(e.target.value)}
                 className="w-full text-sm border border-yellow-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400/40">
-                {(settings?.eligibilityRules?.stateSubsidies || DEFAULT_SETTINGS.eligibilityRules.stateSubsidies).map(s => <option key={s.state} value={s.state}>{s.state}</option>)}
+                {(settings?.eligibilityRules?.stateSubsidies || []).map(s => <option key={s.state} value={s.state}>{s.state}</option>)}
               </select>
             </div>
           </div>
@@ -796,14 +665,6 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
           </div>
         </SectionCard>
       )}
-
-      {/* ── Bottom Save ───────────────────────────────────────── */}
-      <div className="flex justify-end pb-8">
-        <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-8 py-3 text-sm font-bold text-slate-900 bg-yellow-400 rounded-xl hover:bg-amber-400 transition shadow-md disabled:opacity-50">
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {saving ? "Saving..." : "Save All Changes"}
-        </button>
-      </div>
     </div>
   );
 };

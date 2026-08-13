@@ -7,9 +7,9 @@
   --font-mono: "JetBrains Mono", monospace;
 
   /* Custom solar-theme colors */
-  --color-solar-navy: #1e3a8a;
-  --color-solar-orange: #ea580c;
-  --color-solar-yellow: #facc15;
+  --color-solar-navy: #28377f;
+  --color-solar-orange: #f79b38;
+  --color-solar-yellow: #f4ea0c;
   --color-solar-sky: #0ea5e9;
   --color-solar-green: #22c55e;
 }
@@ -70,3 +70,12 @@ html {
   backdrop-filter: blur(12px);
 }
 
+
+/* Hide scrollbars completely */
+::-webkit-scrollbar {
+  display: none;
+}
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
