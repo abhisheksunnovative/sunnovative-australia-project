@@ -358,6 +358,10 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
       alert("Required details (Name, Mobile, City) are missing.");
       return;
     }
+    if (eligibilityResult && eligibilityResult.isEligible === false) {
+      alert("Eligibility Check Failed:\n" + (eligibilityResult.reasons?.join('\n') || "Your bill does not meet the requirements."));
+      return;
+    }
     setIsSubmitting(true);
 
     const capacity = eligibilityResult?.suggestedKW || (fetchedData?.eligibleCapacityKw) || Math.ceil(monthlyBill / 700);
@@ -1016,8 +1020,12 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
             </div>
 
             <div className="pt-4 border-t border-slate-100 mt-6">
-              <button type="submit" disabled={isSubmitting}
-                className="w-full py-4 bg-solar-green hover:bg-emerald-600 text-white font-bold text-sm rounded-xl cursor-pointer shadow-lg shadow-emerald-500/10 transition-all flex items-center justify-center gap-2"
+              <button type="submit" disabled={isSubmitting || (eligibilityResult && eligibilityResult.isEligible === false)}
+                className={`w-full py-4 text-white font-bold text-sm rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${
+                  (eligibilityResult && eligibilityResult.isEligible === false)
+                    ? "bg-slate-400 cursor-not-allowed shadow-none"
+                    : "bg-solar-green hover:bg-emerald-600 shadow-emerald-500/10 cursor-pointer"
+                }`}
                 id="lead-submit-btn">
                 {isSubmitting ? (
                   <span className="flex items-center gap-2">

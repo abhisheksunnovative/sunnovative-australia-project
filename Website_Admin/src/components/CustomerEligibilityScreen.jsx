@@ -225,14 +225,28 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
       const baseCategories = (existingSettingsCategories?.length > 0) ? existingSettingsCategories : clone(DEFAULT_SETTINGS.projectCategories);
 
       let countryCategories = dbProjectTypes.map(pt => {
-        const existing = baseCategories.find(c => c.id === (pt.id || pt._id) || c.name === pt.name) || {};
+        const ptId = pt.projectType || pt.id || pt._id;
+        const ptName = pt.projectTypeLabel || pt.name || "Unnamed Category";
+        const existing = baseCategories.find(c => c.id === ptId || c.name === ptName) || {};
+        
+        let minKW = existing.minKW !== undefined ? existing.minKW : 1;
+        let maxKW = existing.maxKW !== undefined ? existing.maxKW : 10;
+        
+        if (pt.availableKw && pt.availableKw.length > 0) {
+          const kws = pt.availableKw.map(k => parseFloat(k)).filter(k => !isNaN(k));
+          if (kws.length > 0) {
+             minKW = Math.min(...kws);
+             maxKW = Math.max(...kws);
+          }
+        }
+
         return {
-          id: pt.id || pt._id,
-          name: pt.name,
+          id: ptId,
+          name: ptName,
           description: pt.description || existing.description || "",
-          enabled: existing.enabled !== undefined ? existing.enabled : true,
-          minKW: existing.minKW !== undefined ? existing.minKW : 1,
-          maxKW: existing.maxKW !== undefined ? existing.maxKW : 10,
+          enabled: pt.isActive !== undefined ? pt.isActive : (existing.enabled !== undefined ? existing.enabled : true),
+          minKW,
+          maxKW,
           subsidyEligible: existing.subsidyEligible !== undefined ? existing.subsidyEligible : false,
           maxSubsidyAmount: existing.maxSubsidyAmount !== undefined ? existing.maxSubsidyAmount : 0
         };
@@ -609,41 +623,50 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
         </SectionCard>
       )}
 
-      {/* ── 3. PROJECT CATEGORIES ─────────────────────────────── */}
+      {/* ── 3. PROJECT CATEGORIES (READ-ONLY) ─────────────────────────────── */}
       {show("projectCategories") && (
         <SectionCard title="Project Category Configuration" icon={<SlidersHorizontal className="w-5 h-5" />} badge={`${settings.projectCategories?.length || 0} Categories`}>
           <div className="space-y-4 pt-4">
             <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs flex items-center justify-between text-blue-800">
               <span className="font-bold">⚡ AUTO-SYNC CONNECTED:</span>
-              <span className="text-[11px]">Yhan naye project categories add/edit karne par vo automatically <strong className="underline">Order Journey Settings</strong> aur <strong className="underline">Website CMS</strong> me ({selectedCountry.toUpperCase()}) sync ho jayenge.</span>
+              <span className="text-[11px]">Ye list seedha <strong>Project Configuration</strong> se live fetch ho rahi hai ({selectedCountry.toUpperCase()}). Naye categories wahi add/edit karein.</span>
             </div>
-            {(settings.projectCategories || []).map((cat, i) => (
-              <div key={cat.id || i} className="border border-slate-100 rounded-xl p-4 space-y-3 bg-slate-50">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-500">Category #{i + 1}</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${cat.enabled ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>{cat.enabled ? "Enabled" : "Disabled"}</span>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {(settings.projectCategories || []).map((cat, i) => (
+                <div key={cat.id || i} className="border border-slate-100 rounded-xl p-4 bg-white shadow-sm flex flex-col gap-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-bold text-slate-800">{cat.name || 'Unnamed Category'}</h4>
+                      <p className="text-[10px] text-slate-500">{cat.description || 'No description'}</p>
+                    </div>
+                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${cat.enabled !== false ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
+                      {cat.enabled !== false ? "Enabled" : "Disabled"}
+                    </span>
                   </div>
-                  <button onClick={() => removeItem(["projectCategories"], i)} className="p-1 text-red-400 hover:text-red-600 rounded transition"><Trash2 className="w-3.5 h-3.5" /></button>
+                  
+                  <div className="flex items-center gap-3 mt-2 pt-2 border-t border-slate-100 text-xs">
+                    <div className="flex-1">
+                      <span className="block text-[9px] text-slate-400 uppercase font-semibold">Allowed KW</span>
+                      <span className="font-bold text-slate-700">{cat.minKW || 1} kW - {cat.maxKW || 10} kW</span>
+                    </div>
+                    {cat.subsidyEligible && (
+                      <div className="flex-1">
+                        <span className="block text-[9px] text-slate-400 uppercase font-semibold">Max Subsidy</span>
+                        <span className="font-bold text-green-600">{cat.maxSubsidyAmount ? `₹${cat.maxSubsidyAmount}` : 'Yes'}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Category Name" value={cat.name} onChange={(v) => updateItem(["projectCategories"], i, "name", v)} placeholder="e.g. Residential Solar" />
-                  <Field label="Description" value={cat.description} onChange={(v) => updateItem(["projectCategories"], i, "description", v)} placeholder="Short description" />
+              ))}
+              
+              {(!settings.projectCategories || settings.projectCategories.length === 0) && (
+                <div className="col-span-full p-4 border border-dashed border-slate-300 rounded-xl text-center">
+                  <p className="text-slate-500 text-sm">Koi Project Category nahi mili.</p>
+                  <a href="#project-configuration" className="text-blue-600 text-xs font-semibold hover:underline mt-1 block">Project Configuration tab me jake add karein.</a>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <Field label="Min KW" value={cat.minKW} onChange={(v) => updateItem(["projectCategories"], i, "minKW", v)} type="number" />
-                  <Field label="Max KW" value={cat.maxKW} onChange={(v) => updateItem(["projectCategories"], i, "maxKW", v)} type="number" />
-                  <Field label="Max Subsidy (₹)" value={cat.maxSubsidyAmount} onChange={(v) => updateItem(["projectCategories"], i, "maxSubsidyAmount", v)} type="number" />
-                </div>
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <Toggle label="Category Enabled" checked={cat.enabled} onChange={(v) => updateItem(["projectCategories"], i, "enabled", v)} />
-                  <Toggle label="Subsidy Eligible" checked={cat.subsidyEligible} onChange={(v) => updateItem(["projectCategories"], i, "subsidyEligible", v)} desc="PM Surya Ghar subsidy applicable" />
-                </div>
-              </div>
-            ))}
-            <button onClick={() => setSettings((prev) => { const next = clone(prev); if (!next.projectCategories) next.projectCategories = []; next.projectCategories.push({ id: `cat-${Date.now()}`, name: "", enabled: true, minKW: 1, maxKW: 10, subsidyEligible: false, maxSubsidyAmount: 0, description: "" }); return next; })} className="flex items-center gap-2 text-xs font-semibold text-yellow-500 hover:text-amber-600 transition">
-              <Plus className="w-4 h-4" /> Add Category
-            </button>
+              )}
+            </div>
           </div>
         </SectionCard>
       )}
@@ -727,13 +750,29 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
         </SectionCard>
       )}
 
-      {/* ── 8. SUBSIDY CRITERIA ───────────────────────────────── */}
+      {/* ── 8. SUBSIDY CRITERIA (READ-ONLY) ───────────────────────────────── */}
       {show("subsidyCriteria") && (
-        <SectionCard title="Subsidy Eligibility Criteria" icon={<Zap className="w-5 h-5" />}>
-          <div className="grid grid-cols-2 gap-4 pt-4">
-            <Field label="Min Monthly Units for Subsidy" value={settings.eligibilityRules?.subsidyCriteria?.minMonthlyUnits} onChange={(v) => updatePath(["eligibilityRules", "subsidyCriteria", "minMonthlyUnits"], v)} type="number" />
-            <Field label="Max Monthly Units for Subsidy" value={settings.eligibilityRules?.subsidyCriteria?.maxMonthlyUnits} onChange={(v) => updatePath(["eligibilityRules", "subsidyCriteria", "maxMonthlyUnits"], v)} type="number" />
-            <Field label="Max Subsidy KW (PM Surya Ghar)" value={settings.eligibilityRules?.subsidyCriteria?.maxSubsidyKW} onChange={(v) => updatePath(["eligibilityRules", "subsidyCriteria", "maxSubsidyKW"], v)} type="number" hint="3 KW tak hi central subsidy milti hai" />
+        <SectionCard title="Subsidy & STC Eligibility Criteria" icon={<Zap className="w-5 h-5" />}>
+          <div className="space-y-4 pt-4">
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-800">
+              <p className="font-bold mb-1">⚡ MANAGED IN SUBSIDY SETTINGS</p>
+              <p className="text-xs">
+                {selectedCountry.toUpperCase()} ke liye Subsidy aur STC Rebate ke rules ab <strong>Country Subsidy Management</strong> tab se auto-fetch ho rahe hain. 
+                Yahan par manual editing disable kar di gayi hai taaki system me koi data conflict na ho.
+              </p>
+              <a 
+                href="#subsidy-management"
+                onClick={(e) => { e.preventDefault(); window.dispatchEvent(new CustomEvent('navigate', { detail: 'subsidy-management' })); }}
+                className="inline-block mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition"
+              >
+                Go to Subsidy Management
+              </a>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 opacity-60 pointer-events-none">
+              <Field label="Min Monthly Units for Subsidy" value={settings.eligibilityRules?.subsidyCriteria?.minMonthlyUnits || 'Fetched Automatically'} readOnly />
+              <Field label="Max Subsidy KW" value={settings.eligibilityRules?.subsidyCriteria?.maxSubsidyKW || 'Fetched Automatically'} hint={selectedCountry === 'australia' ? 'STC Zone rules apply' : 'Central subsidy capping'} readOnly />
+            </div>
           </div>
         </SectionCard>
       )}
@@ -744,7 +783,13 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
           <div className="space-y-1 pt-4">
             <Toggle label="Due Amount Check Enabled" checked={settings.eligibilityRules?.dueAmountThreshold?.enabled} onChange={(v) => updatePath(["eligibilityRules", "dueAmountThreshold", "enabled"], v)} />
             <div className="py-2">
-              <Field label="Max Allowed Due Amount (₹)" value={settings.eligibilityRules?.dueAmountThreshold?.maxAllowedDueAmount} onChange={(v) => updatePath(["eligibilityRules", "dueAmountThreshold", "maxAllowedDueAmount"], v)} type="number" hint="Isse zyada due ho toh action lena" />
+              <Field 
+                label={`Max Allowed Due Amount (${['australia', 'usa', 'new zealand'].includes(selectedCountry) ? '$' : selectedCountry === 'uk' ? '£' : '₹'})`} 
+                value={settings.eligibilityRules?.dueAmountThreshold?.maxAllowedDueAmount} 
+                onChange={(v) => updatePath(["eligibilityRules", "dueAmountThreshold", "maxAllowedDueAmount"], v)} 
+                type="number" 
+                hint="Isse zyada due ho toh action lena" 
+              />
             </div>
             <Toggle label="Block Application if Exceeds" checked={settings.eligibilityRules?.dueAmountThreshold?.blockIfExceeds} onChange={(v) => updatePath(["eligibilityRules", "dueAmountThreshold", "blockIfExceeds"], v)} desc="Hard block — application submit nahi hogi" />
             <Toggle label="Show Warning if Exceeds" checked={settings.eligibilityRules?.dueAmountThreshold?.showWarningIfExceeds} onChange={(v) => updatePath(["eligibilityRules", "dueAmountThreshold", "showWarningIfExceeds"], v)} desc="Soft warning — apply kar sakta hai phir bhi" />

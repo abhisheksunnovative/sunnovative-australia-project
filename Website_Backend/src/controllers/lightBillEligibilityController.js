@@ -64,10 +64,20 @@ export const checkBillEligibility = async (req, res) => {
     }
 
     // ── Load settings from DB ──────────────────────────────────────────────
-    let settings = await EligibilitySettings.findOne();
+    const countryStr = (req.headers['x-country'] || 'india').toLowerCase();
+    
+    const getCurrencySymbol = (c) => {
+      if (c === 'australia' || c === 'usa' || c === 'new zealand') return '$';
+      if (c === 'uk') return '£';
+      return '₹';
+    };
+    const currency = getCurrencySymbol(countryStr);
+
+    let settings = await EligibilitySettings.findOne({ country: countryStr });
     if (!settings) {
       // Auto-seed defaults on first deployment
       settings = await EligibilitySettings.create({
+        country: countryStr,
         projectCategories: [
           { id: 'residential', name: 'Residential Solar', enabled: true, minKW: 1, maxKW: 10, subsidyEligible: true, maxSubsidyAmount: 78000, description: 'Single family homes, apartments' },
           { id: 'commercial',  name: 'Commercial Solar',  enabled: true, minKW: 10, maxKW: 500, subsidyEligible: false, maxSubsidyAmount: 0, description: 'Shops, offices, factories' },
@@ -187,11 +197,11 @@ export const checkBillEligibility = async (req, res) => {
       if (dat.blockIfExceeds) {
         isEligible = false;
         reasons.push(
-          `Due amount ₹${dueAmount} allowed limit ₹${dat.maxAllowedDueAmount} se zyada hai — application block.`
+          `Due amount ${currency}${dueAmount} allowed limit ${currency}${dat.maxAllowedDueAmount} se zyada hai — application block.`
         );
       } else if (dat.showWarningIfExceeds) {
         dueAmountWarning =
-          `Due amount ₹${dueAmount} threshold (₹${dat.maxAllowedDueAmount}) se zyada hai. ` +
+          `Due amount ${currency}${dueAmount} threshold (${currency}${dat.maxAllowedDueAmount}) se zyada hai. ` +
           `Apply kar sakte ho, lekin verification ke time due clear karna pad sakta hai.`;
       }
     }
@@ -264,7 +274,6 @@ export const checkBillEligibility = async (req, res) => {
     const totalSubsidy = centralSubsidy + stateSubsidyAmount;
 
     // Fetch pricing from ProjectPricing model (Generalised for all countries/projectTypes)
-    const countryStr = req.headers['x-country'] || 'india';
     const projTypeStr = req.body.projectType || (matchedCategory?.category?.includes('Residential') ? 'residential' : 'commercial');
     let basePrice = suggestedKW * 60000; // default fallback
     
