@@ -241,7 +241,7 @@ const initializeCountry = async (countryName, journeysArray) => {
 
 export const getOrderJourneySettings = async (req, res) => {
   try {
-    let country = req.query.country || 'india';
+    let country = req.query.country;
     let state = req.headers['x-state'] || req.query.state || 'all';
     let district = req.headers['x-district'] || req.query.district || 'all';
     let discom = req.headers['x-discom'] || req.query.discom || 'all';
@@ -295,7 +295,7 @@ export const getOrderJourneySettings = async (req, res) => {
 
 export const saveOrderJourneySettings = async (req, res) => {
   try {
-    const country = req.body.country || req.headers['x-country'] || 'india';
+    const country = req.body.country || req.headers['x-country'];
     const state = req.body.state || req.headers['x-state'] || 'all';
     const district = req.body.district || req.headers['x-district'] || 'all';
     const discom = req.body.discom || req.headers['x-discom'] || 'all';
@@ -371,7 +371,7 @@ export const saveOrderJourneySettings = async (req, res) => {
 
 export const resetOrderJourneySettings = async (req, res) => {
   try {
-    const country = req.query.country || 'india';
+    const country = req.query.country;
     
     // Wipe all and re-seed to get fresh defaults for the requested country
     await OrderJourneySettings.deleteMany({ country });
@@ -399,7 +399,7 @@ export const resetOrderJourneySettings = async (req, res) => {
 export const getPublicJourney = async (req, res) => {
   try {
     const { projectType } = req.params;
-    const country = req.query.country || req.country || 'india';
+    const country = req.query.country || req.country;
     const state = req.headers['x-state'] || req.query.state || 'all';
     const district = req.headers['x-district'] || req.query.district || 'all';
     const discom = req.headers['x-discom'] || req.query.discom || 'all';

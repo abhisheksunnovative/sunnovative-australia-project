@@ -4,7 +4,26 @@ export const getBrands = async (req, res) => {
   try {
     const { country, products, projectType, isActive } = req.query;
     const filter = {};
-    if (country) filter.country = country.toLowerCase();
+    if (country) {
+      const cLower = country.toLowerCase();
+      // Handle both full names and country codes (e.g. australia or au)
+      let codes = [cLower];
+      if (cLower === 'australia') codes.push('au');
+      if (cLower === 'india') codes.push('in');
+      if (cLower === 'new_zealand') codes.push('nz');
+      
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $or: [
+          { country: { $in: codes } },
+          // If country array doesn't exist, we probably shouldn't show it for a specific country request
+          // But to be safe and backward compatible with old data, you might want to uncomment the below:
+          // { country: { $size: 0 } },
+          // { country: { $exists: false } }
+        ]
+      });
+    }
+    
     if (products) {
       if (Array.isArray(products)) {
         filter.products = { $in: products };
@@ -12,14 +31,18 @@ export const getBrands = async (req, res) => {
         filter.products = products;
       }
     }
+    
     if (projectType) {
-      // The frontend sends projectType like "Residential", but it could be "residential" or in an array
-      filter.$or = [
-        { projectTypes: { $in: [new RegExp(`^${projectType}$`, 'i')] } },
-        { projectTypes: { $size: 0 } }, // Include brands available for all if array is empty
-        { projectTypes: { $exists: false } }
-      ];
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $or: [
+          { projectTypes: { $in: [new RegExp(`^${projectType}$`, 'i')] } },
+          { projectTypes: { $size: 0 } }, 
+          { projectTypes: { $exists: false } }
+        ]
+      });
     }
+    
     if (isActive !== undefined) filter.isActive = isActive === 'true';
 
     const brands = await Brand.find(filter).sort({ name: 1 });

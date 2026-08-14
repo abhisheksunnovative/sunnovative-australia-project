@@ -18,6 +18,10 @@ const BrandAndPricing = () => {
     const [epcPrices, setEpcPrices] = useState([]);
     const [companyPrices, setCompanyPrices] = useState([]);
     
+    // Filters
+    const [filterKw, setFilterKw] = useState('All');
+    const [sortOrder, setSortOrder] = useState('asc');
+    
     // For single edit
     const [formData, setFormData] = useState({
         kw: '',
@@ -468,7 +472,31 @@ const BrandAndPricing = () => {
 
                         {/* EPC Submitted Rates Table */}
                         <div className="mt-8">
-                            <h3 className="text-lg font-bold text-gray-800 mb-4">Your Submitted Rates</h3>
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-bold text-gray-800">Your Submitted Rates</h3>
+                                <div className="flex gap-4">
+                                    <div>
+                                        <select 
+                                            className="border-gray-300 rounded-md text-sm shadow-sm focus:border-orange-500 focus:ring-orange-500 p-2 border"
+                                            value={filterKw}
+                                            onChange={e => setFilterKw(e.target.value)}
+                                        >
+                                            <option value="All">All Sizes</option>
+                                            {availableKw.map(kw => <option key={kw} value={kw}>{kw} kW</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <select 
+                                            className="border-gray-300 rounded-md text-sm shadow-sm focus:border-orange-500 focus:ring-orange-500 p-2 border"
+                                            value={sortOrder}
+                                            onChange={e => setSortOrder(e.target.value)}
+                                        >
+                                            <option value="asc">Rate: Low to High</option>
+                                            <option value="desc">Rate: High to Low</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
                             <div className="overflow-x-auto border border-gray-200 rounded-lg">
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
@@ -482,10 +510,19 @@ const BrandAndPricing = () => {
                                     <tbody className="bg-white divide-y divide-gray-200">
                                         {loading ? (
                                             <tr><td colSpan="4" className="px-6 py-8 text-center text-gray-500">Loading your rates...</td></tr>
-                                        ) : epcPrices.length === 0 ? (
-                                            <tr><td colSpan="4" className="px-6 py-8 text-center text-gray-500">No rates submitted yet. Add one above.</td></tr>
-                                        ) : epcPrices.map((price) => (
-                                            <tr key={price._id || price.id} className="hover:bg-gray-50">
+                                        ) : (() => {
+                                            const filteredPrices = epcPrices
+                                                .filter(p => filterKw === 'All' || (p.systemSizeKW || p.kw).toString() === filterKw.toString())
+                                                .sort((a, b) => {
+                                                    const priceA = a.epcSubmittedPrice || a.finalPrice || a.price || 0;
+                                                    const priceB = b.epcSubmittedPrice || b.finalPrice || b.price || 0;
+                                                    return sortOrder === 'asc' ? priceA - priceB : priceB - priceA;
+                                                });
+                                            if (filteredPrices.length === 0) {
+                                                return <tr><td colSpan="4" className="px-6 py-8 text-center text-gray-500">No rates match the selected filters.</td></tr>;
+                                            }
+                                            return filteredPrices.map((price) => (
+                                                <tr key={price._id || price.id} className="hover:bg-gray-50">
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{price.systemSizeKW || price.kw} kW</td>
                                                 <td className="px-6 py-4">
                                                     {price.dynamicBrands && price.dynamicBrands.length > 0 ? (
@@ -511,7 +548,8 @@ const BrandAndPricing = () => {
                                                     <button onClick={() => handleDelete(price._id || price.id)} className="text-red-600 hover:text-red-900">Delete</button>
                                                 </td>
                                             </tr>
-                                        ))}
+                                            ));
+                                        })()}
                                     </tbody>
                                 </table>
                             </div>

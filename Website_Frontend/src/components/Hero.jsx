@@ -40,9 +40,9 @@ export default function Hero({ settings: propSettings, onScrollToForm, projectTy
       {/* Radiant circular sun overlay in background corner */}
       <div className="absolute -top-40 -left-40 w-96 h-96 bg-solar-yellow/10 rounded-full blur-3xl z-0 pointer-events-none"></div>
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 z-10 w-full">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 z-10 w-full flex flex-col lg:flex-row items-center justify-between gap-10">
         <div className="max-w-2xl">
-          <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-solar-navy text-white font-bold uppercase tracking-wider mb-6 animate-pulse-subtle">
+          <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-orange-600 text-white font-bold uppercase tracking-wider mb-6 animate-pulse-subtle">
             <Sun className="w-3.5 h-3.5 fill-white text-white" />
             {hero.badge || "welcome to solarkits"}
           </div>

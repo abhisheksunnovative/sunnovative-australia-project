@@ -75,8 +75,14 @@ export const getCompaniesByState = async (req, res) => {
     // Country filter (default to india for backward compatibility)
     query.country = country ? { $regex: new RegExp(`^${country.trim()}$`, 'i') } : { $regex: new RegExp(`^india$`, 'i') };
 
-    // State ko trim karke case-insensitive regex banayein
-    query.state = { $regex: new RegExp(`^${state.trim()}$`, 'i') };
+    // State ko primary state, activeDistricts ya serviceAreas me dhoondhein
+    const stateRegex = new RegExp(`^${state.trim()}$`, 'i');
+    query.$or = [
+      { state: stateRegex },
+      { activeDistricts: stateRegex },
+      { 'serviceAreas.state': stateRegex },
+      { state: { $regex: /^all$/i } } // also include EPCs that serve 'all' states
+    ];
 
     // Search query ko bhi trim karke regex lagayein
     if (search && search.trim().length >= 2) {

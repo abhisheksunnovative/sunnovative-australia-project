@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Save, Plus, Trash2, Edit, Loader2 } from "lucide-react";
+import { Save, Plus, Trash2, Edit, Loader2, MapPin, ArrowLeft } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
@@ -57,23 +57,100 @@ export const DiscomManagementScreen = () => {
     );
   }
 
-  return <DiscomManagementContent selectedCountryObj={selectedCountryObj} onBack={() => setSelectedCountryObj(null)} />;
+  return <DiscomStateSelector selectedCountryObj={selectedCountryObj} onBack={() => setSelectedCountryObj(null)} />;
 };
 
+export const DiscomStateSelector = ({ selectedCountryObj, onBack }) => {
+  const [states, setStates] = useState([]);
+  const [discoms, setDiscoms] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedState, setSelectedState] = useState(null);
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [distRes, discomRes] = await Promise.all([
+          fetch(`${API_BASE}/api/districts?country=${selectedCountryObj.name}`),
+          fetch(`${API_BASE}/api/discoms?country=${selectedCountryObj.name}`)
+        ]);
+        
+        const distData = await distRes.json();
+        const discomData = await discomRes.json();
 
-export const DiscomManagementContent = ({ selectedCountryObj, onBack }) => {
-  const selectedCountry = selectedCountryObj.code;
-  const selectedCountryName = selectedCountryObj.name;
+        let districtsList = distData.data || distData;
+        if (!Array.isArray(districtsList)) districtsList = [];
+        
+        const uniqueStates = [...new Set(districtsList.map(d => d.state).filter(Boolean))];
+        setStates(uniqueStates);
 
+        if (discomData.success) {
+          setDiscoms(discomData.data);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [selectedCountryObj.name]);
+
+  if (selectedState) {
+    return <DiscomManagementContent selectedCountryObj={selectedCountryObj} selectedState={selectedState} onBack={() => setSelectedState(null)} />;
+  }
+
+  return (
+    <div className="p-8 max-w-7xl mx-auto">
+      <div className="mb-8 flex items-center gap-4">
+        <button onClick={onBack} className="p-2 bg-white rounded-full border shadow-sm hover:bg-slate-50">
+          <ArrowLeft className="w-5 h-5 text-slate-600" />
+        </button>
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">Select State - {selectedCountryObj.name}</h1>
+          <p className="text-slate-500">Select a state to manage its Discoms.</p>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="text-center text-slate-500 py-12">Loading states...</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {states.map(state => {
+            const stateDiscomCount = discoms.filter(d => (d.state || '').toLowerCase().trim() === state.toLowerCase().trim()).length;
+            return (
+            <div 
+              key={state}
+              onClick={() => setSelectedState(state)}
+              className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-[#28377f] cursor-pointer transition-all flex flex-col items-center justify-center gap-3 group"
+            >
+              <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                <MapPin className="w-6 h-6 text-[#28377f]" />
+              </div>
+              <span className="font-bold text-slate-700 group-hover:text-[#28377f]">{state}</span>
+              <span className="text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded-full">{stateDiscomCount} Discom{stateDiscomCount !== 1 ? 's' : ''}</span>
+            </div>
+            );
+          })}
+          {states.length === 0 && (
+            <p className="text-slate-500 col-span-full py-8 text-center bg-white rounded-xl border border-dashed">
+              No states found for this country. Configure them in Country Settings first.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const DiscomManagementContent = ({ selectedCountryObj, selectedState, onBack }) => {
+  const selectedCountry = selectedCountryObj.name;
+  
   const [discoms, setDiscoms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
 
   const [formData, setFormData] = useState({
     name: "",
-    country: "India",
-    state: "",
     districts: ""
   });
 
@@ -86,11 +163,12 @@ export const DiscomManagementContent = ({ selectedCountryObj, onBack }) => {
   const fetchDiscoms = async () => {
     if (!selectedCountry) return;
     try {
-      const res = await fetch(`${API_BASE}/api/discoms?country=${selectedCountry}`);
-      const data = await res.json();
-      if (data.success) {
-        setDiscoms(data.data);
-      }
+        const res = await fetch(`${API_BASE}/api/discoms?country=${selectedCountry}`);
+        const data = await res.json();
+        if (data.success) {
+          // Filter by selected state on frontend for simplicity
+          setDiscoms(data.data.filter(d => (d.state || '').toLowerCase().trim() === (selectedState || '').toLowerCase().trim()));
+        }
     } catch (err) {
       console.error(err);
     } finally {
@@ -99,8 +177,8 @@ export const DiscomManagementContent = ({ selectedCountryObj, onBack }) => {
   };
 
   const handleSave = async () => {
-    if (!formData.name || !formData.state || !formData.districts) {
-      alert("Please fill all required fields (Name, State, Districts)");
+    if (!formData.name || !formData.districts) {
+      alert("Please fill all required fields (Name, Districts)");
       return;
     }
 
@@ -108,8 +186,8 @@ export const DiscomManagementContent = ({ selectedCountryObj, onBack }) => {
     try {
       const payload = {
         name: formData.name,
-        country: formData.country,
-        state: formData.state,
+        country: selectedCountry,
+        state: selectedState,
         districts: formData.districts.split(",").map(d => d.trim()).filter(Boolean)
       };
 
@@ -126,7 +204,7 @@ export const DiscomManagementContent = ({ selectedCountryObj, onBack }) => {
       if (data.success) {
         alert("Discom saved successfully!");
         setEditingId(null);
-        setFormData({ name: "", country: "India", state: "", districts: "" });
+        setFormData({ name: "", districts: "" });
         fetchDiscoms();
       } else {
         alert(data.message || "Failed to save Discom");
@@ -143,8 +221,6 @@ export const DiscomManagementContent = ({ selectedCountryObj, onBack }) => {
     setEditingId(discom._id);
     setFormData({
       name: discom.name,
-      country: discom.country,
-      state: discom.state,
       districts: discom.districts.join(", ")
     });
   };
@@ -159,13 +235,18 @@ export const DiscomManagementContent = ({ selectedCountryObj, onBack }) => {
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-slate-500">Loading...</div>;
+  if (loading) return <div className="p-8 text-center text-slate-500">Loading discoms...</div>;
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">Discom Management</h1>
-        <p className="text-sm text-slate-500">Manage Electricity Distribution Companies (Discoms) and map them to specific districts.</p>
+      <div className="flex items-center gap-4 mb-4">
+        <button onClick={onBack} className="p-2 bg-white rounded-full border shadow-sm hover:bg-slate-50">
+          <ArrowLeft className="w-5 h-5 text-slate-600" />
+        </button>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Discom Management - {selectedState}</h1>
+          <p className="text-sm text-slate-500">Manage Electricity Distribution Companies for {selectedState}, {selectedCountryObj.name}.</p>
+        </div>
       </div>
 
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
@@ -173,13 +254,10 @@ export const DiscomManagementContent = ({ selectedCountryObj, onBack }) => {
           {editingId ? "Edit Discom" : "Create New Discom"}
         </h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <input type="hidden" name="country" value={formData.country} />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">State</label>
-            <input type="text" value={formData.state} onChange={(e) => setFormData({...formData, state: e.target.value})} placeholder="e.g. Maharashtra" className="w-full border p-2 rounded-xl text-sm" />
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Discom Name</label>
+            <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="e.g. MSEB" className="w-full border p-2 rounded-xl text-sm" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Districts (Comma separated)</label>
@@ -189,7 +267,7 @@ export const DiscomManagementContent = ({ selectedCountryObj, onBack }) => {
         
         <div className="mt-6 flex justify-end gap-3 border-t pt-4">
           {editingId && (
-            <button onClick={() => { setEditingId(null); setFormData({ name: "", country: "India", state: "", districts: "" }); }} className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">
+            <button onClick={() => { setEditingId(null); setFormData({ name: "", districts: "" }); }} className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">
               Cancel
             </button>
           )}
@@ -206,8 +284,6 @@ export const DiscomManagementContent = ({ selectedCountryObj, onBack }) => {
             <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
               <tr>
                 <th className="p-4">Discom Name</th>
-                <th className="p-4">Country</th>
-                <th className="p-4">State</th>
                 <th className="p-4">Mapped Districts</th>
                 <th className="p-4">Actions</th>
               </tr>
@@ -216,10 +292,8 @@ export const DiscomManagementContent = ({ selectedCountryObj, onBack }) => {
               {discoms.map((d) => (
                 <tr key={d._id} className="hover:bg-slate-50">
                   <td className="p-4 font-bold text-slate-800">{d.name}</td>
-                  <td className="p-4 text-slate-600">{d.country}</td>
-                  <td className="p-4 text-slate-600">{d.state}</td>
                   <td className="p-4 text-slate-600">
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-1 max-w-md">
                       {d.districts.map(dist => (
                         <span key={dist} className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-semibold">{dist}</span>
                       ))}
@@ -234,7 +308,7 @@ export const DiscomManagementContent = ({ selectedCountryObj, onBack }) => {
                 </tr>
               ))}
               {discoms.length === 0 && (
-                <tr><td colSpan="5" className="p-8 text-center text-slate-400">No Discoms found. Create one above.</td></tr>
+                <tr><td colSpan="3" className="p-8 text-center text-slate-400">No Discoms found for {selectedState}. Create one above.</td></tr>
               )}
             </tbody>
           </table>

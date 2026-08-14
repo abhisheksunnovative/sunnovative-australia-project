@@ -4,7 +4,7 @@ import {
   createBDE, getAllBDEs, getBDEById, updateBDE, deleteBDE,
   bdeLogin, getBDEDashboard, getBDELeads, getDemandPool, assignLeadToBDE, updateBDELead,
   createBDELead, getBDEProjects, getBDEOverdueProjects, uploadBDEProjectDoc, updateBDELeadDetails,
-  requestBdeOtp, verifyOtpAndSetPassword, getEpcCalendarForBde, recommendEpcs, scheduleAndQualifyLead, getAustralianEpcsForBde
+  requestBdeOtp, verifyOtpAndSetPassword, getEpcCalendarForBde, scheduleAndQualifyLead, getAustralianEpcsForBde
 } from "../controllers/bdeController.js";
 
 const router = express.Router();
@@ -37,7 +37,6 @@ router.post("/:bdeId/leads", createBDELead);
 router.get("/:bdeId/projects", getBDEProjects);
 router.get("/:bdeId/overdue-projects", getBDEOverdueProjects);
 router.post("/projects/:projectId/step/:stepId/upload", upload.single('file'), uploadBDEProjectDoc);
-router.post("/projects/:projectId/recommend-epcs", recommendEpcs);
 router.get("/:bdeId/demand-pool", getDemandPool);
 router.post("/assign-lead", assignLeadToBDE);
 router.put("/leads/:leadId", updateBDELead);

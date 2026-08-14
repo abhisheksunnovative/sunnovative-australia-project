@@ -73,7 +73,18 @@ const EpcMyEnquiries = () => {
       if (filterDist)    params.set('district', filterDist);
       if (filterStatus)  params.set('status', filterStatus);
 
-      const { data } = await epcApi.get(`/api/epc/enquiries?${params}`);
+      const [enqRes, ordRes] = await Promise.all([
+        epcApi.get(`/api/epc/enquiries?${params}`),
+        epcApi.get(`/api/epc/orders?status=lead`)
+      ]);
+      const mappedOrders = (ordRes.data.orders || ordRes.data).map(o => ({
+        ...o,
+        isOrderMode: true,
+        projectValue: o.totalProjectCost,
+        systemCapacityKw: o.systemSizeKW,
+        location: o.location || { city: o.city, state: o.state }
+      }));
+      const data = [...enqRes.data, ...mappedOrders].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
       setEnquiries(data);
       if (!selectedType) {
         const counts = { ECommerce: 0, Bidding: 0, QuoteByEPC: 0 };
@@ -108,13 +119,33 @@ const EpcMyEnquiries = () => {
     if (!installDate) return alert('Please select a proposed installation date.');
     try {
       await epcApi.put(`/api/epc/enquiries/${id}/confirm-date`, { scheduledInstallDate: installDate });
-      setMsg('📅 Installation date proposed to customer!');
+      setMsg(`📅 Date confirmed. Waiting for customer approval.`);
       setMsgType('success');
-      setConfirmingDateFor(null); setInstallDate(''); load();
+      load();
     } catch (error) {
       setMsg(error.response?.data?.message || 'Failed to confirm date');
       setMsgType('error');
-      setTimeout(() => setMsg(''), 4000);
+    } finally {
+      setConfirmingDateFor(null);
+      setTimeout(() => setMsg(''), 6000);
+    }
+  };
+
+  const handleAcceptOrder = async (orderId) => {
+    if (!window.confirm(`Accept this order and move it to Orders?`)) return;
+    setAccepting(orderId);
+    try {
+      // Set status to processing, and stage to Registration Started
+      await epcApi.put(`/api/epc/orders/${orderId}/stage`, { stage: 'Registration Started' });
+      setMsg(`✅ Order accepted! Moved to Orders tab.`);
+      setMsgType('success');
+      load();
+    } catch (error) {
+      setMsg(error.response?.data?.message || 'Failed to accept order');
+      setMsgType('error');
+    } finally {
+      setAccepting(null);
+      setTimeout(() => setMsg(''), 6000);
     }
   };
 
@@ -346,7 +377,7 @@ const EpcMyEnquiries = () => {
 
                     {/* Action Button */}
                     <div className="flex-shrink-0 flex flex-col gap-2">
-                      {isNew && (
+                      {isNew && !enq.isOrderMode && (
                         <button onClick={() => handleAccept(enq)} disabled={accepting === enq._id}
                           className="bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 disabled:opacity-50 text-white text-xs font-black px-5 py-2.5 rounded-xl transition-all shadow-md shadow-blue-200 hover:shadow-blue-300 hover:scale-105 active:scale-95">
                           {accepting === enq._id ? (
@@ -354,7 +385,17 @@ const EpcMyEnquiries = () => {
                           ) : '✔ Accept Lead'}
                         </button>
                       )}
-                      {enq.status === 'Converted' && (
+                      
+                      {enq.isOrderMode && (
+                        <button onClick={() => handleAcceptOrder(enq._id)} disabled={accepting === enq._id}
+                          className="bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 disabled:opacity-50 text-white text-xs font-black px-5 py-2.5 rounded-xl transition-all shadow-md shadow-blue-200 hover:shadow-blue-300 hover:scale-105 active:scale-95">
+                          {accepting === enq._id ? (
+                            <span className="flex items-center gap-1.5"><span className="animate-spin">⏳</span> Moving...</span>
+                          ) : '→ Move to Order Created'}
+                        </button>
+                      )}
+
+                      {enq.status === 'Converted' && !enq.isOrderMode && (
                         <span className="flex items-center gap-1.5 text-xs text-emerald-700 font-bold bg-emerald-50 px-3 py-2 rounded-xl border border-emerald-200">
                           ✅ Order Created
                         </span>

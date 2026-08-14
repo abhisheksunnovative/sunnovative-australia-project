@@ -1712,7 +1712,7 @@ async function run() {
             projectTypeLabel: "Residential Solar (STC)",
             enabled: true,
             description: "Australia CEC residential solar upfront STC rebate journey.",
-            epcSelectionType: "BDE_SELECT",
+            epcSelectionType: "CUSTOMER_SELECT",
             steps: enrichJourneySteps(AU_RESIDENTIAL_STEPS)
           },
           {
@@ -1720,7 +1720,7 @@ async function run() {
             projectTypeLabel: "Commercial Solar",
             enabled: true,
             description: "Australia Commercial & Industrial DNSP level 3 pre-approval journey.",
-            epcSelectionType: "BDE_SELECT",
+            epcSelectionType: "CUSTOMER_SELECT",
             steps: enrichJourneySteps(AU_COMMERCIAL_STEPS)
           },
           {
@@ -1728,7 +1728,7 @@ async function run() {
             projectTypeLabel: "Solar + Battery",
             enabled: true,
             description: "CEC solar + storage battery hybrid setup journey.",
-            epcSelectionType: "BDE_SELECT",
+            epcSelectionType: "CUSTOMER_SELECT",
             steps: enrichJourneySteps(AU_BATTERY_STEPS)
           },
           {
@@ -1736,7 +1736,7 @@ async function run() {
             projectTypeLabel: "Farm / Rural Solar",
             enabled: true,
             description: "Farm ground-mount off-grid or remote network hybrid solar journey.",
-            epcSelectionType: "BDE_SELECT",
+            epcSelectionType: "CUSTOMER_SELECT",
             steps: enrichJourneySteps(AU_FARM_RURAL_STEPS)
           },
           {
@@ -1744,7 +1744,7 @@ async function run() {
             projectTypeLabel: "Community / Strata Solar",
             enabled: true,
             description: "Embedded network multi-unit strata body corporate solar journey.",
-            epcSelectionType: "BDE_SELECT",
+            epcSelectionType: "CUSTOMER_SELECT",
             steps: enrichJourneySteps(AU_COMMUNITY_STEPS)
           }
         ]

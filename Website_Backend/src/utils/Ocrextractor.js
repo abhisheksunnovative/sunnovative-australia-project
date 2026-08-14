@@ -716,12 +716,19 @@ export const parseAuBillText = (text) => {
   // ── 3. Customer Name ──────────────────────────────────────────────────────
   let customerName = null;
   const namePatterns = [
-    /(?:Customer|Account\s*Holder|Name)\s*[:\-]\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})/i,
+    /(?:Customer|Account\s*Holder|Account\s*Name|Name)\s*[:\-]?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})/i,
     /Dear\s+(?:Mr\.?\s*|Ms\.?\s*|Mrs\.?\s*)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3}),?/i,
   ];
   for (const p of namePatterns) {
     const m = t.match(p);
     if (m) { customerName = m[1].trim(); break; }
+  }
+
+  // Distributor (DNSP)
+  let distributor = null;
+  const dnspMatch = t.match(/(?:Distributor|DNSP)\s*(?:\(DNSP\))?\s*[:\-]?\s*([A-Za-z\s]{3,20})/i);
+  if (dnspMatch) {
+    distributor = dnspMatch[1].replace(/Tariff|Bill|Supply|Account|NMI/ig, '').trim();
   }
 
   // ── 4. Address — Suburb, State, Postcode ──────────────────────────────────
@@ -870,6 +877,7 @@ export const parseAuBillText = (text) => {
     retailer,
     accountNumber,
     customerName,
+    distributor,
     suburb,
     state,
     postcode,

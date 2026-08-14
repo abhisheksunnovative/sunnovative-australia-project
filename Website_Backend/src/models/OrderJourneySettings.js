@@ -75,7 +75,7 @@ const ProjectJourneySchema = new mongoose.Schema({
   },
   epcSelectionType: {
     type: String,
-    enum: ["FCFS", "CUSTOMER_SELECT", "BDE_SELECT"],
+    enum: ["FCFS", "CUSTOMER_SELECT"],
     default: "FCFS"
   },
   steps: { type: [JourneyStepSchema], default: [] },

@@ -3,24 +3,55 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Sun, Menu, X, PhoneCall, ShieldCheck, Zap, User, ChevronDown } from "lucide-react";
 import { useWebsiteSettings } from "../hooks/useWebsiteSettings";
 import { useCountry } from "../context/CountryContext";
 
 export default function Header({
-  onOpenEpcModal,
-  onScrollToForm,
-  viewMode,
-  setViewMode,
-  onOpenCustomerLogin,
-  isCustomerLoggedIn,
-  customerName,
+  onOpenEpcModal = () => {},
+  onScrollToForm = () => {},
+  viewMode = "home",
+  setViewMode = () => {},
+  onOpenCustomerLogin = () => {},
+  isCustomerLoggedIn = false,
+  customerName = "",
   settings: propSettings,
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [availableCountries, setAvailableCountries] = useState([]);
   const baseSettings = useWebsiteSettings();
   const settings = propSettings || baseSettings;
+
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4005'}/api/countries`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data) {
+          setAvailableCountries(data.data.filter(c => c.isActive !== false));
+        }
+      })
+      .catch(e => console.error("Error fetching countries:", e));
+  }, []);
+
+  const getCountryRoute = (c) => {
+    const code = (c.code || '').toLowerCase();
+    const name = (c.name || '').toLowerCase();
+    if (code === 'in' || code === 'india' || name === 'india') return '/';
+    if (code === 'au' || code === 'australia' || name === 'australia') return '/au/';
+    if (code === 'nz' || code === 'newzealand' || name === 'new zealand') return '/nz/';
+    return `/${code}/`;
+  };
+
+  const getShortCode = (c) => {
+    const code = (c.code || '').toLowerCase();
+    const name = (c.name || '').toLowerCase();
+    if (code === 'india' || name === 'india') return 'IN';
+    if (code === 'australia' || name === 'australia') return 'AU';
+    if (code === 'newzealand' || name === 'new zealand') return 'NZ';
+    return (c.code || '').substring(0, 2).toUpperCase();
+  };
+
   const brand = settings.brand || {};
   const footer = settings.footer || {};
   const { country, setCountry, t } = useCountry();
@@ -30,9 +61,10 @@ export default function Header({
   const navItems = (settings.websiteContent && settings.websiteContent.navItems && settings.websiteContent.navItems.length > 0) 
     ? settings.websiteContent.navItems 
     : [
+        { label: "Home", href: "/", isPageLink: false, isExternalLink: false },
+        { label: "How It Works", href: "/how-it-works", isPageLink: false, isExternalLink: false },
+        { label: "Our Platform", href: "/platform", isPageLink: false, isExternalLink: false },
         { label: "Solar Blogs", href: "#blog", isPageLink: false },
-        { label: "Our Platform", href: "/platform", isPageLink: false, isExternalLink: true },
-        { label: "How It Works", href: "/how-it-works", isPageLink: false, isExternalLink: true },
         { label: "FAQs", href: "#faqs", isPageLink: true },
       ];
 
@@ -40,8 +72,8 @@ export default function Header({
     e.preventDefault();
     const { href, isPageLink, isExternalLink } = item;
 
-    if (isExternalLink) {
-      window.open(href, '_blank');
+    if (href.startsWith('/')) {
+      window.location.href = href;
       return;
     }
 
@@ -134,25 +166,19 @@ export default function Header({
               <span>{country === "IN" ? "IND" : country === "AU" ? "AUS" : "NZ"}</span>
               <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-solar-navy" />
             </button>
-            <div className="absolute top-full right-0 mt-1 w-40 bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 py-2">
-              {[
-                { code: "IN", label: "India" },
-                { code: "US", label: "USA" },
-                { code: "GB", label: "UK" },
-                { code: "CA", label: "Canada" },
-                { code: "AU", label: "Australia" },
-                { code: "DE", label: "Germany" },
-                { code: "JP", label: "Japan" }
-              ].map(c => (
+            <div className="absolute top-full right-0 mt-1 w-48 bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 py-2">
+              {availableCountries.length > 0 ? availableCountries.map(c => (
                 <button
                   key={c.code}
-                  onClick={() => window.location.href = c.code === 'IN' ? '/' : `/${c.code.toLowerCase()}/`}
+                  onClick={() => window.location.href = getCountryRoute(c)}
                   className="w-full text-left px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-solar-navy transition-colors flex items-center gap-3"
                 >
-                  <span className="font-bold text-slate-400 w-6">{c.code}</span>
-                  {c.label}
+                  {c.flag && <span className="text-base">{c.flag}</span>}
+                  <span className="truncate">{c.name}</span>
                 </button>
-              ))}
+              )) : (
+                <div className="px-4 py-2 text-sm text-slate-400">Loading...</div>
+              )}
             </div>
           </div>
 
@@ -216,12 +242,11 @@ export default function Header({
         {/* Drawer Header with Title and Cancel Button */}
         <div className="p-5 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-solar-yellow flex items-center justify-center text-solar-navy">
-              <Sun className="w-5 h-5 text-slate-900 fill-amber-300" />
-            </div>
-            <span className="font-display font-black text-xs text-slate-900 uppercase tracking-widest">
-              EmergeSun
-            </span>
+            {brand.logoUrl ? (
+              <img src={brand.logoUrl} alt={brand.companyName || "EmergeSun"} className="h-8 w-auto object-contain" />
+            ) : (
+              <img src="/logo.png" alt="EmergeSun" className="h-8 w-auto object-contain" />
+            )}
           </div>
 
           <button
@@ -259,13 +284,13 @@ export default function Header({
           {/* Country Switcher — mobile */}
           <div className="flex items-center justify-center gap-2">
             <span className="text-xs text-slate-500 font-medium">Region:</span>
-            <div className="flex items-center bg-slate-100 rounded-xl p-0.5 gap-0.5">
-              {[{ code: "IN", flag: "🇮🇳", label: "IN" }, { code: "AU", flag: "🇦🇺", label: "AU" }, { code: "NZ", flag: "🇳🇿", label: "NZ" }].map(c => (
-                <button key={c.code} onClick={() => window.location.href = c.code === 'IN' ? '/' : `/${c.code.toLowerCase()}/`}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    country === c.code ? "bg-white shadow text-slate-800" : "text-slate-500 hover:text-slate-700"
+            <div className="flex items-center bg-slate-100 rounded-xl p-0.5 gap-0.5 overflow-x-auto max-w-[220px]">
+              {availableCountries.map(c => (
+                <button key={c.code} onClick={() => window.location.href = getCountryRoute(c)}
+                  className={`flex shrink-0 items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    country === getShortCode(c) ? "bg-white shadow text-slate-800" : "text-slate-500 hover:text-slate-700"
                   }`}>
-                  <span>{c.flag}</span><span>{c.label}</span>
+                  {c.flag && <span>{c.flag}</span>}<span>{getShortCode(c)}</span>
                 </button>
               ))}
             </div>

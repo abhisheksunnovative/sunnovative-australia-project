@@ -65,14 +65,14 @@ const EpcLogin = () => {
   const [error, setError]         = useState('');
 
   useEffect(() => {
-    if (!state || search.length < 2) { setCompanies([]); return; }
+    if (!state) { setCompanies([]); return; }
     const timer = setTimeout(async () => {
       try {
         const { data } = await epcApi.get(`/api/epc/auth/companies?state=${state}&search=${search}&country=${country}`);
         setCompanies(data.companies || []);
         setShowDrop(true);
       } catch (e) {}
-    }, 400);
+    }, 300);
     return () => clearTimeout(timer);
   }, [search, state]);
 
@@ -256,10 +256,10 @@ const EpcLogin = () => {
               {state && (
                 <div className="relative">
                   <label className="block text-gray-600 text-xs font-medium mb-1.5">Company Name *</label>
-                  <input type="text" placeholder="Type to search..."
+                  <input type="text" placeholder="Type or click to select..."
                     value={selected ? selected.companyName : search}
                     onChange={e => { setSearch(e.target.value); setSelected(null); }}
-                    onFocus={() => companies.length && setShowDrop(true)}
+                    onFocus={() => { if (companies.length) setShowDrop(true); }}
                     className={inputCls} />
                   {showDrop && companies.length > 0 && !selected && (
                     <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-10 mt-1 overflow-hidden">

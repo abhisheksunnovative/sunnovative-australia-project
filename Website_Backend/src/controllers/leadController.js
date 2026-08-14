@@ -529,8 +529,12 @@ export const uploadLeads = async (req, res) => {
 // ─── ANALYTICS ────────────────────────────────────────────────────────────────
 export const getAnalytics = async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, country } = req.query;
     const matchStage = { isActive: true };
+
+    if (country) {
+      matchStage.country = country;
+    }
 
     if (startDate || endDate) {
       matchStage.createdAt = {};
@@ -646,13 +650,13 @@ export const convertLeadToProject = async (req, res) => {
       currentStepNumber: steps.length > 0 ? steps[0].stepNumber : 1,
       currentStepTitle: steps.length > 0 ? steps[0].title : 'Project Started',
       completionPercentage: 0,
-      status: 'Enquiry Created',
+      status: isAU ? 'awaiting-admin-confirmation' : 'Enquiry Created',
       assignedBde: lead.assignedBde,
       assignedEPCId: assignedEpc ? assignedEpc.toString() : null,
       preferredInstallDate: installationDate,
       bdeRecommendationStatus: isCustomerSelect ? 'pending' : 'accepted',
-      pendingActionAlert: isCustomerSelect ? 'BDE is selecting top certified installers for you' : 'Waiting for FCFS EPC Partner to claim order...',
-      pendingActionFor: isCustomerSelect ? 'bde' : 'epc-partner'
+      pendingActionAlert: isAU ? 'Waiting for Admin Confirmation' : (isCustomerSelect ? 'BDE is selecting top certified installers for you' : 'Waiting for FCFS EPC Partner to claim order...'),
+      pendingActionFor: isAU ? 'admin' : (isCustomerSelect ? 'bde' : 'epc-partner')
     });
     
     await po.save();

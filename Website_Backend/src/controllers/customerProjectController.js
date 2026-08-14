@@ -48,7 +48,7 @@ export const getProjectDetail = async (req, res) => {
         { customerId: req.customer._id.toString() },
         { customerMobile: req.customer.mobile },
       ],
-    }).populate("recommendedEpcs", "companyName rating totalInstallations contactPerson city state activeDistricts").lean();
+    }).lean();
     if (!project) return res.status(404).json({ message: 'Project not found' });
 
     // Fetch Enquiry to check token status
@@ -189,6 +189,7 @@ export const applyForProject = async (req, res) => {
       assignedEPCId: payload.selectedEpcId || null,
       assignedEPCName: payload.selectedEpcName || "",
       paymentStatus: currentJourney?.signupToken?.enabled ? 'pending' : 'not_required',
+      documents: rooftopPhotoUrl ? [{ type: 'customer_upload', url: rooftopPhotoUrl, uploadedAt: new Date() }] : [],
       steps: await (async () => {
         const { mapJourneyStepsToProjectSteps } = await import('../utils/stepEngine.js');
         return mapJourneyStepsToProjectSteps(currentJourney?.steps || []);
@@ -427,27 +428,40 @@ export const payEscrow = async (req, res) => {
 // -- GET /api/customer/epcs — Get available EPCs for selection ---------------
 export const getAvailableEpcs = async (req, res) => {
   try {
+    const fs = await import('fs');
+    fs.appendFileSync('epc_requests.log', JSON.stringify({ query: req.query, date: new Date() }) + '\n');
+    
     const { state, district, country = req.customer?.country || 'india' } = req.query;
-    const { EpcPartner } = await import('../models/EpcPartner.js');
+    const { default: EpcPartner } = await import('../models/EpcPartner.js');
     
     const isAu = country.toLowerCase() === 'australia';
 
     // Find EPCs matching state and district (and must be verified/active)
     // If Australia, we need to match by country too.
-    let query = { isVerified: true };
+    // Support existing serviceAreas or activeDistricts
+    // We removed isVerified: true because user requested EPCs with rates should show instantly without admin approval
+    let query = {};
     if (isAu) {
       query.country = "australia";
     }
     
-    // Support existing serviceAreas or activeDistricts
+    const stateRegex = new RegExp(`^${state || 'Queensland'}$`, 'i');
+    const stateMatch = { $in: [stateRegex, /^all$/i] };
+    
     query.$or = [
-      { serviceAreas: { $elemMatch: { state: state || 'Gujarat' } } },
-      { activeDistricts: state || 'Gujarat' }
+      { serviceAreas: { $elemMatch: { state: stateMatch } } },
+      { activeDistricts: stateMatch }
     ];
+    // Keep standard fallback
+    if (!state) {
+        query.$or[0].serviceAreas.$elemMatch.state = { $in: [/^Gujarat$/i, /^all$/i] };
+        query.$or[1].activeDistricts = { $in: [/^Gujarat$/i, /^all$/i] };
+    }
 
     if (district && district !== 'All') {
-       query.$or[0].serviceAreas.$elemMatch.district = district;
-       query.$or[1].activeDistricts = district;
+       const distRegex = new RegExp(`^${district}$`, 'i');
+       query.$or[0].serviceAreas.$elemMatch.district = { $in: [distRegex, /^all$/i] };
+       query.$or[1].activeDistricts = { $in: [distRegex, /^all$/i] };
     }
 
     if (req.query.brands) {
@@ -457,14 +471,35 @@ export const getAvailableEpcs = async (req, res) => {
       const brandIds = brandDocs.map(b => b._id);
       
       if (brandIds.length > 0) {
-        query.brandOfferings = {
-          $elemMatch: {
-            $or: [
-              { solarBrands: { $in: brandIds } },
-              { inverterBrands: { $in: brandIds } }
-            ]
+        // Find EPCs who have submitted rates for these brands in ProjectPricing
+        const { default: ProjectPricing } = await import('../models/ProjectPricing.js');
+        const pricingDocs = await ProjectPricing.find({
+          dynamicBrands: {
+            $elemMatch: {
+              brandIds: { $in: brandIds }
+            }
           }
-        };
+        });
+        
+        const epcIdsWithRates = pricingDocs.map(p => p.epcId).filter(id => id);
+
+        // Also check older brandOfferings just in case
+        query.$and = query.$and || [];
+        query.$and.push({
+          $or: [
+            { _id: { $in: epcIdsWithRates } },
+            {
+              brandOfferings: {
+                $elemMatch: {
+                  $or: [
+                    { solarBrands: { $in: brandIds } },
+                    { inverterBrands: { $in: brandIds } }
+                  ]
+                }
+              }
+            }
+          ]
+        });
       } else {
         return res.json({ success: true, count: 0, data: [] });
       }
@@ -475,11 +510,18 @@ export const getAvailableEpcs = async (req, res) => {
 
     // Also get fallback if no district match (but state match)
     if (epcs.length === 0 && district && district !== 'All') {
-      let fallbackQuery = { isVerified: true };
+      let fallbackQuery = {};
       if (isAu) fallbackQuery.country = "australia";
-      fallbackQuery.serviceAreas = {
-        $elemMatch: { state: state || 'Gujarat' }
-      };
+      
+      fallbackQuery.$or = [
+        { serviceAreas: { $elemMatch: { state: stateMatch } } },
+        { activeDistricts: stateMatch }
+      ];
+      
+      if (query.$and) {
+          fallbackQuery.$and = query.$and;
+      }
+      
       epcs = await EpcPartner.find(fallbackQuery)
          .select('companyName contactPerson totalExperience rating totalInstallations profilePic installerCount weeklyCapacityKw trustBadge country');
     }
@@ -589,87 +631,6 @@ export const signStcForm = async (req, res) => {
   }
 };
 
-
-export const acceptEpcRecommendation = async (req, res) => {
-  try {
-    const { epcId, epcName } = req.body;
-    
-    // Find project flexibly matching customerId or mobile
-    const project = await ProjectOrder.findOne({
-      _id: req.params.id,
-      $or: [
-        { customerId: req.customer._id.toString() },
-        { customerMobile: req.customer.mobile }
-      ]
-    });
-    if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
-
-    const { default: EpcPartner } = await import('../models/EpcPartner.js');
-    const epc = await EpcPartner.findById(epcId);
-    
-    project.assignedEPCId = epcId;
-    project.assignedEPCName = epcName || epc?.companyName || "Australian Certified Installer";
-    project.bdeRecommendationStatus = 'accepted';
-    project.status = 'EPC Accepted';
-    project.pendingActionAlert = 'Installer accepted! BDE will now lock your installation date.';
-    project.pendingActionFor = 'bde';
-    await project.save();
-
-    // Sync Lead model
-    try {
-      const LeadModel = (await import('../models/Lead.js')).default;
-      await LeadModel.updateOne(
-        { $or: [{ convertedProjectId: project._id }, { mobile: project.customerMobile }] },
-        { 
-          assignedEPCId: epcId, 
-          assignedEPCName: project.assignedEPCName, 
-          enquiryStatus: 'EPC Accepted',
-          epcDetails: {
-            companyName: project.assignedEPCName,
-            contactPerson: epc?.ownerName || epc?.contactPerson || "Installer Representative",
-            mobile: epc?.mobile || epc?.phone || "0412345671",
-            email: epc?.email || "",
-            rating: epc?.rating || 4.9
-          }
-        }
-      );
-    } catch (lErr) {
-      console.error('Lead update error:', lErr);
-    }
-
-    // Trigger Notification for BDE
-    try {
-      const Notification = (await import('../models/Notification.js')).default;
-      await Notification.create({
-        role: 'BDE',
-        recipientId: project.assignedBde ? project.assignedBde : null,
-        title: '⚡ Customer Accepted EPC Installer!',
-        message: `Customer ${project.customerName} has accepted ${project.assignedEPCName}. Please confirm and lock the final installation date!`,
-        projectId: project._id
-      });
-    } catch (nErr) {
-      console.error('Notification error:', nErr);
-    }
-
-    res.json({ success: true, project, message: `Successfully accepted ${project.assignedEPCName}!` });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-export const rejectEpcRecommendations = async (req, res) => {
-  try {
-    const project = await ProjectOrder.findOneAndUpdate(
-      { _id: req.params.id, customerId: req.customer._id.toString() },
-      { bdeRecommendationStatus: 'rejected' },
-      { new: true }
-    );
-    if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
-    res.json({ success: true, project });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
 
 export const rateEpc = async (req, res) => {
   try {

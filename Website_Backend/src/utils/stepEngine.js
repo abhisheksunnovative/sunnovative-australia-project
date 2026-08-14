@@ -29,11 +29,12 @@ export const findJourneySettings = async (country, state, district) => {
   }
 
   if (!doc) {
-    doc = await OrderJourneySettings.findOne({ country: 'india', state: 'all', district: 'all' });
+    doc = await OrderJourneySettings.findOne({ country: searchCountry, state: 'all', district: 'all' });
   }
 
+  // If still no doc found, we must return null or an empty document instead of crossing countries.
   if (!doc) {
-    doc = await OrderJourneySettings.findOne(); // absolute fallback
+    return null;
   }
 
   return doc;

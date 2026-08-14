@@ -863,29 +863,30 @@ export const OrderJourneyScreen = ({ selectedCountry: propCountry, readOnly = fa
       const nextSettings = JSON.parse(JSON.stringify(settings));
       nextSettings.journeys = nextSettings.journeys || [];
       
-      // Add missing project types
-      projectTypes.forEach(pt => {
-        const exists = nextSettings.journeys.find(j => j.projectType === pt.projectType);
-        if (!exists) {
-          nextSettings.journeys.push({
-            projectType: pt.projectType,
-            projectTypeLabel: pt.projectTypeLabel || pt.projectType,
-            enabled: true,
-            description: "",
-            signupToken: { enabled: false, amount: 0 },
-            epcSelectionType: "FCFS",
-            steps: []
-          });
-          changed = true;
-        }
-      });
+      // Do NOT auto-add project types. The user can add them manually.
+      // projectTypes.forEach(pt => {
+      //   const exists = nextSettings.journeys.find(j => j.projectType === pt.projectType);
+      //   if (!exists) {
+      //     nextSettings.journeys.push({
+      //       projectType: pt.projectType,
+      //       projectTypeLabel: pt.projectTypeLabel || pt.projectType,
+      //       enabled: true,
+      //       description: "",
+      //       signupToken: { enabled: false, amount: 0 },
+      //       epcSelectionType: "FCFS",
+      //       steps: []
+      //     });
+      //     changed = true;
+      //   }
+      // });
 
-      // Remove orphaned journeys
-      const originalLength = nextSettings.journeys.length;
-      nextSettings.journeys = nextSettings.journeys.filter(j => 
-        projectTypes.some(pt => pt.projectType === j.projectType)
-      );
-      if (nextSettings.journeys.length !== originalLength) changed = true;
+      // Do NOT automatically remove orphaned journeys. 
+      // If a project type is deleted, the journey should still remain so we don't lose step data silently.
+      // const originalLength = nextSettings.journeys.length;
+      // nextSettings.journeys = nextSettings.journeys.filter(j => 
+      //   projectTypes.some(pt => pt.projectType === j.projectType)
+      // );
+      // if (nextSettings.journeys.length !== originalLength) changed = true;
 
       if (changed) {
         setSettings(nextSettings);
@@ -1112,10 +1113,12 @@ export const OrderJourneyScreen = ({ selectedCountry: propCountry, readOnly = fa
         
         {/* Main Actions */}
         <div className="flex items-center gap-3">
+          {/* 
           <button onClick={handleReset} disabled={resetting} className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition disabled:opacity-50">
             {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             Reset to Defaults
-          </button>
+          </button> 
+          */}
           <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-slate-900 bg-yellow-400 rounded-xl hover:bg-amber-400 transition shadow-sm disabled:opacity-50">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {saving ? "Saving..." : "Save Config"}

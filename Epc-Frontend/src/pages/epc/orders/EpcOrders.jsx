@@ -61,7 +61,8 @@ const EpcOrders = () => {
         epcApi.get(`/api/epc/orders?${params}`),
         epcApi.get('/api/epc/orders/summary'),
       ]);
-      setOrders(ordRes.data.orders || ordRes.data);
+      const activeOrders = (ordRes.data.orders || ordRes.data).filter(o => o.status !== 'lead');
+      setOrders(activeOrders);
       setSummary(sumRes.data);
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -321,19 +322,12 @@ const EpcOrders = () => {
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="flex flex-col sm:flex-row gap-2">
+                      <div className="flex flex-col sm:flex-row gap-2 mt-4">
                         <button
-                          onClick={() => navigate(`/epc/orders/${order._id}`)}
-                          className="flex-1 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 text-xs font-bold py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5">
-                          📄 View Full Details
+                          onClick={() => navigate(`/epc/projects?orderId=${order.orderNumber}`)}
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-3 rounded-xl transition-all shadow-md shadow-blue-200">
+                          📄 View Full Project & Upload Docs
                         </button>
-                        {order.stage !== 'Project Closed' && (
-                          <button onClick={() => advanceStage(order._id, order.stage)}
-                            disabled={stageLoading}
-                            className="flex-1 bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 disabled:opacity-50 text-white text-xs font-black py-2.5 rounded-xl transition-all shadow-md shadow-blue-100">
-                            {stageLoading ? '⏳ Updating...' : `→ Move to: ${stageSteps[stageIdx + 1] || '—'}`}
-                          </button>
-                        )}
                       </div>
 
                       {/* Customer Rating */}

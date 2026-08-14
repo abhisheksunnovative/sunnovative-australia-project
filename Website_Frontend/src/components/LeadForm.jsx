@@ -56,6 +56,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
   const [consumerNumber, setConsumerNumber] = useState("");
   const [fullName, setFullName] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
+  const [email, setEmail] = useState("");
   const [city, setCity] = useState("Rajkot");
   const [customerState, setCustomerState] = useState("Gujarat");
   const [monthlyBill, setMonthlyBill] = useState(2500);
@@ -64,11 +65,12 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
   const [ownsProperty, setOwnsProperty] = useState(true);
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
-  const [preferredSolarBrand, setPreferredSolarBrand] = useState("");
-  const [preferredInverterBrand, setPreferredInverterBrand] = useState("");
+  const [preferredBrands, setPreferredBrands] = useState({});
+  const [productCategories, setProductCategories] = useState([]);
   const [availableBrands, setAvailableBrands] = useState([]);
   const [stcSettings, setStcSettings] = useState(null);
   const [projectTypeConfigs, setProjectTypeConfigs] = useState([]);
+  const [eligibilityCategories, setEligibilityCategories] = useState([]);
   const [selectedUpgradeKw, setSelectedUpgradeKw] = useState(0);
   const [selectedKw, setSelectedKw] = useState(3);
   // Section 4: Customer-chosen kW (may differ from recommended)
@@ -118,6 +120,20 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
         console.error("Failed to fetch brands", err);
       }
     };
+
+    const fetchProductConfigs = async () => {
+      try {
+        const ptKey = selectedProjectType || "Residential Solar";
+        const res = await fetch(import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/product-configs?country=${getCountryCode()}&projectType=${ptKey}` : `http://localhost:4005/api/product-configs?country=${getCountryCode()}&projectType=${ptKey}`);
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const uniqueCategories = [...new Set(data.map(item => item.productCategory))];
+          setProductCategories(uniqueCategories);
+        }
+      } catch (err) {
+        console.error("Failed to fetch product configs", err);
+      }
+    };
     
     const fetchStcSettings = async () => {
       if (country !== "AU") return;
@@ -133,8 +149,24 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
       }
     };
 
+    const fetchEligibilitySettings = async () => {
+      try {
+        const res = await fetch(import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/eligibility-settings` : `http://localhost:4005/api/eligibility-settings`, {
+          headers: { 'country': getCountryCode() }
+        });
+        const data = await res.json();
+        if (data.success && data.data?.projectCategories) {
+          setEligibilityCategories(data.data.projectCategories);
+        }
+      } catch (err) {
+        console.error("Failed to fetch eligibility settings", err);
+      }
+    };
+
     fetchBrands();
+    fetchProductConfigs();
     fetchStcSettings();
+    fetchEligibilitySettings();
   }, [country]);
 
   // Status & Dynamic Feedback state
@@ -251,6 +283,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
       if (ex.consumerName)   setFullName(ex.consumerName);
       if (ex.consumerNumber) setConsumerNumber(ex.consumerNumber);
       if (ex.meterCategory)  setMeterCategory(ex.meterCategory);
+      if (ex.discom)         setDiscom(ex.discom);
 
       if (data.confidence === "low") {
         setScanError(data.message || "Some fields could not be clearly extracted. Please verify manually.");
@@ -263,7 +296,8 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
         if (ex.retailer)      setScannedRetailer(ex.retailer);
         if (ex.state) {
           const auStates = countryStatesMap["AU"] || [];
-          if (auStates.includes(ex.state)) setCustomerState(ex.state);
+          const matchedState = auStates.find(s => s.toLowerCase() === ex.state.toLowerCase());
+          if (matchedState) setCustomerState(matchedState);
         }
         if (ex.monthlyBillEquivalent) {
           setMonthlyBill(ex.monthlyBillEquivalent); // monthly equiv of quarterly bill
@@ -286,7 +320,10 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
         if (ex.district)     setCity(ex.district);
 
         const currentStates = countryStatesMap[country] || countryStatesMap["IN"];
-        if (ex.detectedState && currentStates.includes(ex.detectedState)) setCustomerState(ex.detectedState);
+        if (ex.detectedState) {
+          const matchedState = currentStates.find(s => s.toLowerCase() === ex.detectedState.toLowerCase());
+          if (matchedState) setCustomerState(matchedState);
+        }
 
         const units = data.monthlyUnitsUsed || ex.monthlyUnits || null;
         setOcrMonthlyUnits(units);
@@ -364,22 +401,37 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
     }
     setIsSubmitting(true);
 
-    const capacity = eligibilityResult?.suggestedKW || (fetchedData?.eligibleCapacityKw) || Math.ceil(monthlyBill / 700);
-    const subsidy = eligibilityResult?.subsidy?.total ?? (capacity === 1 ? 33000 : capacity === 2 ? 66000 : 78500);
-    let finalCapacity = capacity;
-    if (selectedUpgradeKw && selectedUpgradeKw > capacity) {
+    // Evaluate final capacity to submit (prefer user's chosen kW from scale)
+    const baseCapacity = eligibilityResult?.suggestedKW || (fetchedData?.eligibleCapacityKw) || Math.ceil(monthlyBill / 700);
+    
+    // Prefer user's explicit selection (customKw or selectedKw) over the base calculation
+    let finalCapacity = customKw || selectedKw || baseCapacity;
+    if (selectedUpgradeKw && selectedUpgradeKw > finalCapacity) {
       finalCapacity = selectedUpgradeKw;
     }
+    
+    // Validate finalCapacity against project type limits
+    const { minKwLimit, maxKwLimit } = (() => {
+      const matchSlug = selectedProjectType || (isAU ? 'residential' : 'surya-ghar');
+      const cfg = projectTypeConfigs?.find(c => c.slug === matchSlug);
+      const elig = eligibilityCategories?.find(c => c.id === matchSlug || c.name?.toLowerCase() === matchSlug.toLowerCase());
+      return {
+        minKwLimit: elig?.minKW || 1,
+        maxKwLimit: elig?.maxKW || cfg?.maxKwLimit || (isAU ? 20 : 10)
+      };
+    })();
+
+    if (finalCapacity < minKwLimit || finalCapacity > maxKwLimit) {
+      alert(`You are not eligible for this project type with ${finalCapacity} kW.\nThe allowed range for ${selectedProjectType || 'this project'} is ${minKwLimit} kW to ${maxKwLimit} kW.\nPlease adjust your system size using the scale or select a different project type tab.`);
+      setIsSubmitting(false);
+      return;
+    }
+
+    const subsidy = eligibilityResult?.subsidy?.total ?? (finalCapacity === 1 ? 33000 : finalCapacity === 2 ? 66000 : 78500);
     const totalCost = finalCapacity * 60000;
     const net = totalCost - subsidy;
 
-    let mappedSolarType = "surya-ghar";
-    if (country === "AU") {
-      if (finalCapacity <= 6.6) mappedSolarType = "au-small-home";
-      else if (finalCapacity <= 10) mappedSolarType = "au-standard-family";
-      else if (finalCapacity <= 13) mappedSolarType = "au-large-home";
-      else mappedSolarType = "au-ev-owners";
-    }
+    let mappedSolarType = selectedProjectType || (country === "AU" ? "residential" : "surya-ghar");
 
     // Merge dynamic field values into submission (only for Lead-known keys)
     const KNOWN_LEAD_KEYS = ["consumerNumber","fullName","mobileNumber","email","postcode","city","customerState","monthlyBill","ownsProperty"];
@@ -392,7 +444,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
     const submission = {
         name: fullName || extraFromDynamic.fullName,
         mobile: mobileNumber || extraFromDynamic.mobileNumber,
-        email: extraFromDynamic.email,
+        email: email || extraFromDynamic.email,
         country: isAU ? 'australia' : 'india',
         city: city || extraFromDynamic.city,
         state: customerState || extraFromDynamic.customerState,
@@ -408,9 +460,8 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
         postcode: postcode || extraFromDynamic.postcode,
         retailer: isAU ? retailer : undefined,
         ownsProperty: ownsProperty !== undefined ? ownsProperty : extraFromDynamic.ownsProperty,
-        preferredSolarBrand: preferredSolarBrand || undefined,
-        preferredInverterBrand: preferredInverterBrand || undefined,
-        notes: `Estimated Subsidy / STC Rebate: ${subsidy}, Net Cost: ${net}`,
+        dynamicBrands: preferredBrands, // Send directly just in case backend expects it
+        notes: `Estimated Subsidy / STC Rebate: ${subsidy}, Net Cost: ${net}${Object.keys(preferredBrands).length > 0 ? ` | Preferred Brands: ${Object.keys(preferredBrands).map(k => `${k}:${availableBrands.find(b=>b._id===preferredBrands[k]||b.id===preferredBrands[k])?.name||preferredBrands[k]}`).join(', ')}` : ''}`,
       };
 
       try {
@@ -429,7 +480,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
           setSubmitSuccess({
             ...submission,
             isEligible: eligibilityResult?.isEligible ?? true,
-            estimatedCapacityKw: capacity,
+            estimatedCapacityKw: finalCapacity,
             estimatedSubsidy: subsidy,
             netCostEstimate: net,
             billFileName: uploadedFile ? uploadedFile.name : null,
@@ -455,6 +506,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
     setConsumerNumber("");
     setFullName("");
     setMobileNumber("");
+    setEmail("");
     setCity("Rajkot");
     setCustomerState("Gujarat");
     setMonthlyBill(2500);
@@ -470,8 +522,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
     setEligibilityError("");
     setDiscom(null);
     setTariffDesc(null);
-    setPreferredSolarBrand("");
-    setPreferredInverterBrand("");
+    setPreferredBrands({});
     setCustomKw(null);
     // AU scan state
     setScannedStcInfo(null);
@@ -563,6 +614,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
       consumerNumber: [consumerNumber, setConsumerNumber],
       fullName: [fullName, setFullName],
       mobileNumber: [mobileNumber, (v) => setMobileNumber(v.replace(/\D/g, ""))],
+      email: [email, setEmail],
       city: [city, setCity],
       customerState: [customerState, setCustomerState],
       monthlyBill: [monthlyBill, (v) => setMonthlyBill(Number(v))],
@@ -723,8 +775,39 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
                       placeholder={isAU ? "412 345 678" : "e.g. 98982 12345"}
                       className={`w-full ${isAU ? 'pl-9' : 'px-3'} pr-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium`} />
                   </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Email Address (Optional)</label>
+                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                      placeholder="e.g. hello@example.com"
+                      pattern="^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$"
+                      className="w-full px-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium invalid:[&:not(:placeholder-shown):not(:focus)]:border-red-500 invalid:[&:not(:placeholder-shown):not(:focus)]:ring-red-500" />
+                  </div>
                 </div>
               </div>
+              
+              {/* Dynamic Brand Selections */}
+              {productCategories.length > 0 && (
+                <div className="mt-3 bg-white p-3 rounded-xl border border-slate-200">
+                  <label className="block text-[11px] font-bold text-slate-700 mb-2">Preferred Brands (Optional)</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {productCategories.map(cat => (
+                      <div key={cat}>
+                        <label className="block text-[10px] text-slate-500 mb-1">{cat}</label>
+                        <select 
+                          value={preferredBrands[cat] || ""}
+                          onChange={(e) => setPreferredBrands(prev => ({...prev, [cat]: e.target.value}))}
+                          className="w-full px-2.5 py-1.5 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium"
+                        >
+                          <option value="">No Preference</option>
+                          {availableBrands.filter(b => b.products && b.products.includes(cat)).map(brand => (
+                            <option key={brand._id || brand.id} value={brand._id || brand.id}>{brand.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             )}
 

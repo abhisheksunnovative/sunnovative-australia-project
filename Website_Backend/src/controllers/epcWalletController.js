@@ -6,6 +6,7 @@ import { razorpay } from '../config/razorpay.js';
 import { sendLowBalanceAlert } from '../utils/sendWalletAlertEmail.js';
 import EpcPartner from '../models/EpcPartner.js';
 import EpcPlan from '../models/EpcPlan.js';
+import EpcKwPackage from '../models/EpcKwPackage.js';
 
 // ── Helper: fetch valid project types from OrderJourneySettings ─────────────
 const getValidProjectTypes = async (epc) => {
@@ -137,10 +138,11 @@ export const createRechargeOrder = async (req, res) => {
     const isAU = req.epc.country === 'australia' || req.epc.country === 'AU';
 
     if (packageId) {
-      const pkg = settings.rechargePackages.find(p => p.id === packageId && p.enabled);
+      const pkg = await EpcKwPackage.findOne({ _id: packageId, isActive: true });
       if (!pkg) return res.status(400).json({ message: 'Selected package not available' });
-      kwNum = pkg.kw;
-      amount = isAU ? kwNum * 150 : pkg.price; // Base logic for AU
+      kwNum = pkg.kwAmount;
+      amount = isAU ? kwNum * 150 : pkg.finalPrice; // Base logic for AU
+
     } else {
       kwNum = Number(kw);
       if (!kwNum || kwNum <= 0) return res.status(400).json({ message: 'Enter valid KW amount to purchase' });

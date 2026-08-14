@@ -84,8 +84,8 @@ export const uploadLeads = async (req, res) => {
           failedRows.push(row);
           continue;
         }
-        if (!row.district || !validDistricts.includes(row.district)) {
-          errors.push({ row: i + 1, message: 'District must match a known India district list' });
+        if (!row.district) {
+          errors.push({ row: i + 1, message: 'Missing mandatory field: District' });
           failedRows.push(row);
           continue;
         }
@@ -147,18 +147,23 @@ export const getDashboardStats = async (req, res) => {
     const active = await EpcBulkLead.countDocuments({ status: 'Active' });
     const pending = await EpcBulkLead.countDocuments({ status: 'Pending' });
     
+    const matchStage = req.query.country ? { country: req.query.country } : {};
+    
     // Aggregate by country
     const countryStats = await EpcBulkLead.aggregate([
+      { $match: matchStage },
       { $group: { _id: "$country", count: { $sum: 1 } } }
     ]);
     
     // Aggregate by State
     const stateStats = await EpcBulkLead.aggregate([
+      { $match: matchStage },
       { $group: { _id: "$state", count: { $sum: 1 } } }
     ]);
 
     // Aggregate by District
     const districtStats = await EpcBulkLead.aggregate([
+      { $match: matchStage },
       { $group: { _id: "$district", count: { $sum: 1 } } }
     ]);
 

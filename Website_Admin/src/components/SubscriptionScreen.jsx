@@ -51,18 +51,25 @@ export const SubscriptionScreen = () => {
     try {
       const res = await fetch("http://localhost:4005/api/countries");
       const data = await res.json();
-      if (data && data.length > 0) {
+      if (data.success && data.data && data.data.length > 0) {
+        setCountries(data.data);
+      } else if (data && data.length > 0 && !data.success) {
         setCountries(data);
-        if (!selectedCountry) setSelectedCountry(data[0].name);
       } else {
         setCountries([{ name: "India" }, { name: "Australia" }]);
-        setSelectedCountry("India");
       }
     } catch (e) {
       console.error(e);
       setCountries([{ name: "India" }, { name: "Australia" }]);
-      setSelectedCountry("India");
     }
+  };
+
+  const getCurrencySymbol = (countryName) => {
+    const c = countryName?.toLowerCase() || '';
+    if (c.includes('india') || c === 'in') return '₹';
+    if (c.includes('australia') || c === 'au') return '$';
+    if (c.includes('zealand') || c === 'nz') return '$';
+    return '₹';
   };
 
   const fetchDataForCountry = async (country) => {
@@ -107,18 +114,33 @@ export const SubscriptionScreen = () => {
             <p className="text-xs text-slate-500">Configure Base Tiers, KW Packs, and Installer Capacities by country</p>
           </div>
         </div>
-        <select
-          value={selectedCountry}
-          onChange={(e) => setSelectedCountry(e.target.value)}
-          className="text-sm font-semibold border-slate-300 rounded-lg focus:ring-secondary focus:border-secondary shadow-sm px-4 py-2"
-        >
-          {countries.map(c => (
-            <option key={c.name || c} value={c.name || c}>{c.name || c}</option>
-          ))}
-        </select>
+        {selectedCountry && (
+          <button
+            onClick={() => setSelectedCountry("")}
+            className="text-sm font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1"
+          >
+            Change Country
+          </button>
+        )}
       </div>
 
-      {/* TABS */}
+      {!selectedCountry ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {countries.map(c => (
+            <div 
+              key={c.name || c} 
+              onClick={() => setSelectedCountry(c.name || c)}
+              className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col items-center justify-center cursor-pointer hover:border-secondary hover:shadow-md transition-all group"
+            >
+              <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">{c.flagEmoji || '?'}</div>
+              <h3 className="text-lg font-bold text-slate-800">{c.name || c}</h3>
+              <p className="text-xs text-slate-400 mt-1 uppercase tracking-wider font-bold">Manage Plans</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <>
+          {/* TABS */}
       <div className="flex items-center gap-2 p-1.5 bg-slate-100 rounded-xl w-max">
         <TabButton
           active={activeTab === "base-plans"}
@@ -146,12 +168,14 @@ export const SubscriptionScreen = () => {
            <div className="py-20 text-center text-slate-500 text-sm font-bold animate-pulse">Loading settings...</div>
         ) : (
           <>
-            {activeTab === "base-plans" && <BasePlansTab plans={basePlans} country={selectedCountry} onRefresh={() => fetchDataForCountry(selectedCountry)} />}
-            {activeTab === "kw-packs" && <KwPacksTab packages={kwPackages} country={selectedCountry} onRefresh={() => fetchDataForCountry(selectedCountry)} />}
-            {activeTab === "installer-config" && <InstallerConfigTab config={installerConfig} country={selectedCountry} onRefresh={() => fetchDataForCountry(selectedCountry)} />}
+            {activeTab === "base-plans" && <BasePlansTab plans={basePlans} country={selectedCountry} onRefresh={() => fetchDataForCountry(selectedCountry)} getCurrencySymbol={getCurrencySymbol} />}
+            {activeTab === "kw-packs" && <KwPacksTab packages={kwPackages} country={selectedCountry} onRefresh={() => fetchDataForCountry(selectedCountry)} getCurrencySymbol={getCurrencySymbol} />}
+            {activeTab === "installer-config" && <InstallerConfigTab config={installerConfig} country={selectedCountry} onRefresh={() => fetchDataForCountry(selectedCountry)} getCurrencySymbol={getCurrencySymbol} />}
           </>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 };
@@ -159,7 +183,7 @@ export const SubscriptionScreen = () => {
 // ----------------------------------------------------------------------------------
 // 1. BASE PLANS TAB
 // ----------------------------------------------------------------------------------
-const BasePlansTab = ({ plans, country, onRefresh }) => {
+const BasePlansTab = ({ plans, country, onRefresh, getCurrencySymbol }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
@@ -206,7 +230,7 @@ const BasePlansTab = ({ plans, country, onRefresh }) => {
             <div key={p._id} className="border border-slate-200 rounded-xl p-5 shadow-sm relative group hover:border-secondary transition-colors">
               <button onClick={() => handleDelete(p._id)} className="absolute top-3 right-3 text-red-400 opacity-0 group-hover:opacity-100 hover:text-red-600 cursor-pointer"><Trash2 className="w-4 h-4"/></button>
               <h4 className="font-bold text-slate-800 text-lg">{p.name}</h4>
-              <p className="text-2xl font-black text-secondary mt-1">₹{p.monthlyPrice}<span className="text-xs text-slate-400 font-normal">/mo</span></p>
+              <p className="text-2xl font-black text-secondary mt-1">{getCurrencySymbol(country)}{p.monthlyPrice}<span className="text-xs text-slate-400 font-normal">/mo</span></p>
               
               <div className="mt-4 pt-4 border-t border-slate-100 space-y-2 text-xs text-slate-600 font-medium">
                 <p className="flex justify-between"><span>Min Experience:</span> <span>{p.minYearsExperience}+ yrs</span></p>
@@ -245,11 +269,11 @@ const BasePlansTab = ({ plans, country, onRefresh }) => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Monthly Price (₹)</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Monthly Price ({getCurrencySymbol(country)})</label>
                   <input required type="number" value={formData.monthlyPrice} onChange={e => setFormData({...formData, monthlyPrice: e.target.value})} className="w-full text-sm font-semibold rounded-lg border-slate-300" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Annual Price (₹)</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Annual Price ({getCurrencySymbol(country)})</label>
                   <input required type="number" value={formData.annualPrice} onChange={e => setFormData({...formData, annualPrice: e.target.value})} className="w-full text-sm font-semibold rounded-lg border-slate-300" />
                 </div>
               </div>
@@ -269,7 +293,7 @@ const BasePlansTab = ({ plans, country, onRefresh }) => {
 // ----------------------------------------------------------------------------------
 // 2. KW PACKS TAB
 // ----------------------------------------------------------------------------------
-const KwPacksTab = ({ packages, country, onRefresh }) => {
+const KwPacksTab = ({ packages, country, onRefresh, getCurrencySymbol }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
@@ -319,8 +343,8 @@ const KwPacksTab = ({ packages, country, onRefresh }) => {
               <h4 className="font-bold text-slate-600 text-sm mt-3">{p.name}</h4>
               <p className="text-3xl font-black text-blue-600 mt-2">{p.kwAmount} <span className="text-sm font-bold">KW</span></p>
               <div className="mt-4 pt-4 border-t border-slate-100">
-                <p className="text-lg font-bold text-slate-800">₹{p.finalPrice}</p>
-                {p.discountPercent > 0 && <p className="text-xs text-emerald-600 font-bold">{p.discountPercent}% OFF (Was ₹{p.basePrice})</p>}
+                <p className="text-lg font-bold text-slate-800">{getCurrencySymbol(country)}{p.finalPrice}</p>
+                {p.discountPercent > 0 && <p className="text-xs text-emerald-600 font-bold">{p.discountPercent}% OFF (Was {getCurrencySymbol(country)}{p.basePrice})</p>}
               </div>
             </div>
           ))
@@ -343,7 +367,7 @@ const KwPacksTab = ({ packages, country, onRefresh }) => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Base Price (₹)</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Base Price ({getCurrencySymbol(country)})</label>
                   <input required type="number" value={formData.basePrice} onChange={e => setFormData({...formData, basePrice: e.target.value})} className="w-full text-sm font-semibold rounded-lg border-slate-300" />
                 </div>
                 <div>
@@ -367,7 +391,7 @@ const KwPacksTab = ({ packages, country, onRefresh }) => {
 // ----------------------------------------------------------------------------------
 // 3. INSTALLER CONFIG TAB
 // ----------------------------------------------------------------------------------
-const InstallerConfigTab = ({ config, country, onRefresh }) => {
+const InstallerConfigTab = ({ config, country, onRefresh, getCurrencySymbol }) => {
   const [formData, setFormData] = useState({
     baseInstallersIncluded: config?.baseInstallersIncluded || 1,
     weeklyKwCapacityPerInstaller: config?.weeklyKwCapacityPerInstaller || 25,
@@ -419,7 +443,7 @@ const InstallerConfigTab = ({ config, country, onRefresh }) => {
           </div>
         </div>
         <div>
-          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Price per Extra Installer / mo (₹)</label>
+          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Price per Extra Installer / mo ({getCurrencySymbol(country)})</label>
           <div className="flex gap-2">
             <input required type="number" value={formData.extraInstallerPrice} onChange={e => setFormData({...formData, extraInstallerPrice: e.target.value})} className="w-full text-sm font-semibold rounded-lg border-slate-300" />
             <button type="submit" disabled={isSaving} className="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded-lg text-sm font-bold whitespace-nowrap cursor-pointer">

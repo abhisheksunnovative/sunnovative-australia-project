@@ -20,6 +20,9 @@ const CustomerSchema = new mongoose.Schema({
   loginPin:    { type: String, default: null },  // hashed
   pinSet:      { type: Boolean, default: false },
 
+  leadKw:          { type: Number, default: 0 },
+  leadProjectType: { type: String, default: '' },
+
   isActive:    { type: Boolean, default: true },
 
   documents: [{

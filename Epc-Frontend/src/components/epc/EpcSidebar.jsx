@@ -207,7 +207,7 @@ const EpcSidebar = ({ collapsed, setCollapsed, darkMode, setDarkMode, setMobileO
   ];
 
   return (
-    <aside className={`${collapsed ? 'w-16' : 'w-60'} transition-all duration-300 bg-[#28377f] border-r border-[#1e2a60] flex flex-col h-screen sticky top-0 z-40`}>
+    <aside className={`${collapsed ? 'w-16' : 'w-60'} transition-all duration-300 bg-[#28377f] text-white border-r border-[#1e2a60] flex flex-col h-screen sticky top-0 z-40`}>
 
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-[#1e2a60]">
@@ -239,11 +239,11 @@ const EpcSidebar = ({ collapsed, setCollapsed, darkMode, setDarkMode, setMobileO
               title={collapsed ? item.label : undefined}
               onClick={() => setMobileOpen && setMobileOpen(false)}
               className={({ isActive }) =>
-                `relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 hover:translate-x-1 ${
+                `relative flex items-center gap-3 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-yellow-400 text-blue-900 font-bold shadow-md shadow-yellow-400/20'
+                    ? 'bg-yellow-400 text-blue-900 font-bold shadow-md shadow-yellow-400/20 transform translate-x-1.5'
                     : 'text-blue-100 hover:bg-[#1e2a60] hover:text-white'
-                }`
+                } ${collapsed ? 'justify-center px-0' : 'px-4'}`
               }
             >
               {/* Icon wrapper — badge overlays here in collapsed mode */}
@@ -277,13 +277,13 @@ const EpcSidebar = ({ collapsed, setCollapsed, darkMode, setDarkMode, setMobileO
       </nav>
 
       {/* Bottom */}
-      <div className="border-t border-[#1e2a60] p-3 space-y-2">
+      <div className="bg-[#1e2a60] border-t border-[#1e2a60] p-3 space-y-2">
 
         {/* Dark / Light toggle */}
         <button
           onClick={() => setDarkMode(!darkMode)}
           title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-blue-200 hover:bg-[#1e2a60] hover:text-white ${collapsed ? 'justify-center' : ''}`}
+          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-blue-200 hover:bg-white/10 hover:text-white ${collapsed ? 'justify-center' : ''}`}
         >
           {darkMode ? (
             <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -308,9 +308,9 @@ const EpcSidebar = ({ collapsed, setCollapsed, darkMode, setDarkMode, setMobileO
               </span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white text-xs font-medium truncate">{epc?.companyName}</p>
-              <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${planColors[epc?.plan] || 'bg-[#1e2a60] text-blue-200'}`}>
-                {epc?.plan}
+              <p className="text-sm font-black text-white">{epc?.companyName || 'My EPC'}</p>
+              <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${planColors[epc?.plan] || 'bg-white/10 text-blue-200'}`}>
+                {epc?.plan || 'Free'} Plan
               </span>
             </div>
             <button onClick={logout} className="text-blue-200 hover:text-red-300 flex-shrink-0" title="Logout">

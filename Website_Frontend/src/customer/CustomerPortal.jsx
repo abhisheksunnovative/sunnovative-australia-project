@@ -478,12 +478,16 @@ const AUSTRALIA_STATES = [
 function SolarPackages({ onApply, preselectedType }) {
   const [packages, setPackages] = useState([]);
   const [stateOverrides, setStateOverrides] = useState({});
-  const [selectedState, setSelectedState] = useState("Gujarat");
   const [loading, setLoading] = useState(true);
   const [minBookingDays, setMinBookingDays] = useState(5);
-
   const { country } = useCountry();
   const getCountryCode = () => { if (country === "AU") return "australia"; if (country === "NZ") return "new_zealand"; return "india"; };
+  
+  const [selectedState, setSelectedState] = useState(country === "AU" ? AUSTRALIA_STATES[0] : "Gujarat");
+
+  useEffect(() => {
+    setSelectedState(country === "AU" ? AUSTRALIA_STATES[0] : "Gujarat");
+  }, [country]);
 
   useEffect(() => {
     fetch(`${API}/api/customer/public/solar-packages`, { headers: { "x-country": getCountryCode() } })
@@ -915,78 +919,29 @@ function ProjectDetail({ projectId, onBack, authFetch }) {
           </div>
         )}
 
-        {/* Australia BDE EPC Recommendation Block */}
-        {project.bdeRecommendationStatus === "pending" && project.recommendedEpcs?.length > 0 && (
-          <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-blue-200 rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center shrink-0 shadow-sm text-white">
-                <Star className="w-5 h-5 animate-pulse" />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-blue-950">Recommended Installers</h3>
-                <p className="text-xs font-medium text-blue-800 mt-0.5">Humare BDE ne aapke project ke liye {project.recommendedEpcs.length} best EPCs select kiye hain. Kripya ek chunein.</p>
-              </div>
-            </div>
-            
-            <div className="space-y-3">
-              {project.recommendedEpcs.map(epc => (
-                <div key={epc._id} className="bg-white border border-blue-100 rounded-xl p-4 flex items-center justify-between gap-4">
-                  <div>
-                    <p className="font-black text-slate-800">{epc.companyName}</p>
-                    <p className="text-xs text-slate-500">{epc.city}, {epc.state} • ⭐ {epc.rating} Rating</p>
-                  </div>
-                  <button 
-                    onClick={async () => {
-                      if (window.confirm(`Kya aap ${epc.companyName} ko as a installer accept karna chahte hain?`)) {
-                        try {
-                          const res = await authFetch(`/api/customer/projects/${projectId}/accept-epc`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ epcId: epc._id, epcName: epc.companyName })
-                          });
-                          const d = await res.json();
-                          if (d.success) {
-                            alert("EPC Successfully Assigned! 🚀");
-                            fetchProject();
-                          } else alert(d.message || "Failed to accept EPC");
-                        } catch(e) { alert("Error connecting to server"); }
-                      }
-                    }}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition shadow-sm whitespace-nowrap"
-                  >
-                    Accept & Assign
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            <button 
-              onClick={async () => {
-                if (window.confirm("Are you sure you want to reject all recommendations and request new ones?")) {
-                  try {
-                    const res = await authFetch(`/api/customer/projects/${projectId}/reject-epcs`, { method: "POST" });
-                    const d = await res.json();
-                    if (d.success) {
-                      alert("Recommendations rejected. Your BDE will send new ones soon.");
-                      fetchProject();
-                    } else alert(d.message);
-                  } catch(e) { alert("Error connecting to server"); }
-                }
-              }}
-              className="w-full mt-4 py-2 border border-blue-200 text-blue-600 font-bold text-xs rounded-xl hover:bg-blue-100 transition"
-            >
-              Reject All & Request New
-            </button>
-          </div>
-        )}
-
         {/* ── PROGRESS TRACKER (VERTICAL) ── */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm relative overflow-hidden">
           <div className="flex items-center gap-2 mb-4">
             <BarChart3 className="w-4 h-4 text-yellow-500" />
             <h3 className="font-black text-slate-800">Installation Journey</h3>
           </div>
-          <ProjectJourneyTracker steps={project.steps} projectId={project._id} onRefresh={fetchProject} />
+          
+          {project.status === "awaiting-admin-confirmation" ? (
+            <div className="relative">
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/40 backdrop-blur-[6px] rounded-xl">
+                <div className="bg-red-50 text-red-700 border border-red-200 px-6 py-4 rounded-xl shadow-lg text-center max-w-sm mx-auto">
+                  <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2 animate-pulse" />
+                  <p className="font-bold text-sm">Waiting for Final Confirmation</p>
+                  <p className="text-[10px] mt-1.5 opacity-90 leading-tight">Please wait until your BDE locks the final installation date and our Admin confirms your order. Your step-by-step journey will be visible here once confirmed.</p>
+                </div>
+              </div>
+              <div className="opacity-20 pointer-events-none select-none">
+                <ProjectJourneyTracker steps={project.steps} projectId={project._id} onRefresh={fetchProject} />
+              </div>
+            </div>
+          ) : (
+            <ProjectJourneyTracker steps={project.steps} projectId={project._id} onRefresh={fetchProject} />
+          )}
         </div>
 
         {/* EPC Partner */}
@@ -1069,7 +1024,7 @@ function ProjectDetail({ projectId, onBack, authFetch }) {
 }
 
 // ── APPLY MODAL ───────────────────────────────────────────────────────────────
-function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer, country, authFetch, customerLead, onClose, onSuccess }) {
+function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer, country, authFetch, customerLead, paymentSettings, onClose, onSuccess }) {
   const isAU = country === "AU" || customerLead?.country === "australia";
 
   const [form, setForm] = useState({
@@ -1085,9 +1040,9 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [rooftopPhoto, setRooftopPhoto] = useState(null);
+  const [applyUploadFile, setApplyUploadFile] = useState(null);
   const [geo, setGeo] = useState({ lat: null, lng: null });
   const [geoError, setGeoError] = useState("");
-  const fileRef = useRef();
 
   // For CUSTOMER_SELECT
   const [modalStep, setModalStep] = useState(1);
@@ -1099,26 +1054,57 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
   const [availableCapacities, setAvailableCapacities] = useState([]);
   const [selectedCapacity, setSelectedCapacity] = useState(null);
   const [availableBrands, setAvailableBrands] = useState([]);
+  const [productCategories, setProductCategories] = useState([]);
   const [selectedBrands, setSelectedBrands] = useState([]);
+  const [fetchingEpcs, setFetchingEpcs] = useState(false);
+
+  const calculateSTC = (kw) => {
+    // Realistic STC calculation for Australia (2026 deeming period = 5 years, Zone 3 rating = 1.382, Price = $38)
+    return Math.round(kw * 1.382 * 5 * 38);
+  };
 
   useEffect(() => {
     const fetchCapacities = async () => {
       try {
-        const res = await fetch(`${API}/api/project-pricing/capacities?country=${country}`);
+        const resolvedCountry = country === "AU" ? "australia" : country === "NZ" ? "new_zealand" : "india";
+        const res = await fetch(`${API}/api/project-pricing/capacities?country=${resolvedCountry}`);
         const data = await res.json();
         if (data.success) {
-          setAvailableCapacities(data.data);
+          const uniqueCaps = [];
+          const seen = new Set();
+          for (const item of data.data) {
+            if (!seen.has(item.systemSizeKW)) {
+              seen.add(item.systemSizeKW);
+              uniqueCaps.push(item);
+            }
+          }
+          uniqueCaps.sort((a, b) => a.systemSizeKW - b.systemSizeKW);
+          setAvailableCapacities(uniqueCaps);
         }
       } catch (err) {}
     };
 
     const fetchBrands = async () => {
       try {
+        const resolvedCountry = country === "AU" ? "australia" : country === "NZ" ? "new_zealand" : "india";
         const pType = pkg?.projectType || "Residential";
-        const res = await fetch(`${API}/api/brands?country=${country}&projectType=${pType}`);
+        const res = await fetch(`${API}/api/brands?country=${resolvedCountry}&projectType=${pType}`);
         const data = await res.json();
         if (data.success) {
           setAvailableBrands(data.data);
+        }
+      } catch (err) {}
+    };
+
+    const fetchProductConfigs = async () => {
+      try {
+        const resolvedCountry = country === "AU" ? "australia" : country === "NZ" ? "new_zealand" : "india";
+        const pType = pkg?.projectType || "Residential Solar";
+        const res = await fetch(`${API}/api/product-configs?country=${resolvedCountry}&projectType=${pType}`);
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const uniqueCategories = [...new Set(data.map(item => item.productCategory))];
+          setProductCategories(uniqueCategories);
         }
       } catch (err) {}
     };
@@ -1128,18 +1114,43 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
     }
     if (modalStep === 2) {
       fetchBrands();
+      fetchProductConfigs();
     }
     
-    if (modalStep === 3 && isAU) {
+    if (modalStep === 4 && isAU) {
       const fetchEpcs = async () => {
+        setFetchingEpcs(true);
         try {
-          const brandQuery = selectedBrands.map(b => b._id || b.id || b.name).join(',');
-          const res = await fetch(`${API}/api/customer/epcs?state=${selectedState}&country=australia&brands=${brandQuery}`);
+          const brandQuery = selectedBrands.map(b => b.name).join(',');
+          const queryState = customer?.state || selectedState;
+          const queryDistrict = customer?.district || customer?.city || '';
+          
+          console.log("=== DEBUG EPC FETCH ===");
+          console.log("Selected Brands:", selectedBrands);
+          console.log("Brand Query:", brandQuery);
+          console.log("State:", queryState, "District:", queryDistrict);
+          
+          let epcUrl = `/api/customer/epcs?state=${queryState}&country=australia&brands=${brandQuery}`;
+          if (queryDistrict) {
+            epcUrl += `&district=${queryDistrict}`;
+          }
+          console.log("Final URL:", epcUrl);
+          
+          const res = await authFetch(epcUrl);
           const data = await res.json();
+          console.log("API Response:", data);
+          
           if (data.success) {
              setAvailableEpcs(data.data);
+          } else {
+             console.error("API returned success: false");
+             setAvailableEpcs([]);
           }
-        } catch (err) {}
+        } catch (err) {
+          console.error("Error fetching EPCs:", err);
+          setAvailableEpcs([]);
+        }
+        setFetchingEpcs(false);
       };
       fetchEpcs();
     }
@@ -1163,6 +1174,40 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
     setError("");
     const dynamicSet = generateDynamicEligibility(consumerNumber.replace(/\s+/g, ""), 2500); 
     setEligibilityResult(dynamicSet);
+  };
+
+  const handleApplyUploadFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setApplyUploadFile(file);
+      setGeoError("");
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            setGeo({ lat, lng });
+
+            // Reverse Geocoding
+            try {
+              const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+              const data = await res.json();
+              if (data && data.address) {
+                const fetchedAddress = data.display_name || "";
+                const fetchedCity = data.address.city || data.address.town || data.address.village || "";
+                const fetchedPincode = data.address.postcode || "";
+                setForm(p => ({ ...p, address: fetchedAddress, city: fetchedCity, pincode: fetchedPincode }));
+              }
+            } catch (err) {
+              console.error("Reverse geocoding failed", err);
+            }
+          },
+          (err) => setGeoError("Location access denied. Please allow location to proceed.")
+        );
+      } else {
+        setGeoError("Geolocation is not supported by your browser.");
+      }
+    }
   };
 
   const handlePhotoChange = (e) => {
@@ -1201,9 +1246,10 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
 
   const submit = async () => {
     if (!form.address || !form.city) return setError("Address aur city required hain");
-    if (!rooftopPhoto) return setError(isAU ? "Utility Bill/Site Document zaroori hai" : "Rooftop photo upload karna zaroori hai");
+    if (!isAU && !rooftopPhoto) return setError("Rooftop photo upload karna zaroori hai");
+    if (isAU && !applyUploadFile) return setError("Utility Bill/Site Document zaroori hai");
     if (!geo.lat) return setError("Location capture nahi hui. Photo upload retry karein aur location allow karein.");
-    if (!isAU && !form.preferredInstallDate) return setError("Install date select karein");
+    if (!form.preferredInstallDate) return setError("Install date select karein");
 
     setSubmitting(true);
     const fd = new FormData();
@@ -1226,7 +1272,11 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
       payload.selectedEpcName = selectedEpc.companyName;
     }
     fd.append("payload", JSON.stringify(payload));
-    fd.append("rooftopPhoto", rooftopPhoto);
+    if (applyUploadFile) {
+      fd.append("rooftopPhoto", applyUploadFile);
+    } else {
+      fd.append("rooftopPhoto", rooftopPhoto);
+    }
 
     try {
       const res = await fetch(`${API}/api/customer/projects`, {
@@ -1331,10 +1381,10 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
           {/* Applicable Payment Options */}
           {paymentSettings && paymentSettings.projectConfigs && paymentSettings.projectConfigs.find(c => c.projectType.toLowerCase() === (pkg.suitable?.[0]?.replace(" Solar","").toLowerCase() || "residential"))?.options.length > 0 && (
             <div className="mt-3 bg-white/10 border border-white/20 p-3 rounded-lg">
-              <p className="text-xs text-orange-200 font-bold uppercase tracking-wider mb-2">Applicable Payment Options</p>
+              <p className="text-xs text-blue-100 font-bold uppercase tracking-wider mb-2">Applicable Payment Options</p>
               <div className="flex flex-wrap gap-2">
                 {paymentSettings.projectConfigs.find(c => c.projectType.toLowerCase() === (pkg.suitable?.[0]?.replace(" Solar","").toLowerCase() || "residential")).options.map((opt, i) => (
-                  <span key={i} className="text-xs px-2 py-1 bg-orange-500/20 text-orange-100 rounded border border-orange-500/30">
+                  <span key={i} className="text-xs px-2 py-1 bg-blue-500/20 text-blue-100 rounded border border-blue-500/30">
                     {opt.method} {opt.provider ? `via ${opt.provider}` : ''}
                   </span>
                 ))}
@@ -1343,7 +1393,7 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
           )}
         </div>
 
-        <div className="p-5 flex-1 overflow-y-auto space-y-5">
+        <div className="flex-1 overflow-y-auto p-5 space-y-5">
           {modalStep === 1 && isAU ? (
             <div>
               <h4 className="text-sm font-black text-slate-700 mb-3 border-b border-slate-100 pb-1">Step 1: Select System Capacity</h4>
@@ -1358,7 +1408,7 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
                       <div className="flex justify-between items-center">
                         <div>
                           <p className="font-bold text-slate-800 text-sm">{cap.systemSizeKW} kW System</p>
-                          <p className="text-[10px] text-slate-500">Estimated STC Rebate: ${cap.estimatedSubsidy}</p>
+                          <p className="text-[10px] text-slate-500">Estimated STC Rebate: ${cap.estimatedSubsidy || calculateSTC(cap.systemSizeKW)}</p>
                         </div>
                         <div className="w-4 h-4 rounded-full border-2 border-slate-300 flex items-center justify-center">
                           {selectedCapacity?._id === cap._id && <div className="w-2 h-2 bg-yellow-500 rounded-full" />}
@@ -1369,16 +1419,16 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
                 )}
               </div>
             </div>
-          ) : modalStep === (isAU ? 2 : 2) ? (
+          ) : modalStep === 2 ? (
             <div>
-              <h4 className="text-sm font-black text-slate-700 mb-3 border-b border-slate-100 pb-1">Step {isAU ? 2 : 2}: Select Preferred Brands</h4>
+              <h4 className="text-sm font-black text-slate-700 mb-3 border-b border-slate-100 pb-1">Step 2: Select Preferred Brands</h4>
               <p className="text-xs text-slate-500 mb-4">Select the Solar Panels and Inverters you prefer.</p>
-              <div className="space-y-4 max-h-60 overflow-y-auto pr-1">
+              <div className="space-y-4">
                 {availableBrands.length === 0 ? (
                   <p className="text-xs text-slate-500 text-center py-4"><Loader2 className="w-5 h-5 animate-spin mx-auto text-slate-400 mb-2"/> Fetching brands...</p>
                 ) : (
-                  ['Solar', 'Inverter', 'Battery'].map(type => {
-                    const typeBrands = availableBrands.filter(b => b.type === type);
+                  (productCategories.length > 0 ? productCategories : ['Solar Panel', 'Inverter', 'Battery']).map(type => {
+                    const typeBrands = availableBrands.filter(b => b.products && b.products.includes(type));
                     if (typeBrands.length === 0) return null;
                     return (
                       <div key={type}>
@@ -1407,13 +1457,62 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
                 )}
               </div>
             </div>
-          ) : modalStep === (isAU ? 3 : 3) && (isAU || epcSelectionMode) ? (
+          ) : modalStep === 3 && isAU ? (
             <div>
-              <h4 className="text-sm font-black text-slate-700 mb-3 border-b border-slate-100 pb-1">Step {isAU ? 3 : 3}: Select Your Solar Installer (EPC)</h4>
+                <h4 className="text-sm font-black text-slate-700 mb-3 border-b border-slate-100 pb-1">Step 3: Application Details & Documents</h4>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Applicant's Name *</label>
+                    <input type="text" value={form.applicantName || customer?.fullName || ""} onChange={e => setForm(p => ({ ...p, applicantName: e.target.value }))}
+                      placeholder="Full Name"
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-yellow-400/50" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Customer Category *</label>
+                    <select value={form.customerCategory} onChange={e => setForm(p => ({ ...p, customerCategory: e.target.value }))}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-yellow-400/50">
+                      <option value="Residential">Residential</option>
+                      <option value="Commercial">Commercial</option>
+                      <option value="Industrial">Industrial</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="mb-4">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Preferred Installation Date *</label>
+                  <input type="date" value={form.preferredInstallDate} min={getMinDateString()} onChange={e => setForm(p => ({ ...p, preferredInstallDate: e.target.value }))}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-yellow-400/50" />
+                </div>
+                <div className="mb-4">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Utility Bill / Site Document (Required) *</label>
+                  <div className={`border-2 border-dashed rounded-xl p-3 text-center cursor-pointer transition ${applyUploadFile ? "border-green-300 bg-green-50" : "border-slate-200 hover:border-slate-300"}`}
+                    onClick={() => document.getElementById('apply-upload-file').click()}>
+                    <input id="apply-upload-file" type="file" accept="image/*,application/pdf" className="hidden" onChange={handleApplyUploadFileChange} />
+                    {applyUploadFile ? (
+                      <div>
+                        <p className="text-xs font-bold text-green-700">📎 {applyUploadFile.name}</p>
+                        {geo.lat && <p className="text-[10px] text-green-600 font-bold mt-1">📍 Auto-fetched location ({geo.lat.toFixed(4)}, {geo.lng.toFixed(4)})</p>}
+                      </div>
+                    ) : (
+                      <p className="text-xs font-bold text-slate-500 flex items-center justify-center gap-2">
+                        <Camera className="w-4 h-4" /> Tap to upload utility bill or site document
+                      </p>
+                    )}
+                  </div>
+                  {geoError && <p className="text-[10px] text-red-500 mt-1">{geoError}</p>}
+                </div>
+            </div>
+          ) : (modalStep === 4 && isAU) || (modalStep === 3 && !isAU && epcSelectionMode) ? (
+            <div className="flex flex-col h-full">
+              <h4 className="text-sm font-black text-slate-700 mb-3 border-b border-slate-100 pb-1">Step {isAU ? 4 : 3}: Select Your Solar Installer (EPC)</h4>
               <p className="text-xs text-slate-500 mb-4">Aapke area ke mutabiq available certified installers ki list. (Filtered by your preferred brands)</p>
-              <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-                {availableEpcs.length === 0 ? (
+              <div className="space-y-3 flex-1">
+                {fetchingEpcs ? (
                   <p className="text-xs text-slate-500 text-center py-4"><Loader2 className="w-5 h-5 animate-spin mx-auto text-slate-400 mb-2"/> Fetching EPCs...</p>
+                ) : availableEpcs.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-sm font-bold text-slate-700">No EPCs found</p>
+                    <p className="text-xs text-slate-500 mt-1">Try selecting different brands or modifying your location.</p>
+                  </div>
                 ) : (
                   availableEpcs.map(epc => (
                     <div key={epc._id} onClick={() => setSelectedEpc(epc)}
@@ -1479,7 +1578,6 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
               </div>
             </div>
 
-            {/* Date Picker - India only or general? Actually Australia wants "Installation Date" to not be there maybe? The user said: "Conditionally render India fields (Rooftop Photo geo-tagged, Consumer Number, Installation Date)." But wait! If Installation Date is India only, I should hide it for AU. */}
             {!isAU && (
               <div className="mb-4">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Date *</label>
@@ -1494,11 +1592,11 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
             {/* Geo-tag & Photo / Utility Bill */}
             <div className="mb-4">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                {isAU ? "Recent Utility Bill (Required) *" : "Rooftop Photo *"}
+                Rooftop Photo *
               </label>
               <div className={`border-2 border-dashed rounded-xl p-3 text-center cursor-pointer transition ${rooftopPhoto ? "border-green-300 bg-green-50" : "border-slate-200 hover:border-slate-300"}`}
                 onClick={() => fileRef.current?.click()}>
-                <input ref={fileRef} type="file" accept={isAU ? "image/*,application/pdf" : "image/*"} className="hidden" onChange={handlePhotoChange} />
+                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
                 {rooftopPhoto ? (
                   <div>
                     <p className="text-xs font-bold text-green-700">📎 {rooftopPhoto.name}</p>
@@ -1506,7 +1604,7 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
                   </div>
                 ) : (
                   <p className="text-xs font-bold text-slate-500 flex items-center justify-center gap-2">
-                    <Camera className="w-4 h-4" /> {isAU ? "Tap to upload utility bill or site document" : "Tap to upload terrace photo"}
+                    <Camera className="w-4 h-4" /> Tap to upload terrace photo
                   </p>
                 )}
               </div>
@@ -1526,13 +1624,13 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
                     disabled={
                       (modalStep === 1 && isAU && !selectedCapacity) ||
                       (modalStep === 2 && selectedBrands.length === 0) ||
-                      (modalStep === 3 && isAU && !selectedEpc)
+                      (modalStep === 3 && isAU && (!applyUploadFile || !form.preferredInstallDate))
                     }
                     className="w-full py-3.5 px-8 bg-yellow-400 text-yellow-900 font-black text-sm rounded-xl hover:bg-amber-400 transition flex items-center justify-center gap-2 disabled:opacity-50">
                     Next Step <ArrowRight className="w-4 h-4" />
                   </button>
                 ) : (
-                  <button onClick={submit} disabled={submitting || (!isAU && epcSelectionMode && !selectedEpc)}
+                  <button onClick={submit} disabled={submitting || (isAU && !selectedEpc) || (!isAU && epcSelectionMode && !selectedEpc)}
                     className="w-full py-3.5 px-8 bg-yellow-400 text-yellow-900 font-black text-sm rounded-xl hover:bg-amber-400 transition flex items-center justify-center gap-2 disabled:opacity-50">
                     {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
                     {submitting ? "Processing..." : (isAU ? "Confirm & Place Order" : (epcSelectionMode ? "Confirm EPC & Pay" : "Submit Application"))}
@@ -1571,8 +1669,10 @@ export default function CustomerPortal({ onClose }) {
   const [applyData, setApplyData] = useState(null);
   const [appliedProject, setAppliedProject] = useState(null);
   const { country } = useCountry();
+  const getCountryCode = () => { if (country === "AU") return "australia"; if (country === "NZ") return "new_zealand"; return "india"; };
   const [journeySettings, setJourneySettings] = useState(null);
   const [paymentSettings, setPaymentSettings] = useState(null);
+  const [eligibilityCategories, setEligibilityCategories] = useState([]);
   const [customerLead, setCustomerLead] = useState(null);
   const [backendNotifications, setBackendNotifications] = useState([]);
   const [selectedNotifIds, setSelectedNotifIds] = useState([]);
@@ -1759,15 +1859,21 @@ export default function CustomerPortal({ onClose }) {
 
   const fetchJourneyAndPayment = async () => {
     try {
-      const res = await fetch(`${API}/api/order-journey/${country || "IN"}`);
+      const code = getCountryCode();
+      const res = await fetch(`${API}/api/order-journey/${code}`);
       if(res.ok) {
         const d = await res.json();
         setJourneySettings(d);
       }
-      const payRes = await fetch(`${API}/api/customer-payment-settings/${country || "IN"}`);
+      const payRes = await fetch(`${API}/api/admin/payment-settings/payment-settings?country=${code}`);
       if(payRes.ok) {
         const p = await payRes.json();
         setPaymentSettings(p);
+      }
+      const eligRes = await fetch(`${API}/api/eligibility-settings`, { headers: { "country": getCountryCode() } });
+      if(eligRes.ok) {
+        const e = await eligRes.json();
+        if (e.success && e.data?.projectCategories) setEligibilityCategories(e.data.projectCategories);
       }
     } catch(err) { console.error(err); }
   };
@@ -1802,7 +1908,35 @@ export default function CustomerPortal({ onClose }) {
     setTimeout(() => setProfileMsg(""), 3000);
   };
 
-  const handleApply = (pkg, state, stateSubsidy, minBookingDays) => setApplyData({ pkg, state, stateSubsidy, minBookingDays });
+  const handleApply = (pkg, state, stateSubsidy, minBookingDays) => {
+    const isAU = country === "AU" || customer?.country === "australia";
+    const leadTypeSlug = customer?.latestLead?.solarType || "";
+    const leadKw = Number(customer?.latestLead?.kw || 0);
+    
+    // Only block if they are trying to apply for a DIFFERENT project type
+    if (leadTypeSlug && pkg.projectType !== leadTypeSlug) {
+      // Find limits for the selected project type
+      const elig = eligibilityCategories?.find(c => c.id === pkg.projectType || c.name?.toLowerCase() === pkg.projectType.toLowerCase());
+      const cfg = journeySettings?.projectTypes?.find(c => c.projectType === pkg.projectType); // From order journey
+      const minKW = elig?.minKW || 1;
+      const maxKW = elig?.maxKW || cfg?.maxKwLimit || (isAU ? 20 : 10);
+      
+      if (leadKw > 0 && (leadKw < minKW || leadKw > maxKW)) {
+        const newKw = prompt(`Your lead was submitted for ${leadKw} kW, which is not eligible for ${pkg.name || pkg.projectType}.\n\nThe allowed range for this project is ${minKW} kW to ${maxKW} kW.\n\nTo proceed, please enter a new valid kW size:`);
+        if (!newKw || isNaN(newKw) || Number(newKw) < minKW || Number(newKw) > maxKW) {
+          alert(`Application cancelled. You must provide a valid kW between ${minKW} and ${maxKW}.`);
+          return;
+        } else {
+          // If valid, temporarily override customer lead kW for this session
+          if (customer && customer.latestLead) {
+             customer.latestLead.kw = Number(newKw);
+          }
+        }
+      }
+    }
+    
+    setApplyData({ pkg, state, stateSubsidy, minBookingDays });
+  };
 
   const handleApplySuccess = (newProj) => {
     setApplyData(null);
@@ -1873,12 +2007,41 @@ export default function CustomerPortal({ onClose }) {
     };
   }, [projects, activeProjectDetail]);
 
+  const unratedCompletedProject = projects.find(p => 
+    (["completed", "closed", "Project Completed", "Warranty Activated", "Installation Completed"].includes(p.status) || p.completionPercentage >= 90) && 
+    (!p.customerRating || p.customerRating === 0)
+  );
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col md:flex-row">
       <ToastContainer />
       
+      {/* 🌟 PERSISTENT RATING MODAL 🌟 */}
+      {unratedCompletedProject && (tab !== "epc-details" || activeProjectDetail?._id !== unratedCompletedProject._id) && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full text-center shadow-2xl relative overflow-hidden animate-fadeIn">
+            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-yellow-400 to-amber-500"></div>
+            <div className="w-16 h-16 bg-amber-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Star className="w-8 h-8 fill-yellow-400" />
+            </div>
+            <h2 className="text-xl font-black text-slate-800 mb-2">Rate Your Experience!</h2>
+            <p className="text-sm text-slate-600 mb-6">Your solar installation for Order #{unratedCompletedProject.orderNumber} is complete. Please take a moment to rate your EPC Partner. This helps us maintain quality!</p>
+            <button 
+              onClick={() => {
+                setTab("epc-details");
+                setProjectView("detail");
+                setSelectedProjectId(unratedCompletedProject._id);
+              }}
+              className="w-full py-3 bg-yellow-400 text-yellow-950 font-black text-sm rounded-xl hover:bg-amber-400 transition"
+            >
+              Rate Now
+            </button>
+          </div>
+        </div>
+      )}
+      
       {/* Sidebar */}
-      <div className="md:w-64 bg-orange-600 shrink-0 flex flex-col md:h-full overflow-y-auto hide-scrollbar">
+      <div className="md:w-64 bg-[#28377f] shrink-0 flex flex-col md:h-full overflow-y-auto hide-scrollbar">
         
         {/* Brand */}
         <div className="px-4 py-4 flex items-center justify-between md:justify-center">
@@ -1968,8 +2131,8 @@ export default function CustomerPortal({ onClose }) {
           </button>
 
           {/* Installer Tab */}
-          <button onClick={() => { setTab(country === "AU" ? "select-installer" : "epc-details"); setProjectView("list"); }}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all whitespace-nowrap md:whitespace-normal text-left ${(tab === "select-installer" || tab === "epc-details") ? "bg-white/20 text-white shadow-md" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}>
+          <button onClick={() => { setTab("epc-details"); setProjectView("list"); }}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all whitespace-nowrap md:whitespace-normal text-left ${tab === "epc-details" ? "bg-white/20 text-white shadow-md" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}>
             <Building className="w-5 h-5 shrink-0" />
             <div>
               <p className="font-bold text-sm leading-tight">My Installer</p>
@@ -2001,7 +2164,7 @@ export default function CustomerPortal({ onClose }) {
           {tab === "home" && (
             <div className="space-y-6 animate-fadeIn">
               {/* Welcome Header */}
-              <div className="bg-gradient-to-br from-orange-600 to-orange-700 rounded-3xl p-5 md:p-6 text-white shadow-xl relative overflow-hidden border border-orange-700 text-left">
+              <div className="bg-gradient-to-br from-[#28377f] to-[#1e2a5f] rounded-3xl p-5 md:p-6 text-white shadow-xl relative overflow-hidden border border-blue-900 text-left">
                 <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none" />
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
                   <div className="space-y-1.5">
@@ -2009,7 +2172,7 @@ export default function CustomerPortal({ onClose }) {
                       Welcome Back / Swagat Hai
                     </span>
                     <h2 className="text-xl md:text-2xl font-black">{customer?.fullName || "Solar Partner"}</h2>
-                    <p className="text-xs text-orange-100">EmergeSun energy ecosystem dashboard. Track, manage and monitor your solar installation.</p>
+                    <p className="text-xs text-blue-100">EmergeSun energy ecosystem dashboard. Track, manage and monitor your solar installation.</p>
                   </div>
                   <div className="flex items-center gap-3 bg-white/10 border border-white/20 rounded-2xl p-3 md:min-w-[240px]">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-400 to-amber-400 flex items-center justify-center text-yellow-950 font-black text-lg">
@@ -2582,20 +2745,27 @@ export default function CustomerPortal({ onClose }) {
                   const defaultSubsidy = isAU ? 0 : 40000;
                   const minDays = journeySettings?.globalSettings?.minBookingDays || 5;
 
+                  const isRecommended = customer?.latestLead?.solarType === pt.projectType;
+
                   return (
                     <div 
                       key={pt.projectType}
                       onClick={() => handleApply(pkg, defaultState, defaultSubsidy, minDays)}
-                      className="bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-lg hover:border-yellow-400 cursor-pointer transition duration-300 flex flex-col justify-between gap-4 group"
+                      className={`relative bg-white border ${isRecommended ? 'border-yellow-400 ring-4 ring-yellow-400/20 scale-[1.02]' : 'border-slate-200'} rounded-2xl p-5 hover:shadow-lg hover:border-yellow-400 cursor-pointer transition duration-300 flex flex-col justify-between gap-4 group`}
                     >
+                      {isRecommended && (
+                        <div className="absolute -top-3 right-4 bg-yellow-400 text-yellow-900 text-[10px] font-black px-3 py-1 rounded-full shadow-sm flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Recommended
+                        </div>
+                      )}
                       <div className="flex items-start justify-between">
                         <div>
                           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">New Application</p>
                           <h3 className="font-black text-slate-800 text-lg group-hover:text-yellow-600 transition">{pt.projectTypeLabel || pt.projectType}</h3>
                           <p className="text-xs text-slate-500 mt-1">Tap to fill form and request installer details.</p>
                         </div>
-                        <div className="w-12 h-12 rounded-xl bg-yellow-50 flex items-center justify-center group-hover:scale-110 transition shrink-0">
-                          <Plus className="w-6 h-6 text-yellow-600" />
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition shrink-0 ${isRecommended ? 'bg-yellow-100 scale-110' : 'bg-yellow-50 group-hover:scale-110'}`}>
+                          <Plus className={`w-6 h-6 ${isRecommended ? 'text-yellow-700' : 'text-yellow-600'}`} />
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 text-xs font-bold text-yellow-600 group-hover:underline">
@@ -2737,55 +2907,6 @@ export default function CustomerPortal({ onClose }) {
                       </div>
                     );
                   })()}
-                </div>
-              ) : (activeProjectDetail.bdeRecommendationStatus === "recommended" || (activeProjectDetail.recommendedEpcs && activeProjectDetail.recommendedEpcs.length > 0)) ? (
-                <div className="space-y-4">
-                  <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-2xl p-4 flex items-start gap-3">
-                    <Star className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-black text-yellow-800">BDE Has Suggested Best EPCs For You</p>
-                      <p className="text-xs text-yellow-700 mt-0.5">Please review the recommended installers below and accept your preferred partner to proceed with installation.</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    {activeProjectDetail.recommendedEpcs.map(epc => (
-                      <div key={epc._id} className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-yellow-400 transition flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100 shrink-0">
-                            <Building className="w-5 h-5 text-slate-500" />
-                          </div>
-                          <div>
-                            <h4 className="font-black text-slate-800 text-sm">{epc.companyName}</h4>
-                            <p className="text-xs text-slate-500">{epc.city}, {epc.state} • ⭐ {epc.rating || "New"}</p>
-                            <p className="text-[10px] text-slate-400 mt-1">Total installs: {epc.totalInstallations || 0} • Contact: {epc.contactPerson}</p>
-                          </div>
-                        </div>
-                        <button 
-                          onClick={async () => {
-                            if (window.confirm(`Kya aap ${epc.companyName} ko as a installer accept karna chahte hain?`)) {
-                              try {
-                                const res = await authFetch(`/api/customer/projects/${activeProjectDetail._id}/accept-epc`, {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({ epcId: epc._id, epcName: epc.companyName })
-                                });
-                                const d = await res.json();
-                                if (d.success) {
-                                  alert("EPC Successfully Assigned! 🚀");
-                                  fetchProjects();
-                                  fetchActiveProjectDetail(activeProjectDetail._id);
-                                } else alert(d.message || "Failed to accept EPC");
-                              } catch(e) { alert("Error connecting to server"); }
-                            }
-                          }}
-                          className="px-5 py-2.5 bg-yellow-400 hover:bg-amber-400 text-yellow-900 rounded-xl text-xs font-bold transition shadow-sm whitespace-nowrap self-stretch sm:self-auto text-center"
-                        >
-                          Accept & Assign
-                        </button>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               ) : (
                 <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center">

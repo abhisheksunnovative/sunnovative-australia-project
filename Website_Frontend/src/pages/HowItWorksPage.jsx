@@ -1,5 +1,6 @@
 import React from "react";
 import { useCountry } from "../context/CountryContext";
+import Header from "../components/Header";
 import { Sun, FileText, Users, Zap, CheckCircle, TrendingUp, ArrowRight, PhoneCall } from "lucide-react";
 
 const steps = {
@@ -98,9 +99,10 @@ export default function HowItWorksPage() {
   const currentSteps = steps[country] || steps.IN;
 
   return (
-    <div className="min-h-screen bg-white font-sans">
-      {/* Hero */}
-      <section className="bg-gradient-to-br from-[#1c2340] via-orange-900 to-orange-700 text-white py-20 px-4">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
+      <Header />
+      {/* Hero Section */}
+      <section className="bg-gradient-to-br from-slate-900 to-slate-800 text-white py-20 px-4 text-center">
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-orange-500/20 border border-orange-400/30 rounded-full px-4 py-1.5 text-sm font-bold mb-6 uppercase tracking-wider text-orange-300">
             <Zap className="w-4 h-4" />
@@ -119,16 +121,18 @@ export default function HowItWorksPage() {
       <section className="py-20 px-4 bg-slate-50">
         <div className="max-w-4xl mx-auto">
           <div className="relative">
-            {/* Vertical connector line */}
-            <div className="absolute left-8 top-8 bottom-8 w-0.5 bg-gradient-to-b from-orange-400 to-amber-400 hidden md:block" />
-
             <div className="space-y-10">
               {currentSteps.map((s, i) => (
                 <div key={i} className="relative flex gap-6 items-start group">
                   {/* Step badge */}
-                  <div className={`w-16 h-16 rounded-2xl ${s.color} text-white flex flex-col items-center justify-center shrink-0 shadow-lg z-10 group-hover:scale-105 transition-transform`}>
+                  <div className={`relative w-16 h-16 rounded-2xl ${s.color} text-white flex flex-col items-center justify-center shrink-0 shadow-lg z-10 group-hover:scale-105 transition-transform`}>
                     {s.icon}
                     <span className="text-[10px] font-black opacity-75">{s.step}</span>
+                    
+                    {/* Connector line */}
+                    {i !== currentSteps.length - 1 && (
+                      <div className="absolute top-16 left-1/2 w-0.5 h-10 bg-gradient-to-b from-orange-400 to-amber-400 hidden md:block -translate-x-1/2" />
+                    )}
                   </div>
 
                   {/* Content */}

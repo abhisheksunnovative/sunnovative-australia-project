@@ -86,10 +86,25 @@ export function BDEManagementContent({ selectedCountryObj, onBack }) {
     bdeType: "Employee", commissionType: "Fixed", commissionAmount: 0, projectTypeCommissions: []
   });
 
-  const { projectTypes: dynamicProjectTypes } = useAdminSettings(selectedCountry);
-  const projectTypeOptions = dynamicProjectTypes.length > 0
-    ? dynamicProjectTypes.map(pt => pt.value)
-    : ["residential", "commercial"];
+  const [projectTypeOptions, setProjectTypeOptions] = useState([]);
+
+  useEffect(() => {
+    const fetchProjTypes = async () => {
+      if (!selectedCountry) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/project-types?country=${selectedCountry}`);
+        const result = await res.json();
+        if (result.success && result.data) {
+          setProjectTypeOptions(result.data.map(pt => pt.projectType));
+        } else {
+          setProjectTypeOptions([]);
+        }
+      } catch(err) {
+        setProjectTypeOptions([]);
+      }
+    };
+    fetchProjTypes();
+  }, [selectedCountry]);
   const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
   // Dynamic Geography Hook
@@ -760,20 +775,24 @@ export function BDEManagementContent({ selectedCountryObj, onBack }) {
 
                 <div className="pt-4 border-t border-slate-100">
                   <h3 className="font-bold text-blue-600 mb-3 flex items-center gap-2"><Briefcase className="w-4 h-4"/> Project Types</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {projectTypeOptions.map(pt => {
-                      const isSelected = formData.assignedProjectTypes.includes(pt);
-                      return (
-                        <button 
-                          key={pt}
-                          onClick={() => handleProjectTypeToggle(pt)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold uppercase border transition-colors ${isSelected ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'}`}
-                        >
-                          {pt}
-                        </button>
-                      )
-                    })}
-                  </div>
+                  {projectTypeOptions.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {projectTypeOptions.map(pt => {
+                        const isSelected = formData.assignedProjectTypes.includes(pt);
+                        return (
+                          <button 
+                            key={pt}
+                            onClick={() => handleProjectTypeToggle(pt)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold uppercase border transition-colors ${isSelected ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'}`}
+                          >
+                            {pt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 italic">No project configurations found for this country.</p>
+                  )}
                 </div>
 
                 <div className="pt-4 border-t border-slate-100">

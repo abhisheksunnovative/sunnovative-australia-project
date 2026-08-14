@@ -32,6 +32,7 @@ export default function EpcRatesForBrandsTab() {
   
   const [selectedCountry, setSelectedCountry] = useState(null); // country object
   const [selectedPt, setSelectedPt] = useState(null); // string (e.g. 'Residential Solar')
+  const [selectedStateAdmin, setSelectedStateAdmin] = useState(null); // string (e.g. 'Victoria')
 
   const [epcRates, setEpcRates] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -43,6 +44,7 @@ export default function EpcRatesForBrandsTab() {
   const [maxPrice, setMaxPrice] = useState('');
   const [search, setSearch] = useState('');
   const [filterCountry, setFilterCountry] = useState('australia');
+  const [sortOrder, setSortOrder] = useState('asc');
 
   // Fetch Pricing System Settings
   const fetchSettings = async () => {
@@ -159,10 +161,24 @@ export default function EpcRatesForBrandsTab() {
     }
   };
 
+  // Helper function to determine if an EPC is active in a state
+  const isEpcActiveInState = (epc, targetState) => {
+    if (!epc) return false;
+    if (epc.state === targetState) return true;
+    if (epc.serviceAreas && epc.serviceAreas.includes(targetState)) return true;
+    
+    // Check if any of their activeDistricts belong to this state
+    if (epc.activeDistricts && epc.activeDistricts.length > 0) {
+      const districtsInTargetState = districtsConfig.filter(d => d.state === targetState).map(d => d.district);
+      if (epc.activeDistricts.some(d => districtsInTargetState.includes(d))) return true;
+    }
+    return false;
+  };
+
   // Compute filtering
-  const filteredRates = epcRates.filter(rate => {
+  let filteredRates = epcRates.filter(rate => {
     if (filterKw !== 'All' && rate.kw !== Number(filterKw)) return false;
-    if (filterState !== 'All' && rate.epcId?.state !== filterState) return false;
+    if (selectedStateAdmin && !isEpcActiveInState(rate.epcId, selectedStateAdmin)) return false;
     if (filterDistrict !== 'All' && rate.epcId?.district !== filterDistrict) return false;
     if (minPrice && rate.finalPrice < Number(minPrice)) return false;
     if (maxPrice && rate.finalPrice > Number(maxPrice)) return false;
@@ -175,6 +191,14 @@ export default function EpcRatesForBrandsTab() {
     return true;
   });
 
+  filteredRates.sort((a, b) => {
+    return sortOrder === 'asc' ? (a.finalPrice || 0) - (b.finalPrice || 0) : (b.finalPrice || 0) - (a.finalPrice || 0);
+  });
+
+  const totalRates = filteredRates.length;
+  const highestRate = totalRates > 0 ? Math.max(...filteredRates.map(r => r.finalPrice || 0)) : 0;
+  const lowestRate = totalRates > 0 ? Math.min(...filteredRates.map(r => r.finalPrice || 0)) : 0;
+  
   const avgPrice = filteredRates.length 
     ? (filteredRates.reduce((acc, r) => acc + (r.finalPrice || 0), 0) / filteredRates.length).toFixed(2)
     : 0;
@@ -308,27 +332,70 @@ export default function EpcRatesForBrandsTab() {
           </div>
 
           {settings[selectedCountry.code]?.[selectedPt] === 'epc' ? (
+            !selectedStateAdmin ? (
+              <div className="space-y-6">
+                <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                  <span className="bg-slate-100 p-2 rounded-lg"><Settings className="w-5 h-5 text-slate-600"/></span>
+                  Select a State to view EPC Rates
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {uniqueStates.map(state => {
+                    // Count how many EPCs are active in this state
+                    const stateRates = epcRates.filter(rate => isEpcActiveInState(rate.epcId, state));
+                    // Count unique EPCs
+                    const uniqueEpcs = new Set(stateRates.map(r => r.epcId?._id || r.epcId));
+                    
+                    return (
+                      <div 
+                        key={state}
+                        onClick={() => setSelectedStateAdmin(state)}
+                        className="bg-white p-6 rounded-2xl border hover:border-slate-300 hover:shadow-md cursor-pointer transition-all group"
+                      >
+                        <div className="flex justify-between items-start mb-4">
+                          <h3 className="text-lg font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{state}</h3>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-slate-500">
+                          <span className="font-bold text-blue-600">{uniqueEpcs.size}</span> EPCs
+                          <span className="mx-2">•</span>
+                          <span className="font-bold text-slate-700">{stateRates.length}</span> Rates
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
             <div className="space-y-6">
+              <button 
+                onClick={() => setSelectedStateAdmin(null)}
+                className="mb-2 flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4 mr-1" /> Back to States
+              </button>
+              <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <span className="bg-slate-100 p-2 rounded-lg"><Settings className="w-5 h-5 text-slate-600"/></span>
+                EPC Rates for {selectedStateAdmin}
+              </h3>
               {/* Master Filters UI */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white p-4 rounded-xl border shadow-sm">
-                  <label className="text-xs font-bold text-slate-500 uppercase">Search</label>
+              <div className="flex flex-wrap items-center gap-3 mb-6 bg-white p-3 rounded-xl border shadow-sm">
+                <div className="flex-1 min-w-[150px]">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Search</label>
                   <div className="relative mt-1">
-                    <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                    <Search className="w-4 h-4 absolute left-2.5 top-2 text-slate-400" />
                     <input 
                       type="text" 
                       placeholder="EPC or Brand..." 
-                      className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm"
+                      className="w-full pl-8 pr-2 py-1.5 border rounded-lg text-sm bg-slate-50"
                       value={search}
                       onChange={e => setSearch(e.target.value)}
                     />
                   </div>
                 </div>
                 
-                <div className="bg-white p-4 rounded-xl border shadow-sm">
-                  <label className="text-xs font-bold text-slate-500 uppercase">System Size</label>
+                <div className="w-32">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">System Size</label>
                   <select 
-                    className="w-full mt-1 border rounded-lg px-3 py-2 text-sm"
+                    className="w-full mt-1 border rounded-lg px-2 py-1.5 text-sm bg-slate-50"
                     value={filterKw}
                     onChange={e => setFilterKw(e.target.value)}
                   >
@@ -337,31 +404,51 @@ export default function EpcRatesForBrandsTab() {
                   </select>
                 </div>
 
-                <div className="bg-white p-4 rounded-xl border shadow-sm">
-                  <label className="text-xs font-bold text-slate-500 uppercase">State / District</label>
+                <div className="flex-1 min-w-[200px]">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">District</label>
                   <div className="flex gap-2 mt-1">
                     <select 
-                      className="w-1/2 border rounded-lg px-2 py-2 text-sm"
-                      value={filterState}
-                      onChange={e => setFilterState(e.target.value)}
-                    >
-                      <option value="All">All States</option>
-                      {uniqueStates.map(st => <option key={st} value={st}>{st}</option>)}
-                    </select>
-                    <select 
-                      className="w-1/2 border rounded-lg px-2 py-2 text-sm"
+                      className="w-full border rounded-lg px-2 py-1.5 text-sm bg-slate-50"
                       value={filterDistrict}
                       onChange={e => setFilterDistrict(e.target.value)}
                     >
-                      <option value="All">All Districts</option>
-                      {uniqueDistricts.map(dt => <option key={dt} value={dt}>{dt}</option>)}
+                      <option value="All">All Districts in {selectedStateAdmin}</option>
+                      {districtsConfig.filter(d => d.state === selectedStateAdmin).map(d => d.district).sort().map(dt => <option key={dt} value={dt}>{dt}</option>)}
                     </select>
                   </div>
                 </div>
 
-                <div className="bg-slate-800 text-white p-4 rounded-xl shadow-sm flex flex-col justify-center items-center">
-                  <span className="text-xs font-bold text-slate-400 uppercase">Average Price</span>
-                  <span className="text-2xl font-bold text-emerald-400">${avgPrice}</span>
+                <div className="w-32">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Sort By</label>
+                  <select 
+                    className="w-full mt-1 border rounded-lg px-2 py-1.5 text-sm bg-slate-50"
+                    value={sortOrder}
+                    onChange={e => setSortOrder(e.target.value)}
+                  >
+                    <option value="asc">Low to High (Asc)</option>
+                    <option value="desc">High to Low (Desc)</option>
+                  </select>
+                </div>
+
+                <div className="w-36 bg-slate-800 text-white p-2 rounded-lg shadow-sm flex flex-col justify-center items-center self-stretch ml-auto">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Avg Price</span>
+                  <span className="text-lg font-bold text-emerald-400">${avgPrice}</span>
+                </div>
+              </div>
+
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-white p-4 rounded-xl border shadow-sm flex flex-col items-center justify-center">
+                  <span className="text-xs font-bold text-slate-500 uppercase">Total Rates</span>
+                  <span className="text-2xl font-bold text-blue-600">{totalRates}</span>
+                </div>
+                <div className="bg-white p-4 rounded-xl border shadow-sm flex flex-col items-center justify-center">
+                  <span className="text-xs font-bold text-slate-500 uppercase">Highest Rate</span>
+                  <span className="text-2xl font-bold text-rose-600">${highestRate.toFixed(2)}</span>
+                </div>
+                <div className="bg-white p-4 rounded-xl border shadow-sm flex flex-col items-center justify-center">
+                  <span className="text-xs font-bold text-slate-500 uppercase">Lowest Rate</span>
+                  <span className="text-2xl font-bold text-emerald-600">${lowestRate.toFixed(2)}</span>
                 </div>
               </div>
 
@@ -376,8 +463,6 @@ export default function EpcRatesForBrandsTab() {
                       <th className="px-4 py-3 font-medium uppercase">EPC / Brand</th>
                       <th className="px-4 py-3 font-medium uppercase">KW</th>
                       <th className="px-4 py-3 font-medium uppercase">Total Price</th>
-                      <th className="px-4 py-3 font-medium uppercase">Status</th>
-                      <th className="px-4 py-3 font-medium uppercase text-right">Action</th>
                     </tr>
                   </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -410,31 +495,15 @@ export default function EpcRatesForBrandsTab() {
                             </td>
                           <td className="px-4 py-4 font-medium">{rate.kw} kW</td>
                           <td className="px-4 py-4 font-bold text-emerald-600">${rate.finalPrice}</td>
-                          <td className="px-4 py-4">
-                            {rate.isApproved ? (
-                              <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded w-fit"><CheckCircle className="w-3 h-3"/> Approved</span>
-                            ) : (
-                              <span className="flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded w-fit">Pending</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-4 text-right">
-                            {!rate.isApproved && (
-                              <button 
-                                onClick={() => approveRate(rate._id)}
-                                className="bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded text-xs font-bold transition-colors"
-                              >
-                                Approve Rate
-                              </button>
-                            )}
-                          </td>
                         </tr>
                       ))
                     )}
                   </tbody>
                 </table>
               </div>
+              </div>
             </div>
-            </div>
+            )
           ) : (
             <div className="bg-white border rounded-xl overflow-hidden shadow-sm p-4">
               <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-4 border-b pb-4"><Shield className="w-4 h-4 text-blue-500"/> Company Fixed Pricing Engine</h3>

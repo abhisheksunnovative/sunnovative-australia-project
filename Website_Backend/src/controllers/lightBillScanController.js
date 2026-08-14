@@ -166,6 +166,8 @@ export const scanLightBill = async (req, res) => {
         extracted: {
           // Identity
           retailer:         parsed.retailer,
+          distributor:      parsed.distributor,
+          discom:           parsed.distributor, // alias for frontend
           accountNumber:    parsed.accountNumber,
           consumerName:     parsed.customerName,
           consumerNumber:   parsed.accountNumber, // alias for frontend compatibility

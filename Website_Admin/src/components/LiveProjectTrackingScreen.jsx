@@ -562,7 +562,7 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
     }
   }, [orderId]);
 
-  const { states: availableStates, districts: availableDistricts } = useGeography(filterCountry, filterState);
+  const { states: availableStates, districts: availableDistricts } = useGeography(order?.country || "india", order?.state || "");
   useEffect(() => { 
     fetchOrder(); 
     const interval = setInterval(() => fetchOrder(true), 8000);
@@ -704,23 +704,27 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
           </div>
           <div className="flex-1">
             <h3 className={`text-base font-black ${order.status === "lead" ? "text-yellow-900" : "text-slate-800"}`}>
-              {order.status === "lead" ? "Admin Review Required" : "Site Location & Rooftop Evidence"}
+              {order.status === "lead" 
+                ? "Admin Review Required" 
+                : (order.country === 'australia' ? "Site Location Evidence" : "Site Location & Rooftop Evidence")}
             </h3>
             <p className={`text-sm mt-1 mb-4 ${order.status === "lead" ? "text-yellow-800" : "text-slate-500"}`}>
               {order.status === "lead" 
-                ? "Please verify the customer's rooftop photo and GPS location before qualifying this lead for token payment."
-                : "Customer's GPS location and rooftop photo submitted during lead capture."}
+                ? (order.country === 'australia' ? "Please verify the customer's GPS location before qualifying this lead for token payment." : "Please verify the customer's rooftop photo and GPS location before qualifying this lead for token payment.")
+                : (order.country === 'australia' ? "Customer's GPS location submitted during lead capture." : "Customer's GPS location and rooftop photo submitted during lead capture.")}
             </p>
             
-            <div className="grid grid-cols-2 gap-4 mb-5">
-              <div className={`p-3 rounded-xl border ${order.status === "lead" ? "bg-white border-yellow-100" : "bg-slate-50 border-slate-100"}`}>
-                <p className="text-xs font-bold text-slate-400 uppercase mb-2">Rooftop Photo</p>
-                {order.rooftopPhoto ? (
-                  <img src={order.rooftopPhoto.startsWith('http') ? order.rooftopPhoto : `${API_BASE}/uploads/${order.rooftopPhoto.split('/').pop()}`} alt="Rooftop" className="w-full h-32 object-cover rounded-lg" />
-                ) : (
-                  <div className="w-full h-32 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 text-xs">No photo uploaded</div>
-                )}
-              </div>
+            <div className={`grid ${order.country === 'australia' ? 'grid-cols-1' : 'grid-cols-2'} gap-4 mb-5`}>
+              {order.country !== 'australia' && (
+                <div className={`p-3 rounded-xl border ${order.status === "lead" ? "bg-white border-yellow-100" : "bg-slate-50 border-slate-100"}`}>
+                  <p className="text-xs font-bold text-slate-400 uppercase mb-2">Rooftop Photo</p>
+                  {order.rooftopPhoto ? (
+                    <img src={order.rooftopPhoto.startsWith('http') ? order.rooftopPhoto : `${API_BASE}/uploads/${order.rooftopPhoto.split('/').pop()}`} alt="Rooftop" className="w-full h-32 object-cover rounded-lg" />
+                  ) : (
+                    <div className="w-full h-32 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 text-xs">No photo uploaded</div>
+                  )}
+                </div>
+              )}
               <div className={`p-3 rounded-xl border ${order.status === "lead" ? "bg-white border-yellow-100" : "bg-slate-50 border-slate-100"}`}>
                 <p className="text-xs font-bold text-slate-400 uppercase mb-2">GPS Location</p>
                 {order.location?.latitude && order.location?.longitude ? (

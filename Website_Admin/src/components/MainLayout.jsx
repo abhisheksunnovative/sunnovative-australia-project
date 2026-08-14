@@ -170,11 +170,7 @@ export const MainLayout = ({
       id: "order-journey",
       icon: <GitBranch className="w-5 h-5" />,
     },
-    {
-      name: "STC Management (AU)",
-      id: "stc-management",
-      icon: <FileCheck className="w-5 h-5" />,
-    },
+
     {
       name: "Australia Payments",
       id: "australia-payments",

@@ -1,5 +1,6 @@
 import React from "react";
 import { useCountry } from "../context/CountryContext";
+import Header from "../components/Header";
 import { Sun, Shield, Zap, Users, TrendingUp, Globe, CheckCircle, ArrowRight } from "lucide-react";
 
 const platformData = {
@@ -27,11 +28,6 @@ const platformData = {
         icon: <TrendingUp className="w-6 h-6 text-orange-500" />,
         title: "Live Order Tracking",
         desc: "Track your solar journey from application to grid connection in real time. Every step documented on your dashboard.",
-      },
-      {
-        icon: <Globe className="w-6 h-6 text-orange-500" />,
-        title: "Group & Community Solar",
-        desc: "We enable housing societies, RWAs, and communities to come together for group solar projects — maximizing savings.",
       },
       {
         icon: <Sun className="w-6 h-6 text-orange-500" />,
@@ -99,6 +95,7 @@ export default function OurPlatformPage() {
 
   return (
     <div className="min-h-screen bg-white font-sans">
+      <Header />
       {/* Hero */}
       <section className="bg-gradient-to-br from-orange-600 via-orange-500 to-amber-500 text-white py-20 px-4">
         <div className="max-w-5xl mx-auto text-center">

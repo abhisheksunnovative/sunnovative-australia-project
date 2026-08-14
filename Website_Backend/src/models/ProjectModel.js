@@ -151,8 +151,6 @@ const ProjectOrderSchema = new mongoose.Schema(
     assignedEPCId: { type: String, default: null },
     assignedEPCName: { type: String, default: "" },
     assignedBde: { type: mongoose.Schema.Types.ObjectId, ref: 'BDE', default: null },
-    recommendedEpcs: [{ type: mongoose.Schema.Types.ObjectId, ref: 'EpcPartner' }],
-    bdeRecommendationStatus: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
 
     // ── Journey & Step Tracking ───────────────────────────────
     currentStepNumber: { type: Number, default: 1 },
@@ -170,6 +168,7 @@ const ProjectOrderSchema = new mongoose.Schema(
         // Legacy statuses
         "lead", "qualified", "surveyed", "in-progress", "completed", "closed", "cancelled", "on-hold",
         // New ERP Journey Statuses
+        "awaiting-admin-confirmation",
         "Enquiry Created",
         "Open For EPC",
         "EPC Accepted",

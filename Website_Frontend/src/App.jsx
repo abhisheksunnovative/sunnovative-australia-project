@@ -195,7 +195,7 @@ function AppInner() {
         ) : (
           <>
             {/* Premium Project Type Switcher */}
-            <div className="bg-orange-600 border-b border-slate-800 shadow-md">
+            <div className="bg-slate-800 border-b border-slate-900 shadow-md">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-center gap-2">
@@ -254,11 +254,10 @@ function CountryWrapper() {
   const { countryParam } = useParams();
   
   let countryProp = "IN";
-  if (countryParam === "au") countryProp = "AU";
-  else if (countryParam === "nz") countryProp = "NZ";
-  else if (countryParam) {
-    // If there's an unknown path prefix, redirect to root
-    return <Navigate to="/" replace />;
+  if (countryParam) {
+    if (countryParam.toLowerCase() === "au") countryProp = "AU";
+    else if (countryParam.toLowerCase() === "nz") countryProp = "NZ";
+    else countryProp = countryParam.toUpperCase();
   }
 
   return (

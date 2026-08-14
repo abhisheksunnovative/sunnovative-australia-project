@@ -168,9 +168,20 @@ export default function BDELeadManagement({ bdeId, country }) {
 
   const updateLeadStatus = async (leadId, status, nextFollowUp = null) => {
     const targetLead = leads.find(l => l._id === leadId);
-    if ((status === "Contacted" || status === "Interested" || status === "Converted") && targetLead) {
-      if (!targetLead.preferredInstallDate && !targetLead.isInstallDateFixed) {
-        alert("⚠️ Customer Has Not Set Installation Date Yet!\n\nPlease inform the customer to log into their Customer Portal (or set date in Edit Lead) before marking as Converted.");
+    if (!targetLead) return;
+
+    if (status === "Interested" && !targetLead.hasLoggedIn) {
+      alert("⚠️ Pehle customer ko login karvao, interested hai to theek hai.\n\nPlease ask the customer to log into the portal first.");
+      // Force React to re-render the select with the old value
+      setLeads([...leads]);
+      return;
+    }
+
+    if (status === "Converted") {
+      const hasApplied = targetLead.preferredInstallDate || targetLead.isInstallDateFixed || targetLead.epcDetails || targetLead.assignedEPCName || targetLead.enquiryStatus === "EPC Accepted" || targetLead.enquiryStatus === "Applied";
+      if (!hasApplied) {
+        alert("⚠️ Customer ne abhi tak project form nahi bhara hai!\n\nJab customer project ke liye apply kar dega (form bhar dega), tabhi aap isko Convert kar sakte hain.");
+        setLeads([...leads]);
         return;
       }
     }
@@ -243,7 +254,11 @@ export default function BDELeadManagement({ bdeId, country }) {
       });
       const data = await res.json();
       if (data.success) {
-        alert("Lead Converted & Order Created! It is now broadcasted to EPCs.");
+        if (qualifyingLead.country?.toLowerCase() === 'australia' || qualifyingLead.country?.toLowerCase() === 'au') {
+          alert("Lead Converted & Order Created!");
+        } else {
+          alert("Lead Converted & Order Created! It is now broadcasted to EPCs.");
+        }
         setIsCalendarModalOpen(false);
         fetchLeads();
       } else {
@@ -672,13 +687,11 @@ export default function BDELeadManagement({ bdeId, country }) {
                         const currentRank = STATUS_RANK[lead.status] || 1;
                         const optRank = STATUS_RANK[st] || 1;
                         const isDowngrade = optRank < currentRank && lead.status !== "Not Interested";
-                        // Block "Contacted" and above if customer hasn't logged in
-                        const isBlockedByLogin = !lead.hasLoggedIn && optRank > 1 && st !== "Not Interested";
-                        const isDisabled = isDowngrade || isBlockedByLogin;
+                        const isDisabled = isDowngrade;
 
                         return (
                           <option key={st} value={st} disabled={isDisabled}>
-                            {st === "Converted" ? "Converted (Ready for Installation)" : st} {isDowngrade ? "🔒 (Locked)" : isBlockedByLogin ? "🚫 (Wait for Login)" : ""}
+                            {st === "Converted" ? "Converted (Ready for Installation)" : st} {isDowngrade ? "🔒 (Locked)" : ""}
                           </option>
                         );
                       })}
@@ -706,32 +719,40 @@ export default function BDELeadManagement({ bdeId, country }) {
                     {lead.status === "Converted" ? (
                       <div className="flex flex-col items-end gap-2">
                         {lead.convertedProjectId ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-700 text-xs font-bold px-3 py-1 bg-emerald-50 rounded-lg border border-emerald-200">
-                            <CheckCircle className="w-3.5 h-3.5 text-emerald-600"/> Order Approved
-                          </span>
+                          lead.projectStatus === "awaiting-admin-confirmation" ? (
+                            <span className="inline-flex items-center gap-1 text-amber-700 text-xs font-bold px-3 py-1 bg-amber-50 rounded-lg border border-amber-200 animate-pulse">
+                              <Clock className="w-3.5 h-3.5 text-amber-600"/> Waiting for Admin Confirmation
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-emerald-700 text-xs font-bold px-3 py-1 bg-emerald-50 rounded-lg border border-emerald-200">
+                              <CheckCircle className="w-3.5 h-3.5 text-emerald-600"/> Order Approved
+                            </span>
+                          )
                         ) : (
                           <span className="inline-flex items-center gap-1 text-amber-700 text-xs font-bold px-3 py-1 bg-amber-50 rounded-lg border border-amber-200 animate-pulse">
                             <Clock className="w-3.5 h-3.5 text-amber-600"/> Waiting for Admin Approval
                           </span>
                         )}
                         
-                        {lead.epcDetails && (
+                        {(lead.epcDetails || lead.assignedEPCName) && (
                           <div className="bg-blue-50 border border-blue-200 p-2.5 rounded-xl text-xs text-left w-full max-w-[210px] space-y-0.5 shadow-xs">
                             <p className="font-black text-blue-900 flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5 text-emerald-600"/> EPC Accepted by Customer:</p>
-                            <p className="text-blue-950 font-black text-sm">{lead.epcDetails.companyName}</p>
-                            {lead.epcDetails.contactPerson && <p className="text-slate-700 font-bold">👤 {lead.epcDetails.contactPerson}</p>}
-                            <p className="text-slate-600">📞 {lead.epcDetails.mobile}</p>
+                            <p className="text-blue-950 font-black text-sm">{lead.epcDetails?.companyName || lead.assignedEPCName}</p>
+                            {lead.epcDetails?.contactPerson && <p className="text-slate-700 font-bold">👤 {lead.epcDetails.contactPerson}</p>}
+                            {lead.epcDetails?.mobile && <p className="text-slate-600">📞 {lead.epcDetails.mobile}</p>}
                           </div>
                         )}
 
                         {lead.convertedProjectId && !lead.isInstallDateFixed ? (
-                          lead.enquiryStatus === "EPC Accepted" || lead.epcDetails ? (
-                            <button
-                              onClick={() => handleConfirmDate(lead)}
-                              className="inline-flex items-center gap-1.5 text-white text-xs font-bold px-3.5 py-2 bg-amber-500 hover:bg-amber-600 rounded-lg transition shadow-md cursor-pointer animate-pulse mt-1"
-                            >
-                              <Calendar className="w-4 h-4"/> Confirm Final Installation Date
-                            </button>
+                          (lead.enquiryStatus === "EPC Accepted" || lead.epcDetails || lead.assignedEPCName) ? (
+                            lead.projectStatus === "awaiting-admin-confirmation" ? null : (
+                              <button
+                                onClick={() => handleConfirmDate(lead)}
+                                className="inline-flex items-center gap-1.5 text-white text-xs font-bold px-3.5 py-2 bg-amber-500 hover:bg-amber-600 rounded-lg transition shadow-md cursor-pointer animate-pulse mt-1"
+                              >
+                                <Calendar className="w-4 h-4"/> Confirm Final Installation Date
+                              </button>
+                            )
                           ) : lead.epcSelectionType === 'FCFS' ? (
                             <span className="inline-flex items-center gap-1.5 text-amber-800 text-xs font-bold px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg">
                               <Clock className="w-3.5 h-3.5 text-amber-600"/> Waiting for FCFS claim...
@@ -754,7 +775,7 @@ export default function BDELeadManagement({ bdeId, country }) {
                             )
                           ) : (
                             <span className="inline-flex items-center gap-1.5 text-blue-800 text-xs font-bold px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
-                              <Clock className="w-3.5 h-3.5 text-blue-600"/> Waiting for Customer EPC Selection...
+                              <Clock className="w-3.5 h-3.5 text-blue-600"/> Waiting for EPC Assignment...
                             </span>
                           )
                         ) : lead.isInstallDateFixed ? (

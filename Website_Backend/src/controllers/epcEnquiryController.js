@@ -27,9 +27,10 @@ export const getMyEnquiries = async (req, res) => {
     };
 
     if (!epc.hasTrustedBadge) {
-      // Normal EPCs cannot see leads created in the last 10 minutes
-      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-      filter.createdAt = { $lte: tenMinutesAgo };
+      // Normal EPCs cannot see leads created in the last 5 minutes
+      const delayMinutes = process.env.TRUST_BADGE_DELAY_MINUTES || 5;
+      const delayTime = new Date(Date.now() - delayMinutes * 60 * 1000);
+      filter.createdAt = { $lte: delayTime };
     }
 
     if (status)      filter.status      = status;

@@ -238,8 +238,8 @@ export const getBDELeads = async (req, res) => {
       if (lead.convertedProjectId) {
         const po = await ProjectOrder.findById(lead.convertedProjectId);
         if (po) {
-          lead.bdeRecommendationStatus = po.bdeRecommendationStatus || lead.bdeRecommendationStatus;
-          lead.recommendedEpcs = po.recommendedEpcs || lead.recommendedEpcs;
+          
+          
           lead.isInstallDateFixed = po.isInstallDateFixed || lead.isInstallDateFixed;
           lead.preferredInstallDate = po.preferredInstallDate || lead.preferredInstallDate;
 
@@ -301,6 +301,12 @@ export const getBDELeads = async (req, res) => {
               lead.enquiryStatus = enquiry.status;
             }
           }
+          
+          if (!lead.epcDetails && po.assignedEPCName) {
+            lead.assignedEPCName = po.assignedEPCName;
+          }
+          
+          lead.projectStatus = po.status;
         }
       }
     }
@@ -671,51 +677,6 @@ export const getEpcCalendarForBde = async (req, res) => {
     }
 
     res.json({ success: true, availability: dayAvailabilityMap, slots: calendarEntries });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-export const recommendEpcs = async (req, res) => {
-  try {
-    const { projectId } = req.params;
-    const { epcIds } = req.body;
-    if (!epcIds || !Array.isArray(epcIds) || epcIds.length === 0 || epcIds.length > 5) {
-      return res.status(400).json({ success: false, message: 'Please provide between 1 and 5 EPC IDs' });
-    }
-    const project = await ProjectOrder.findByIdAndUpdate(
-      projectId,
-      { 
-        recommendedEpcs: epcIds, 
-        bdeRecommendationStatus: 'recommended', 
-        pendingActionAlert: 'Select your preferred installer from BDE recommended top installers', 
-        pendingActionFor: 'customer' 
-      },
-      { new: true }
-    );
-    if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
-
-    // Update Lead model
-    await Lead.updateOne(
-      { $or: [{ _id: project._id }, { convertedProjectId: project._id }, { mobile: project.customerMobile }] },
-      { recommendedEpcs: epcIds, bdeRecommendationStatus: 'recommended', enquiryStatus: 'EPC Recommended' }
-    );
-
-    // Trigger Notification for Customer
-    try {
-      const Notification = (await import('../models/Notification.js')).default;
-      await Notification.create({
-        role: 'Customer',
-        recipientId: project.customerId ? project.customerId : null,
-        title: '🎉 Installer Suggestions Received!',
-        message: `Your BDE has recommended top certified solar installers for your area. Please log into Customer Portal to select your preferred installer.`,
-        projectId: project._id
-      });
-    } catch (nErr) {
-      console.error('Customer notification error:', nErr);
-    }
-
-    res.json({ success: true, project, message: 'EPC recommendations successfully sent to customer!' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

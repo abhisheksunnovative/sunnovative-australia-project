@@ -43,7 +43,7 @@ export const getPricings = async (req, res) => {
       .populate({
           path: 'epcId',
           model: 'EpcPartner',
-          select: 'name state district'
+          select: 'name state district activeDistricts serviceAreas'
       })
       .sort({ systemSizeKW: 1 });
     
