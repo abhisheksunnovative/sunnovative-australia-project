@@ -203,7 +203,7 @@ const EpcProjectDetail = () => {
 
       for (const act of reqActions) {
         const val = actionInputs[stepId]?.[act.label] || "";
-        if (act.required && !val) {
+        if (act.required !== false && !val) {
           setErrorMsg(`Please fill/upload required field: ${act.label}`);
           setStageLoading(false);
           return;
@@ -331,7 +331,7 @@ const EpcProjectDetail = () => {
       {/* Dynamic Project Steps */}
       <SectionCard title="Project Journey Tasks">
         <div className="space-y-4">
-          {project.steps?.filter(s => s.visibleToEpc !== false).length > 0 ? project.steps.filter(s => s.visibleToEpc !== false).map((step, i) => {
+          {project.steps?.filter(s => s.visibleToEpc === true).length > 0 ? project.steps.filter(s => s.visibleToEpc === true).map((step, i) => {
             const isEPC = step.assignedTo === 'epc-partner';
             const isActive = step.status === 'pending' || step.status === 'in-progress';
             const isCompleted = step.status === 'completed';
@@ -433,10 +433,12 @@ const EpcProjectDetail = () => {
                                 {step.requiredActions.map((act, actIdx) => {
                                   const value = actionInputs[step.stepId]?.[act.label] || "";
                                   const uploading = actionInputs[step.stepId]?.[`${act.label}_uploading`];
+                                  const isComplianceDoc = ["AS/NZS 5139 Battery Compliance Certificate", "AS/NZS 4509 Off-Grid Certificate", "ENO Compliance Certificate", "AER Confirmation"].includes(act.label);
 
                                   return (
-                                    <div key={actIdx} className="flex flex-col gap-1.5">
-                                      <label className="text-xs font-bold text-gray-700">
+                                    <div key={actIdx} className={`flex flex-col gap-1.5 ${isComplianceDoc ? 'bg-blue-50 border border-blue-200 p-3 rounded-lg shadow-sm' : ''}`}>
+                                      <label className={`text-xs font-bold ${isComplianceDoc ? 'text-blue-800' : 'text-gray-700'}`}>
+                                        {isComplianceDoc && <span className="mr-1">📜</span>}
                                         {act.label} {act.required !== false && <span className="text-red-500">*</span>}
                                       </label>
                                       {act.fileType === "text" ? (
@@ -524,8 +526,8 @@ const EpcProjectDetail = () => {
                               )}
                               <button 
                                 onClick={() => completeStep(step.stepId)}
-                                disabled={stageLoading}
-                                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-colors ml-auto shadow-sm cursor-pointer"
+                                disabled={stageLoading || (step.requiredActions?.some(act => act.required !== false && !actionInputs[step.stepId]?.[act.label]))}
+                                className={`px-4 py-2 text-white text-xs font-bold rounded-lg transition-colors ml-auto shadow-sm ${stageLoading || (step.requiredActions?.some(act => act.required !== false && !actionInputs[step.stepId]?.[act.label])) ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600 cursor-pointer'}`}
                               >
                                 {stageLoading ? 'Saving...' : 'Submit & Complete Step'}
                               </button>

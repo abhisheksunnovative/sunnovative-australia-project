@@ -79,7 +79,11 @@ export const mapJourneyStepsToProjectSteps = (journeySteps = []) => {
         notificationMedium: s.notificationMedium || ['email'],
         notifyCustomer: s.notifyCustomer !== false,
         notifyEPC: s.notifyEPC || false,
-        notifyAdmin: s.notifyAdmin || false
+        notifyAdmin: s.notifyAdmin || false,
+        warningDays: s.warningDays || 0,
+        redAlertDays: s.redAlertDays || 0,
+        autoNotifyOverdue: s.autoNotifyOverdue || false,
+        escalateToAdminAfterDays: s.escalateToAdminAfterDays || 0
       };
     });
 };
@@ -156,29 +160,40 @@ export const processStepCompletionEngine = async (
   order.steps[stepIndex].status = newStatus;
   
   let dynamicEvidenceNote = finalNote;
-  
-  // Trigger STC calculations for Australia Step 1
-  if (stepId === "au-res-step-1" && newStatus === "completed" && uploadedActions && uploadedActions.length > 0) {
-    const postcodeObj = uploadedActions.find(a => a.label && a.label.toLowerCase().includes("postcode"));
-    const billObj = uploadedActions.find(a => a.label && a.label.toLowerCase().includes("bill"));
-    
-    if (postcodeObj && postcodeObj.value) {
-      const postcode = postcodeObj.value.trim();
-      const zone = getAuStcZone(postcode);
-      const systemSize = order.systemSizeKW || 6.6;
+    // Trigger STC calculations for Australia Step 1 (Residential & Solar+Battery)
+    if ((stepId === "au_res_1" || stepId === "au_bat_1") && newStatus === "completed" && uploadedActions && uploadedActions.length > 0) {
+      const postcodeObj = uploadedActions.find(a => a.label && a.label.toLowerCase().includes("postcode"));
+      const billObj = uploadedActions.find(a => a.label && a.label.toLowerCase().includes("bill"));
+      const stateObj = uploadedActions.find(a => a.label && a.label.toLowerCase().includes("state"));
       
-      const stcResult = calculateSTC(systemSize, zone, new Date().getFullYear(), 38);
-      const installCost = Math.round(systemSize * 1200); // basic fallback estimate
-      const netCost = Math.max(500, installCost - stcResult.totalRebate);
-      
-      order.estimatedSubsidy = stcResult.totalRebate;
-      order.totalProjectCost = netCost;
-      if (billObj && billObj.value) {
-        const billVal = parseFloat(billObj.value.replace(/[^0-9.]/g, "")) || 0;
-        order.monthlyBillAmount = billVal;
-      }
-      
-      const calcSummary = `[Auto-Calc: Postcode ${postcode} resolved to Zone ${zone}. System Size: ${systemSize}kW. Estimated STC Rebate: $${stcResult.totalRebate}. Net Project Cost: $${netCost}]`;
+      if (postcodeObj && postcodeObj.value) {
+        const postcode = postcodeObj.value.trim();
+        const zone = getAuStcZone(postcode);
+        const systemSize = order.systemSizeKW || 6.6;
+        
+        const stcResult = calculateSTC(systemSize, zone, new Date().getFullYear(), 38);
+        let installCost = Math.round(systemSize * 1200); // basic fallback estimate
+        let totalRebate = stcResult.totalRebate;
+        
+        // Battery state rebate logic
+        if (stepId === "au_bat_1") {
+            installCost += 5000; // base battery cost
+            const state = order.location?.state || order.state || (stateObj ? stateObj.value : "SA");
+            if (state.toUpperCase() === "SA" || state.toUpperCase() === "SOUTH AUSTRALIA") totalRebate += 3000;
+            else if (state.toUpperCase() === "VIC" || state.toUpperCase() === "VICTORIA") totalRebate += 2950;
+            else if (state.toUpperCase() === "WA" || state.toUpperCase() === "WESTERN AUSTRALIA") totalRebate += 2500;
+        }
+
+        const netCost = Math.max(500, installCost - totalRebate);
+        
+        order.estimatedSubsidy = totalRebate;
+        order.totalProjectCost = netCost;
+        if (billObj && billObj.value) {
+          const billVal = parseFloat(billObj.value.replace(/[^0-9.]/g, "")) || 0;
+          order.monthlyBillAmount = billVal;
+        }
+        
+        const calcSummary = `[Auto-Calc: Postcode ${postcode} resolved to Zone ${zone}. System Size: ${systemSize}kW. Estimated Total Rebate: $${totalRebate}. Net Project Cost: $${netCost}]`;
       dynamicEvidenceNote = (dynamicEvidenceNote ? dynamicEvidenceNote + " | " : "") + calcSummary;
     }
   }

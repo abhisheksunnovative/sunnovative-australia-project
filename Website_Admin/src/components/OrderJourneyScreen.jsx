@@ -61,13 +61,20 @@ const Field = ({ label, value, onChange, type = "text", placeholder = "", hint, 
   </div>
 );
 
+const ASSIGNED_BORDER_COLORS = {
+  "customer": "border-l-4 border-l-blue-500",
+  "company": "border-l-4 border-l-green-500",
+  "epc-partner": "border-l-4 border-l-orange-500",
+  "both": "border-l-4 border-l-yellow-500"
+};
+
 // ── Step Card ─────────────────────────────────────────────────────────────────
 const StepCard = ({ step, index, totalSteps, onUpdate, onRemove, onMoveUp, onMoveDown, onSaveConfig, isSaving }) => {
   const [expanded, setExpanded] = useState(!step.title); // Auto expand if it's a new step (no title)
   const assignedConfig = ASSIGNED_TO_CONFIG[step.assignedTo] || ASSIGNED_TO_CONFIG["company"];
 
   return (
-    <div className={`border rounded-xl overflow-hidden transition-all ${step.enabled ? "border-slate-200 bg-white" : "border-slate-100 bg-slate-50 opacity-60"}`}>
+    <div className={`border rounded-xl overflow-hidden transition-all ${step.enabled ? "border-slate-200 bg-white" : "border-slate-100 bg-slate-50 opacity-60"} ${ASSIGNED_BORDER_COLORS[step.assignedTo] || "border-l-4 border-l-yellow-500"}`}>
       {/* Step Header */}
       <div className="flex items-center gap-3 px-4 py-3">
         {/* Step Number */}
@@ -306,6 +313,11 @@ const StepCard = ({ step, index, totalSteps, onUpdate, onRemove, onMoveUp, onMov
                 checked={step.visibleToEpc !== false}
                 onChange={(v) => onUpdate("visibleToEpc", v)}
               />
+              <Toggle
+                label="BDE can Complete"
+                checked={step.canBeCompletedByBDE || false}
+                onChange={(v) => onUpdate("canBeCompletedByBDE", v)}
+              />
             </div>
           </div>
 
@@ -315,6 +327,18 @@ const StepCard = ({ step, index, totalSteps, onUpdate, onRemove, onMoveUp, onMov
               <h4 className="text-xs font-bold text-slate-700 uppercase mb-2 flex items-center gap-1">
                 <CheckSquare className="w-3.5 h-3.5 text-blue-500" /> Completion Gates
               </h4>
+              <div className="mb-4">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Completion Condition</label>
+                <select
+                  className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400/40 bg-white"
+                  value={step.completionCondition || 'manual'}
+                  onChange={(e) => onUpdate("completionCondition", e.target.value)}
+                >
+                  <option value="manual">Manual</option>
+                  <option value="document_upload">Document Upload</option>
+                  <option value="admin_approval">Admin Approval</option>
+                </select>
+              </div>
               <Toggle
                 label="Boxes for Uploading Documents"
                 checked={step.requiresDocumentUpload}
@@ -1136,10 +1160,11 @@ export const OrderJourneyScreen = ({ selectedCountry: propCountry, readOnly = fa
               onChange={(e) => setInternalCountry(e.target.value)}
               className="text-sm font-bold text-white border-2 border-slate-600 rounded-xl px-4 py-2.5 bg-slate-700 focus:outline-none focus:border-yellow-400 focus:bg-slate-800 transition"
             >
-              {dbCountries.map(c => (
-                <option key={c.code} value={c.code}>{c.flagEmoji} {c.name}</option>
-              ))}
-              {dbCountries.length === 0 && <option value="india">Loading...</option>}
+              <option value="india">🇮🇳 India</option>
+              <option value="australia">🇦🇺 Australia</option>
+              <option value="newzealand">🇳🇿 New Zealand</option>
+              <option value="uk">🇬🇧 UK</option>
+              <option value="usa">🇺🇸 USA</option>
             </select>
           </div>
         )}

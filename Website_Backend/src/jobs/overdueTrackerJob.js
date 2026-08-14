@@ -1,5 +1,6 @@
 import { ProjectOrder } from "../models/ProjectModel.js";
 import { OrderJourneySettings } from "../models/OrderJourneySettings.js";
+import { createNotification } from "../controllers/notificationController.js";
 
 // Helper to add days to a date
 const addDays = (date, days) => {
@@ -62,12 +63,29 @@ export const scheduleOverdueTrackerJob = () => {
                   step.daysOverdue = diffDays - slaDays;
                   orderUpdated = true;
                   hasOverdueSteps = true;
+                  
+                  const warningDays = stepSettings.warningDays || 1;
+                  const redAlertDays = stepSettings.redAlertDays || 2;
+                  const escalateDays = stepSettings.escalateToAdminAfterDays || 3;
 
+                  // Trigger Warning
+                  if (step.daysOverdue === warningDays) {
+                    if (stepSettings.notifyCustomer) createNotification('Customer', 'Action Overdue', `Step '${step.title}' is overdue by ${step.daysOverdue} days.`, order.customerId || order.customerMobile);
+                    if (stepSettings.notifyEPC && order.assignedEPCId) createNotification('EpcPartner', 'Action Overdue', `Step '${step.title}' for Order ${order.orderNumber} is overdue.`, order.assignedEPCId);
+                  }
+
+                  // Trigger Red Alert
                   if (redAlertDays > 0 && step.daysOverdue >= redAlertDays && !step.isCritical) {
                     step.isCritical = true;
+                    if (stepSettings.notifyCustomer) createNotification('Customer', 'Critical: Action Overdue', `Step '${step.title}' is critically overdue.`, order.customerId || order.customerMobile);
+                    if (stepSettings.notifyEPC && order.assignedEPCId) createNotification('EpcPartner', 'Critical: Action Overdue', `Step '${step.title}' for Order ${order.orderNumber} is critically overdue.`, order.assignedEPCId);
                   }
                   
-                  // In a real app, send email/sms if stepSettings.autoNotifyOverdue is true
+                  // Trigger Escalation
+                  if (escalateDays > 0 && step.daysOverdue === escalateDays) {
+                     step.escalatedToAdminAt = new Date();
+                     createNotification('Admin', 'Order Escalated', `Order ${order.orderNumber} step '${step.title}' has been escalated to Admin due to SLA breach.`, null);
+                  }
                 }
               }
             } else {

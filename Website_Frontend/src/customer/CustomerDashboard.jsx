@@ -50,19 +50,25 @@ export default function CustomerDashboard({ onClose }) {
     setLoading(false);
   };
 
-  const handleCompleteStep = async (stepId, file = null, note = "") => {
+  const handleCompleteStep = async (stepId, filesObj = {}, note = "") => {
     if (!selProject) return;
     setCompletingStep(stepId);
     try {
       let body;
       let headers = {};
 
-      if (file) {
+      if (Object.keys(filesObj).length > 0) {
         body = new FormData();
         body.append("stepId", stepId);
         body.append("completedBy", profile?.fullName || "Customer");
         body.append("note", note);
-        body.append("evidence", file);
+        
+        const uploadedActions = [];
+        Object.entries(filesObj).forEach(([label, fileObj]) => {
+          body.append("evidence", fileObj);
+          uploadedActions.push({ label, fileType: "pdf", value: "" });
+        });
+        body.append("uploadedActions", JSON.stringify(uploadedActions));
       } else {
         headers = { "Content-Type": "application/json" };
         body = JSON.stringify({ stepId, completedBy: profile?.fullName || "Customer", note });
@@ -123,11 +129,20 @@ export default function CustomerDashboard({ onClose }) {
 
   // ── Journey Progress Bar ────────────────────────────────────────────────────
   const StepItemCustomer = ({ step, index, onCompleteStep, completingStep }) => {
-    const [file, setFile] = useState(null);
+    const [filesObj, setFilesObj] = useState({});
     const [note, setNote] = useState("");
     
+    const handleFileChange = (label, file) => {
+      setFilesObj(prev => ({ ...prev, [label]: file }));
+    };
+    
+    const isReady = () => {
+      if (!step.requiredActions || step.requiredActions.length === 0) return true;
+      return step.requiredActions.every(a => !a.required || filesObj[a.label] || a.fileType === 'text');
+    };
+    
     return (
-      <div className={`flex items-start gap-3 p-3 rounded-xl ${step.status === "completed" ? "bg-green-50 border border-green-100" : step.status === "in-progress" ? "bg-yellow-50 border border-yellow-200" : "bg-slate-50 border border-slate-100"}`}>
+      <div id={`customer-step-${step.stepId}`} className={`flex items-start gap-3 p-3 rounded-xl ${step.status === "completed" ? "bg-green-50 border border-green-100" : step.status === "in-progress" ? "bg-yellow-50 border border-yellow-200" : "bg-slate-50 border border-slate-100"}`}>
         <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${step.status === "completed" ? "bg-green-500 text-white" : step.status === "in-progress" ? "bg-yellow-400 text-yellow-900" : "bg-slate-200 text-slate-400"}`}>
           {step.status === "completed" ? "✓" : index + 1}
         </div>
@@ -150,14 +165,33 @@ export default function CustomerDashboard({ onClose }) {
                 onChange={(e) => setNote(e.target.value)}
                 className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg outline-none focus:border-yellow-400"
               />
-              <input
-                type="file"
-                onChange={(e) => setFile(e.target.files[0])}
-                className="w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-yellow-50 file:text-yellow-700 hover:file:bg-yellow-100"
-              />
+              
+              {step.requiredActions && step.requiredActions.length > 0 ? (
+                <div className="space-y-2 mt-2">
+                  {step.requiredActions.map((action, i) => (
+                    <div key={i} className="bg-slate-50 p-2 rounded border border-slate-100">
+                      <label className="text-[10px] font-semibold text-slate-600 block mb-1">
+                        {action.label} {action.required && <span className="text-red-500">*</span>}
+                      </label>
+                      {action.fileType === 'text' ? (
+                        <input type="text" onChange={(e) => handleFileChange(action.label, e.target.value)} className="w-full text-xs px-2 py-1 border rounded" />
+                      ) : (
+                        <input type="file" onChange={(e) => handleFileChange(action.label, e.target.files[0])} className="w-full text-[10px]" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <input
+                  type="file"
+                  onChange={(e) => handleFileChange("evidence", e.target.files[0])}
+                  className="w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-yellow-50 file:text-yellow-700 hover:file:bg-yellow-100"
+                />
+              )}
+              
               <button
-                onClick={() => onCompleteStep && onCompleteStep(step.stepId, file, note)}
-                disabled={completingStep === step.stepId}
+                onClick={() => onCompleteStep && onCompleteStep(step.stepId, filesObj, note)}
+                disabled={completingStep === step.stepId || !isReady()}
                 className="w-full sm:w-auto px-4 py-2 bg-solar-gold hover:bg-yellow-500 text-white text-xs font-bold rounded-lg transition disabled:opacity-50 flex items-center justify-center"
               >
                 {completingStep === step.stepId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Complete Action"}
@@ -281,8 +315,33 @@ export default function CustomerDashboard({ onClose }) {
           )}
 
           {/* PROJECT DETAIL */}
-          {view === "project-detail" && selProject && (
+          {view === "project-detail" && selProject && (() => {
+            const activeCustomerStep = selProject.steps?.find(s => s.assignedTo === 'customer' && (s.status === 'in-progress' || s.status === 'pending'));
+            return (
             <div className="space-y-4">
+              {/* 🎯 YOUR TURN BANNER */}
+              {activeCustomerStep && (
+                <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl p-4 shadow-md flex items-center justify-between gap-4 animate-pulse">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center font-black text-lg">
+                      🎯
+                    </div>
+                    <div>
+                      <p className="font-black text-sm uppercase tracking-wider">YOUR TURN / AAPKA TURN</p>
+                      <p className="text-xs text-green-100 font-medium mt-0.5">Step #{activeCustomerStep.stepNumber}: {activeCustomerStep.title} is awaiting your action!</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      const el = document.getElementById(`customer-step-${activeCustomerStep.stepId}`);
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="px-4 py-2 bg-white text-green-900 rounded-xl font-extrabold text-xs hover:bg-green-100 transition shadow-sm shrink-0"
+                  >
+                    Execute Step Now →
+                  </button>
+                </div>
+              )}
               <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
                 <div className="flex items-start justify-between mb-3">
                   <div>
@@ -384,7 +443,8 @@ export default function CustomerDashboard({ onClose }) {
                 </div>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {/* PROFILE */}
           {view === "profile" && (
