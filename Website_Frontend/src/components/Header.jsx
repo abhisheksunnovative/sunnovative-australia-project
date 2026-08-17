@@ -162,8 +162,8 @@ export default function Header({
           {/* Country Switcher Dropdown */}
           <div className="relative group hidden sm:flex items-center">
             <button className="flex items-center gap-1.5 px-3 py-2 text-sm font-bold text-slate-700 hover:text-solar-navy transition-all">
-              <span className="uppercase">{country || "IN"}</span>
-              <span>{country === "IN" ? "IND" : country === "AU" ? "AUS" : "NZ"}</span>
+              <span className="text-lg">{availableCountries.find(c => c.code === country || c.name === country)?.flagEmoji || ''}</span>
+              <span className="uppercase">{availableCountries.find(c => c.code === country || c.name === country)?.code?.substring(0, 3) || country || "IN"}</span>
               <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-solar-navy" />
             </button>
             <div className="absolute top-full right-0 mt-1 w-48 bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 py-2">
@@ -173,7 +173,7 @@ export default function Header({
                   onClick={() => window.location.href = getCountryRoute(c)}
                   className="w-full text-left px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-solar-navy transition-colors flex items-center gap-3"
                 >
-                  {c.flag && <span className="text-base">{c.flag}</span>}
+                  {c.flagEmoji && <span className="text-base">{c.flagEmoji}</span>}
                   <span className="truncate">{c.name}</span>
                 </button>
               )) : (

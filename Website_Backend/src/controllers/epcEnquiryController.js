@@ -8,27 +8,30 @@ export const getMyEnquiries = async (req, res) => {
     const epc = await EpcPartner.findById(req.epc._id);
     const { status, projectType, district, enquiryType } = req.query;
 
-    let allowedDistricts = [];
-    if (epc.plan === 'Free' || epc.plan === '1 Installer Plan') {
-      allowedDistricts = [epc.district];
+    let filter = {};
+    if (epc.country?.toLowerCase() === 'india' || !epc.country) {
+      filter.state = epc.state;
     } else {
-      allowedDistricts = epc.activeDistricts && epc.activeDistricts.length > 0 ? epc.activeDistricts : [epc.district];
+      let allowedDistricts = [];
+      if (epc.plan === 'Free' || epc.plan === '1 Installer Plan') {
+        allowedDistricts = [epc.district];
+      } else {
+        allowedDistricts = epc.activeDistricts && epc.activeDistricts.length > 0 ? epc.activeDistricts : [epc.district];
+      }
+      filter.district = { $in: allowedDistricts };
     }
 
-    const filter = {
-      district: { $in: allowedDistricts },
-      $or: [
-        { epcPartner: req.epc._id },
-        {
-          epcPartner: null,
-          status: { $in: ['Open For EPC', 'Bid Running', 'Lead', 'Token Paid', 'Order Generated'] }
-        },
-      ],
-    };
+    filter.$or = [
+      { epcPartner: req.epc._id },
+      {
+        epcPartner: null,
+        status: { $in: ['Open For EPC', 'Bid Running', 'Lead', 'Token Paid', 'Order Generated'] }
+      },
+    ];
 
-    if (!epc.hasTrustedBadge) {
-      // Normal EPCs cannot see leads created in the last 5 minutes
-      const delayMinutes = process.env.TRUST_BADGE_DELAY_MINUTES || 5;
+    if (epc.trustBadge?.status !== 'Approved') {
+      // Normal EPCs cannot see leads created in the last 60 minutes
+      const delayMinutes = process.env.TRUST_BADGE_DELAY_MINUTES || 60;
       const delayTime = new Date(Date.now() - delayMinutes * 60 * 1000);
       filter.createdAt = { $lte: delayTime };
     }
@@ -80,15 +83,21 @@ export const acceptEnquiry = async (req, res) => {
       return res.status(403).json({ message: 'Your account is currently frozen due to overdue projects. Please complete them to accept new orders.' });
     }
 
-    let allowedDistricts = [];
-    if (epc.plan === 'Free' || epc.plan === '1 Installer Plan') {
-      allowedDistricts = [epc.district];
+    if (epc.country?.toLowerCase() === 'india' || !epc.country) {
+      if (epc.state !== enquiryCheck.state) {
+        return res.status(403).json({ message: 'This enquiry belongs to a different state.' });
+      }
     } else {
-      allowedDistricts = epc.activeDistricts && epc.activeDistricts.length > 0 ? epc.activeDistricts : [epc.district];
-    }
-
-    if (!allowedDistricts.includes(enquiryCheck.district)) {
-      return res.status(403).json({ message: 'This district is not available in your current plan. Upgrade to 2 or 3 Installer Plan to access other districts.' });
+      let allowedDistricts = [];
+      if (epc.plan === 'Free' || epc.plan === '1 Installer Plan') {
+        allowedDistricts = [epc.district];
+      } else {
+        allowedDistricts = epc.activeDistricts && epc.activeDistricts.length > 0 ? epc.activeDistricts : [epc.district];
+      }
+  
+      if (!allowedDistricts.includes(enquiryCheck.district)) {
+        return res.status(403).json({ message: 'This district is not available in your current plan. Upgrade to 2 or 3 Installer Plan to access other districts.' });
+      }
     }
 
     // District-wise Weekly Plan Check
@@ -113,6 +122,18 @@ export const acceptEnquiry = async (req, res) => {
       return res.status(403).json({ message: `Your capacity for ${targetDistrict} allows ${maxWeeklyKw} kW per week. You have accepted ${currentlyUsedKw} kW in the last 7 days. Upgrade your team capacity for ${targetDistrict} to accept this project.` });
     }
 
+    // Trust Badge Leads limit check
+    if (epc.trustBadge?.status === 'Approved' && epc.trustBadge?.remainingLeads <= 0) {
+      // It's up to business logic if we block or they just don't get the trust badge fast-track.
+      // Given the requirement is to 'track' trust badge usage and decrement limits, we can let them accept, but they just use regular leads?
+      // Actually, if they are accepting it in the first 60 mins, they MUST have remaining leads.
+      const delayMinutes = process.env.TRUST_BADGE_DELAY_MINUTES || 60;
+      const delayTime = new Date(Date.now() - delayMinutes * 60 * 1000);
+      if (enquiryCheck.createdAt > delayTime) {
+        return res.status(403).json({ message: 'Your Trust Badge lead quota is exhausted. You cannot accept fresh (priority) leads right now.' });
+      }
+    }
+
     // 2. Atomic Lock for FCFS — Only one EPC can transition it from 'Open For EPC' to 'Processing Acceptance'
     const lockedEnquiry = await EpcEnquiry.findOneAndUpdate(
       { _id: enquiryId, status: { $in: acceptableStatuses } },
@@ -126,8 +147,15 @@ export const acceptEnquiry = async (req, res) => {
 
     try {
       // 3. Deduct Wallet Points
-      const kwRequired = lockedEnquiry.systemCapacityKw || 1; 
       await deductCreditsForOrder(epcId, lockedEnquiry.projectType, kwRequired, enquiryId, true);
+
+      // Decrement Trust Badge leads if they accepted a priority lead
+      const delayMinutes = process.env.TRUST_BADGE_DELAY_MINUTES || 60;
+      const delayTime = new Date(Date.now() - delayMinutes * 60 * 1000);
+      if (epc.trustBadge?.status === 'Approved' && epc.trustBadge?.remainingLeads > 0 && lockedEnquiry.createdAt > delayTime) {
+         epc.trustBadge.remainingLeads -= 1;
+         await epc.save();
+      }
 
       // 4. Successful Deduction -> Finalize Acceptance
       const deadline = new Date();

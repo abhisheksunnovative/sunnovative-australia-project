@@ -22,6 +22,7 @@ export const createLead = async (req, res) => {
       name, mobile, phone, whatsapp, email,
       state, district, city, pincode, address,
       solarType, project, kw, systemCapacity,
+      totalCost, subsidy,
       billAmount, consumerNumber, discom, tariff, meterCategory,
       sourceOfMedia, profession, notes,
     } = req.body;
@@ -74,12 +75,15 @@ export const createLead = async (req, res) => {
       state, district, city, pincode, address,
       solarType: resolvedSolarType,
       kw: resolvedKw,
+      totalCost: totalCost || 0,
+      subsidy: subsidy || 0,
       billAmount: billAmount || 0,
       consumerNumber,
       discom,
       tariff,
       meterCategory,
       sourceOfMedia, profession, notes,
+      billUrl: req.body.billUrl || undefined,
       uploadSource: req.body.uploadSource || 'website',
       history: [{ action: 'Created' }],
     });
@@ -578,8 +582,8 @@ export const convertLeadToProject = async (req, res) => {
     const lead = await Lead.findById(leadId);
     if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
     
-    if (lead.status === 'Converted') {
-      return res.status(400).json({ success: false, message: 'Lead already converted' });
+    if (lead.convertedProjectId) {
+      return res.status(400).json({ success: false, message: 'Order has already been confirmed by Admin' });
     }
 
     let projectType = lead.solarType || 'residential';
@@ -637,12 +641,16 @@ export const convertLeadToProject = async (req, res) => {
       steps[0].startedAt = new Date();
     }
 
+    // Clean up any temporary/placeholder project applications (status: 'lead') created by the customer from the portal
+    // This prevents duplicate projects showing up in the Customer Portal once the lead is fully converted.
+    await ProjectOrder.deleteMany({ customerMobile: lead.mobile, status: 'lead' });
+
     const po = new ProjectOrder({
       customerName: lead.name,
       customerMobile: lead.mobile,
       customerEmail: lead.email,
       projectType,
-      systemSizeKW: parseFloat(lead.kw) || 0,
+      systemSizeKW: parseFloat(lead.kw) || parseFloat(lead.systemKw) || parseFloat(lead.systemCapacity) || 1,
       monthlyBillAmount: lead.billAmount || 0,
       state: lead.state || '',
       location: { city: lead.city, pincode: lead.pincode, address: lead.address },

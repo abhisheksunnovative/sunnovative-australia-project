@@ -48,7 +48,8 @@ export const extractPdfText = async (pdfBuffer) => {
     if (text.length < 30) return { text: '', isScanned: true };
     return { text, isScanned: false };
   } catch (error) {
-    throw new Error(`PDF Parsing failed: ${error.message}`);
+    console.warn(`[OCR] PDF Parsing failed (possibly corrupted XRef), falling back to OCR: ${error.message}`);
+    return { text: '', isScanned: true };
   }
 };
 

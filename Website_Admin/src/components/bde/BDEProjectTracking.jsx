@@ -19,6 +19,19 @@ export default function BDEProjectTracking({ bdeId }) {
   const [bdeUploadFile, setBdeUploadFile] = useState(null);
   const [bdeEvidenceNote, setBdeEvidenceNote] = useState("");
   const [expandedStepIndex, setExpandedStepIndex] = useState(null);
+
+  // Auto-expand active step
+  useEffect(() => {
+    if (selectedProjectId) {
+      const sp = projects.find(p => p._id === selectedProjectId);
+      if (sp && sp.steps) {
+        const activeIdx = sp.steps.findIndex(s => s.status === 'in-progress' || s.status === 'pending');
+        if (activeIdx >= 0) {
+          setExpandedStepIndex(activeIdx);
+        }
+      }
+    }
+  }, [selectedProjectId, projects]);
   
   // Date negotiation states
   const [proposedDate, setProposedDate] = useState("");
@@ -388,11 +401,9 @@ export default function BDEProjectTracking({ bdeId }) {
             <Building className="w-3.5 h-3.5 text-blue-600" /> Assigned EPC Installation Partner
           </h4>
           {selectedProject.assignedEPCName ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-              <div><p className="text-slate-400 font-medium">Company</p><p className="font-bold text-slate-800">{selectedProject.assignedEPCName}</p></div>
-              <div><p className="text-slate-400 font-medium">Contact Person</p><p className="font-bold text-slate-800">{selectedProject.epcDetails?.contactPerson || "Installer Rep"}</p></div>
-              <div><p className="text-slate-400 font-medium">Phone</p><p className="font-bold text-slate-800">{selectedProject.epcDetails?.contactPersonMobile || "Not Shared"}</p></div>
-              <div><p className="text-slate-400 font-medium">Location</p><p className="font-bold text-slate-800">{selectedProject.epcDetails?.city || "City"}, {selectedProject.epcDetails?.state || "State"}</p></div>
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+              <p className="text-sm font-bold text-slate-800">EPC Assigned</p>
             </div>
           ) : (
             <p className="text-xs text-blue-700 font-medium italic">EmergeSun / BDE is curating the best certified installer partner for this property.</p>

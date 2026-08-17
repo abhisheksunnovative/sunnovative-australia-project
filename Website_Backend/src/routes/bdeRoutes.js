@@ -4,12 +4,17 @@ import {
   createBDE, getAllBDEs, getBDEById, updateBDE, deleteBDE,
   bdeLogin, getBDEDashboard, getBDELeads, getDemandPool, assignLeadToBDE, updateBDELead,
   createBDELead, getBDEProjects, getBDEOverdueProjects, uploadBDEProjectDoc, updateBDELeadDetails,
-  requestBdeOtp, verifyOtpAndSetPassword, getEpcCalendarForBde, scheduleAndQualifyLead, getAustralianEpcsForBde
+  requestBdeOtp, verifyOtpAndSetPassword, getEpcCalendarForBde, scheduleAndQualifyLead, getAustralianEpcsForBde,
+  getEligibleBDEsForLead, adminAssignLeadToBDE
 } from "../controllers/bdeController.js";
 
 const router = express.Router();
 
 router.get("/epcs", getAustralianEpcsForBde);
+
+// Admin Manual Lead Assignment
+router.get("/eligible-for-lead/:leadId", getEligibleBDEsForLead);
+router.post("/admin-assign-lead", adminAssignLeadToBDE);
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage });

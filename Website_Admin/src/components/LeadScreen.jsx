@@ -20,7 +20,7 @@ import { MasterFilterBar } from "./common/MasterFilterBar";
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const STATUS_OPTIONS = ["New", "Called", "Interested", "Not Interested", "Follow Up", "Converted", "Junk"];
+const STATUS_OPTIONS = ["New", "Called", "Interested", "Not Interested", "Follow Up", "Converted", "Junk", "assigned to bde"];
 
 const STATUS_COLORS = {
   "New":            "bg-blue-100 text-blue-700 border-blue-200",
@@ -30,6 +30,7 @@ const STATUS_COLORS = {
   "Follow Up":      "bg-purple-100 text-purple-700 border-purple-200",
   "Converted":      "bg-emerald-100 text-emerald-700 border-emerald-200",
   "Junk":           "bg-slate-100 text-slate-500 border-slate-200",
+  "assigned to bde":"bg-cyan-100 text-cyan-700 border-cyan-200",
 };
 
 
@@ -313,6 +314,106 @@ const UploadModal = ({ onClose, onSuccess }) => {
   );
 };
 
+// ── Assign BDE Modal ──────────────────────────────────────────────────────────
+const AssignBDEModal = ({ lead, onClose, onSuccess }) => {
+  const [bdes, setBdes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [assigning, setAssigning] = useState(false);
+  const [selectedBde, setSelectedBde] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchBdes = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/bde/eligible-for-lead/${lead._id}`);
+        const data = await res.json();
+        if (data.success) {
+          setBdes(data.data);
+        } else {
+          setError(data.message);
+        }
+      } catch (err) {
+        setError("Failed to fetch eligible BDEs");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchBdes();
+  }, [lead._id]);
+
+  const handleAssign = async () => {
+    if (!selectedBde) { setError("Please select a BDE first"); return; }
+    setAssigning(true); setError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/bde/admin-assign-lead`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId: lead._id, bdeId: selectedBde })
+      });
+      const data = await res.json();
+      if (data.success) { onSuccess(); onClose(); }
+      else setError(data.message || "Assignment failed");
+    } catch (err) {
+      setError("Network error");
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
+        <div className="flex items-center justify-between mb-5 border-b pb-4">
+          <div className="flex items-center gap-2">
+            <UserCheck className="w-5 h-5 text-cyan-600" />
+            <h2 className="text-base font-bold text-slate-800">Assign to BDE</h2>
+          </div>
+          <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="mb-4">
+          <p className="text-sm font-semibold text-slate-700">Lead: {lead.name}</p>
+          <p className="text-xs text-slate-500">State: {lead.state || 'N/A'}, District: {lead.district || lead.city || 'N/A'}</p>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center items-center h-32"><Loader2 className="w-6 h-6 animate-spin text-cyan-600" /></div>
+        ) : error ? (
+          <div className="text-sm text-red-600 p-4 bg-red-50 rounded-lg">{error}</div>
+        ) : bdes.length === 0 ? (
+          <div className="text-sm text-amber-600 p-4 bg-amber-50 rounded-lg">No active BDEs found for this state.</div>
+        ) : (
+          <div className="space-y-4">
+            <div className="max-h-64 overflow-y-auto space-y-2 pr-2">
+              {bdes.map(bde => (
+                <label key={bde._id} className={`flex items-start gap-3 p-3 border rounded-xl cursor-pointer transition ${selectedBde === bde._id ? 'border-cyan-500 bg-cyan-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                  <input type="radio" name="bde" value={bde._id} checked={selectedBde === bde._id} onChange={() => setSelectedBde(bde._id)} className="mt-1" />
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-slate-800">{bde.name}</p>
+                    <div className="flex gap-2 mt-1">
+                      {bde.districtMatch && <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">District Match</span>}
+                      <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-bold">{bde.convertedCount} Converted Leads</span>
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+            
+            <div className="flex gap-3 pt-2">
+              <button onClick={onClose} className="flex-1 border border-slate-200 text-slate-600 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-50">Cancel</button>
+              <button onClick={handleAssign} disabled={assigning || !selectedBde}
+                className="flex-1 bg-cyan-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-cyan-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                {assigning && <Loader2 className="w-4 h-4 animate-spin" />}
+                Assign Lead
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ── Main LeadsScreen ──────────────────────────────────────────────────────────
 const LeadScreen = ({ uploadSource = 'website' }) => {
   const [filterCountry, setFilterCountry] = useState("");
@@ -339,6 +440,7 @@ const LeadScreen = ({ uploadSource = 'website' }) => {
   const [showCreate, setShowCreate] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
+  const [assigningLead, setAssigningLead] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [toast, setToast] = useState(null);
@@ -581,7 +683,7 @@ const LeadScreen = ({ uploadSource = 'website' }) => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  {["#", "Name", "Mobile", "Solar Type", "Location", "kW / Bill", "Source", "Status", "Date", "Actions"].map(h => (
+                  {["#", "Name", "Contact", "Solar Type", "Location", "kW / Bill", "Source", "Status", "Date", "Actions"].map(h => (
                     <th key={h} className="text-left px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -595,7 +697,10 @@ const LeadScreen = ({ uploadSource = 'website' }) => {
                         {lead.name}
                       </button>
                     </td>
-                    <td className="px-4 py-3 text-slate-600 font-mono text-xs">{lead.mobile}</td>
+                    <td className="px-4 py-3 text-slate-600 text-xs">
+                      <div className="font-mono">{lead.mobile}</div>
+                      {lead.email && <div className="text-blue-600 mt-0.5">{lead.email}</div>}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] w-max">
                         <Zap className="w-3.5 h-3.5 text-amber-500" />
@@ -665,9 +770,16 @@ const LeadScreen = ({ uploadSource = 'website' }) => {
                           >
                             <CheckCircle className="w-3.5 h-3.5" /> Confirm Order
                           </button>
+                        ) : lead.status === "New" ? (
+                          <button 
+                            onClick={() => setAssigningLead(lead)}
+                            className="px-2.5 py-1 bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-xs rounded-lg transition flex items-center gap-1 shadow-xs cursor-pointer"
+                          >
+                            <UserCheck className="w-3.5 h-3.5" /> Assign to BDE
+                          </button>
                         ) : (
                           <span className="px-2 py-1 bg-slate-100 text-slate-500 font-semibold text-[10px] rounded-lg border border-slate-200 flex items-center gap-1">
-                            <Clock className="w-3 h-3 text-amber-500"/> Pending BDE
+                            <Clock className="w-3 h-3 text-amber-500"/> Pending Action
                           </span>
                         )}
 
@@ -710,6 +822,13 @@ const LeadScreen = ({ uploadSource = 'website' }) => {
           onUpdate={() => fetchLeads(page)}
           onConvert={() => { fetchLeads(page); showToast("success", "Lead converted to Project Order!"); }}
           solarTypes={dynamicSolarTypes}
+        />
+      )}
+      {assigningLead && (
+        <AssignBDEModal
+          lead={assigningLead}
+          onClose={() => setAssigningLead(null)}
+          onSuccess={() => { showToast("success", "Lead assigned to BDE!"); fetchLeads(page); }}
         />
       )}
     </div>

@@ -2,19 +2,36 @@ import React, { useState, useEffect, useRef } from "react";
 import { LayoutDashboard, Users, Map, LogOut, Sun, ClipboardList, AlertTriangle, Bell, Trash2, CheckSquare, Square, Check } from "lucide-react";
 
 export default function BDELayout({ children, currentTab, onTabChange, onLogout, bdeName, bdeId }) {
-  const navItems = [
-    { id: "bde-aust", name: "Dashboard", icon: <LayoutDashboard className="w-5 h-5 text-emerald-400" /> },
-    { id: "bde-leads", name: "My Leads", icon: <Users className="w-5 h-5" /> },
-    { id: "bde-projects", name: "My Projects", icon: <ClipboardList className="w-5 h-5" /> },
-    { id: "bde-demand", name: "Demand Pool", icon: <Map className="w-5 h-5" /> }
-  ];
-
   const [notifications, setNotifications] = useState([]);
   const [selectedNotifIds, setSelectedNotifIds] = useState([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [tabCounts, setTabCounts] = useState({ leads: 0, projects: 0 });
   const notifRef = useRef(null);
 
   const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
+
+  const loadCounts = async () => {
+    if (!bdeId) return;
+    try {
+      const [leadsRes, projRes] = await Promise.all([
+        fetch(`${API_BASE}/api/bde/${bdeId}/leads`).catch(() => null),
+        fetch(`${API_BASE}/api/bde/projects/${bdeId}`).catch(() => null)
+      ]);
+      let leadsCount = 0;
+      let projCount = 0;
+      if (leadsRes && leadsRes.ok) {
+        const d = await leadsRes.json();
+        leadsCount = d.leads?.length || 0;
+      }
+      if (projRes && projRes.ok) {
+        const p = await projRes.json();
+        projCount = p.data?.length || p.projects?.length || 0;
+      }
+      setTabCounts({ leads: leadsCount, projects: projCount });
+    } catch (e) {
+      console.warn("Failed to load BDE tab counts", e);
+    }
+  };
 
   const loadNotifications = async () => {
     try {
@@ -29,9 +46,20 @@ export default function BDELayout({ children, currentTab, onTabChange, onLogout,
 
   useEffect(() => {
     loadNotifications();
-    const int = setInterval(loadNotifications, 60000);
+    loadCounts();
+    const int = setInterval(() => {
+      loadNotifications();
+      loadCounts();
+    }, 60000);
     return () => clearInterval(int);
   }, [bdeId]);
+
+  const navItems = [
+    { id: "bde-aust", name: "Dashboard", icon: <LayoutDashboard className="w-5 h-5 text-emerald-400" /> },
+    { id: "bde-leads", name: "My Leads", icon: <Users className="w-5 h-5" />, count: tabCounts.leads },
+    { id: "bde-projects", name: "My Projects", icon: <ClipboardList className="w-5 h-5" />, count: tabCounts.projects },
+    { id: "bde-demand", name: "Demand Pool", icon: <Map className="w-5 h-5" /> }
+  ];
 
   const toggleSelectNotif = (id) => {
     setSelectedNotifIds(prev => 
@@ -152,6 +180,11 @@ export default function BDELayout({ children, currentTab, onTabChange, onLogout,
             >
               <span className="mr-3">{item.icon}</span>
               <span className="text-sm font-medium">{item.name}</span>
+              {item.count > 0 && (
+                <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full ${currentTab === item.id ? 'bg-white text-blue-600' : 'bg-slate-700 text-slate-300'}`}>
+                  {item.count}
+                </span>
+              )}
             </button>
           ))}
         </nav>

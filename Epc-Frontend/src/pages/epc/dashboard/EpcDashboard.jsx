@@ -188,6 +188,32 @@ const EpcDashboard = () => {
         </div>
       )}
 
+      {/* Trust Badge UI Card */}
+      {epc?.trustBadge?.status === 'Approved' && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-5 shadow-premium">
+          <div className="flex items-center gap-2 mb-4">
+            <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            <h3 className="text-blue-900 font-black text-lg">Trust Badge Analytics</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-sm text-center">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Leads Remaining</p>
+              <p className="text-2xl font-black text-blue-700">{epc?.trustBadge?.remainingLeads || 0}</p>
+            </div>
+            <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-sm text-center">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Customers who assigned you</p>
+              <p className="text-2xl font-black text-green-600">{epc?.trustBadge?.assignedCount || 0}</p>
+            </div>
+            <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-sm text-center">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Customers who viewed but skipped you</p>
+              <p className="text-2xl font-black text-orange-500">{epc?.trustBadge?.skippedCount || 0}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Demand Stats Alert */}
       {demandStats && (
         <div className={`${demandStats.demandCount > 0 ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800/50' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'} border rounded-xl px-5 py-4 flex items-center gap-3 shadow-premium cursor-pointer hover-lift glass-panel transition-all`}

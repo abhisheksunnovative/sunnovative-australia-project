@@ -72,7 +72,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
   const [projectTypeConfigs, setProjectTypeConfigs] = useState([]);
   const [eligibilityCategories, setEligibilityCategories] = useState([]);
   const [selectedUpgradeKw, setSelectedUpgradeKw] = useState(0);
-  const [selectedKw, setSelectedKw] = useState(3);
+  const [selectedKw, setSelectedKw] = useState(0);
   // Section 4: Customer-chosen kW (may differ from recommended)
   const [customKw, setCustomKw] = useState(null); // null = not yet chosen (shows recommended)
   // AU Bill Scan — STC info returned from backend
@@ -89,17 +89,33 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
   // Fetch project-specific form settings
   useEffect(() => {
     const loadFormSettings = async () => {
-      // Use propSettings if passed, else try fetching
       const ptKey = selectedProjectType || "default";
       const countryCode = getCountryCode();
+      const apiBase = import.meta.env.VITE_API_URL || "http://localhost:4005";
       try {
-        const apiBase = import.meta.env.VITE_API_URL || "http://localhost:4005";
         const res = await fetch(`${apiBase}/api/website-settings/${countryCode}/${ptKey}`);
         const data = await res.json();
+        let settingsToUse = null;
         if (data.success && data.data?.projectForm) {
-          setFormSettings(data.data.projectForm);
+          settingsToUse = data.data.projectForm;
         } else if (propSettings?.projectForm) {
-          setFormSettings(propSettings.projectForm);
+          settingsToUse = propSettings.projectForm;
+        }
+        
+        if (settingsToUse && settingsToUse.fields) {
+          const hasEmail = settingsToUse.fields.some(f => f.key === 'email');
+          if (!hasEmail) {
+            const mobileIdx = settingsToUse.fields.findIndex(f => f.key === 'mobileNumber');
+            const insertIdx = mobileIdx >= 0 ? mobileIdx + 1 : 2;
+            settingsToUse.fields.splice(insertIdx, 0, {
+              key: 'email',
+              label: `Email Address *`,
+              type: 'email',
+              required: true,
+              placeholder: 'e.g. hello@example.com'
+            });
+          }
+          setFormSettings(settingsToUse);
         }
       } catch {
         if (propSettings?.projectForm) setFormSettings(propSettings.projectForm);
@@ -325,6 +341,8 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
           if (matchedState) setCustomerState(matchedState);
         }
 
+        if (data.recommendedKw) setSelectedKw(data.recommendedKw);
+
         const units = data.monthlyUnitsUsed || ex.monthlyUnits || null;
         setOcrMonthlyUnits(units);
 
@@ -376,7 +394,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
 
       // Check agar file khali (0 bytes) hai
       if (file.size === 0) {
-        alert("Yeh file khali (0 MB) lag rahi hai. Kripya koi doosri valid file upload karein.");
+        alert("This file appears to be empty (0 MB). Please upload a valid file.");
         return;
       }
 
@@ -391,8 +409,16 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
-    if (!fullName || !mobileNumber || !city) {
-      alert("Required details (Name, Mobile, City) are missing.");
+    if (!fullName || !city) {
+      alert("Required details (Name, City) are missing.");
+      return;
+    }
+    if (isAU && !email) {
+      alert("Email is required for Australia/International leads.");
+      return;
+    }
+    if (!isAU && !mobileNumber) {
+      alert("Mobile number is required for Indian leads.");
       return;
     }
     if (eligibilityResult && eligibilityResult.isEligible === false) {
@@ -441,6 +467,24 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
       else extraFromDynamic[key] = val; // include any extra as notes
     });
 
+    let billUrl = "";
+    if (uploadedFile) {
+      try {
+        const fd = new FormData();
+        fd.append("file", uploadedFile);
+        const uploadRes = await fetch(import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/upload-file` : "http://localhost:4005/api/upload-file", {
+          method: "POST",
+          body: fd
+        });
+        const uploadData = await uploadRes.json();
+        if (uploadData.success) {
+          billUrl = uploadData.fileUrl;
+        }
+      } catch (e) {
+        console.error("Failed to upload bill", e);
+      }
+    }
+
     const submission = {
         name: fullName || extraFromDynamic.fullName,
         mobile: mobileNumber || extraFromDynamic.mobileNumber,
@@ -455,12 +499,15 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
         tariff: tariffDesc || "Not detected",
         billAmount: monthlyBill || extraFromDynamic.monthlyBill,
         kw: finalCapacity,
+        totalCost: totalCost,
+        subsidy: subsidy,
         source: "website-form",
         solarType: mappedSolarType,
         postcode: postcode || extraFromDynamic.postcode,
         retailer: isAU ? retailer : undefined,
         ownsProperty: ownsProperty !== undefined ? ownsProperty : extraFromDynamic.ownsProperty,
         dynamicBrands: preferredBrands, // Send directly just in case backend expects it
+        billUrl: billUrl,
         notes: `Estimated Subsidy / STC Rebate: ${subsidy}, Net Cost: ${net}${Object.keys(preferredBrands).length > 0 ? ` | Preferred Brands: ${Object.keys(preferredBrands).map(k => `${k}:${availableBrands.find(b=>b._id===preferredBrands[k]||b.id===preferredBrands[k])?.name||preferredBrands[k]}`).join(', ')}` : ''}`,
       };
 
@@ -642,7 +689,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
             className="w-full px-2.5 py-1.5 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all cursor-pointer font-medium"
           >
             <option value="">Select...</option>
-            {(field.options || []).map((opt, oi) => <option key={oi} value={opt}>{opt}</option>)}
+            {(field.key === "customerState" ? (countryStatesMap[country] || countryStatesMap["IN"]) : (field.options || [])).map((opt, oi) => <option key={oi} value={opt}>{opt}</option>)}
           </select>
         ) : field.type === "textarea" ? (
           <textarea
@@ -676,10 +723,10 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
             {formSettings?.title || "Apply for Solar"}
           </span>
           <h2 className="text-2xl md:text-3xl font-display font-extrabold text-slate-900 mt-1.5 leading-tight">
-            {formSettings?.subtitle || "Check Your Subsidy & Rooftop Solar Estimate"}
+            {submitSuccess ? "Project Details Submitted Successfully" : (formSettings?.subtitle || "Check Your Subsidy & Rooftop Solar Estimate")}
           </h2>
           <p className="text-slate-600 mt-1 text-xs">
-            Select your state or upload your electricity bill for instant capacity recommendation.
+            {submitSuccess ? "We have received your project details." : "Select your state or upload your electricity bill for instant capacity recommendation."}
           </p>
         </div>
 
@@ -767,17 +814,17 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
                     className="w-full px-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium" />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Mobile Number (WhatsApp) *</label>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Mobile Number (WhatsApp){isAU ? ' (Optional)' : ' *'}</label>
                   <div className="relative">
                     {isAU && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-bold">+61</span>}
-                    <input type="tel" required maxLength={10} value={mobileNumber}
+                    <input type="tel" required={!isAU} maxLength={10} value={mobileNumber}
                       onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, ""))}
                       placeholder={isAU ? "412 345 678" : "e.g. 98982 12345"}
                       className={`w-full ${isAU ? 'pl-9' : 'px-3'} pr-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium`} />
                   </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Email Address (Optional)</label>
-                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                  <div className="mt-2">
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Email Address {isAU ? '*' : '(Optional)'}</label>
+                    <input type="email" required={isAU} value={email} onChange={(e) => setEmail(e.target.value)}
                       placeholder="e.g. hello@example.com"
                       pattern="^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$"
                       className="w-full px-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium invalid:[&:not(:placeholder-shown):not(:focus)]:border-red-500 invalid:[&:not(:placeholder-shown):not(:focus)]:ring-red-500" />

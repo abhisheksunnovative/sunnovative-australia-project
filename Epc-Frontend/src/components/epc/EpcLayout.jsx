@@ -30,9 +30,17 @@ const EpcLayout = () => {
 
   useEffect(() => {
     loadWallet();
+    
+    const handleWalletUpdate = () => loadWallet();
+    window.addEventListener('walletUpdated', handleWalletUpdate);
+    
     // Refresh wallet every 60s so header stays in sync after purchases/order accepts
     const interval = setInterval(loadWallet, 60000);
-    return () => clearInterval(interval);
+    
+    return () => {
+      window.removeEventListener('walletUpdated', handleWalletUpdate);
+      clearInterval(interval);
+    };
   }, []);
 
   const [notifications, setNotifications] = useState([]);

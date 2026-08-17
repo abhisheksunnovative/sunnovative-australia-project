@@ -85,7 +85,7 @@ export default function HowItWorks({ onScrollToForm, settings }) {
       ];
 
   const sectionTitle = settings?.howItWorks?.sectionTitle || "Easy 5-Step Process";
-  const sectionSubtitle = settings?.howItWorks?.sectionSubtitle || "Solar Installation Kaise Kaam Karta Hai?";
+  const sectionSubtitle = settings?.howItWorks?.sectionSubtitle || "How Solar Installation Works";
   const sectionDesc = settings?.howItWorks?.sectionDesc || "Zero-friction consultation flow designed to protect your savings and speed up subsidy registration with GEDA.";
   const tipText = settings?.calculator?.tipText || "Keep a PDF or photo of your latest PGVCL utility bill ready to streamline step 1 calculation!";
 

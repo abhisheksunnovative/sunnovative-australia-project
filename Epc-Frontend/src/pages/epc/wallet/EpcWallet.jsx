@@ -247,7 +247,7 @@ const EpcWallet = () => {
 
       {wallet?.isLowBalance && (
         <div className="text-sm rounded-xl px-4 py-3 border bg-amber-50 border-amber-200 text-amber-700 flex items-center justify-between">
-          <span>⚠️ Wallet balance low hai ({wallet.totalCredits} KW left). Order accept karne se pehle recharge kar lo.</span>
+          <span>⚠️ Wallet balance is low ({wallet.totalCredits} KW left). Please recharge before accepting orders.</span>
           <button onClick={openPurchaseModal} className="text-amber-800 font-semibold underline text-xs shrink-0 ml-3">
             Recharge Now
           </button>

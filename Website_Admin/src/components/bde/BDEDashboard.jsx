@@ -126,7 +126,7 @@ export default function BDEDashboard({ bdeId }) {
                   <li key={lead._id} className="p-4 hover:bg-gray-50 transition flex justify-between items-center">
                     <div>
                       <p className="font-medium text-gray-900">{lead.name}</p>
-                      <p className="text-xs text-gray-500">{lead.mobile} • {lead.district}</p>
+                      <p className="text-xs text-gray-500">{lead.mobile} {lead.email && <span className="ml-1 bg-gray-100 px-1 rounded">{lead.email}</span>} • {lead.district}</p>
                     </div>
                     <span className="text-xs font-semibold px-2 py-1 bg-blue-50 text-blue-700 rounded-md">{lead.status}</span>
                   </li>

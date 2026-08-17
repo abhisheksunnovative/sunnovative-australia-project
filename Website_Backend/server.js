@@ -117,10 +117,15 @@ app.get("/", (req, res) =>
   res.json({ status: "Sunnovative Website + EPC API running ✅" })
 );
 
-app.post("/api/upload-file", upload.single("file"), (req, res) => {
-  if (!req.file) return res.status(400).json({ success: false, message: "File missing" });
-  const fileUrl = `/uploads/${req.file.filename}`;
-  res.json({ success: true, fileUrl });
+app.post("/api/upload-file", (req, res) => {
+  upload.single("file")(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ success: false, message: err.message || "File upload failed" });
+    }
+    if (!req.file) return res.status(400).json({ success: false, message: "File missing" });
+    const fileUrl = `/uploads/${req.file.filename}`;
+    res.json({ success: true, fileUrl });
+  });
 });
 
 // ══════════════════════════════════════════════════════════════════════════

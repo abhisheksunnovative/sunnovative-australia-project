@@ -11,6 +11,7 @@ import Customer from '../models/Customer.js';
 import {ProjectOrder} from '../models/ProjectModel.js';
 import Lead from '../models/Lead.js';
 import { sendOTP } from '../utils/smsService.js';
+import { sendOtpEmail } from '../utils/sendOtpEmail.js';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const genOtp  = () => String(Math.floor(100000 + Math.random() * 900000));
@@ -26,17 +27,29 @@ const safeCustomer = (c) => ({
 // ── POST /api/customer/auth/send-otp ─────────────────────────────────────────
 export const sendOtp = async (req, res) => {
   try {
-    const { mobile, fullName, state } = req.body;
-    const cleanMobile = mobile ? String(mobile).trim().replace(/\D/g, '') : '';
+    const { mobile, email, fullName, state } = req.body;
+    const countryHeader = req.country || req.headers['x-country'] || 'australia';
+    const isIndia = countryHeader === 'india' || countryHeader === 'IN';
     
-    if (!cleanMobile || cleanMobile.length < 8 || cleanMobile.length > 12) {
-      return res.status(400).json({ message: 'Valid mobile number enter karein' });
-    }
+    let identifier = '';
+    let customer = null;
+    let existingLead = null;
 
-    let customer = await Customer.findOne({ mobile: cleanMobile });
-    
-    // Check if customer exists in Lead collection
-    const existingLead = await Lead.findOne({ mobile: cleanMobile }).sort({ createdAt: -1 });
+    if (isIndia) {
+      identifier = mobile ? String(mobile).trim().replace(/\D/g, '') : '';
+      if (!identifier || identifier.length < 8 || identifier.length > 12) {
+        return res.status(400).json({ message: 'Valid mobile number enter karein' });
+      }
+      customer = await Customer.findOne({ mobile: identifier });
+      existingLead = await Lead.findOne({ mobile: identifier }).sort({ createdAt: -1 });
+    } else {
+      identifier = email ? String(email).trim().toLowerCase() : '';
+      if (!identifier || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
+        return res.status(400).json({ message: 'Valid email address enter karein' });
+      }
+      customer = await Customer.findOne({ email: identifier });
+      existingLead = await Lead.findOne({ email: identifier }).sort({ createdAt: -1 });
+    }
 
     const isNew = !customer;
 
@@ -44,9 +57,10 @@ export const sendOtp = async (req, res) => {
       const nameToUse = fullName?.trim() || existingLead?.name || 'Customer';
       customer = new Customer({ 
         fullName: nameToUse, 
-        mobile: cleanMobile, 
+        mobile: isIndia ? identifier : null,
+        email: !isIndia ? identifier : null,
         state: state || existingLead?.state || 'New South Wales', 
-        country: req.country || existingLead?.country || 'australia' 
+        country: countryHeader 
       });
     }
 
@@ -56,15 +70,18 @@ export const sendOtp = async (req, res) => {
     customer.otpVerified = false;
     await customer.save();
 
-    // 🔑 ALWAYS LOG OTP CLEARLY IN BACKEND SERVER CONSOLE 🔑
     console.log('\n======================================================');
-    console.log(`🔑 [CUSTOMER OTP GENERATED] Mobile: ${cleanMobile} | OTP CODE: ${otp}`);
+    console.log(`🔑 [CUSTOMER OTP GENERATED] ${isIndia ? 'Mobile' : 'Email'}: ${identifier} | OTP CODE: ${otp}`);
     console.log('======================================================\n');
 
-    try {
-      await sendOTP(cleanMobile, otp);
-    } catch (smsErr) {
-      console.warn('[SMS GATEWAY WARNING] Live SMS failed, using console OTP:', smsErr.message);
+    if (isIndia) {
+      try {
+        await sendOTP(identifier, otp);
+      } catch (smsErr) {
+        console.warn('[SMS GATEWAY WARNING] Live SMS failed, using console OTP:', smsErr.message);
+      }
+    } else {
+      await sendOtpEmail(identifier, otp);
     }
 
     return res.json({
@@ -72,7 +89,7 @@ export const sendOtp = async (req, res) => {
       isNewUser: isNew,
       pinSet: customer.pinSet,
       otp: process.env.NODE_ENV !== 'production' ? otp : undefined, // Dev fallback
-      message: `OTP ${cleanMobile} par bheja gaya`,
+      message: `OTP ${identifier} par bheja gaya`,
     });
   } catch (err) {
     console.error('sendOtp error:', err);
@@ -83,26 +100,38 @@ export const sendOtp = async (req, res) => {
 // ── POST /api/customer/auth/verify-otp ───────────────────────────────────────
 export const verifyOtp = async (req, res) => {
   try {
-    const { mobile, otp } = req.body;
-    const cleanMobile = mobile ? String(mobile).trim().replace(/\D/g, '') : '';
-
-    if (!cleanMobile || !otp) return res.status(400).json({ message: 'Mobile aur OTP chahiye' });
-
-    let customer = await Customer.findOne({ mobile: cleanMobile });
+    const { mobile, email, otp } = req.body;
+    const countryHeader = req.country || req.headers['x-country'] || 'australia';
+    const isIndia = countryHeader === 'india' || countryHeader === 'IN';
     
-    // Fallback: If customer is in Lead table, auto-create customer record
+    let identifier = '';
+    let customer = null;
+    let existingLead = null;
+
+    if (isIndia) {
+      identifier = mobile ? String(mobile).trim().replace(/\D/g, '') : '';
+      if (!identifier || !otp) return res.status(400).json({ message: 'Mobile aur OTP chahiye' });
+      customer = await Customer.findOne({ mobile: identifier });
+      if (!customer) existingLead = await Lead.findOne({ mobile: identifier });
+    } else {
+      identifier = email ? String(email).trim().toLowerCase() : '';
+      if (!identifier || !otp) return res.status(400).json({ message: 'Email aur OTP chahiye' });
+      customer = await Customer.findOne({ email: identifier });
+      if (!customer) existingLead = await Lead.findOne({ email: identifier });
+    }
+
     if (!customer) {
-      const existingLead = await Lead.findOne({ mobile: cleanMobile });
       if (existingLead) {
         customer = new Customer({
           fullName: existingLead.name || 'Customer',
-          mobile: cleanMobile,
+          mobile: isIndia ? identifier : null,
+          email: !isIndia ? identifier : null,
           state: existingLead.state || 'New South Wales',
-          country: existingLead.country || 'australia'
+          country: existingLead.country || countryHeader
         });
         await customer.save();
       } else {
-        return res.status(404).json({ message: 'Mobile registered nahi. Kripya naya form bharein.' });
+        return res.status(404).json({ message: `${isIndia ? 'Mobile' : 'Email'} registered nahi. Kripya naya form bharein.` });
       }
     }
 
@@ -115,16 +144,19 @@ export const verifyOtp = async (req, res) => {
     customer.isActive = true;
     await customer.save();
 
-    // Mark lead as logged in so BDE can now "Contact" them
-    await Lead.updateMany({ mobile: cleanMobile }, { hasLoggedIn: true });
+    if (isIndia) {
+      await Lead.updateMany({ mobile: identifier }, { hasLoggedIn: true });
+    } else {
+      await Lead.updateMany({ email: identifier }, { hasLoggedIn: true });
+    }
 
-    // Check if this mobile had submitted leads before (lead form se)
-    const existingProjects = await ProjectOrder.find({ customerMobile: mobile })
+    const searchQuery = isIndia ? { customerMobile: identifier } : { customerEmail: identifier };
+    const existingProjects = await ProjectOrder.find(searchQuery)
       .select('orderNumber projectType status createdAt systemSizeKW estimatedSubsidy')
       .sort({ createdAt: -1 })
       .limit(10);
       
-    const latestLead = await Lead.findOne({ mobile }).sort({ createdAt: -1 }).lean();
+    const latestLead = isIndia ? await Lead.findOne({ mobile: identifier }).sort({ createdAt: -1 }).lean() : await Lead.findOne({ email: identifier }).sort({ createdAt: -1 }).lean();
 
     const token = genTok(customer._id);
 
@@ -145,11 +177,17 @@ export const verifyOtp = async (req, res) => {
 // ── POST /api/customer/auth/set-pin ──────────────────────────────────────────
 export const setPin = async (req, res) => {
   try {
-    const { mobile, pin } = req.body;
-    if (!mobile || !pin || !/^\d{4}$/.test(pin))
+    const { mobile, email, pin } = req.body;
+    const countryHeader = req.country || req.headers['x-country'] || 'australia';
+    const isIndia = countryHeader === 'india' || countryHeader === 'IN';
+    
+    let identifier = isIndia ? (mobile ? String(mobile).trim().replace(/\D/g, '') : '') : (email ? String(email).trim().toLowerCase() : '');
+
+    if (!identifier || !pin || !/^\d{4}$/.test(pin))
       return res.status(400).json({ message: '4-digit numeric PIN chahiye' });
 
-    const customer = await Customer.findOne({ mobile, otpVerified: true });
+    const customer = isIndia ? await Customer.findOne({ mobile: identifier, otpVerified: true }) : await Customer.findOne({ email: identifier, otpVerified: true });
+    
     if (!customer) return res.status(400).json({ message: 'OTP verify karo pehle' });
 
     customer.loginPin = pin;  // pre-save hook hashes it
@@ -166,27 +204,35 @@ export const setPin = async (req, res) => {
 // ── POST /api/customer/auth/login-with-pin ───────────────────────────────────
 export const loginWithPin = async (req, res) => {
   try {
-    const { mobile, pin } = req.body;
-    if (!mobile || !pin) return res.status(400).json({ message: 'Mobile aur PIN chahiye' });
+    const { mobile, email, pin } = req.body;
+    const countryHeader = req.country || req.headers['x-country'] || 'australia';
+    const isIndia = countryHeader === 'india' || countryHeader === 'IN';
+    
+    let identifier = isIndia ? (mobile ? String(mobile).trim().replace(/\D/g, '') : '') : (email ? String(email).trim().toLowerCase() : '');
+    if (!identifier || !pin) return res.status(400).json({ message: 'Identifier aur PIN chahiye' });
 
-    const customer = await Customer.findOne({ mobile });
-    if (!customer) return res.status(404).json({ message: 'Mobile registered nahi' });
+    const customer = isIndia ? await Customer.findOne({ mobile: identifier }) : await Customer.findOne({ email: identifier });
+    
+    if (!customer) return res.status(404).json({ message: 'Account registered nahi' });
     if (!customer.pinSet) return res.status(400).json({ message: 'PIN set nahi hai — OTP se login karo' });
     if (!customer.isActive) return res.status(403).json({ message: 'Account deactivated' });
 
     const match = await customer.matchPin(pin);
     if (!match) return res.status(400).json({ message: 'PIN galat hai' });
 
-    // Mark lead as logged in so BDE can now "Contact" them
-    await Lead.updateMany({ mobile }, { hasLoggedIn: true });
+    if (isIndia) {
+      await Lead.updateMany({ mobile: identifier }, { hasLoggedIn: true });
+    } else {
+      await Lead.updateMany({ email: identifier }, { hasLoggedIn: true });
+    }
 
-    // Fetch lead projects
-    const existingProjects = await ProjectOrder.find({ customerMobile: mobile })
+    const searchQuery = isIndia ? { customerMobile: identifier } : { customerEmail: identifier };
+    const existingProjects = await ProjectOrder.find(searchQuery)
       .select('orderNumber projectType status createdAt systemSizeKW estimatedSubsidy')
       .sort({ createdAt: -1 })
       .limit(10);
       
-    const latestLead = await Lead.findOne({ mobile }).sort({ createdAt: -1 }).lean();
+    const latestLead = isIndia ? await Lead.findOne({ mobile: identifier }).sort({ createdAt: -1 }).lean() : await Lead.findOne({ email: identifier }).sort({ createdAt: -1 }).lean();
 
     const token = genTok(customer._id);
     return res.json({
@@ -206,14 +252,24 @@ export const getMe = async (req, res) => {
   try {
     const customer = await Customer.findById(req.customer._id).select('-otp -otpExpiry -loginPin');
     if (!customer) return res.status(404).json({ message: 'Not found' });
-    const projects = await ProjectOrder.find({ customerMobile: customer.mobile })
+    const isIndia = customer.mobile ? true : false;
+    const projectQuery = isIndia 
+      ? { customerMobile: customer.mobile }
+      : { customerEmail: customer.email };
+
+    const projects = await ProjectOrder.find(projectQuery)
       .select('orderNumber projectType status createdAt systemSizeKW estimatedSubsidy completionPercentage')
       .sort({ createdAt: -1 });
+
+    const leadQuery = isIndia
+      ? { mobile: customer.mobile }
+      : { email: customer.email };
       
-    const latestLead = await Lead.findOne({ mobile: customer.mobile }).sort({ createdAt: -1 }).lean();
+    const latestLead = await Lead.findOne(leadQuery).sort({ createdAt: -1 }).lean();
       
     res.json({ success: true, customer: { ...customer.toObject(), latestLead }, linkedProjects: projects });
   } catch (err) {
+    console.error('getMe error:', err);
     res.status(500).json({ message: 'Server error' });
   }
 };

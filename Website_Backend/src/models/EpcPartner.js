@@ -35,7 +35,7 @@ const EpcPartnerSchema = new mongoose.Schema({
   }],
   onboardingStatus: {
     type:    String,
-    enum:    ['Pending', 'KYC Submitted', 'Verified', 'Rejected', 'Active'],
+    enum:    ['Pending', 'KYC Submitted', 'Verified', 'Rejected', 'Active', 'Approved'],
     default: 'Pending',
   },
   kycDocuments: {
@@ -71,10 +71,17 @@ const EpcPartnerSchema = new mongoose.Schema({
   
   // Trusted Badge Workflow
   trustBadge: {
-    status:      { type: String, enum: ['None', 'Pending', 'Approved', 'Rejected', 'Expired'], default: 'None' },
-    documentUrl: { type: String, default: '' },
-    appliedAt:   { type: Date, default: null },
-    expiresAt:   { type: Date, default: null },
+    status:             { type: String, enum: ['None', 'Pending', 'Approved', 'Rejected', 'Expired'], default: 'None' },
+    documentUrl:        { type: String, default: '' },
+    appliedAt:          { type: Date, default: null },
+    expiresAt:          { type: Date, default: null },
+    purchasedLeads:     { type: Number, default: 0 },
+    leadsConsumed:      { type: Number, default: 0 },
+    remainingLeads:     { type: Number, default: 0 },
+    remainingViews:     { type: Number, default: 0 },
+    skippedCount:       { type: Number, default: 0 },
+    assignedCount:      { type: Number, default: 0 },
+    applicationDetails: { type: Object, default: {} }
   },
   
 }, { timestamps: true });

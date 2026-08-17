@@ -7,8 +7,8 @@
  *  3. OTP verify
  *  4. PIN setup (new user only)
  */
-import React, { useState, useRef } from "react";
-import { Sun, Phone, Shield, ArrowLeft, Loader2, CheckCircle, Eye, EyeOff, Lock, User, ChevronRight } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Sun, Phone, Shield, ArrowLeft, Loader2, CheckCircle, Eye, EyeOff, Lock, User, ChevronRight, X } from "lucide-react";
 import { useCustomerAuth } from "./CustomerAuthContext";
 import { useCountry } from "../context/CountryContext";
 
@@ -18,7 +18,22 @@ export default function CustomerLogin({ onClose, onSuccess }) {
   const { login } = useCustomerAuth();
   const { t, country, setCountry } = useCountry();
 
+  const [liveCountries, setLiveCountries] = useState([]);
+
+  useEffect(() => {
+    fetch(`${API}/api/countries`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data) {
+          setLiveCountries(data.data.filter(c => c.isActive !== false));
+        }
+      })
+      .catch(console.error);
+  }, []);
+
   const getCountryCode = () => {
+    const cObj = liveCountries.find(c => c.code === country || c.name === country);
+    if (cObj && cObj.name) return cObj.name.toLowerCase().replace(/\s+/g, '_');
     if (country === "AU") return "australia";
     if (country === "NZ") return "new_zealand";
     return "india";
@@ -27,6 +42,7 @@ export default function CustomerLogin({ onClose, onSuccess }) {
   // step: mobile | name | pin-login | otp | set-pin | done
   const [step, setStep] = useState("mobile");
   const [mobile, setMobile] = useState("");
+  const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [otp, setOtp] = useState("");
   const [pin, setPin] = useState("");
@@ -42,19 +58,25 @@ export default function CustomerLogin({ onClose, onSuccess }) {
   const err = (msg) => { setError(msg); setLoading(false); };
   const clear = () => { setError(""); setInfo(""); };
 
-  const isAU = country === "AU";
+  const isIndia = country?.toLowerCase() === "india" || country?.toLowerCase() === "in";
 
-  // Step 1: Check mobile
   const handleMobileNext = async () => {
     clear();
-    if (mobile.length < 9 || mobile.length > 10) return err("Valid 9 or 10-digit mobile number daalo");
+    
+    if (isIndia) {
+      if (mobile.length < 9 || mobile.length > 10) return err("Please enter a valid 9 or 10-digit mobile number");
+    } else {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return err("Please enter a valid email address");
+    }
+    
     setLoading(true);
     // Quick check — try send-otp to see if user exists and if PIN is set
     try {
+      const payload = isIndia ? { mobile } : { email };
       const res = await fetch(`${API}/api/customer/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-country": getCountryCode() },
-        body: JSON.stringify({ mobile }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.isNewUser) {
@@ -66,23 +88,24 @@ export default function CustomerLogin({ onClose, onSuccess }) {
         setIsNewUser(false); setHasPinSet(false);
         setStep("otp"); setInfo(data.message);
       }
-    } catch { err("Network error. Backend check karo."); }
+    } catch { err("Network error. Please check the backend."); }
     setLoading(false);
   };
 
   // Step 2a: Name entered → send OTP for new user
   const handleSendOtpNew = async () => {
     clear();
-    if (!fullName.trim()) return err("Naam required hai");
+    if (!fullName.trim()) return err("Name is required");
     setLoading(true);
+    const payload = isIndia ? { mobile, fullName: fullName.trim() } : { email, fullName: fullName.trim() };
     try {
       const res = await fetch(`${API}/api/customer/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-country": getCountryCode() },
-        body: JSON.stringify({ mobile, fullName: fullName.trim() }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (!res.ok) return err(data.message || "Error aayi");
+      if (!res.ok) return err(data.message || "An error occurred");
       setInfo(data.message);
       setStep("otp");
     } catch { err("Network error"); }
@@ -92,16 +115,18 @@ export default function CustomerLogin({ onClose, onSuccess }) {
   // Step 2b: PIN login for returning user
   const handlePinLogin = async () => {
     clear();
-    if (pin.length !== 4) return err("4-digit PIN daalo");
+    if (pin.length !== 4) return err("Please enter a 4-digit PIN");
     setLoading(true);
+    
+    const payload = isIndia ? { mobile, pin } : { email, pin };
     try {
       const res = await fetch(`${API}/api/customer/auth/login-with-pin`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-country": getCountryCode() },
-        body: JSON.stringify({ mobile, pin }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (!res.ok) return err(data.message || "PIN galat hai");
+      if (!res.ok) return err(data.message || "Incorrect PIN");
       login(data.token, data.customer);
       if (data.hasLeads) setExistingLeads(data.existingLeads);
       setStep("done");
@@ -113,14 +138,16 @@ export default function CustomerLogin({ onClose, onSuccess }) {
   // Forgot PIN → send OTP
   const handleForgotPin = async () => {
     clear(); setLoading(true);
+    
+    const payload = isIndia ? { mobile } : { email };
     try {
       const res = await fetch(`${API}/api/customer/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-country": getCountryCode() },
-        body: JSON.stringify({ mobile }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
-      setInfo("OTP bheja gaya — verify karke naya PIN set karo");
+      setInfo("OTP sent - verify to set a new PIN");
       setStep("otp");
     } catch { err("Error"); }
     setLoading(false);
@@ -129,16 +156,18 @@ export default function CustomerLogin({ onClose, onSuccess }) {
   // Step 3: Verify OTP
   const handleVerifyOtp = async () => {
     clear();
-    if (otp.length !== 6) return err("6-digit OTP daalo");
+    if (otp.length !== 6) return err("Please enter a 6-digit OTP");
     setLoading(true);
+    
+    const payload = isIndia ? { mobile, otp } : { email, otp };
     try {
       const res = await fetch(`${API}/api/customer/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-country": getCountryCode() },
-        body: JSON.stringify({ mobile, otp }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (!res.ok) return err(data.message || "OTP galat");
+      if (!res.ok) return err(data.message || "Incorrect OTP");
       login(data.token, data.customer);
       if (data.existingLeads?.length) setExistingLeads(data.existingLeads);
       // New user → set PIN, existing → done
@@ -155,14 +184,15 @@ export default function CustomerLogin({ onClose, onSuccess }) {
   // Step 4: Set PIN
   const handleSetPin = async () => {
     clear();
-    if (pin.length !== 4) return err("4-digit PIN chahiye");
-    if (pin !== pinConfirm) return err("PIN match nahi kiya — dobara daalo");
+    if (pin.length !== 4) return err("A 4-digit PIN is required");
+    if (pin !== pinConfirm) return err("PINs do not match - please try again");
     setLoading(true);
+    const payload = isIndia ? { mobile, pin } : { email, pin };
     try {
       const res = await fetch(`${API}/api/customer/auth/set-pin`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-country": getCountryCode() },
-        body: JSON.stringify({ mobile, pin }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) return err(data.message || "Error");
@@ -177,18 +207,18 @@ export default function CustomerLogin({ onClose, onSuccess }) {
     mobile: t.loginTitle,
     name: t.signupTitle,
     "pin-login": "Welcome Back! 👋",
-    otp: "OTP Verify Karo",
-    "set-pin": "PIN Set Karo 🔐",
+    otp: "Verify OTP",
+    "set-pin": "Set Your PIN 🔐",
     done: "Login Successful! 🎉",
   };
 
   const STEP_SUBS = {
     mobile: t.loginSubtitle,
-    name: "Ek baar naam aur OTP se verify karo, phir PIN set karo",
-    "pin-login": `+91 ${mobile} — PIN se login karo`,
-    otp: `OTP +91 ${mobile} par bheja gaya`,
-    "set-pin": "Agla baar sirf PIN se seedha login hoga",
-    done: "Dashboard khul raha hai...",
+    name: "Verify your name and OTP once, then set your PIN",
+    "pin-login": `${!isIndia ? email : '+91 ' + mobile} - Login using PIN`,
+    otp: `OTP ${!isIndia ? email : '+91 ' + mobile} has been sent to`,
+    "set-pin": "Next time, you can log in directly using your PIN",
+    done: "Opening Dashboard...",
   };
 
   const canGoBack = ["name","pin-login","otp","set-pin"].includes(step);
@@ -202,6 +232,48 @@ export default function CustomerLogin({ onClose, onSuccess }) {
     </div>
   );
 
+  const OtpBoxes = ({ length = 4, value, onChange, showText = true, onSubmit }) => {
+      const inputRefs = useRef([]);
+      const handleChange = (e, index) => {
+        const val = e.target.value.replace(/\D/g, "");
+        if (val) {
+          const newVal = value.split("");
+          newVal[index] = val[val.length - 1]; // take last char
+          const joined = newVal.join("");
+          onChange(joined);
+          if (index < length - 1) inputRefs.current[index + 1]?.focus();
+          else if (joined.length === length) onSubmit?.(joined);
+        }
+      };
+      const handleKeyDown = (e, index) => {
+        if (e.key === "Backspace") {
+          const newVal = value.split("");
+          if (!newVal[index] && index > 0) {
+            inputRefs.current[index - 1]?.focus();
+          } else {
+            newVal[index] = "";
+            onChange(newVal.join(""));
+          }
+        }
+      };
+      return (
+        <div className="flex gap-2 justify-center w-full">
+          {Array.from({ length }).map((_, i) => (
+            <input
+              key={i}
+              ref={el => (inputRefs.current[i] = el)}
+              type={showText ? "text" : "password"}
+              inputMode="numeric"
+              value={value[i] || ""}
+              onChange={e => handleChange(e, i)}
+              onKeyDown={e => handleKeyDown(e, i)}
+              className="w-12 h-14 border-2 border-slate-200 rounded-xl text-center text-xl font-black focus:outline-none focus:border-yellow-400 transition-all"
+            />
+          ))}
+        </div>
+      );
+    };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
@@ -211,6 +283,12 @@ export default function CustomerLogin({ onClose, onSuccess }) {
             <button onClick={() => { setStep("mobile"); setOtp(""); setPin(""); setPinConfirm(""); clear(); }}
               className="absolute top-4 left-4 p-1.5 rounded-full hover:bg-white/10 transition">
               <ArrowLeft className="w-4 h-4" />
+            </button>
+          )}
+          {onClose && (
+            <button onClick={onClose}
+              className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-white/10 transition bg-white/5 border border-white/10">
+              <X className="w-4 h-4 text-slate-300" />
             </button>
           )}
           <div className="flex flex-col items-center gap-2 pt-1">
@@ -245,44 +323,63 @@ export default function CustomerLogin({ onClose, onSuccess }) {
               {/* Country Selection */}
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Select Your Country</label>
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  <button
-                    type="button"
-                    onClick={() => { setCountry("IN"); setMobile(""); clear(); }}
-                    className={`py-2 px-3 rounded-xl border text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
-                      !isAU ? "bg-orange-600 text-white border-solar-navy shadow-sm" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
-                    }`}
+                <div className="mb-3">
+                  <select
+                    value={country}
+                    onChange={(e) => { 
+                      const selected = liveCountries.find(c => c.code === e.target.value || c.name === e.target.value);
+                      if (selected) {
+                        setCountry(selected.code || selected.name);
+                        setMobile(""); 
+                        setEmail(""); 
+                        clear();
+                      }
+                    }}
+                    className="w-full py-2.5 px-3 rounded-xl border-2 border-slate-200 text-sm font-bold text-slate-800 focus:outline-none focus:border-yellow-400 bg-slate-50 transition-all cursor-pointer"
                   >
-                    <span>🇮🇳</span> India (+91)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setCountry("AU"); setMobile(""); clear(); }}
-                    className={`py-2 px-3 rounded-xl border text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
-                      isAU ? "bg-orange-600 text-white border-solar-navy shadow-sm" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
-                    }`}
-                  >
-                    <span>🇦🇺</span> Australia (+61)
-                  </button>
+                    {liveCountries.length > 0 ? (
+                      liveCountries.map(c => (
+                        <option key={c._id} value={c.code || c.name}>
+                          {c.flagEmoji} {c.name}
+                        </option>
+                      ))
+                    ) : (
+                      <option disabled>Loading countries...</option>
+                    )}
+                  </select>
                 </div>
 
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Mobile Number</label>
-                <div className="flex items-center border-2 border-slate-200 rounded-2xl overflow-hidden focus-within:border-yellow-400 transition-all">
-                  <span className="px-3 py-3 bg-slate-50 text-sm font-black text-slate-500 border-r border-slate-200">
-                    {isAU ? "+61" : "+91"}
-                  </span>
-                  <input type="tel" value={mobile} onChange={e => setMobile(e.target.value.replace(/\D/g,"").slice(0, 10))}
-                    placeholder={isAU ? "0412345678" : "9876543210"} autoFocus maxLength={10}
-                    className="flex-1 px-3 py-3 text-sm font-bold focus:outline-none tracking-widest"
-                    onKeyDown={e => e.key === "Enter" && handleMobileNext()} />
-                </div>
+                {isIndia ? (
+                  <>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Mobile Number</label>
+                    <div className="flex items-center border-2 border-slate-200 rounded-2xl overflow-hidden focus-within:border-yellow-400 transition-all">
+                      <span className="px-3 py-3 bg-slate-50 text-sm font-black text-slate-500 border-r border-slate-200">
+                        +91
+                      </span>
+                      <input type="tel" value={mobile} onChange={e => setMobile(e.target.value.replace(/\D/g,"").slice(0, 10))}
+                        placeholder="9876543210" autoFocus maxLength={10}
+                        className="flex-1 px-3 py-3 text-sm font-bold focus:outline-none tracking-widest"
+                        onKeyDown={e => e.key === "Enter" && handleMobileNext()} />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Email Address</label>
+                    <div className="flex items-center border-2 border-slate-200 rounded-2xl overflow-hidden focus-within:border-yellow-400 transition-all">
+                      <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                        placeholder="hello@example.com" autoFocus
+                        className="flex-1 px-4 py-3 text-sm font-bold focus:outline-none"
+                        onKeyDown={e => e.key === "Enter" && handleMobileNext()} />
+                    </div>
+                  </>
+                )}
               </div>
-              <button onClick={handleMobileNext} disabled={loading || mobile.length < 9}
+              <button onClick={handleMobileNext} disabled={loading || (isIndia ? mobile.length < 9 : !email)}
                 className="w-full flex items-center justify-center gap-2 py-3.5 bg-yellow-400 text-yellow-900 font-black text-sm rounded-2xl hover:bg-amber-400 transition disabled:opacity-50">
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
                 {loading ? "Checking..." : "Continue"}
               </button>
-              <p className="text-center text-xs text-slate-400">Pehli baar? Mobile number daalo — auto register ho jayega</p>
+              <p className="text-center text-xs text-slate-400">First time? Enter your {!isIndia ? "Email" : "Mobile number"} to auto-register</p>
             </>
           )}
 
@@ -302,7 +399,7 @@ export default function CustomerLogin({ onClose, onSuccess }) {
               <button onClick={handleSendOtpNew} disabled={loading || !fullName.trim()}
                 className="w-full flex items-center justify-center gap-2 py-3.5 bg-yellow-400 text-yellow-900 font-black text-sm rounded-2xl hover:bg-amber-400 transition disabled:opacity-50">
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Phone className="w-4 h-4" />}
-                {loading ? "Bhej raha hai..." : "OTP Bhejo"}
+                {loading ? "Sending..." : "Send OTP"}
               </button>
             </>
           )}
@@ -311,18 +408,14 @@ export default function CustomerLogin({ onClose, onSuccess }) {
           {step === "pin-login" && (
             <>
               <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">4-Digit Login PIN</label>
-                <PinDots value={pin} />
-                <div className="relative">
-                  <input type={showPin ? "text" : "password"} value={pin}
-                    onChange={e => setPin(e.target.value.replace(/\D/g,"").slice(0,4))}
-                    placeholder="• • • •" autoFocus inputMode="numeric"
-                    className="w-full border-2 border-slate-200 rounded-2xl px-4 py-3 text-center text-2xl font-black tracking-[0.5em] focus:outline-none focus:border-yellow-400 transition-all"
-                    onKeyDown={e => e.key === "Enter" && handlePinLogin()} />
-                  <button onClick={() => setShowPin(!showPin)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5 flex justify-between items-center">
+                  4-Digit Login PIN
+                  <button onClick={() => setShowPin(!showPin)} className="text-slate-400 hover:text-slate-600">
                     {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
-                </div>
+                </label>
+                <PinDots value={pin} />
+                <OtpBoxes length={4} value={pin} onChange={setPin} showText={showPin} onSubmit={handlePinLogin} />
               </div>
               <button onClick={handlePinLogin} disabled={loading || pin.length !== 4}
                 className="w-full flex items-center justify-center gap-2 py-3.5 bg-yellow-400 text-yellow-900 font-black text-sm rounded-2xl hover:bg-amber-400 transition disabled:opacity-50">
@@ -331,7 +424,7 @@ export default function CustomerLogin({ onClose, onSuccess }) {
               </button>
               <button onClick={handleForgotPin} disabled={loading}
                 className="w-full text-xs text-slate-500 hover:text-yellow-600 py-1 transition font-medium">
-                🔄 PIN bhool gaye? OTP se login karo
+                🔄 Forgot PIN? Login with OTP
               </button>
             </>
           )}
@@ -339,12 +432,9 @@ export default function CustomerLogin({ onClose, onSuccess }) {
           {/* STEP: OTP verify */}
           {step === "otp" && (
             <>
-              <div>
+              <div className="mb-6">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">6-Digit OTP</label>
-                <input type="tel" value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g,"").slice(0,6))}
-                  placeholder="_ _ _ _ _ _" autoFocus inputMode="numeric"
-                  className="w-full border-2 border-slate-200 rounded-2xl px-4 py-3 text-center text-2xl font-black tracking-[0.5em] focus:outline-none focus:border-yellow-400 transition-all"
-                  onKeyDown={e => e.key === "Enter" && handleVerifyOtp()} />
+                <OtpBoxes length={6} value={otp} onChange={setOtp} showText={true} onSubmit={handleVerifyOtp} />
               </div>
               <button onClick={handleVerifyOtp} disabled={loading || otp.length !== 6}
                 className="w-full flex items-center justify-center gap-2 py-3.5 bg-yellow-400 text-yellow-900 font-black text-sm rounded-2xl hover:bg-amber-400 transition disabled:opacity-50">
@@ -361,29 +451,23 @@ export default function CustomerLogin({ onClose, onSuccess }) {
           {/* STEP: Set PIN (new user) */}
           {step === "set-pin" && (
             <>
-              <p className="text-xs text-slate-500 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
-                💡 4-digit PIN set karo — agla baar mobile number + PIN se seedha login hoga, OTP ka wait nahi karna padega
+              <p className="text-xs text-slate-500 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 mb-4">
+                💡 4-digit Set Your PIN — agla baar mobile number + PIN se seedha login hoga, OTP ka wait nahi karna padega
               </p>
-              <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">New PIN</label>
-                <PinDots value={pin} />
-                <div className="relative">
-                  <input type={showPin ? "text" : "password"} value={pin}
-                    onChange={e => setPin(e.target.value.replace(/\D/g,"").slice(0,4))}
-                    placeholder="• • • •" autoFocus inputMode="numeric"
-                    className="w-full border-2 border-slate-200 rounded-2xl px-4 py-3 text-center text-2xl font-black tracking-[0.5em] focus:outline-none focus:border-yellow-400 transition-all" />
-                  <button onClick={() => setShowPin(!showPin)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <div className="mb-4">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5 flex justify-between items-center">
+                  New PIN
+                  <button onClick={() => setShowPin(!showPin)} className="text-slate-400 hover:text-slate-600">
                     {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
-                </div>
+                </label>
+                <PinDots value={pin} />
+                <OtpBoxes length={4} value={pin} onChange={setPin} showText={showPin} />
               </div>
-              <div>
+              <div className="mb-6">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Confirm PIN</label>
                 <PinDots value={pinConfirm} />
-                <input type="password" value={pinConfirm}
-                  onChange={e => setPinConfirm(e.target.value.replace(/\D/g,"").slice(0,4))}
-                  placeholder="• • • •" inputMode="numeric"
-                  className="w-full border-2 border-slate-200 rounded-2xl px-4 py-3 text-center text-2xl font-black tracking-[0.5em] focus:outline-none focus:border-yellow-400 transition-all" />
+                <OtpBoxes length={4} value={pinConfirm} onChange={setPinConfirm} showText={showPin} onSubmit={handleSetPin} />
               </div>
               <button onClick={handleSetPin} disabled={loading || pin.length !== 4 || pinConfirm.length !== 4}
                 className="w-full flex items-center justify-center gap-2 py-3.5 bg-yellow-400 text-yellow-900 font-black text-sm rounded-2xl hover:bg-amber-400 transition disabled:opacity-50">

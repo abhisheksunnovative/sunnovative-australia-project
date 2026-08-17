@@ -370,7 +370,14 @@ export const getDemandPool = async (req, res) => {
       });
     }
 
-    const query = andConditions.length > 1 ? { $and: andConditions } : baseQuery;
+    const unassignedQuery = andConditions.length > 1 ? { $and: andConditions } : baseQuery;
+
+    const query = {
+      $or: [
+        unassignedQuery,
+        { assignedBde: bde._id, status: 'assigned to bde' }
+      ]
+    };
 
     const demandLeads = await Lead.find(query).sort({ createdAt: -1 }).limit(100);
     res.json({ success: true, leads: demandLeads });
@@ -386,16 +393,22 @@ export const assignLeadToBDE = async (req, res) => {
       return res.status(400).json({ success: false, message: "leadId and bdeId are required" });
     }
 
-    // Atomic claim check: Only update if assignedBde is currently null
+    // Atomic claim check: Only update if assignedBde is currently null OR already explicitly assigned to this BDE by Admin
     const lead = await Lead.findOneAndUpdate(
-      { _id: leadId, assignedBde: null },
+      { 
+        _id: leadId, 
+        $or: [
+          { assignedBde: null }, 
+          { assignedBde: bdeId, status: 'assigned to bde' }
+        ] 
+      },
       { 
         $set: { 
           assignedBde: bdeId, 
           status: 'Contacted' 
         },
         $push: { 
-          history: { action: "Claimed by BDE from Demand Pool", date: new Date() } 
+          history: { action: "Claimed by BDE", date: new Date() } 
         }
       },
       { new: true }
@@ -689,11 +702,14 @@ export const scheduleAndQualifyLead = async (req, res) => {
     const lead = await Lead.findById(leadId);
     if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
 
-    lead.status = 'Qualified & Scheduled';
-    if (scheduledDate) lead.scheduledInstallDate = new Date(scheduledDate);
+    lead.status = 'Converted';
+    if (scheduledDate) {
+      lead.preferredInstallDate = new Date(scheduledDate);
+      lead.isInstallDateFixed = true;
+    }
     if (notes) lead.notes = notes;
     lead.history.push({ 
-      action: `Qualified & Scheduled for ${scheduledDate ? new Date(scheduledDate).toLocaleDateString() : 'Installation'} by BDE`, 
+      action: `Lead Scheduled by BDE - Auto Converted for Admin Approval`, 
       date: new Date() 
     });
     await lead.save();
@@ -704,16 +720,99 @@ export const scheduleAndQualifyLead = async (req, res) => {
       await Notification.create({
         role: 'Admin',
         title: '🔔 Lead Scheduled - Convert to Order',
-        message: `Lead ${lead.name} (${lead.district || lead.state || 'Australia'}) was scheduled by BDE. Please convert to Order & assign EPC.`,
+        message: `Lead ${lead.name} (${lead.district || lead.state || 'India'}) was scheduled by BDE. Please convert to Order & assign EPC.`,
         leadId: lead._id
       });
     } catch (notifErr) {
       console.error("Failed to create admin notification:", notifErr);
     }
 
-    res.json({ success: true, lead, message: 'Lead scheduled & qualified successfully! Admin has been notified.' });
+    res.json({ success: true, lead, message: 'Lead auto-converted successfully! Waiting for Admin to Confirm Order.' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
+
+// ==============================
+// Admin BDE Manual Assignment
+// ==============================
+
+export const getEligibleBDEsForLead = async (req, res) => {
+  try {
+    const lead = await Lead.findById(req.params.leadId);
+    if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
+
+    const leadState = (lead.state || '').trim().toLowerCase();
+    const leadDistrict = (lead.district || lead.city || '').trim().toLowerCase();
+
+    if (!leadState) {
+      return res.status(400).json({ success: false, message: 'Lead has no state defined. State match is compulsory.' });
+    }
+
+    // Find active BDEs assigned to this state
+    // We use a regex match on array elements to make it case-insensitive
+    const bdes = await BDE.find({
+      isActive: true,
+      assignedStates: { $regex: new RegExp('^' + leadState + '$', 'i') }
+    }).select('name email mobile assignedStates assignedDistricts');
+
+    // For each BDE, fetch their converted leads count
+    const bdeStats = await Promise.all(bdes.map(async (bde) => {
+      // Converted lead count: Lead is assigned to this BDE AND hasLoggedIn is true
+      const convertedCount = await Lead.countDocuments({
+        assignedBde: bde._id,
+        hasLoggedIn: true
+      });
+
+      // Check if district matches (preferred)
+      let districtMatch = false;
+      if (leadDistrict && bde.assignedDistricts && bde.assignedDistricts.length > 0) {
+        districtMatch = bde.assignedDistricts.some(d => d.trim().toLowerCase() === leadDistrict);
+      }
+
+      return {
+        _id: bde._id,
+        name: bde.name,
+        email: bde.email,
+        mobile: bde.mobile,
+        districtMatch,
+        convertedCount
+      };
+    }));
+
+    // Sort: District match first, then by converted count descending
+    bdeStats.sort((a, b) => {
+      if (a.districtMatch === b.districtMatch) {
+        return b.convertedCount - a.convertedCount;
+      }
+      return a.districtMatch ? -1 : 1;
+    });
+
+    res.json({ success: true, data: bdeStats });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const adminAssignLeadToBDE = async (req, res) => {
+  try {
+    const { leadId, bdeId } = req.body;
+    if (!leadId || !bdeId) {
+      return res.status(400).json({ success: false, message: 'leadId and bdeId are required' });
+    }
+
+    const lead = await Lead.findById(leadId);
+    if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
+
+    lead.assignedBde = bdeId;
+    lead.status = 'assigned to bde';
+    lead.history.push({ action: 'Admin assigned lead to you', date: new Date() });
+    
+    await lead.save();
+
+    res.json({ success: true, message: 'Lead successfully assigned to BDE', data: lead });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

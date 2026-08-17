@@ -22,6 +22,8 @@ const leadSchema = new mongoose.Schema(
       enum: ['surya-ghar', 'group-solar', 'rwa-society', 'commercial', 'village', 'msme', 'general', 'residential', 'au-small-home', 'au-standard-family', 'au-large-home', 'au-ev-owners', 'au-solar-battery', 'other'],
     },
     kw: { type: String, default: '0' },
+    totalCost: { type: Number, default: 0 },
+    subsidy: { type: Number, default: 0 },
     billAmount: { type: Number, default: 0 },
     consumerNumber: { type: String, trim: true },
     discom: { type: String, trim: true },
@@ -30,6 +32,7 @@ const leadSchema = new mongoose.Schema(
     preferredSolarBrand: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand' },
     preferredInverterBrand: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand' },
     sourceOfMedia: { type: String },
+    billUrl: { type: String },
     uploadSource: { type: String, enum: ['website', 'bde_manual'], default: 'website' },
     hasLoggedIn: { type: Boolean, default: false },
     profession: { type: String },
@@ -38,7 +41,7 @@ const leadSchema = new mongoose.Schema(
     // Status
     status: {
       type: String,
-      enum: ['New', 'Called', 'Interested', 'Not Interested', 'Follow Up', 'Converted', 'Junk', 'Contacted'],
+      enum: ['New', 'Called', 'Interested', 'Not Interested', 'Follow Up', 'Converted', 'Junk', 'Contacted', 'assigned to bde'],
       default: 'New',
     },
 

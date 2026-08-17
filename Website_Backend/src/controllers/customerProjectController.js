@@ -159,7 +159,7 @@ export const applyForProject = async (req, res) => {
       }
     }
 
-    const rooftopPhotoUrl = req.file ? `/uploads/${req.file.filename}` : "";
+    const rooftopPhotoUrl = req.file ? `/uploads/${req.file.filename}` : (payload.existingBillUrl || "");
     const orderNumber = `SUN-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
 
     const order = await ProjectOrder.create({
@@ -167,7 +167,7 @@ export const applyForProject = async (req, res) => {
       projectType,
       projectTypeLabel: projectTypeLabel || projectType,
       customerName:     req.customer.fullName,
-      customerMobile:   req.customer.mobile,
+      customerMobile:   req.customer.mobile || payload.customerMobile || '',
       customerEmail:    req.customer.email || '',
       customerId:       req.customer._id.toString(),
       systemSizeKW:     systemSizeKW     || 0,
@@ -200,11 +200,16 @@ export const applyForProject = async (req, res) => {
     // Link this project creation back to the BDE's Lead model if exists
     try {
       const LeadModel = (await import('../models/Lead.js')).default;
-      const cleanMobile = req.customer.mobile.replace(/\D/g, '').slice(-10);
-      const mobileRegex = new RegExp(cleanMobile + '$', 'i');
+      const cleanMobile = req.customer.mobile ? req.customer.mobile.replace(/\D/g, '').slice(-10) : '';
+      const mobileRegex = cleanMobile ? new RegExp(cleanMobile + '$', 'i') : null;
+
+      const queryOr = [{ customerId: req.customer._id }];
+      if (req.customer.mobile) queryOr.push({ mobile: req.customer.mobile });
+      if (mobileRegex) queryOr.push({ mobile: mobileRegex });
+      if (req.customer.email) queryOr.push({ email: req.customer.email });
 
       const updatedLead = await LeadModel.findOneAndUpdate(
-        { $or: [{ mobile: req.customer.mobile }, { mobile: mobileRegex }, { customerId: req.customer._id }] },
+        { $or: queryOr },
         { 
           preferredInstallDate: preferredInstallDate ? new Date(preferredInstallDate) : null,
           consumerNumber: payload.consumerNumber || undefined,
@@ -212,7 +217,6 @@ export const applyForProject = async (req, res) => {
           kw: systemSizeKW || undefined,
           solarType: projectType || undefined,
           billAmount: monthlyBillAmount || undefined,
-          convertedProjectId: order._id,
         },
         { new: true }
       );
@@ -221,7 +225,25 @@ export const applyForProject = async (req, res) => {
       console.error('Error linking project to lead:', e);
     }
 
-    if (currentJourney?.signupToken?.enabled) {
+    // Track Trust Badge Assignment & Skipped Analytics
+    if (payload.selectedEpcId) {
+      try {
+        const { default: EpcPartner } = await import('../models/EpcPartner.js');
+        const epc = await EpcPartner.findById(payload.selectedEpcId);
+        if (epc && epc.trustBadge?.status === 'Approved') {
+          epc.trustBadge.assignedCount = (epc.trustBadge.assignedCount || 0) + 1;
+          epc.trustBadge.skippedCount = Math.max(0, (epc.trustBadge.skippedCount || 0) - 1);
+          await epc.save();
+        }
+      } catch (err) { 
+        console.error('Error updating trustbadge counters:', err); 
+      }
+    }
+
+    const isIndiaCustomer = (req.customer?.country || '').toLowerCase().trim() === 'india' || 
+                             (req.customer?.country || '').toLowerCase().trim() === 'in' ||
+                             !req.customer?.country;
+    if (currentJourney?.signupToken?.enabled && isIndiaCustomer) {
       const amountInPaise = Math.round((currentJourney.signupToken.amount || 500) * 100);
       const options = {
         amount: amountInPaise,
@@ -251,7 +273,8 @@ export const applyForProject = async (req, res) => {
       data: order,
     });
   } catch (err) {
-    console.error('applyForProject error:', err);
+    console.error('applyForProject error:', err.message);
+    console.error('Stack:', err.stack);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
@@ -464,11 +487,12 @@ export const getAvailableEpcs = async (req, res) => {
        query.$or[1].activeDistricts = { $in: [distRegex, /^all$/i] };
     }
 
+    let brandIds = [];
     if (req.query.brands) {
       let brandsQuery = typeof req.query.brands === 'string' ? req.query.brands.split(',') : req.query.brands;
       const { default: Brand } = await import('../models/Brand.js');
       const brandDocs = await Brand.find({ name: { $in: brandsQuery.map(b => new RegExp('^' + b.trim() + '$', 'i')) } });
-      const brandIds = brandDocs.map(b => b._id);
+      brandIds = brandDocs.map(b => b._id);
       
       if (brandIds.length > 0) {
         // Find EPCs who have submitted rates for these brands in ProjectPricing
@@ -528,32 +552,187 @@ export const getAvailableEpcs = async (req, res) => {
 
     let finalEpcs = epcs;
     if (isAu) {
-      const { default: InstallerRankingSettings } = await import('../models/InstallerRankingSettings.js');
-      const rankingConfig = await InstallerRankingSettings.findOne({ country: 'australia' });
-      
-      if (rankingConfig) {
-        finalEpcs.sort((a, b) => {
-          for (let prio of rankingConfig.rankingPriority) {
-            if (prio === 'rating') {
-              if (b.rating !== a.rating) return (b.rating || 0) - (a.rating || 0);
-            }
-            if (prio === 'trustBadge') {
-              const bTrust = b.trustBadge?.status === 'Approved' ? 1 : 0;
-              const aTrust = a.trustBadge?.status === 'Approved' ? 1 : 0;
-              if (bTrust !== aTrust) return bTrust - aTrust;
-            }
-            if (prio === 'lowestLeads') {
-               // Sort ascending by total leads/projects
-               if (a.totalInstallations !== b.totalInstallations) return (a.totalInstallations || 0) - (b.totalInstallations || 0);
-            }
-          }
-          return 0;
-        });
+      const { default: EpcSystemSettings } = await import('../models/EpcSystemSettings.js');
+      const sysSettings = await EpcSystemSettings.getSingleton();
+      let limit = 5; // default fallback
+      let priorities = ['lowestLeads', 'rating']; // default fallback
+
+      if (sysSettings.regionRules) {
+        const resolvedState = state || 'Victoria';
+        const resolvedProjectType = req.query.projectType || 'residential';
+        const rule = sysSettings.regionRules.find(r => 
+           r.country.toLowerCase() === country.toLowerCase() && 
+           r.state.toLowerCase() === resolvedState.toLowerCase() && 
+           r.projectType === resolvedProjectType
+        ) || sysSettings.regionRules.find(r => 
+           r.country.toLowerCase() === country.toLowerCase() && 
+           r.state.toLowerCase() === 'all' && 
+           r.projectType === resolvedProjectType
+        );
+        if (rule) {
+           limit = rule.customerSelectEpcSettings?.totalEpcCards || limit;
+        }
+      }
+
+      if (true) {
         
-        finalEpcs = finalEpcs.slice(0, rankingConfig.numberOfInstallersToDisplay);
+        // Helper to sort considering priorities (0 orders/lowest leads, rating)
+        const sortEpcs = (list) => {
+          return list.sort((a, b) => {
+            for (let prio of priorities) {
+              if (prio === 'rating') {
+                if (b.rating !== a.rating) return (b.rating || 0) - (a.rating || 0);
+              }
+              if (prio === 'lowestLeads') {
+                if (a.totalInstallations !== b.totalInstallations) return (a.totalInstallations || 0) - (b.totalInstallations || 0);
+              }
+            }
+            return 0;
+          });
+        };
+
+        // 1. Separate Trust Badge and Non-Trust Badge EPCs
+        let tbEpcs = [];
+        let nmEpcs = [];
+        finalEpcs.forEach(epc => {
+           if (epc.trustBadge?.status === 'Approved') tbEpcs.push(epc);
+           else nmEpcs.push(epc);
+        });
+
+        // 2. Sort both lists
+        tbEpcs = sortEpcs(tbEpcs);
+        nmEpcs = sortEpcs(nmEpcs);
+
+        // 3. Dynamic Ratio Algorithm
+        const totalPool = tbEpcs.length + nmEpcs.length;
+        if (totalPool === 0) {
+          finalEpcs = [];
+        } else {
+          const tbRatio = tbEpcs.length / totalPool;
+          let tbCount = 0;
+          let nmCount = 0;
+
+          if (tbEpcs.length === 0) {
+            nmCount = limit;
+          } else if (tbRatio < 0.5) {
+            tbCount = Math.ceil(limit * 0.5);
+            nmCount = limit - tbCount;
+          } else if (tbRatio >= 0.5 && tbRatio <= 0.6) {
+            tbCount = Math.ceil(limit * 0.6);
+            nmCount = limit - tbCount;
+          } else {
+            tbCount = Math.ceil(limit * 0.8);
+            nmCount = limit - tbCount;
+          }
+
+          if (tbEpcs.length < tbCount) {
+             nmCount += (tbCount - tbEpcs.length);
+             tbCount = tbEpcs.length;
+          }
+          if (nmEpcs.length < nmCount) {
+             tbCount += (nmCount - nmEpcs.length);
+             nmCount = nmEpcs.length;
+          }
+          // Final cap: ensure counts don't exceed available
+          tbCount = Math.min(tbCount, tbEpcs.length);
+          nmCount = Math.min(nmCount, nmEpcs.length);
+
+          finalEpcs = [
+            ...tbEpcs.slice(0, tbCount),
+            ...nmEpcs.slice(0, nmCount)
+          ];
+          
+          // Re-sort final list so Trust Badge holders appear above NM based on priority
+          finalEpcs.sort((a, b) => {
+            const aTrust = a.trustBadge?.status === 'Approved' ? 1 : 0;
+            const bTrust = b.trustBadge?.status === 'Approved' ? 1 : 0;
+            if (bTrust !== aTrust) return bTrust - aTrust;
+            for (let prio of priorities) {
+              if (prio === 'rating') {
+                if (b.rating !== a.rating) return (b.rating || 0) - (a.rating || 0);
+              }
+              if (prio === 'lowestLeads') {
+                if (a.totalInstallations !== b.totalInstallations) return (a.totalInstallations || 0) - (b.totalInstallations || 0);
+              }
+            }
+            return 0;
+          });
+        }
       }
     }
-    res.json({ success: true, count: finalEpcs.length, data: finalEpcs });
+
+    // Decrement views for Trust Badge holders that are being shown
+    if (finalEpcs.length > 0) {
+      const tbShownIds = finalEpcs
+        .filter(epc => epc.trustBadge?.status === 'Approved' && epc.trustBadge?.remainingViews > 0)
+        .map(epc => epc._id);
+      
+      if (tbShownIds.length > 0) {
+        for (const epcId of tbShownIds) {
+          const epc = await EpcPartner.findById(epcId);
+          if (epc && epc.trustBadge) {
+            epc.trustBadge.remainingViews -= 1;
+            epc.trustBadge.skippedCount = (epc.trustBadge.skippedCount || 0) + 1;
+            
+            if (epc.trustBadge.remainingViews <= 0) {
+              epc.trustBadge.status = 'Expired';
+              const Notification = (await import('../models/Notification.js')).default;
+              await Notification.create({
+                role: 'EpcPartner',
+                recipientId: epc._id,
+                title: 'Trust Badge Expired',
+                message: 'Your Trust Badge has expired because you have used all your views. Please apply again.'
+              });
+            }
+            await epc.save();
+          }
+        }
+      }
+    }
+
+    const { kw, projectType } = req.query;
+    let finalEpcsObj = finalEpcs.map(e => e.toObject ? e.toObject() : e);
+
+    if (kw && projectType) {
+      const { default: ProjectPricing } = await import('../models/ProjectPricing.js');
+      const searchPattern = '^' + projectType.replace('-solar', '') + '(-solar)?$';
+      const pricingDocs = await ProjectPricing.find({
+        epcId: { $in: finalEpcsObj.map(e => e._id) },
+        systemSizeKW: Number(kw),
+        projectType: new RegExp(searchPattern, 'i')
+      }).lean();
+
+      const brandIdStrings = brandIds.map(id => id.toString());
+
+      finalEpcsObj = finalEpcsObj.map(epc => {
+        const epcPricing = pricingDocs.filter(p => {
+          if (!p.epcId || p.epcId.toString() !== epc._id.toString()) return false;
+          
+          if (brandIdStrings.length > 0) {
+            const hasDirectBrand = (p.solarPanel && brandIdStrings.includes(p.solarPanel.toString())) ||
+                                   (p.inverter && brandIdStrings.includes(p.inverter.toString()));
+            if (hasDirectBrand) return true;
+            
+            if (p.dynamicBrands && p.dynamicBrands.length > 0) {
+              const hasDynamicBrand = p.dynamicBrands.some(db => 
+                db.brandIds && db.brandIds.some(bid => brandIdStrings.includes(bid.toString()))
+              );
+              return hasDynamicBrand;
+            }
+            return false;
+          }
+          return true;
+        });
+
+        const validPrices = epcPricing.map(p => p.projectPrice || 0).filter(p => p > 0);
+        if (validPrices.length > 0) {
+           epc.projectPrice = Math.min(...validPrices);
+        }
+        return epc;
+      });
+    }
+
+    res.json({ success: true, count: finalEpcsObj.length, data: finalEpcsObj });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
@@ -765,6 +944,17 @@ export const selectRecommendedEpc = async (req, res) => {
     project.pendingActionFor = 'epc-partner';
 
     await project.save();
+
+    // Track Trust Badge Assignment & Skipped Analytics
+    try {
+      if (epc.trustBadge?.status === 'Approved') {
+        epc.trustBadge.assignedCount = (epc.trustBadge.assignedCount || 0) + 1;
+        epc.trustBadge.skippedCount = Math.max(0, (epc.trustBadge.skippedCount || 0) - 1);
+        await epc.save();
+      }
+    } catch (err) { 
+      console.error('Error updating trustbadge counters:', err); 
+    }
 
     // Sync Lead model
     try {

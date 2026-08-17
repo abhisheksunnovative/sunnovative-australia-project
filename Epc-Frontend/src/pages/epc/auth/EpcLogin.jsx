@@ -78,7 +78,7 @@ const EpcLogin = () => {
 
   const inputCls = 'w-full bg-white border border-gray-200 text-gray-800 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all';
 
-  // ── STEP 1 → Check: PIN set hai? Seedha PIN screen, ya OTP bhejo ───────────
+  // ── STEP 1 → Check: PIN set hai? Seedha PIN screen, ya Send OTP ───────────
   const handleContinue = async () => {
     if (!selected) { setError('Please select your company'); return; }
     setError(''); setLoading(true);

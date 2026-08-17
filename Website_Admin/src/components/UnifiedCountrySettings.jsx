@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Globe, ChevronRight, Settings, Layout, MapPin, CheckCircle, Save, Trash2, Edit2, Package } from 'lucide-react';
+import { Plus, Globe, ChevronRight, Settings, Layout, MapPin, CheckCircle, Save, Trash2, Edit2, Package, ShieldCheck, CreditCard, Banknote } from 'lucide-react';
 import OrderJourneyScreen from './OrderJourneyScreen';
 import ProjectTypeSettings from './ProjectTypeSettings';
 import ProductConfigSettings from './ProductConfigSettings';
 import DistrictPincodeSettings from './DistrictPincodeSettings';
 import OnboardingChecklist from './OnboardingChecklist';
+import EpcSystemSettingsScreen from './EpcSystemSettingsScreen';
+import { SubscriptionScreen } from './SubscriptionScreen';
+import { CountrySubsidyManagementScreen } from './CountrySubsidyManagementScreen';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4005';
 
@@ -67,36 +70,54 @@ export default function UnifiedCountrySettings() {
           </div>
         </div>
 
-        <div className="flex border-b bg-white px-6">
+        <div className="flex border-b bg-white px-6 overflow-x-auto hide-scrollbar">
           <button 
             onClick={() => setActiveTab('checklist')}
-            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-colors ${activeTab === 'checklist' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'checklist' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
           >
             <span className="flex items-center gap-2"><CheckCircle className="w-4 h-4" /> Onboarding Checklist</span>
           </button>
           <button 
             onClick={() => setActiveTab('orderJourney')}
-            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-colors ${activeTab === 'orderJourney' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'orderJourney' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
           >
             <span className="flex items-center gap-2"><Layout className="w-4 h-4" /> Order Journey</span>
           </button>
           <button 
             onClick={() => setActiveTab('projectTypes')}
-            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-colors ${activeTab === 'projectTypes' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'projectTypes' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
           >
             <span className="flex items-center gap-2"><Settings className="w-4 h-4" /> Project Type Settings</span>
           </button>
           <button 
             onClick={() => setActiveTab('districts')}
-            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-colors ${activeTab === 'districts' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'districts' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
           >
             <span className="flex items-center gap-2"><MapPin className="w-4 h-4" /> Districts & Pincodes</span>
           </button>
           <button 
             onClick={() => setActiveTab('products')}
-            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-colors ${activeTab === 'products' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'products' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
           >
             <span className="flex items-center gap-2"><Package className="w-4 h-4" /> Products</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('epcSystem')}
+            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'epcSystem' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          >
+            <span className="flex items-center gap-2"><ShieldCheck className="w-4 h-4" /> EPC Settings</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('plans')}
+            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'plans' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          >
+            <span className="flex items-center gap-2"><CreditCard className="w-4 h-4" /> Plans & Subs</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('subsidy')}
+            className={`px-4 py-3 font-semibold text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'subsidy' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          >
+            <span className="flex items-center gap-2"><Banknote className="w-4 h-4" /> Subsidy Mgmt</span>
           </button>
         </div>
 
@@ -106,6 +127,9 @@ export default function UnifiedCountrySettings() {
           {activeTab === 'projectTypes' && <ProjectTypeSettings selectedCountry={selectedCountry.code} readOnly={true} />}
           {activeTab === 'products' && <ProductConfigSettings selectedCountry={selectedCountry.code} readOnly={true} />}
           {activeTab === 'districts' && <DistrictPincodeSettings selectedCountry={selectedCountry.code} />}
+          {activeTab === 'epcSystem' && <EpcSystemSettingsScreen selectedCountryCode={selectedCountry.name} />}
+          {activeTab === 'plans' && <SubscriptionScreen selectedCountryCode={selectedCountry.name} />}
+          {activeTab === 'subsidy' && <CountrySubsidyManagementScreen selectedCountryCode={selectedCountry.name} />}
         </div>
       </div>
     );

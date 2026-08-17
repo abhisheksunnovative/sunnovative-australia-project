@@ -25,9 +25,9 @@ const TRANSLATIONS = {
     applyNow: "Apply Now",
     checkEligibility: "Check Eligibility",
     loginTitle: "EmergeSun Customer Portal",
-    loginSubtitle: "Mobile number se login ya register karo",
-    otpSent: "OTP bheja gaya",
-    signupTitle: "Pehli baar? Register karo",
+    loginSubtitle: "Login or register using mobile number",
+    otpSent: "OTP sent successfully",
+    signupTitle: "First time? Register now",
   },
   AU: {
     country: "Australia", flag: "🇦🇺", currency: "A$", currencyCode: "AUD",

@@ -15,6 +15,9 @@ import {
   getEpcProfile,
   updateEpcProfile,
   applyTrustBadge,
+  createTrustBadgeOrder,
+  verifyTrustBadgePayment,
+  getTrustBadgeAnalytics,
 } from '../controllers/epcAuthController.js';
 import { protectEpc, protectEpcBasic } from '../middleware/protectEpc.js';
 import { extractCountry } from '../middleware/countryMiddleware.js';
@@ -37,5 +40,8 @@ router.post('/register',          registerEpc);
 router.get ('/profile',           protectEpc, getEpcProfile);
 router.put ('/profile',           protectEpc, updateEpcProfile);
 router.post('/trust-badge/apply', protectEpc, applyTrustBadge);
+router.post('/trust-badge/create-order', protectEpc, createTrustBadgeOrder);
+router.post('/trust-badge/verify-payment', protectEpc, verifyTrustBadgePayment);
+router.get ('/trust-badge/analytics', protectEpc, getTrustBadgeAnalytics);
 
 export default router;

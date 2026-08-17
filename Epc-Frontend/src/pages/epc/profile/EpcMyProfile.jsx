@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useEpcAuth } from '../../../context/EpcAuthContext';
 import { useCountry } from '../../../context/CountryContext';
 import epcApi from '../../../api/epcApi';
-import { TrustBadgeApplication } from './TrustBadgeApplication';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const PROJECT_TYPES = [
   'Surya Ghar Yojana', 'Group Solar', 'Village Solar Campaign',
@@ -30,9 +30,7 @@ const EpcMyProfile = () => {
   const [showBrandConfig, setShowBrandConfig] = useState(false);
   const [availableBrands, setAvailableBrands] = useState([]);
   const [brandOfferings, setBrandOfferings] = useState([]);
-  
-  // Trust Badge modal state
-  const [showTrustBadgeModal, setShowTrustBadgeModal] = useState(false);
+  const navigate = useNavigate();
 
   const load = async () => {
     setLoading(true);
@@ -158,22 +156,24 @@ const EpcMyProfile = () => {
           msg.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-700'
         }`}>
           <span>{msg.text}</span>
-          <button onClick={() => setMsg({ text: '', type: '' })} className="opacity-50 hover:opacity-100">✕</button>
+          <button onClick={() => setMsg({ text: '', type: '' })} className="opacity-50 hover:opacity-100">✖</button>
         </div>
       )}
 
-      {/* ── COMPANY HERO CARD ── */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-premium overflow-hidden relative">
+      {/* ── COMPACT COMPANY HERO CARD WITH ALL DETAILS ── */}
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-premium overflow-hidden relative">
         <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-full -translate-y-1/2 translate-x-1/2 opacity-60" />
-        <div className="flex items-start gap-5 flex-wrap relative z-10">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-md flex-shrink-0">
+        
+        {/* Top Header Row */}
+        <div className="p-5 border-b border-gray-100 flex items-start gap-4 flex-wrap relative z-10 bg-gray-50/50">
+          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-md flex-shrink-0">
             <span className="text-white text-2xl font-black">{profile?.companyName?.charAt(0)?.toUpperCase() || 'E'}</span>
           </div>
 
           <div className="flex-1 min-w-0">
             <h3 className="text-gray-800 text-xl font-black">{profile?.companyName}</h3>
-            <p className="text-gray-500 text-sm">{profile?.ownerName}</p>
-            <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+            <p className="text-gray-500 text-xs font-medium">{profile?.ownerName}</p>
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
               <span className={`status-pill ${planStyle.bg} ${planStyle.text} ${planStyle.border}`}>
                 💼 {profile?.plan} Plan
               </span>
@@ -186,108 +186,124 @@ const EpcMyProfile = () => {
               </span>
               
               {profile?.trustBadge?.status === 'Approved' ? (
-                <span className="status-pill bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-transparent shadow-sm">
-                  <ShieldCheck className="w-3 h-3 mr-1" /> TRUSTED
-                </span>
+                <button
+                  onClick={() => navigate('/epc/trust-badge')}
+                  className="status-pill bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-transparent shadow-sm hover:opacity-90 transition-opacity">
+                  <ShieldCheck className="w-3 h-3 mr-1" /> TRUSTED <ArrowRight className="w-3 h-3 ml-1" />
+                </button>
               ) : profile?.trustBadge?.status === 'Pending' || profile?.trustBadge?.status === 'Applied' ? (
-                <span className="status-pill bg-orange-50 text-orange-600 border-orange-200">
-                  <ShieldCheck className="w-3 h-3 mr-1" /> Badge Pending
-                </span>
+                <button
+                  onClick={() => navigate('/epc/trust-badge')}
+                  className="status-pill bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100 transition-colors">
+                  <ShieldCheck className="w-3 h-3 mr-1" /> Badge Pending <ArrowRight className="w-3 h-3 ml-1" />
+                </button>
               ) : (
                 <button
-                  onClick={() => setShowTrustBadgeModal(true)}
+                  onClick={() => navigate('/epc/trust-badge')}
                   className="status-pill bg-white text-blue-600 border-blue-200 hover:bg-blue-50 transition-colors shadow-sm cursor-pointer">
-                  <ShieldCheck className="w-3 h-3 mr-1" /> Apply for Trust Badge
+                  <ShieldCheck className="w-3 h-3 mr-1" /> Get Trust Badge <ArrowRight className="w-3 h-3 ml-1" />
                 </button>
               )}
             </div>
           </div>
 
-          {/* Rating */}
-          <div className="flex-shrink-0 text-center bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl px-5 py-4">
-            <p className="text-amber-600 text-[10px] font-bold uppercase tracking-wider mb-1">Rating</p>
-            <div className="flex items-center gap-0.5 justify-center mb-1">
+          <div className="flex-shrink-0 text-center bg-amber-50 border border-amber-200 rounded-xl px-4 py-2">
+            <div className="flex items-center gap-0.5 justify-center mb-0.5">
               {[1,2,3,4,5].map(s => (
-                <svg key={s} className={`w-4 h-4 ${s <= Math.round(profile?.rating || 0) ? 'text-amber-400' : 'text-gray-200'}`}
-                  fill="currentColor" viewBox="0 0 24 24">
+                <svg key={s} className={`w-3 h-3 ${s <= Math.round(profile?.rating || 0) ? 'text-amber-400' : 'text-gray-200'}`} fill="currentColor" viewBox="0 0 24 24">
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                 </svg>
               ))}
             </div>
-            <p className="text-amber-700 text-3xl font-black">{profile?.rating?.toFixed(1) || '0.0'}</p>
-            <p className="text-amber-500 text-[10px] font-medium">{profile?.totalRatings || 0} reviews</p>
+            <p className="text-amber-700 text-xl font-black leading-none">{profile?.rating?.toFixed(1) || '0.0'}</p>
+            <p className="text-amber-500 text-[9px] font-medium mt-1">{profile?.totalRatings || 0} reviews</p>
           </div>
         </div>
-      </div>
 
-      {/* ── STAT CARDS ── */}
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { icon: '✅', label: 'On-Time %',      value: `${profile?.onTimeCompletionPercent ?? '—'}%`, grad: 'from-emerald-500 to-emerald-600', light: 'bg-emerald-50 text-emerald-700' },
-          { icon: '📍', label: 'Districts',        value: profile?.activeDistricts?.length || 0,         grad: 'from-blue-500 to-blue-600',    light: 'bg-blue-50 text-blue-700' },
-          { icon: '🏆', label: 'Yrs Experience', value: `${profile?.yearsOfExperience || 0} yrs`,     grad: 'from-purple-500 to-purple-600', light: 'bg-purple-50 text-purple-700' },
-        ].map(stat => (
-          <div key={stat.label} className="bg-white border border-gray-200 rounded-2xl p-4 text-center shadow-premium hover:-translate-y-0.5 transition-all duration-200">
-            <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${stat.grad} flex items-center justify-center mx-auto mb-3 text-xl shadow-sm`}>
-              {stat.icon}
-            </div>
-            <p className="text-2xl font-black text-gray-800">{stat.value}</p>
-            <p className="text-gray-400 text-[10px] font-bold uppercase tracking-wider mt-1">{stat.label}</p>
-          </div>
-        ))}
+        {/* Compact Details Grid */}
+        <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4 text-sm relative z-10">
+           
+           {/* Contact */}
+           <div>
+             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Contact</p>
+             <p className="text-gray-800 font-medium truncate" title={profile?.email}>📧 {profile?.email || 'N/A'}</p>
+             <p className="text-gray-600 mt-1">📱 {profile?.mobile || 'N/A'}</p>
+           </div>
+
+           {/* Location */}
+           <div>
+             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Location</p>
+             <p className="text-gray-800 font-medium">📍 {profile?.city || 'City'}, {profile?.state || 'State'} {profile?.pincode}</p>
+             <p className="text-gray-500 text-xs mt-1 truncate" title={profile?.address}>{profile?.address || 'N/A'}</p>
+           </div>
+
+           {/* Compliance */}
+           {(profile?.country === 'australia' || epc?.country === 'australia') && (
+             <div>
+               <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">CEC & ABN</p>
+               <p className="text-gray-800 font-medium">ABN: {profile?.kycDocuments?.abn || 'N/A'}</p>
+               <p className="text-gray-600 text-xs mt-1">CEC: {profile?.kycDocuments?.cecAccreditationNumber || 'N/A'}</p>
+             </div>
+           )}
+
+           {/* Active Districts */}
+           <div>
+             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+                Active Districts
+                {editing && <span className="text-[9px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-200 cursor-pointer" onClick={() => setShowBrandConfig(true)}>Edit</span>}
+             </p>
+             <div className="flex flex-wrap gap-1">
+                {profile?.activeDistricts?.length > 0 ? profile.activeDistricts.slice(0,4).map(d => (
+                  <span key={d} className="bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-md text-xs font-medium">{d}</span>
+                )) : <span className="text-gray-400 text-xs italic">No districts selected</span>}
+                {profile?.activeDistricts?.length > 4 && <span className="bg-gray-100 text-gray-500 border border-gray-200 px-2 py-0.5 rounded-md text-xs font-medium">+{profile.activeDistricts.length - 4}</span>}
+             </div>
+           </div>
+
+        </div>
       </div>
 
       {/* ── FILTER BAR ── */}
-      <div className="filter-bar">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Filter by</p>
-          {(filterType || filterDist) && (
-            <button onClick={clearFilters} className="text-xs text-red-500 font-semibold hover:text-red-700">✕ Clear</button>
-          )}
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <div>
-            <label className="block text-gray-400 text-xs mb-1 font-medium">Project Type</label>
-            <select value={filterType} onChange={e => setFilterType(e.target.value)} className={filterSelectCls}>
-              <option value="">All Types</option>
-              {PROJECT_TYPES.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-gray-400 text-xs mb-1 font-medium">District</label>
-            <select value={filterDist} onChange={e => setFilterDist(e.target.value)} className={filterSelectCls}>
-              <option value="">All Districts</option>
-              {(profile?.activeDistricts || epc?.activeDistricts || []).map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
-          </div>
-        </div>
+      <div className="filter-bar bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm flex items-center gap-4 flex-wrap">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mr-2">Filter Reviews & Photos</p>
+        <select value={filterType} onChange={e => setFilterType(e.target.value)} className="bg-gray-50 border border-gray-200 text-gray-700 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500 cursor-pointer">
+          <option value="">All Project Types</option>
+          {PROJECT_TYPES.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <select value={filterDist} onChange={e => setFilterDist(e.target.value)} className="bg-gray-50 border border-gray-200 text-gray-700 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500 cursor-pointer">
+          <option value="">All Districts</option>
+          {(profile?.activeDistricts || epc?.activeDistricts || []).map(d => <option key={d} value={d}>{d}</option>)}
+        </select>
+        {(filterType || filterDist) && (
+          <button onClick={clearFilters} className="text-xs text-red-500 font-semibold hover:text-red-700 ml-auto">✖ Clear</button>
+        )}
       </div>
 
-      {/* ── RATINGS BY PROJECT TYPE ── */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-premium">
-        <h3 className="text-gray-800 font-black mb-4 flex items-center gap-2">
-          <span className="text-xl">⭐</span> Ratings by Project Type
-        </h3>
-        <ProjectTypeRatings epcId={profile?._id} filterType={filterType} filterDist={filterDist} />
-      </div>
-
-      {/* ── INSTALLATION PHOTOS ── */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-premium">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-gray-800 font-black flex items-center gap-2">
-            <span className="text-xl">📸</span> Recent Installation Photos
+      {/* ── SIDE BY SIDE METRICS & REVIEWS GRID ── */}
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* RATINGS */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-premium">
+          <h3 className="text-gray-800 font-black mb-4 flex items-center gap-2">
+            <span className="text-lg">⭐</span> Ratings by Type
           </h3>
-          <p className="text-gray-400 text-xs">From completed projects · visible to customers</p>
+          <ProjectTypeRatings epcId={profile?._id} filterType={filterType} filterDist={filterDist} />
         </div>
-        <RecentInstallationPhotos epcId={profile?._id} filterType={filterType} filterDist={filterDist} />
-      </div>
 
-      {/* ── CUSTOMER COMMENTS ── */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-premium">
-        <h3 className="text-gray-800 font-black mb-4 flex items-center gap-2">
-          <span className="text-xl">💬</span> Customer Comments
-        </h3>
-        <CustomerComments epcId={profile?._id} filterType={filterType} filterDist={filterDist} />
+        {/* PHOTOS */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-premium">
+          <h3 className="text-gray-800 font-black mb-4 flex items-center gap-2">
+            <span className="text-lg">📸</span> Recent Photos
+          </h3>
+          <RecentInstallationPhotos epcId={profile?._id} filterType={filterType} filterDist={filterDist} />
+        </div>
+
+        {/* COMMENTS */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-premium">
+          <h3 className="text-gray-800 font-black mb-4 flex items-center gap-2">
+            <span className="text-lg">💬</span> Customer Reviews
+          </h3>
+          <CustomerComments epcId={profile?._id} filterType={filterType} filterDist={filterDist} />
+        </div>
       </div>
 
       {/* ── EDIT FORM ── */}
@@ -538,18 +554,6 @@ const EpcMyProfile = () => {
             </div>
           </div>
         </div>
-      )}
-
-      {showTrustBadgeModal && (
-        <TrustBadgeApplication 
-          epcData={profile} 
-          onClose={() => setShowTrustBadgeModal(false)}
-          onApplySuccess={() => {
-            setShowTrustBadgeModal(false);
-            load();
-            setMsg({ text: 'Trust Badge applied successfully!', type: 'success' });
-          }}
-        />
       )}
     </div>
   );

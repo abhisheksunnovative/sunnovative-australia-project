@@ -86,7 +86,7 @@ export const toggleEpcStatus = async (req, res) => {
 // Add Warning to EPC (Admin)
 export const updateTrustBadgeStatus = async (req, res) => {
   try {
-    const { status, validityMonths } = req.body;
+    const { status } = req.body;
     const epc = await EpcPartner.findById(req.params.id);
     if (!epc) return res.status(404).json({ message: 'EPC not found' });
     
@@ -95,15 +95,24 @@ export const updateTrustBadgeStatus = async (req, res) => {
     }
 
     if (status === 'Approved') {
-      const expiresAt = new Date();
-      expiresAt.setMonth(expiresAt.getMonth() + (validityMonths || 12));
       epc.trustBadge.status = 'Approved';
-      epc.trustBadge.expiresAt = expiresAt;
+      epc.trustBadge.expiresAt = null;
+      epc.trustBadge.remainingLeads = 50;
+      epc.trustBadge.remainingViews = 50;
     } else {
       epc.trustBadge.status = status; // Rejected or None
     }
     
     await epc.save();
+
+    const Notification = (await import('../models/Notification.js')).default;
+    await Notification.create({
+      role: 'EpcPartner',
+      recipientId: epc._id,
+      title: 'Trust Badge Status Updated',
+      message: `Your Trust Badge application has been ${status}.`
+    });
+
     res.json({ message: `Trust Badge status updated to ${status}`, trustBadge: epc.trustBadge });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });

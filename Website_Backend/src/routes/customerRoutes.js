@@ -66,10 +66,29 @@ router.get('/public/epc-partners', async (req, res) => {
     let epcs = await EpcPartner.find(filter)
       .select('companyName city district state plan rating totalRatings yearsOfExperience qualifiedProjectTypes activeDistricts onTimeCompletionPercent trustBadge');
 
-    // Fetch ranking settings
-    const rankingSettings = await InstallerRankingSettings.findOne({ country: req.country || 'australia' });
-    const priorities = rankingSettings?.rankingPriority || ['trustBadge', 'rating'];
-    const limit = rankingSettings?.numberOfInstallersToDisplay || 3;
+    // Fetch ranking settings from EpcSystemSettings
+    const { default: EpcSystemSettings } = await import('../models/EpcSystemSettings.js');
+    const sysSettings = await EpcSystemSettings.getSingleton();
+    let limit = 5;
+    let priorities = ['trustBadge', 'rating'];
+
+    if (sysSettings.regionRules) {
+      const countryStr = req.country || 'australia';
+      const stateStr = req.query.state || 'Victoria';
+      const projectTypeStr = req.query.projectType || 'residential';
+      const rule = sysSettings.regionRules.find(r => 
+         r.country.toLowerCase() === countryStr.toLowerCase() && 
+         r.state.toLowerCase() === stateStr.toLowerCase() && 
+         r.projectType === projectTypeStr
+      ) || sysSettings.regionRules.find(r => 
+         r.country.toLowerCase() === countryStr.toLowerCase() && 
+         r.state.toLowerCase() === 'all' && 
+         r.projectType === projectTypeStr
+      );
+      if (rule) {
+         limit = rule.customerSelectEpcSettings?.totalEpcCards || limit;
+      }
+    }
 
     // Manual sort based on priorities since trustBadge is an object and leads might not be in DB simply
     epcs.sort((a, b) => {

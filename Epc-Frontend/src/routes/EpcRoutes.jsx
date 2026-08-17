@@ -23,6 +23,7 @@ const EpcRewardsDashboard  = lazy(() => import('../pages/epc/rewards/EpcRewardsD
 const EpcCalendarView      = lazy(() => import('../pages/epc/calendar/EpcCalendarView'));
 const EpcStcDashboard      = lazy(() => import('../pages/epc/dashboard/EpcStcDashboard'));
 const EpcIncentiveChecker  = lazy(() => import('../pages/epc/dashboard/EpcIncentiveChecker'));
+const EpcTrustBadgeDashboard = lazy(() => import('../pages/epc/profile/TrustBadgeDashboard'));
 
 // Inline content-area loader (sidebar stays static!)
 const PageLoader = () => (
@@ -66,6 +67,7 @@ const EpcRoutes = () => (
         <Route path="rewards"       element={<Suspense fallback={<PageLoader />}><EpcRewardsDashboard /></Suspense>} />
         <Route path="stc-dashboard" element={<Suspense fallback={<PageLoader />}><EpcStcDashboard /></Suspense>} />
         <Route path="incentives"    element={<Suspense fallback={<PageLoader />}><EpcIncentiveChecker /></Suspense>} />
+        <Route path="trust-badge"   element={<Suspense fallback={<PageLoader />}><EpcTrustBadgeDashboard /></Suspense>} />
       </Route>
 
       <Route path="*" element={<Navigate to="login" replace />} />

@@ -24,9 +24,9 @@ const TabButton = ({ active, onClick, icon: Icon, label }) => (
   </button>
 );
 
-export const SubscriptionScreen = () => {
+export const SubscriptionScreen = ({ selectedCountryCode }) => {
   const [countries, setCountries] = useState([]);
-  const [selectedCountry, setSelectedCountry] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState(selectedCountryCode || "");
   const [activeTab, setActiveTab] = useState("base-plans");
 
   // Data states
@@ -40,6 +40,12 @@ export const SubscriptionScreen = () => {
   useEffect(() => {
     fetchCountries();
   }, []);
+
+  useEffect(() => {
+    if (selectedCountryCode) {
+      setSelectedCountry(selectedCountryCode);
+    }
+  }, [selectedCountryCode]);
 
   useEffect(() => {
     if (selectedCountry) {
@@ -102,10 +108,15 @@ export const SubscriptionScreen = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className={selectedCountryCode ? "w-full" : "p-6 max-w-7xl mx-auto"}>
       {/* HEADER / COUNTRY SELECTOR */}
       <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
+          {selectedCountryCode && (
+            <button onClick={() => setSelectedCountry("")} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+              <ArrowRight className="w-5 h-5 rotate-180" />
+            </button>
+          )}
           <div className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center">
             <Globe className="w-5 h-5 text-secondary" />
           </div>
@@ -114,7 +125,7 @@ export const SubscriptionScreen = () => {
             <p className="text-xs text-slate-500">Configure Base Tiers, KW Packs, and Installer Capacities by country</p>
           </div>
         </div>
-        {selectedCountry && (
+        {selectedCountry && !selectedCountryCode && (
           <button
             onClick={() => setSelectedCountry("")}
             className="text-sm font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1"

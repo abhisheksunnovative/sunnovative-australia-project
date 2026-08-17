@@ -261,8 +261,8 @@ export default function CustomerDashboard({ onClose }) {
               </div>
 
               {[
-                { id: "projects", icon: <FolderOpen className="w-5 h-5 text-blue-500" />, label: "My Projects", desc: "Solar orders track karo", color: "bg-blue-50 border-blue-100" },
-                { id: "profile",  icon: <User className="w-5 h-5 text-green-500" />,      label: "My Profile",  desc: "Details update karo",   color: "bg-green-50 border-green-100" },
+                { id: "projects", icon: <FolderOpen className="w-5 h-5 text-blue-500" />, label: "My Projects", desc: "Track your solar orders", color: "bg-blue-50 border-blue-100" },
+                { id: "profile",  icon: <User className="w-5 h-5 text-green-500" />,      label: "My Profile",  desc: "Update your details",   color: "bg-green-50 border-green-100" },
               ].map(item => (
                 <button key={item.id} onClick={() => setView(item.id)} className={`w-full flex items-center gap-4 p-4 rounded-2xl border ${item.color} hover:shadow-sm transition text-left`}>
                   <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm border border-white/80">
@@ -287,7 +287,7 @@ export default function CustomerDashboard({ onClose }) {
                 <div className="text-center py-10 text-slate-400">
                   <FolderOpen className="w-10 h-10 mx-auto mb-2 opacity-30" />
                   <p className="text-sm font-medium">Koi project nahi abhi tak</p>
-                  <p className="text-xs mt-1">Solar ke liye apply karo home page se</p>
+                  <p className="text-xs mt-1">Apply for solar from the home page</p>
                 </div>
               )}
               {projects.map(p => {

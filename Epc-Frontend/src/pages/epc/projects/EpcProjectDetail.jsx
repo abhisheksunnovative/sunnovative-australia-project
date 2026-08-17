@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Check, XCircle, AlertCircle, FileText } from 'lucide-react';
@@ -129,6 +130,20 @@ const EpcProjectDetail = () => {
     setTimeout(() => setMsg({ text: '', type: '' }), 4000);
   };
 
+  const activeEpcStep = project?.steps?.find(s => 
+    s.assignedTo === 'epc-partner' && (s.status === 'pending' || s.status === 'in-progress')
+  );
+
+  // Auto-scroll to active step on load
+  useEffect(() => {
+    if (activeEpcStep) {
+      setTimeout(() => {
+        const el = document.getElementById(`step-${activeEpcStep.stepId}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 500); // short delay to ensure rendering
+    }
+  }, [activeEpcStep?.stepId]);
+
   const handleFileChange = async (stepId, slotLabel, file) => {
     if (!file) return;
     setActionInputs(prev => ({
@@ -249,7 +264,7 @@ const EpcProjectDetail = () => {
     </div>
   );
 
-  const activeEpcStep = project.steps?.find(s => s.assignedTo === 'epc-partner' && (s.status === 'in-progress' || s.status === 'pending'));
+  // removed duplicate activeEpcStep
 
 
 
@@ -307,14 +322,14 @@ const EpcProjectDetail = () => {
               🎯
             </div>
             <div>
-              <p className="font-black text-sm uppercase tracking-wider">YOUR TURN / AAPKA TURN</p>
-              <p className="text-xs text-orange-100 font-medium mt-0.5">Step #{activeEpcStep.stepNumber}: {activeEpcStep.title} is awaiting your action!</p>
+              <p className="font-black text-sm uppercase tracking-wider">YOUR TURN</p>
+              <p className="text-xs text-orange-100 font-medium mt-0.5">You have to complete this step to continue your journey</p>
             </div>
           </div>
           <button 
             onClick={() => {
               const el = document.getElementById(`step-${activeEpcStep.stepId}`);
-              if (el) el.scrollIntoView({ behavior: 'smooth' });
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }}
             className="px-4 py-2 bg-white text-orange-900 rounded-xl font-extrabold text-xs hover:bg-orange-100 transition shadow-sm shrink-0"
           >

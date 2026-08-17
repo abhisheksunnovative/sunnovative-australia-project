@@ -37,7 +37,7 @@ export const EpcPartnerScreen = ({
   // Page states
   const [filterCountry, setFilterCountry] = useState("All");
   const { projectTypes: dynamicProjectTypes } = useAdminSettings(filterCountry === 'All' ? '' : filterCountry);
-  const dynamicProjectTypeList = dynamicProjectTypes.length > 0 ? dynamicProjectTypes.map(pt => pt.value) : ["Residential"];
+  const dynamicProjectTypeList = dynamicProjectTypes.length > 0 ? dynamicProjectTypes.map(pt => pt.value) : ["Residential Solar", "Commercial Solar", "Group Solar", "Village Solar Campaign"];
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterState, setFilterState] = useState("All");
   const [filterDistrict, setFilterDistrict] = useState("All");
@@ -46,6 +46,12 @@ export const EpcPartnerScreen = ({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [deactivateModal, setDeactivateModal] = useState({ isOpen: false, partner: null, reason: "" });
   const [profileActiveTab, setProfileActiveTab] = useState("overview");
+
+  // Card filter states
+  const [cardCountry, setCardCountry] = useState('');
+  const [cardState, setCardState] = useState('');
+  const [cardProjectType, setCardProjectType] = useState('');
+  const [countryList, setCountryList] = useState([]);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -140,6 +146,12 @@ export const EpcPartnerScreen = ({
 
   // Flag to skip the page-change effect when filters reset page to 1
   const skipPageEffect = useRef(false);
+
+  // Fetch country list for card filters — use COUNTRY_DATA directly (no API needed)
+  useEffect(() => {
+    const list = Object.keys(COUNTRY_DATA).map(k => ({ name: k, code: k }));
+    setCountryList(list);
+  }, []);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -335,7 +347,7 @@ export const EpcPartnerScreen = ({
       await fetch(`http://localhost:4005/api/admin/epc/${partner.id}/trust-badge`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hasTrustBadge: newStatus })
+        body: JSON.stringify({ status: newStatus ? 'Approved' : 'None', validityMonths: 12 })
       });
     } catch (err) {
       console.error(err);
@@ -365,7 +377,12 @@ export const EpcPartnerScreen = ({
     const matchesState = filterState === "All" || p.state === filterState;
     const matchesDistrict = filterDistrict === "All" || p.district === filterDistrict;
 
-    return matchesSearch && matchesStatus && matchesCountry && matchesState && matchesDistrict;
+    // Card filters
+    const matchesCardCountry = !cardCountry || p.country?.toLowerCase() === cardCountry;
+    const matchesCardState = !cardState || p.state?.toLowerCase() === cardState.toLowerCase();
+    const matchesCardProjectType = !cardProjectType || (p.projectTypes || []).some(t => t.toLowerCase() === cardProjectType.toLowerCase());
+
+    return matchesSearch && matchesStatus && matchesCountry && matchesState && matchesDistrict && matchesCardCountry && matchesCardState && matchesCardProjectType;
   });
 
   const uniqueCountries = Array.from(new Set(dbPartners.map((p) => p.country).filter(Boolean)));
@@ -396,7 +413,78 @@ export const EpcPartnerScreen = ({
               Onboard New EPC
             </button>
           </div>
-          
+
+          {/* ── Country → State → Project Type Card Filters ── */}
+          <div className="space-y-3 mb-3 p-4 bg-white border border-gray-100 rounded-2xl shadow-sm">
+            {/* Country Cards */}
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Country</p>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => { setCardCountry(''); setCardState(''); setCardProjectType(''); }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${!cardCountry ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                  All <span className="opacity-75">({dbPartners.length})</span>
+                </button>
+                {countryList.map(c => {
+                  const cName = typeof c === 'string' ? c : (c.name || c.code || '');
+                  const cCode = cName.toLowerCase();
+                  const count = dbPartners.filter(p => p.country?.toLowerCase() === cCode).length;
+                  return (
+                    <button key={cCode} onClick={() => { setCardCountry(cCode); setCardState(''); setCardProjectType(''); }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all capitalize ${cardCountry === cCode ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                      {cName} <span className="opacity-75">({count})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {/* State Cards */}
+            {cardCountry && (
+              <div>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">State</p>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => { setCardState(''); setCardProjectType(''); }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${!cardState ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300'}`}>
+                    All States
+                  </button>
+                  {Object.keys(COUNTRY_DATA[cardCountry] || COUNTRY_DATA[Object.keys(COUNTRY_DATA).find(k => k.toLowerCase() === cardCountry) || ''] || {}).map(st => {
+                    const count = dbPartners.filter(p => p.country?.toLowerCase() === cardCountry && p.state?.toLowerCase() === st.toLowerCase()).length;
+                    return (
+                      <button key={st} onClick={() => { setCardState(st); setCardProjectType(''); }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${cardState === st ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300'}`}>
+                        {st} <span className="opacity-75">({count})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {/* Project Type Cards */}
+            {cardState && (
+              <div>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Project Type</p>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => setCardProjectType('')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${!cardProjectType ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-300'}`}>
+                    All Types
+                  </button>
+                  {dynamicProjectTypeList.map(pt => {
+                    const count = dbPartners.filter(p =>
+                      p.country?.toLowerCase() === cardCountry &&
+                      p.state?.toLowerCase() === cardState.toLowerCase() &&
+                      (p.projectTypes || []).some(t => t.toLowerCase() === pt.toLowerCase())
+                    ).length;
+                    return (
+                      <button key={pt} onClick={() => setCardProjectType(pt)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${cardProjectType === pt ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-300'}`}>
+                        {pt} <span className="opacity-75">({count})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
           <MasterFilterBar
             search={searchQuery}
             setSearch={setSearchQuery}
@@ -852,7 +940,7 @@ export const EpcPartnerScreen = ({
                     <tr
                       key={p.id}
                       onClick={() => viewPartnerDetails(p)}
-                      className="hover:bg-slate-50/70 transition-colors cursor-pointer group"
+                      className={`hover:bg-slate-50/70 transition-colors cursor-pointer group ${p.trustBadge?.status === 'Pending' ? 'bg-yellow-50/60 outline outline-1 outline-yellow-300' : ''}`}
                     >
                       {/* Name & Company */}
                       <td className="px-5 py-4 whitespace-nowrap">
@@ -911,6 +999,12 @@ export const EpcPartnerScreen = ({
                       {/* Status Check badge */}
                       <td className="px-5 py-4 whitespace-nowrap text-center">
                         <StatusBadge status={p.status} />
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setSelectedPartner(p); setProfileActiveTab("trustBadge"); setDrawerOpen(true); }}
+                          className="mt-2 text-[9px] px-2 py-0.5 rounded-sm uppercase tracking-wider font-mono bg-blue-50 text-blue-700 block mx-auto cursor-pointer"
+                        >
+                          TrustBadge: {p.trustBadge?.status || 'None'}
+                        </button>
                       </td>
 
                       {/* KYC and Agreement tags */}
@@ -1110,18 +1204,25 @@ export const EpcPartnerScreen = ({
                 { name: "Active Grid Projects", id: "projects" },
                 { name: "Assigned Crew", id: "installers" },
                 { name: "SaaS Ratings & Badges", id: "ratings" },
+                { name: "Trust Badge", id: "trustBadge" },
               ].map((tab) => {
                 const isActive = profileActiveTab === tab.id;
+                const pendingCount = tab.id === 'trustBadge' ? dbPartners.filter(p => p.trustBadge?.status === 'Pending').length : 0;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setProfileActiveTab(tab.id)}
-                    className={`whitespace-nowrap px-3.5 py-2 text-xs font-semibold border-b-2 transition-all cursor-pointer ${isActive
+                    className={`whitespace-nowrap px-3.5 py-2 text-xs font-semibold border-b-2 transition-all cursor-pointer flex items-center gap-1 ${isActive
                         ? "border-secondary text-primary font-bold"
                         : "border-transparent text-gray-500 hover:text-primary"
                       }`}
                   >
                     {tab.name}
+                    {pendingCount > 0 && (
+                      <span className="bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none">
+                        {pendingCount}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -1129,6 +1230,108 @@ export const EpcPartnerScreen = ({
 
             {/* TAB CONTAINER OUTLET */}
             <div className="pt-2">
+              {/* --- TAB: TRUST BADGE --- */}
+              {profileActiveTab === "trustBadge" && (
+                <div className="space-y-4">
+                  <h5 className="text-sm font-bold text-primary">Trust Badge Application</h5>
+
+                  {/* Status Pill */}
+                  <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border ${
+                    selectedPartner.trustBadge?.status === 'Approved' ? 'bg-green-50 text-green-700 border-green-200' :
+                    selectedPartner.trustBadge?.status === 'Pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                    selectedPartner.trustBadge?.status === 'Expired' ? 'bg-red-50 text-red-600 border-red-200' :
+                    'bg-gray-100 text-gray-500 border-gray-200'
+                  }`}>
+                    ● Status: {selectedPartner.trustBadge?.status || 'None'}
+                  </div>
+
+                  {/* Application Details */}
+                  {selectedPartner.trustBadge?.applicationDetails && (
+                    <div className="bg-gray-50 border border-gray-200 p-4 rounded-xl space-y-3">
+                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Submitted Details</p>
+
+                      {selectedPartner.trustBadge.applicationDetails.paymentReference && (
+                        <div>
+                          <p className="text-[11px] font-semibold text-gray-500 mb-1">Payment Reference / Notes</p>
+                          <p className="text-sm font-mono bg-white border border-gray-200 px-3 py-2 rounded-lg text-gray-800">
+                            {selectedPartner.trustBadge.applicationDetails.paymentReference}
+                          </p>
+                        </div>
+                      )}
+
+                      {selectedPartner.trustBadge.applicationDetails.paymentSlipUrl && (
+                        <div>
+                          <p className="text-[11px] font-semibold text-gray-500 mb-2">Payment Slip</p>
+                          <a href={selectedPartner.trustBadge.applicationDetails.paymentSlipUrl} target="_blank" rel="noreferrer">
+                            <img
+                              src={selectedPartner.trustBadge.applicationDetails.paymentSlipUrl}
+                              alt="Payment Slip"
+                              className="w-full max-h-64 object-contain rounded-xl border border-gray-200 bg-white p-2 hover:shadow-md transition-shadow cursor-zoom-in"
+                            />
+                            <p className="text-[10px] text-blue-500 mt-1 text-center">Click to open full size ↗</p>
+                          </a>
+                        </div>
+                      )}
+
+                      {!selectedPartner.trustBadge.applicationDetails.paymentReference && !selectedPartner.trustBadge.applicationDetails.paymentSlipUrl && (
+                        <p className="text-xs text-gray-400 italic">No application details submitted.</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Counters for Approved Badge */}
+                  {selectedPartner.trustBadge?.status === 'Approved' && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-blue-50 border border-blue-100 p-3 rounded-xl text-center">
+                        <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wide mb-1">Leads Remaining</p>
+                        <p className="text-xl font-black text-blue-700">{selectedPartner.trustBadge?.remainingLeads ?? 0}</p>
+                      </div>
+                      <div className="bg-indigo-50 border border-indigo-100 p-3 rounded-xl text-center">
+                        <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wide mb-1">Views Remaining</p>
+                        <p className="text-xl font-black text-indigo-700">{selectedPartner.trustBadge?.remainingViews ?? 0}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 pt-4 border-t border-gray-100">
+                    {selectedPartner.trustBadge?.status !== 'Approved' && (
+                      <button
+                        onClick={async () => {
+                          await fetch(`http://localhost:4005/api/admin/epc/${selectedPartner.id}/trust-badge`, {
+                            method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'Approved' })
+                          });
+                          fetchPartners(); setDrawerOpen(false);
+                        }}
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-xl text-xs font-black cursor-pointer transition-colors"
+                      >✓ Approve Trust Badge</button>
+                    )}
+                    {selectedPartner.trustBadge?.status === 'Approved' && (
+                      <button
+                        onClick={async () => {
+                          await fetch(`http://localhost:4005/api/admin/epc/${selectedPartner.id}/trust-badge`, {
+                            method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'None' })
+                          });
+                          fetchPartners(); setDrawerOpen(false);
+                        }}
+                        className="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-xl text-xs font-black cursor-pointer transition-colors"
+                      >⊘ Revoke Badge</button>
+                    )}
+                    {selectedPartner.trustBadge?.status === 'Pending' && (
+                      <button
+                        onClick={async () => {
+                          await fetch(`http://localhost:4005/api/admin/epc/${selectedPartner.id}/trust-badge`, {
+                            method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'Rejected' })
+                          });
+                          fetchPartners(); setDrawerOpen(false);
+                        }}
+                        className="flex-1 bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-xl text-xs font-black cursor-pointer transition-colors"
+                      >✕ Reject Application</button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* --- TAB 1: OVERVIEW --- */}
               {profileActiveTab === "overview" && (
                 <div className="space-y-4">

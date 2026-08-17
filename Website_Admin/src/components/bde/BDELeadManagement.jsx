@@ -240,29 +240,44 @@ export default function BDELeadManagement({ bdeId, country }) {
       let payload = {};
       if (selectedSlot) {
         payload.epcCalendarSlotId = selectedSlot._id;
+        payload.preferredDate = selectedSlot.date;
       } else if (selectedRawDate) {
         payload.preferredDate = selectedRawDate;
       } else {
         alert("Please select a date from the calendar.");
         return;
       }
+
+      const isAus = qualifyingLead.country?.toLowerCase() === 'australia' || qualifyingLead.country?.toLowerCase() === 'au';
       
-      const res = await fetch(`${API_BASE}/api/leads/${qualifyingLead._id}/convert`, { 
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (data.success) {
-        if (qualifyingLead.country?.toLowerCase() === 'australia' || qualifyingLead.country?.toLowerCase() === 'au') {
+      if (isAus) {
+        const res = await fetch(`${API_BASE}/api/leads/${qualifyingLead._id}/convert`, { 
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
           alert("Lead Converted & Order Created!");
+          setIsCalendarModalOpen(false);
+          fetchLeads();
         } else {
-          alert("Lead Converted & Order Created! It is now broadcasted to EPCs.");
+          alert(data.message || "Failed to convert");
         }
-        setIsCalendarModalOpen(false);
-        fetchLeads();
       } else {
-        alert(data.message || "Failed to convert");
+        const res = await fetch(`${API_BASE}/api/bde/leads/${qualifyingLead._id}/schedule`, { 
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scheduledDate: payload.preferredDate })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("Lead scheduled successfully! After Admin approval, this lead will be broadcast to the EPC portal.");
+          setIsCalendarModalOpen(false);
+          fetchLeads();
+        } else {
+          alert(data.message || "Failed to schedule");
+        }
       }
     } catch (err) { console.error(err); alert("Error processing request"); }
   };
@@ -640,7 +655,7 @@ export default function BDELeadManagement({ bdeId, country }) {
                       <div className="font-bold text-gray-900">{lead.name}</div>
                       <button onClick={() => handleOpenEdit(lead)} className="text-gray-400 hover:text-blue-600"><Edit2 className="w-3 h-3"/></button>
                     </div>
-                    <div className="text-sm text-gray-600 font-medium flex items-center gap-1 mt-0.5"><PhoneCall className="w-3 h-3 text-blue-500"/> {lead.mobile}</div>
+                    <div className="text-sm text-gray-600 font-medium flex items-center gap-1 mt-0.5"><PhoneCall className="w-3 h-3 text-blue-500"/> {lead.mobile} {lead.email && <span className="ml-2 px-2 bg-slate-100 rounded text-xs">{lead.email}</span>}</div>
                     <div className="text-xs text-gray-500 font-medium">{lead.district || lead.city}, {lead.state} {lead.pincode || lead.postcode ? `- ${lead.pincode || lead.postcode}` : ''}</div>
                     <div className="text-[11px] text-gray-400 mt-1 flex items-center gap-1 font-medium"><Clock className="w-3 h-3"/> Lead Created: {new Date(lead.createdAt).toLocaleDateString("en-IN")}</div>
                     
@@ -735,11 +750,9 @@ export default function BDELeadManagement({ bdeId, country }) {
                         )}
                         
                         {(lead.epcDetails || lead.assignedEPCName) && (
-                          <div className="bg-blue-50 border border-blue-200 p-2.5 rounded-xl text-xs text-left w-full max-w-[210px] space-y-0.5 shadow-xs">
-                            <p className="font-black text-blue-900 flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5 text-emerald-600"/> EPC Accepted by Customer:</p>
-                            <p className="text-blue-950 font-black text-sm">{lead.epcDetails?.companyName || lead.assignedEPCName}</p>
-                            {lead.epcDetails?.contactPerson && <p className="text-slate-700 font-bold">👤 {lead.epcDetails.contactPerson}</p>}
-                            {lead.epcDetails?.mobile && <p className="text-slate-600">📞 {lead.epcDetails.mobile}</p>}
+                          <div className="bg-emerald-50 border border-emerald-200 p-2.5 rounded-xl text-xs text-left w-full max-w-[210px] shadow-xs flex items-center gap-1.5">
+                            <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0"/>
+                            <span className="font-black text-emerald-900">EPC Assigned</span>
                           </div>
                         )}
 
@@ -843,7 +856,7 @@ export default function BDELeadManagement({ bdeId, country }) {
                   📅 Confirm & Lock Final Installation Date
                 </h2>
                 <p className="text-xs text-amber-100 font-bold">
-                  Customer: {confirmingLead.name} • EPC: {confirmingLead.epcDetails?.companyName || confirmingLead.assignedEPCName || 'Accepted EPC'}
+                  Customer: {confirmingLead.name} • EPC Assigned
                 </p>
               </div>
               <button onClick={() => setIsConfirmDateCalendarOpen(false)} className="text-amber-100 hover:text-white"><X className="w-6 h-6"/></button>

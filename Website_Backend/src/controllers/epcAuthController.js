@@ -533,18 +533,37 @@ export const applyTrustBadge = async (req, res) => {
     if (!epc) return res.status(404).json({ message: 'EPC not found' });
     
     if (epc.trustBadge?.status === 'Pending') {
-      return res.status(400).json({ message: 'Application already pending' });
+      return res.status(400).json({ success: false, message: 'Application already pending' });
     }
+
+    // Use individual field assignments to preserve schema defaults
+    epc.trustBadge.status = 'Pending';
+    epc.trustBadge.documentUrl = req.body.documentUrl || '';
+    epc.trustBadge.appliedAt = new Date();
+    epc.trustBadge.applicationDetails = req.body.applicationDetails || {};
     
-    epc.trustBadge = {
-      status: 'Pending',
-      documentUrl: req.body.documentUrl || '',
-      appliedAt: new Date()
-    };
+    if (req.body.qualifiedProjectTypes && Array.isArray(req.body.qualifiedProjectTypes)) {
+      epc.qualifiedProjectTypes = req.body.qualifiedProjectTypes;
+    }
+
     await epc.save();
-    res.json({ message: 'Trust Badge applied successfully', trustBadge: epc.trustBadge });
+
+    // Fire notification for Admin
+    try {
+      const Notification = (await import('../models/Notification.js')).default;
+      await Notification.create({
+        role: 'Admin',
+        title: 'New Trust Badge Application',
+        message: `EPC ${epc.companyName} has applied for a Trust Badge. Please review their payment details.`
+      });
+    } catch (notifErr) {
+      console.error('Notification error:', notifErr.message);
+    }
+
+    res.json({ success: true, message: 'Trust Badge applied successfully', trustBadge: epc.trustBadge });
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error('applyTrustBadge error:', err.message);
+    res.status(500).json({ success: false, message: 'Server error', error: err.message });
   }
 };
 
@@ -557,6 +576,183 @@ export const updateEpcProfile = async (req, res) => {
     const updated = await epc.save();
     res.json({ _id: updated._id, companyName: updated.companyName, email: updated.email });
   } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};import crypto from 'crypto';
+import { razorpay } from '../config/razorpay.js';
+import EpcSystemSettings from '../models/EpcSystemSettings.js';
+import CountryWebsiteSettings from '../models/CountryWebsiteSettings.js';
+
+export const createTrustBadgeOrder = async (req, res) => {
+  try {
+    const { numLeads, projectType } = req.body;
+    if (!numLeads) return res.status(400).json({ message: 'Number of leads required' });
+
+    const epc = await EpcPartner.findById(req.epc._id);
+    if (!epc) return res.status(404).json({ message: 'EPC not found' });
+    
+    // Country logic
+    const country = epc.country || 'australia';
+    const state = epc.state || 'all';
+
+    const sysSettings = await EpcSystemSettings.getSingleton();
+    // Default to fallback ratePerLead if no specific rule
+    let rate = 100; // default 
+    
+    if (sysSettings.regionRules) {
+        const rule = sysSettings.regionRules.find(r => 
+           r.country.toLowerCase() === country.toLowerCase() && 
+           r.state.toLowerCase() === state.toLowerCase() && 
+           r.projectType === projectType
+        ) || sysSettings.regionRules.find(r => 
+           r.country.toLowerCase() === country.toLowerCase() && 
+           r.state === 'all' && 
+           r.projectType === projectType
+        );
+        if (rule && rule.trustBadgeSettings && rule.trustBadgeSettings.ratePerLead) {
+            rate = rule.trustBadgeSettings.ratePerLead;
+        }
+    }
+
+    const countryObj = await CountryWebsiteSettings.findOne({ countryName: new RegExp('^' + country + '$', 'i') }) || await CountryWebsiteSettings.findOne({ countryCode: new RegExp('^' + country.substring(0, 2) + '$', 'i') });
+    const currency = countryObj?.currency || 'INR';
+    
+    const amount = numLeads * rate;
+    if (amount <= 0) return res.status(400).json({ message: 'Invalid amount' });
+
+    const order = await razorpay.orders.create({
+      amount: Math.round(amount * 100), // paise/cents
+      currency: currency,
+      receipt: "tb_" + epc._id + "_" + Date.now().toString(),
+    });
+
+    res.json({
+      success: true,
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      ratePerLead: rate,
+      numLeads,
+      keyId: process.env.RAZORPAY_KEY_ID
+    });
+
+  } catch (err) {
+    console.error('createTrustBadgeOrder error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+export const verifyTrustBadgePayment = async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, numLeads } = req.body;
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ message: 'Missing payment details' });
+    }
+
+    const hmac = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || 'secret_placeholder');
+    hmac.update(razorpay_order_id + '|' + razorpay_payment_id);
+    const generatedSignature = hmac.digest('hex');
+
+    if (generatedSignature !== razorpay_signature) {
+      return res.status(400).json({ message: 'Invalid payment signature' });
+    }
+
+    const epc = await EpcPartner.findById(req.epc._id);
+    if (!epc) return res.status(404).json({ message: 'EPC not found' });
+
+    if (!epc.trustBadge) {
+      epc.trustBadge = { status: 'None', purchasedLeads: 0, leadsConsumed: 0 };
+    }
+    
+    epc.trustBadge.status = 'Approved';
+    epc.trustBadge.purchasedLeads = (epc.trustBadge.purchasedLeads || 0) + Number(numLeads);
+    epc.trustBadge.appliedAt = new Date();
+    await epc.save();
+
+    res.json({ success: true, message: 'Payment successful, Trust Badge updated!', purchasedLeads: epc.trustBadge.purchasedLeads });
+  } catch (err) {
+    console.error('verifyTrustBadgePayment error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+export const getTrustBadgeAnalytics = async (req, res) => {
+  try {
+    const epc = await EpcPartner.findById(req.epc._id);
+    if (!epc) return res.status(404).json({ message: 'EPC not found' });
+
+    // Mock analytics logic based on OrderJourneySettings
+    const { OrderJourneySettings } = await import('../models/OrderJourneySettings.js');
+    const country = epc.country || 'australia';
+    const state = epc.state || 'all';
+
+    let settings = await OrderJourneySettings.findOne({ country, state });
+    if (!settings) {
+      settings = await OrderJourneySettings.findOne({ country, state: 'all' });
+    }
+
+    let routingType = 'FCFS';
+    if (settings && settings.journeys && settings.journeys.length > 0) {
+      routingType = settings.journeys[0].epcSelectionType || 'FCFS';
+    }
+
+    const purchasedLeads = epc.trustBadge?.purchasedLeads || 0;
+    const leadsConsumed = epc.trustBadge?.leadsConsumed || 0;
+    
+    let analytics = {
+      purchasedLeads,
+      leadsConsumed,
+      routingType,
+    };
+
+    if (routingType === 'FCFS') {
+      analytics.arrivedBefore = 10;
+      analytics.arrivedAfter = Math.floor(purchasedLeads * 0.8) + 10;
+      analytics.convertedBefore = 2;
+      analytics.convertedAfter = Math.floor(purchasedLeads * 0.5) + 2;
+      
+      analytics.chartData = [
+        { period: 'Before Trust Badge', Arrivals: analytics.arrivedBefore, Conversions: analytics.convertedBefore },
+        { period: 'After Trust Badge', Arrivals: analytics.arrivedAfter, Conversions: analytics.convertedAfter }
+      ];
+    } else {
+      analytics.profileViewsBefore = 5;
+      analytics.profileViewsAfter = Math.floor(purchasedLeads * 3.5) + 5;
+      analytics.customersSelectedBefore = 1;
+      analytics.customersSelectedAfter = Math.floor(purchasedLeads * 0.6) + 1;
+
+      analytics.chartData = [
+        { period: 'Before Trust Badge', Views: analytics.profileViewsBefore, Selections: analytics.customersSelectedBefore },
+        { period: 'After Trust Badge', Views: analytics.profileViewsAfter, Selections: analytics.customersSelectedAfter }
+      ];
+    }
+
+    // Fetch pricing info for the UI calculator
+    const sysSettings = await import('../models/EpcSystemSettings.js').then(m => m.default.getSingleton());
+    let rate = 100;
+    if (sysSettings.regionRules) {
+        const rule = sysSettings.regionRules.find(r => 
+           r.country.toLowerCase() === country.toLowerCase() && 
+           r.state.toLowerCase() === state.toLowerCase()
+        ) || sysSettings.regionRules.find(r => 
+           r.country.toLowerCase() === country.toLowerCase() && 
+           r.state === 'all'
+        );
+        if (rule && rule.trustBadgeSettings && rule.trustBadgeSettings.ratePerLead) {
+            rate = rule.trustBadgeSettings.ratePerLead;
+        }
+    }
+
+    const CountryWebsiteSettings = await import('../models/CountryWebsiteSettings.js').then(m => m.default);
+    const countryObj = await CountryWebsiteSettings.findOne({ countryName: new RegExp('^' + country + '$', 'i') }) || await CountryWebsiteSettings.findOne({ countryCode: new RegExp('^' + country.substring(0, 2) + '$', 'i') });
+    const currency = countryObj?.currency || 'INR';
+
+    analytics.ratePerLead = rate;
+    analytics.currency = currency;
+
+    res.json({ success: true, analytics });
+  } catch (err) {
+    console.error('getTrustBadgeAnalytics error:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };

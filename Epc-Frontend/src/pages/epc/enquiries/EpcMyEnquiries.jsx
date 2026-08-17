@@ -105,6 +105,7 @@ const EpcMyEnquiries = () => {
       await epcApi.put(`/api/epc/enquiries/${enq._id}/accept`);
       setMsg(`✅ Enquiry accepted! Confirm installation date within 24 hours.`);
       setMsgType('success');
+      window.dispatchEvent(new Event('walletUpdated'));
       load();
     } catch (error) {
       setMsg(error.response?.data?.message || 'Failed to accept');

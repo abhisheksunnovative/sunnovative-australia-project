@@ -100,7 +100,7 @@ const ProjectOrderSchema = new mongoose.Schema(
 
     // ── Customer Info ─────────────────────────────────────────
     customerName: { type: String, required: true },
-    customerMobile: { type: String, required: true },
+    customerMobile: { type: String, default: "" },
     customerEmail: { type: String, default: "" },
     customerId: { type: String, default: null }, // linked customer login
 

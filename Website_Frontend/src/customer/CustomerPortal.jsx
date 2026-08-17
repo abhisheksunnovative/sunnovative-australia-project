@@ -61,6 +61,26 @@ function StarRating({ rating, count }) {
 
 function ProgressTracker({ status, pct }) {
   // Ultra-thin & compact line tracker UI matching screenshot
+  
+  const getActiveIndex = (s) => {
+    switch (s) {
+      case 'lead': return 0; 
+      case 'document-upload': return 2;
+      case 'epc-assigned': return 8;
+      case 'site-survey': return 9;
+      case 'proposal': return 10;
+      case 'mnre-registration': return 11;
+      case 'installation': return 11;
+      case 'inspection': return 12;
+      case 'net-metering': return 13;
+      case 'subsidy': return 14;
+      case 'completed': return 15;
+      default: return 0;
+    }
+  };
+  
+  const activeIndex = getActiveIndex(status);
+
   return (
     <div className="w-full bg-white/90 backdrop-blur-md border border-white/20 rounded-xl p-2 shadow-sm overflow-x-auto scrollbar-hide">
       <div className="flex items-center justify-between mb-1.5 px-1">
@@ -73,8 +93,8 @@ function ProgressTracker({ status, pct }) {
         <div className="absolute left-5 right-5 top-3 h-0.5 bg-slate-200 -z-10" />
 
         {["Lead...", "Submit...", "Upload...", "Verify...", "Docum...", "Select...", "Payment", "Allocat...", "Accept...", "Site...", "Proposal", "Installation", "Upload...", "Net...", "Subsid...", "Progres..."].map((title, i) => {
-          const done = i < 2;
-          const active = i === 2;
+          const done = i < activeIndex;
+          const active = i === activeIndex;
           return (
             <div key={i} className="flex flex-col items-center flex-1 relative group cursor-pointer">
               {i > 0 && (done || active) && (
@@ -1031,7 +1051,7 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
     address: customerLead?.address || customer?.address || "",
     city: customerLead?.district || customerLead?.city || customer?.city || "",
     pincode: customerLead?.postcode || customerLead?.pincode || customer?.pincode || "",
-    applicantName: customerLead?.name || customer?.fullName || "",
+    applicantName: (customerLead?.name || customer?.fullName || "").split("\n")[0].trim(),
     customerCategory: customerLead?.solarType?.includes("commercial") ? "Commercial" : "Residential",
     preferredInstallDate: ""
   });
@@ -1080,6 +1100,16 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
           }
           uniqueCaps.sort((a, b) => a.systemSizeKW - b.systemSizeKW);
           setAvailableCapacities(uniqueCaps);
+          if (uniqueCaps.length > 0) {
+            const leadKwVal = Number(customerLead?.kw || 0);
+            const matched = uniqueCaps.find(c => Number(c.systemSizeKW) === leadKwVal);
+            if (matched) {
+              setSelectedCapacity(matched);
+            } else {
+              const defaultCap = uniqueCaps.find(c => Number(c.systemSizeKW) === 6.6) || uniqueCaps[0];
+              setSelectedCapacity(defaultCap);
+            }
+          }
         }
       } catch (err) {}
     };
@@ -1130,7 +1160,9 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
           console.log("Brand Query:", brandQuery);
           console.log("State:", queryState, "District:", queryDistrict);
           
-          let epcUrl = `/api/customer/epcs?state=${queryState}&country=australia&brands=${brandQuery}`;
+          const resolvedProjectType = pkg?.projectType || "residential";
+          const resolvedKw = selectedCapacity ? selectedCapacity.systemSizeKW : (pkg?.kw || "6.6");
+          let epcUrl = `/api/customer/epcs?state=${queryState}&country=australia&brands=${brandQuery}&projectType=${resolvedProjectType}&kw=${resolvedKw}`;
           if (queryDistrict) {
             epcUrl += `&district=${queryDistrict}`;
           }
@@ -1154,7 +1186,7 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
       };
       fetchEpcs();
     }
-  }, [isAU, modalStep, selectedState, country, selectedBrands, pkg?.projectType]);
+  }, [isAU, modalStep, selectedState, country, selectedBrands, pkg?.projectType, selectedCapacity]);
 
   const token = localStorage.getItem("customer_token");
   const total = pkg.centralSubsidy + stateSubsidy;
@@ -1245,10 +1277,13 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
   };
 
   const submit = async () => {
-    if (!form.address || !form.city) return setError("Address aur city required hain");
+    const activeAddress = form.address || (isAU ? (customerLead?.address || customerLead?.district || customerLead?.city || "Victoria") : "");
+    const activeCity = form.city || (isAU ? (customerLead?.city || customerLead?.district || "Melbourne") : "");
+
+    if (!activeAddress || !activeCity) return setError("Address aur city required hain");
     if (!isAU && !rooftopPhoto) return setError("Rooftop photo upload karna zaroori hai");
-    if (isAU && !applyUploadFile) return setError("Utility Bill/Site Document zaroori hai");
-    if (!geo.lat) return setError("Location capture nahi hui. Photo upload retry karein aur location allow karein.");
+    if (isAU && !applyUploadFile && !customerLead?.billUrl) return setError("Utility Bill/Site Document zaroori hai");
+    if (!geo.lat && (!isAU || applyUploadFile)) return setError("Location capture nahi hui. Photo upload retry karein aur location allow karein.");
     if (!form.preferredInstallDate) return setError("Install date select karein");
 
     setSubmitting(true);
@@ -1261,20 +1296,26 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
         estimatedSubsidy: isAU && selectedCapacity ? selectedCapacity.estimatedSubsidy : total,
         totalProjectCost: pkg.installCost,
         state: selectedState,
-        location: { address: form.address, city: form.city, pincode: form.pincode, state: selectedState },
+        location: { address: activeAddress, city: activeCity, pincode: form.pincode || customerLead?.postcode || "", state: selectedState },
+        customerMobile: customerLead?.mobile || customer?.mobile || "",
         preferredInstallDate: form.preferredInstallDate,
-        latitude: geo.lat,
-        longitude: geo.lng,
+        latitude: geo.lat || null,
+        longitude: geo.lng || null,
         selectedBrands: selectedBrands.map(b => b._id || b.id || b.name)
     };
     if (selectedEpc) {
       payload.selectedEpcId = selectedEpc._id;
       payload.selectedEpcName = selectedEpc.companyName;
     }
+    
+    if (isAU && !applyUploadFile && customerLead?.billUrl) {
+      payload.existingBillUrl = customerLead.billUrl;
+    }
+
     fd.append("payload", JSON.stringify(payload));
     if (applyUploadFile) {
       fd.append("rooftopPhoto", applyUploadFile);
-    } else {
+    } else if (rooftopPhoto) {
       fd.append("rooftopPhoto", rooftopPhoto);
     }
 
@@ -1460,10 +1501,10 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
           ) : modalStep === 3 && isAU ? (
             <div>
                 <h4 className="text-sm font-black text-slate-700 mb-3 border-b border-slate-100 pb-1">Step 3: Application Details & Documents</h4>
-                <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                   <div>
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Applicant's Name *</label>
-                    <input type="text" value={form.applicantName || customer?.fullName || ""} onChange={e => setForm(p => ({ ...p, applicantName: e.target.value }))}
+                    <input type="text" value={form.applicantName} onChange={e => setForm(p => ({ ...p, applicantName: e.target.value }))}
                       placeholder="Full Name"
                       className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-yellow-400/50" />
                   </div>
@@ -1484,13 +1525,25 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
                 </div>
                 <div className="mb-4">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Utility Bill / Site Document (Required) *</label>
-                  <div className={`border-2 border-dashed rounded-xl p-3 text-center cursor-pointer transition ${applyUploadFile ? "border-green-300 bg-green-50" : "border-slate-200 hover:border-slate-300"}`}
+                  <div className={`border-2 border-dashed rounded-xl p-3 text-center cursor-pointer transition ${applyUploadFile || customerLead?.billUrl ? "border-green-300 bg-green-50" : "border-slate-200 hover:border-slate-300"}`}
                     onClick={() => document.getElementById('apply-upload-file').click()}>
                     <input id="apply-upload-file" type="file" accept="image/*,application/pdf" className="hidden" onChange={handleApplyUploadFileChange} />
                     {applyUploadFile ? (
                       <div>
-                        <p className="text-xs font-bold text-green-700">📎 {applyUploadFile.name}</p>
+                        <p className="text-xs font-bold text-green-700">📄 {applyUploadFile.name}</p>
                         {geo.lat && <p className="text-[10px] text-green-600 font-bold mt-1">📍 Auto-fetched location ({geo.lat.toFixed(4)}, {geo.lng.toFixed(4)})</p>}
+                      </div>
+                    ) : customerLead?.billUrl ? (
+                      <div className="flex flex-col items-center">
+                        <p className="text-xs font-bold text-green-700 flex items-center justify-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Previous Bill Attached: 
+                          <a href={`${API}${customerLead.billUrl}`} target="_blank" rel="noreferrer" 
+                             className="underline text-blue-600 hover:text-blue-800 ml-1 font-extrabold"
+                             onClick={(e) => e.stopPropagation()}>
+                            {customerLead.billUrl.split('/').pop()}
+                          </a>
+                        </p>
+                        <p className="text-[10px] text-slate-500 mt-1">Tap here to replace with a new document</p>
                       </div>
                     ) : (
                       <p className="text-xs font-bold text-slate-500 flex items-center justify-center gap-2">
@@ -1521,9 +1574,16 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
                         <div>
                           <div className="flex items-center gap-2">
                             <p className="font-bold text-slate-800 text-sm">{epc.companyName}</p>
-                            {epc.trustBadge && <span className="bg-blue-100 text-blue-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase">Trusted</span>}
+                            {epc.trustBadge?.status === 'Approved' && <span className="bg-blue-100 text-blue-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase">Trusted</span>}
                           </div>
                           <p className="text-[10px] text-slate-500 mt-0.5">Contact: {epc.contactPerson}</p>
+                          {epc.projectPrice ? (
+                            <p className="text-xs font-black text-emerald-600 mt-1">
+                              Price: {isAU ? `$${epc.projectPrice.toLocaleString()} AUD` : `₹${epc.projectPrice.toLocaleString()}`}
+                            </p>
+                          ) : (
+                            <p className="text-[10px] text-slate-400 italic mt-1">Pricing: Contact for Quote</p>
+                          )}
                         </div>
                         <div className="text-right">
                           <p className="text-xs font-black text-yellow-600">⭐ {epc.rating || "New"}</p>
@@ -1560,7 +1620,7 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Applicant's Name *</label>
                 <input type="text" value={form.applicantName || customer?.fullName || ""} onChange={e => setForm(p => ({ ...p, applicantName: e.target.value }))}
@@ -1624,7 +1684,7 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
                     disabled={
                       (modalStep === 1 && isAU && !selectedCapacity) ||
                       (modalStep === 2 && selectedBrands.length === 0) ||
-                      (modalStep === 3 && isAU && (!applyUploadFile || !form.preferredInstallDate))
+                      (modalStep === 3 && isAU && ((!applyUploadFile && !customerLead?.billUrl) || !form.preferredInstallDate))
                     }
                     className="w-full py-3.5 px-8 bg-yellow-400 text-yellow-900 font-black text-sm rounded-xl hover:bg-amber-400 transition flex items-center justify-center gap-2 disabled:opacity-50">
                     Next Step <ArrowRight className="w-4 h-4" />
@@ -1676,6 +1736,8 @@ export default function CustomerPortal({ onClose }) {
   const [customerLead, setCustomerLead] = useState(null);
   const [backendNotifications, setBackendNotifications] = useState([]);
   const [selectedNotifIds, setSelectedNotifIds] = useState([]);
+  
+  const isAU = country === "AU" || customer?.country === "australia" || customer?.country === "AU";
 
   // Date negotiation states
   const [installStatus, setInstallStatus] = useState('accepted');
@@ -1782,23 +1844,10 @@ export default function CustomerPortal({ onClose }) {
     fetchBackendNotifications();
   }, [tab]);
 
-  // Fetch submitted lead details by customer's mobile number
-  const fetchCustomerLead = async () => {
-    if (!customer?.mobile) return;
-    try {
-      const res = await fetch(`${API}/api/leads?search=${customer.mobile}`);
-      const d = await res.json();
-      if (d.success && d.data && d.data.length > 0) {
-        setCustomerLead(d.data[0]);
-      }
-    } catch (err) {
-      console.error("fetchCustomerLead error:", err);
-    }
-  };
-
+  // Use latestLead returned by getMe (auth/me) — already has billUrl, address, kw etc.
   useEffect(() => {
-    if (customer?.mobile) {
-      fetchCustomerLead();
+    if (customer?.latestLead) {
+      setCustomerLead(customer.latestLead);
     }
   }, [customer]);
 

@@ -7,6 +7,7 @@ import React, { useState, useEffect } from "react";
 import { MainLayout } from "./components/MainLayout";
 import { DashboardScreen } from "./components/DashboardScreen";
 import { EpcPartnerScreen } from "./components/EpcPartnerScreen";
+import TrustBadgeEpcScreen from "./components/TrustBadgeEpcScreen";
 import { EpcBulkUploadScreen } from "./components/EpcBulkUploadScreen";
 import { KycScreen } from "./components/KycScreen";
 import { QualificationScreen } from "./components/QualificationScreen";
@@ -294,6 +295,9 @@ export default function App() {
             setSearchQuery={setSearchQuery}
           />
         );
+
+      case "trust-badge-epc":
+        return <TrustBadgeEpcScreen />;
 
       case "epc-rewards":
         return <EpcRewardsScreen />;

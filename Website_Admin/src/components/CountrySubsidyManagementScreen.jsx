@@ -24,7 +24,7 @@ const Field = ({ label, value, onChange, type = 'text', placeholder, hint }) => 
   </div>
 );
 
-export const CountrySubsidyManagementScreen = () => {
+export const CountrySubsidyManagementScreen = ({ selectedCountryCode }) => {
   const [countries, setCountries] = useState([]);
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -38,38 +38,48 @@ export const CountrySubsidyManagementScreen = () => {
       const res = await fetch(API_BASE + '/api/countries');
       const data = await res.json();
       const list = data.success ? data.data : Array.isArray(data) ? data : [];
-      setCountries(list.filter(c => c.isActive));
+      const activeList = list.filter(c => c.isActive);
+      setCountries(activeList);
+      
+      // Auto-select if selectedCountryCode prop is provided (assuming it passes country name for now based on earlier code)
+      if (selectedCountryCode) {
+        const found = activeList.find(c => c.name.toLowerCase() === selectedCountryCode.toLowerCase() || c.code.toLowerCase() === selectedCountryCode.toLowerCase());
+        if (found) setSelectedCountry(found);
+      }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
 
   if (loading) return <div className="p-8 text-center text-slate-500 animate-pulse">Loading countries...</div>;
 
-  if (!selectedCountry) {
+  if (!selectedCountry && !selectedCountryCode) {
     return (
       <div className="p-8 max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Subsidy Management</h1>
-          <p className="text-slate-500">Select a country to configure its active subsidy or rebate rules.</p>
+        <div className="flex items-center gap-3 mb-6">
+          <Zap className="w-6 h-6 text-yellow-500" />
+          <h1 className="text-2xl font-bold text-slate-800">Subsidy Management</h1>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {countries.map(country => (
-            <div
-              key={country.code}
-              onClick={() => setSelectedCountry(country)}
-              className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm hover:shadow-lg hover:border-[#28377f] cursor-pointer transition-all flex flex-col items-center justify-center gap-3 group"
+        <p className="text-slate-500 mb-8">Select a country to configure its state-level or zone-level subsidy rules.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          {countries.map(c => (
+            <button
+              key={c._id}
+              onClick={() => setSelectedCountry(c)}
+              className="bg-white p-6 rounded-2xl border text-left hover:border-[#28377f] hover:shadow-lg transition-all group"
             >
-              <span className="text-5xl group-hover:scale-110 transition-transform duration-300">{country.flagEmoji}</span>
-              <span className="font-bold text-slate-700 group-hover:text-[#28377f] text-base">{country.name}</span>
-              <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
-                {SUBSIDY_MODEL_MAP[country.code.toLowerCase()] === 'stc-zone' ? 'STC Rebate Config' : 'Subsidy Config'}
-              </span>
-            </div>
+              <span className="text-4xl mb-3 block">{c.flagEmoji}</span>
+              <h3 className="text-lg font-bold text-slate-800 group-hover:text-[#28377f] transition-colors">{c.name}</h3>
+              <p className="text-slate-500 text-sm mt-1">{SUBSIDY_MODEL_MAP[c.code] ? 'Model: ' + SUBSIDY_MODEL_MAP[c.code] : 'Unsupported Model'}</p>
+            </button>
           ))}
           {countries.length === 0 && <p className="text-slate-400 col-span-full">No active countries. Configure them in Country Settings first.</p>}
         </div>
       </div>
     );
+  }
+
+  if (!selectedCountry && selectedCountryCode) {
+    return <div className="p-8 text-center text-slate-500">Country not found or inactive.</div>;
   }
 
   return <SubsidyStateSelector selectedCountry={selectedCountry} onBack={() => setSelectedCountry(null)} API_BASE={API_BASE} />;

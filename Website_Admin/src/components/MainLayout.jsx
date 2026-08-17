@@ -98,6 +98,11 @@ export const MainLayout = ({
       icon: <Users className="w-5 h-5" />,
     },
     {
+      name: "Trust Badge EPC",
+      id: "trust-badge-epc",
+      icon: <ShieldCheck className="w-5 h-5" />,
+    },
+    {
       name: "EPC Bulk Upload",
       id: "epc-bulk-upload",
       icon: <Users className="w-5 h-5" />,
@@ -336,6 +341,7 @@ export const MainLayout = ({
   };
 
   const [newLeadsCount, setNewLeadsCount] = useState(0);
+  const [pendingBadgeCount, setPendingBadgeCount] = useState(0);
 
   const fetchLeadStats = async () => {
     try {
@@ -349,12 +355,26 @@ export const MainLayout = ({
     }
   };
 
+  const fetchPendingBadgeCount = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/epc?limit=500`);
+      const raw = await res.json();
+      const list = Array.isArray(raw) ? raw : (raw.data || []);
+      const count = list.filter(e => e.trustBadge?.status === "Pending").length;
+      setPendingBadgeCount(count);
+    } catch (err) {
+      console.error("Failed to fetch pending badges");
+    }
+  };
+
   React.useEffect(() => {
     fetchNotifications();
     fetchLeadStats();
+    fetchPendingBadgeCount();
     const int = setInterval(() => {
       fetchNotifications();
       fetchLeadStats();
+      fetchPendingBadgeCount();
     }, 60000); // refresh every minute
     return () => clearInterval(int);
   }, []);
@@ -523,6 +543,11 @@ export const MainLayout = ({
                     {newLeadsCount}
                   </span>
                 )}
+                {item.id === "trust-badge-epc" && pendingBadgeCount > 0 && (
+                  <span className="shrink-0 bg-red-500 text-white font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
+                    {pendingBadgeCount}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -656,7 +681,7 @@ export const MainLayout = ({
                       onTabChange(item.id);
                       setMobileMenuOpen(false);
                     }}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${
                       isActive
                         ? "bg-secondary text-primary font-bold shadow-md shadow-secondary/15"
                         : "text-sky-100 hover:bg-white/5"
@@ -667,6 +692,11 @@ export const MainLayout = ({
                     {item.id === "website-leads" && newLeadsCount > 0 && (
                       <span className="shrink-0 bg-yellow-400 text-yellow-950 font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
                         {newLeadsCount}
+                      </span>
+                    )}
+                    {item.id === "trust-badge-epc" && pendingBadgeCount > 0 && (
+                      <span className="shrink-0 bg-red-500 text-white font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
+                        {pendingBadgeCount}
                       </span>
                     )}
                   </button>
