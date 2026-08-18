@@ -177,7 +177,7 @@ export const MainLayout = ({
     },
 
     {
-      name: "Australia Payments",
+      name: "Customer Payment Stages",
       id: "australia-payments",
       icon: <CreditCard className="w-5 h-5" />,
     },

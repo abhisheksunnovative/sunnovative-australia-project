@@ -1,8 +1,16 @@
 import mongoose from "mongoose";
 
-const paymentMilestoneSchema = new mongoose.Schema({
-  label: { type: String, required: true }, // e.g. "Advance", "On Installation", "Final"
-  percentage: { type: Number, required: true }, // must sum to 100 across milestones
+const customerPaymentStageSchema = new mongoose.Schema({
+  stageKey: { type: String, required: true }, // e.g. "stage1", "stage2", etc.
+  label: { type: String, required: true }, // e.g. "Deposit / Booking"
+  triggerStepId: { type: String, default: "" }, // associated order journey step ID
+  valueType: { type: String, enum: ["percentage", "fixed"], default: "percentage" },
+  defaultValue: { type: Number, default: 0 },
+  maxLimit: { type: Number, default: 100 },
+  isMandatory: { type: Boolean, default: true },
+  epcCanEdit: { type: Boolean, default: true },
+  recipientType: { type: String, enum: ["platform", "epc"], default: "epc" },
+  gatewayRequired: { type: Boolean, default: true }
 }, { _id: false });
 
 const projectTypePaymentConfigSchema = new mongoose.Schema({
@@ -12,14 +20,11 @@ const projectTypePaymentConfigSchema = new mongoose.Schema({
     enum: ["ADVANCE_ESCROW", "PAYMENT_LATER"],
     default: "ADVANCE_ESCROW",
   },
-  // used only when paymentMode = ADVANCE_ESCROW
-  escrow: {
-    mode: { type: String, enum: ["TOKEN", "PERCENTAGE", "FULL", "MILESTONES"], default: "PERCENTAGE" },
-    tokenAmount: { type: Number, default: 0 },
-    percentage: { type: Number, default: 100 }, // used when mode = PERCENTAGE
-    milestones: { type: [paymentMilestoneSchema], default: [] }, // used when mode = MILESTONES
-    isDummyGateway: { type: Boolean, default: true }, // ALWAYS true for now — real gateway later just flips this
+  signupToken: {
+    tokenType: { type: String, enum: ["none", "fixed", "epc_scope"], default: "none" },
+    fixedAmount: { type: Number, default: 0 }
   },
+  paymentStages: { type: [customerPaymentStageSchema], default: [] }
 }, { _id: false });
 
 const customerPaymentSettingsSchema = new mongoose.Schema({

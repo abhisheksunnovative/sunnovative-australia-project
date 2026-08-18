@@ -122,11 +122,27 @@ export default function EsopPanel({ viewMode, setViewMode }) {
   const [selectedSubsidyState, setSelectedSubsidyState] =
     useState("Gujarat (GEDA)");
   const [filterCapacity, setFilterCapacity] = useState("All");
-  const [filterBrand, setFilterBrand] = useState("All Brands");
+  const [filterPanelBrand,   setFilterPanelBrand]   = useState("all");
+  const [filterInverterBrand, setFilterInverterBrand] = useState("all");
+  const [filterBatteryBrand,  setFilterBatteryBrand]  = useState("all");
   const [filterCellType, setFilterCellType] = useState("All");
   const [onlySubsidyEligible, setOnlySubsidyEligible] = useState(false);
   const [filterBatteryOption, setFilterBatteryOption] = useState("Grid-Tie");
   const [maxBudgetCost, setMaxBudgetCost] = useState(1000000);
+
+  // Live brands fetched from API
+  const [liveBrands, setLiveBrands] = useState([]);
+  useEffect(() => {
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:4005';
+    fetch(`${apiBase}/api/brands?isActive=true`)
+      .then(r => r.json())
+      .then(d => { if (d.success) setLiveBrands(d.data || []); })
+      .catch(() => {});
+  }, []);
+
+  const panelBrands   = liveBrands.filter(b => b.products?.includes('Solar Panel'));
+  const inverterBrands = liveBrands.filter(b => b.products?.includes('Inverter'));
+  const batteryBrands  = liveBrands.filter(b => b.products?.includes('Battery'));
 
   // Interactive individual card active tabs state
   const [cardTabs, setCardTabs] = useState({});
@@ -762,9 +778,18 @@ export default function EsopPanel({ viewMode, setViewMode }) {
         if (pkg.capacityKw !== capacityTarget) return false;
       }
 
-      // Brand radio selector
-      if (filterBrand !== "All Brands") {
-        if (pkg.brand !== filterBrand) return false;
+      // Brand filters (panel / inverter / battery)
+      if (filterPanelBrand !== 'all') {
+        // pkg.brand is a solar panel brand name — match by name
+        if ((pkg.brand || '').toLowerCase() !== filterPanelBrand.toLowerCase()) return false;
+      }
+      if (filterInverterBrand !== 'all') {
+        if (!(pkg.inverter || '').toLowerCase().includes(filterInverterBrand.toLowerCase())) return false;
+      }
+      // Battery brand filter: only meaningful for Hybrid/Off-Grid configs
+      if (filterBatteryBrand !== 'all') {
+        if (pkg.batteryConfig === 'Grid-Tie') return false;
+        if (!(pkg.features || []).join(' ').toLowerCase().includes(filterBatteryBrand.toLowerCase())) return false;
       }
 
       // Cell technology type button
@@ -1567,19 +1592,50 @@ export default function EsopPanel({ viewMode, setViewMode }) {
               onChange={(val) => setFilterCapacity(val)}
             />
 
-            {/* Solar Panel Brand */}
-            <CustomFilterSelect
-              label="Solar Panel Brand"
-              value={filterBrand}
-              options={[
-                { value: "All Brands", label: "All Brands" },
-                { value: "Tata Power Solar", label: "Tata Power Solar" },
-                { value: "Waaree Energies", label: "Waaree Energies" },
-                { value: "Adani Solar", label: "Adani Solar" },
-                { value: "Goldi Solar", label: "Goldi Solar" },
-              ]}
-              onChange={(val) => setFilterBrand(val)}
-            />
+            {/* Solar Panel Brand dropdown — live from API */}
+            <div className="space-y-1.5">
+              <label className="block text-[10px] text-slate-450 uppercase tracking-widest font-black leading-none">Solar Panel Brand</label>
+              <select
+                value={filterPanelBrand}
+                onChange={e => setFilterPanelBrand(e.target.value)}
+                className="w-full bg-orange-600 border border-slate-800 rounded-xl px-3.5 py-3 text-xs text-white font-bold outline-none focus:ring-1 focus:ring-solar-yellow cursor-pointer"
+              >
+                <option value="all">All Panel Brands</option>
+                {panelBrands.map(b => (
+                  <option key={b._id || b.id} value={b.name}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Inverter Brand dropdown — live from API */}
+            <div className="space-y-1.5">
+              <label className="block text-[10px] text-slate-450 uppercase tracking-widest font-black leading-none">Inverter Brand</label>
+              <select
+                value={filterInverterBrand}
+                onChange={e => setFilterInverterBrand(e.target.value)}
+                className="w-full bg-orange-600 border border-slate-800 rounded-xl px-3.5 py-3 text-xs text-white font-bold outline-none focus:ring-1 focus:ring-solar-yellow cursor-pointer"
+              >
+                <option value="all">All Inverter Brands</option>
+                {inverterBrands.map(b => (
+                  <option key={b._id || b.id} value={b.name}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Battery Brand dropdown — live from API */}
+            <div className="space-y-1.5">
+              <label className="block text-[10px] text-slate-450 uppercase tracking-widest font-black leading-none">Battery Brand</label>
+              <select
+                value={filterBatteryBrand}
+                onChange={e => setFilterBatteryBrand(e.target.value)}
+                className="w-full bg-orange-600 border border-slate-800 rounded-xl px-3.5 py-3 text-xs text-white font-bold outline-none focus:ring-1 focus:ring-solar-yellow cursor-pointer"
+              >
+                <option value="all">All Battery Brands</option>
+                {batteryBrands.map(b => (
+                  <option key={b._id || b.id} value={b.name}>{b.name}</option>
+                ))}
+              </select>
+            </div>
 
             {/* Technology Cell Deployment */}
             <CustomFilterSelect

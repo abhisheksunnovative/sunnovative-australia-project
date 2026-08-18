@@ -146,6 +146,39 @@ const ProjectOrderSchema = new mongoose.Schema(
     razorpayOrderId: { type: String, default: "" },
     razorpayPaymentId: { type: String, default: "" },
     razorpaySignature: { type: String, default: "" },
+    
+    // New fields:
+    paymentBlockActive: { type: Boolean, default: false },
+    activePaymentStage: { type: String, default: "" }, // "stage1", "stage2", "stage3", "stage4"
+    signupTokenPayment: {
+      enabled: { type: Boolean, default: false },
+      amount: { type: Number, default: 0 },
+      status: { type: String, enum: ["pending", "paid", "not_required"], default: "not_required" },
+      razorpayOrderId: { type: String, default: "" },
+      razorpayPaymentId: { type: String, default: "" },
+      razorpaySignature: { type: String, default: "" },
+      paidAt: { type: Date }
+    },
+    stagePayments: {
+      type: [
+        {
+          stageKey: { type: String, required: true },
+          label: { type: String, required: true },
+          valueType: { type: String, enum: ["percentage", "fixed"], default: "percentage" },
+          value: { type: Number, default: 0 },
+          amount: { type: Number, default: 0 },
+          status: { type: String, enum: ["pending", "paid", "not_required"], default: "not_required" },
+          isMandatory: { type: Boolean, default: true },
+          recipientType: { type: String, enum: ["platform", "epc"], default: "epc" },
+          gatewayRequired: { type: Boolean, default: true },
+          razorpayOrderId: { type: String, default: "" },
+          razorpayPaymentId: { type: String, default: "" },
+          razorpaySignature: { type: String, default: "" },
+          paidAt: { type: Date }
+        }
+      ],
+      default: []
+    },
 
     // ── Assignment ────────────────────────────────────────────
     assignedEPCId: { type: String, default: null },

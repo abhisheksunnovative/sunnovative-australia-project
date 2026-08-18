@@ -48,6 +48,57 @@ function Badge({ status }) {
   );
 }
 
+
+const MultiSelectDropdown = ({ options, selectedIds, onChange, placeholder }) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const dropdownRef = React.useRef(null);
+  
+  React.useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setIsOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedOptions = options.filter(o => selectedIds.includes(o._id));
+  const displayText = selectedOptions.length > 0 ? selectedOptions.map(o => o.name).join(', ') : placeholder;
+
+  return (
+    <div className="relative w-full" ref={dropdownRef}>
+      <div 
+        className="border border-slate-200 hover:border-yellow-400 rounded-lg p-3 bg-white cursor-pointer flex justify-between items-center transition"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span className="text-sm font-bold text-slate-700 truncate">{displayText}</span>
+        <ChevronDown className={`w-4 h-4 text-slate-400 transition ${isOpen ? 'rotate-180' : ''}`} />
+      </div>
+      {isOpen && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+          {options.map(o => {
+            const isSelected = selectedIds.includes(o._id);
+            return (
+              <div 
+                key={o._id} 
+                className={`flex items-center p-3 cursor-pointer border-b border-slate-50 last:border-b-0 transition ${isSelected ? 'bg-yellow-50/50' : 'hover:bg-slate-50'}`}
+                onClick={() => {
+                  if (isSelected) onChange(selectedIds.filter(id => id !== o._id));
+                  else onChange([...selectedIds, o._id]);
+                }}
+              >
+                <div className={`w-4 h-4 border rounded mr-3 flex items-center justify-center transition ${isSelected ? 'bg-yellow-500 border-yellow-500' : 'border-slate-300'}`}>
+                  {isSelected && <span className="text-white text-[10px] font-black leading-none">✓</span>}
+                </div>
+                <span className={`text-sm ${isSelected ? 'font-bold text-slate-800' : 'font-medium text-slate-600'}`}>{o.name}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 function StarRating({ rating, count }) {
   return (
     <div className="flex items-center gap-1">
@@ -872,46 +923,126 @@ function ProjectDetail({ projectId, onBack, authFetch }) {
 
       {/* Scrollable Bottom Area */}
       <div className="flex-1 overflow-y-auto space-y-4 pr-1 mt-2 pb-16 hide-scrollbar">
-        {/* Token Payment Banner */}
-        {project.tokenData?.isPending && (
-          <div className="bg-gradient-to-r from-amber-400 to-yellow-500 rounded-2xl p-5 shadow-lg shadow-yellow-200 relative overflow-hidden">
-            <div className="absolute -right-10 -top-10 w-32 h-32 bg-white/20 rounded-full blur-xl pointer-events-none" />
-            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0 shadow-inner">
-                  <CreditCard className="w-5 h-5 text-yellow-900" />
+        
+        {/* === UNIFIED FULL-SCREEN PAYMENT BLOCKER === */}
+        {(project.tokenData?.isPending || (project.paymentBlockActive && project.activePaymentStage && project.stagePayments)) && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
+            <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl relative overflow-hidden text-center animate-in fade-in zoom-in duration-300">
+              <div className="absolute -right-16 -top-16 w-48 h-48 bg-rose-50 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -left-16 -bottom-16 w-48 h-48 bg-pink-50 rounded-full blur-3xl pointer-events-none" />
+              
+              <div className="relative z-10">
+                <div className="w-20 h-20 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
+                  <CreditCard className="w-10 h-10 text-rose-600" />
                 </div>
-                <div>
-                  <h3 className="text-base font-black text-yellow-950">Pay Platform Token</h3>
-                  <p className="text-sm font-medium text-yellow-900 mt-0.5">Please pay {isAU ? "$" : "₹"}{project.tokenData.amount.toLocaleString('en-IN')} to publish your project to EPC partners.</p>
+                <h2 className="text-2xl font-black text-slate-800 mb-2">Payment Required</h2>
+                <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+                  Aapka project aage badhane ke liye ek payment pending hai. Kripya details verify karein aur secure payment complete karein.
+                </p>
+                
+                <div className="bg-white p-4 rounded-2xl mb-6 border border-slate-200 text-left shadow-sm">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Payment Purpose</p>
+                  <p className="text-sm font-black text-slate-800 mb-4">
+                    {project.tokenData?.isPending 
+                      ? "Platform Signup Token" 
+                      : (project.stagePayments?.find(s => s.stageKey === project.activePaymentStage)?.label || "Milestone Payment")}
+                  </p>
+                  
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Amount to Pay</p>
+                  <p className="text-3xl font-black text-rose-600">
+                    {isAU ? "$" : "₹"}
+                    {project.tokenData?.isPending 
+                      ? project.tokenData.amount.toLocaleString('en-IN')
+                      : (project.stagePayments?.find(s => s.stageKey === project.activePaymentStage)?.amount || 0).toLocaleString('en-IN')}
+                  </p>
                 </div>
-              </div>
-              <button
-                onClick={async () => {
-                  if (window.confirm(`Are you sure you want to pay ${isAU ? "$" : "₹"}${project.tokenData.amount.toLocaleString('en-IN')}?`)) {
-                    try {
-                      const res = await authFetch(`/api/customer/projects/${projectId}/pay-token`, { method: "POST" });
-                      const data = await res.json();
-                      if (data.success) {
-                        alert("Payment successful! Your order is now Open for EPCs.");
-                        fetchProject();
-                      } else {
-                        alert(data.message || "Payment failed");
+
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    
+                    if (project.tokenData?.isPending) {
+                      // Token Payment
+                      try {
+                        const res = await authFetch(`/api/customer/projects/${project._id}/pay-token`, { method: "POST" });
+                        const data = await res.json();
+                        if (data.success) {
+                          alert("Payment verified successfully! Journey unlocked.");
+                          fetchProjects();
+                        } else {
+                          alert(data.message || "Payment failed");
+                        }
+                      } catch (err) {
+                        alert("An error occurred during payment.");
                       }
-                    } catch (e) {
-                      alert("An error occurred during payment.");
+                    } else {
+                      // Milestone Payment
+                      try {
+                        const stageKey = project.activePaymentStage;
+                        const res = await fetch(`${API}/api/payments/create-stage-order`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ projectId: project._id, stage: stageKey })
+                        });
+                        const data = await res.json();
+                        
+                        if (data.success) {
+                           if (data.alreadyPaid) {
+                               alert("This stage is already paid!");
+                               fetchProjects();
+                               return;
+                           }
+                           if (data.isSimulated) {
+                              const vRes = await fetch(`${API}/api/payments/verify-stage-payment`, {
+                                 method: 'POST', 
+                                 headers: { 'Content-Type': 'application/json' }, 
+                                 body: JSON.stringify({ projectId: project._id, stage: stageKey, razorpay_signature: "simulated_signature", razorpay_order_id: data.data.id })
+                              });
+                              if ((await vRes.json()).success) { 
+                                  alert("Payment verified successfully! Journey unlocked."); 
+                                  fetchProjects(); 
+                              }
+                           } else {
+                              const options = {
+                                key: data.key_id,
+                                amount: data.data.amount,
+                                currency: data.data.currency,
+                                order_id: data.data.id,
+                                handler: async (resp) => {
+                                   const vRes = await fetch(`${API}/api/payments/verify-stage-payment`, {
+                                     method: 'POST', 
+                                     headers: { 'Content-Type': 'application/json' }, 
+                                     body: JSON.stringify({ ...resp, projectId: project._id, stage: stageKey })
+                                   });
+                                   if ((await vRes.json()).success) { 
+                                       alert("Payment verified successfully! Journey unlocked."); 
+                                       fetchProjects(); 
+                                   } else {
+                                       alert("Payment verification failed.");
+                                   }
+                                }
+                              };
+                              const rzp = new window.Razorpay(options);
+                              rzp.open();
+                           }
+                        } else {
+                           alert("Error: " + data.message);
+                        }
+                      } catch(err) {
+                        alert("Error initiating payment");
+                      }
                     }
-                  }
-                }}
-                className="px-6 py-3 bg-yellow-950 text-white rounded-xl font-bold text-sm hover:bg-black transition shadow-xl shrink-0"
-              >
-                Pay Now ({isAU ? "$" : "₹"}{project.tokenData.amount.toLocaleString('en-IN')})
-              </button>
+                  }}
+                  className="w-full py-4 bg-gradient-to-r from-rose-600 to-pink-600 text-white rounded-2xl font-black text-[15px] hover:from-rose-700 hover:to-pink-700 transition shadow-lg flex items-center justify-center gap-2"
+                >
+                  <CreditCard className="w-5 h-5" /> Proceed to Pay Securely
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* 🎯 YOUR TURN BANNER (When customer action is required) */}
+   {/* 🎯 YOUR TURN BANNER (When customer action is required) */}
         {project.pendingActionFor === "customer" && (
           <div 
             onClick={() => setTab("select-installer")}
@@ -1339,7 +1470,7 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
           const options = {
             key: d.key_id,
             amount: d.amount * 100,
-            currency: "INR",
+            currency: d.currency || "INR",
             name: "EmergeSun Solar",
             description: "Project Application Signup Token",
             order_id: d.razorpayOrderId,
@@ -1474,24 +1605,18 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
                     return (
                       <div key={type}>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">{type} Brands</p>
-                        <div className="grid grid-cols-2 gap-2">
-                          {typeBrands.map(b => {
-                            const isSelected = selectedBrands.find(sb => sb._id === b._id);
-                            return (
-                              <div key={b._id} onClick={() => {
-                                if (isSelected) {
-                                  setSelectedBrands(prev => prev.filter(sb => sb._id !== b._id));
-                                } else {
-                                  setSelectedBrands(prev => [...prev, b]);
-                                }
-                              }}
-                              className={`border p-2 flex items-center justify-between rounded-lg cursor-pointer transition ${isSelected ? 'border-yellow-400 bg-yellow-50' : 'border-slate-200'}`}>
-                                <span className="font-bold text-xs text-slate-700">{b.name}</span>
-                                {isSelected && <CheckCircle2 className="w-4 h-4 text-yellow-600" />}
-                              </div>
-                            );
-                          })}
-                        </div>
+                        <MultiSelectDropdown 
+                          options={typeBrands}
+                          selectedIds={selectedBrands.filter(sb => typeBrands.some(tb => tb._id === sb._id)).map(sb => sb._id)}
+                          onChange={(newIds) => {
+                            setSelectedBrands(prev => {
+                              const filtered = prev.filter(sb => !typeBrands.some(tb => tb._id === sb._id));
+                              const newSelected = typeBrands.filter(b => newIds.includes(b._id));
+                              return [...filtered, ...newSelected];
+                            });
+                          }}
+                          placeholder={`Select ${type} Brands...`}
+                        />
                       </div>
                     );
                   })

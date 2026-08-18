@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { ClipboardList, ClipboardCheck, Ruler, Hammer } from "lucide-react";
+import { ClipboardList, ClipboardCheck, Ruler, Hammer, Sparkles } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
@@ -91,24 +91,34 @@ export default function HowItWorks({ onScrollToForm, settings }) {
 
   const activeVideo = settings?.videos?.customerWebsiteVideo || videoSettings;
 
+  const colClass = steps.length <= 3
+    ? "grid-cols-1 md:grid-cols-3"
+    : steps.length === 4
+    ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
+    : steps.length === 5
+    ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-5"
+    : "grid-cols-1 md:grid-cols-3 lg:grid-cols-3";
+
   return (
     <section id="how-it-works" className="py-20 solar-gradient relative">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Title Block */}
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <span className="text-xs font-bold uppercase tracking-widest text-[#0081C9] bg-sky-50 px-3 py-1 rounded-full border border-sky-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        
+        {/* Section Header */}
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/60 border border-sky-100 text-solar-navy font-bold text-xs uppercase tracking-wider mb-4 shadow-sm">
+            <Sparkles className="w-3.5 h-3.5 text-solar-yellow-dark" />
             {sectionTitle}
-          </span>
-          <h2 className="text-3xl md:text-4xl font-display font-extrabold text-slate-900 mt-3 leading-tight">
+          </div>
+          <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight font-display">
             {sectionSubtitle}
           </h2>
-          <p className="text-slate-500 mt-3 text-xs md:text-sm">
+          <p className="mt-4 text-slate-500 text-lg leading-relaxed max-w-2xl mx-auto">
             {sectionDesc}
           </p>
         </div>
 
         {/* Steps Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 relative">
+        <div className={`grid ${colClass} gap-8 relative justify-center`}>
           {/* Subtle connecting line for desktop layout */}
           <div className="hidden lg:block absolute top-[68px] left-[10%] right-[10%] h-0.5 bg-dashed border-t-2 border-dashed border-sky-200/55 -z-0"></div>
 

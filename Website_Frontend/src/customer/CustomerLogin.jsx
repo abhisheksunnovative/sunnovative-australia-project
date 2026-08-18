@@ -14,6 +14,56 @@ import { useCountry } from "../context/CountryContext";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
+const PinDots = ({ value }) => (
+  <div className="flex justify-center gap-3 my-2">
+    {[0,1,2,3].map(i => (
+      <div key={i} className={`w-3 h-3 rounded-full transition-all ${i < value?.length ? "bg-yellow-400 scale-110" : "bg-slate-200"}`} />
+    ))}
+  </div>
+);
+
+const OtpBoxes = ({ length = 4, value = "", onChange, showText = true, onSubmit }) => {
+    const inputRefs = useRef([]);
+    const handleChange = (e, index) => {
+      const val = e.target.value.replace(/\D/g, "");
+      if (val) {
+        const newVal = value.split("");
+        newVal[index] = val[val.length - 1]; // take last char
+        const joined = newVal.join("");
+        onChange(joined);
+        if (index < length - 1) inputRefs.current[index + 1]?.focus();
+        else if (joined.length === length) onSubmit?.(joined);
+      }
+    };
+    const handleKeyDown = (e, index) => {
+      if (e.key === "Backspace") {
+        const newVal = value.split("");
+        if (!newVal[index] && index > 0) {
+          inputRefs.current[index - 1]?.focus();
+        } else {
+          newVal[index] = "";
+          onChange(newVal.join(""));
+        }
+      }
+    };
+    return (
+      <div className="flex gap-2 justify-center w-full">
+        {Array.from({ length }).map((_, i) => (
+          <input
+            key={i}
+            ref={el => (inputRefs.current[i] = el)}
+            type={showText ? "text" : "password"}
+            inputMode="numeric"
+            value={value[i] || ""}
+            onChange={e => handleChange(e, i)}
+            onKeyDown={e => handleKeyDown(e, i)}
+            className="w-12 h-14 border-2 border-slate-200 rounded-xl text-center text-xl font-black focus:outline-none focus:border-yellow-400 transition-all"
+          />
+        ))}
+      </div>
+    );
+  };
+
 export default function CustomerLogin({ onClose, onSuccess }) {
   const { login } = useCustomerAuth();
   const { t, country, setCountry } = useCountry();
@@ -113,12 +163,13 @@ export default function CustomerLogin({ onClose, onSuccess }) {
   };
 
   // Step 2b: PIN login for returning user
-  const handlePinLogin = async () => {
+  const handlePinLogin = async (finalPin) => {
     clear();
-    if (pin.length !== 4) return err("Please enter a 4-digit PIN");
+    const actualPin = typeof finalPin === "string" ? finalPin : pin;
+    if (actualPin.length !== 4) return err("Please enter a 4-digit PIN");
     setLoading(true);
     
-    const payload = isIndia ? { mobile, pin } : { email, pin };
+    const payload = isIndia ? { mobile, pin: actualPin } : { email, pin: actualPin };
     try {
       const res = await fetch(`${API}/api/customer/auth/login-with-pin`, {
         method: "POST",
@@ -154,12 +205,13 @@ export default function CustomerLogin({ onClose, onSuccess }) {
   };
 
   // Step 3: Verify OTP
-  const handleVerifyOtp = async () => {
+  const handleVerifyOtp = async (finalOtp) => {
     clear();
-    if (otp.length !== 6) return err("Please enter a 6-digit OTP");
+    const actualOtp = typeof finalOtp === "string" ? finalOtp : otp;
+    if (actualOtp.length !== 6) return err("Please enter a 6-digit OTP");
     setLoading(true);
     
-    const payload = isIndia ? { mobile, otp } : { email, otp };
+    const payload = isIndia ? { mobile, otp: actualOtp } : { email, otp: actualOtp };
     try {
       const res = await fetch(`${API}/api/customer/auth/verify-otp`, {
         method: "POST",
@@ -182,10 +234,11 @@ export default function CustomerLogin({ onClose, onSuccess }) {
   };
 
   // Step 4: Set PIN
-  const handleSetPin = async () => {
+  const handleSetPin = async (finalConfirmPin) => {
     clear();
+    const actualConfirm = typeof finalConfirmPin === "string" ? finalConfirmPin : pinConfirm;
     if (pin.length !== 4) return err("A 4-digit PIN is required");
-    if (pin !== pinConfirm) return err("PINs do not match - please try again");
+    if (pin !== actualConfirm) return err("PINs do not match - please try again");
     setLoading(true);
     const payload = isIndia ? { mobile, pin } : { email, pin };
     try {
@@ -224,55 +277,7 @@ export default function CustomerLogin({ onClose, onSuccess }) {
   const canGoBack = ["name","pin-login","otp","set-pin"].includes(step);
 
   // PIN dots visual
-  const PinDots = ({ value }) => (
-    <div className="flex justify-center gap-3 my-2">
-      {[0,1,2,3].map(i => (
-        <div key={i} className={`w-3 h-3 rounded-full transition-all ${i < value.length ? "bg-yellow-400 scale-110" : "bg-slate-200"}`} />
-      ))}
-    </div>
-  );
 
-  const OtpBoxes = ({ length = 4, value, onChange, showText = true, onSubmit }) => {
-      const inputRefs = useRef([]);
-      const handleChange = (e, index) => {
-        const val = e.target.value.replace(/\D/g, "");
-        if (val) {
-          const newVal = value.split("");
-          newVal[index] = val[val.length - 1]; // take last char
-          const joined = newVal.join("");
-          onChange(joined);
-          if (index < length - 1) inputRefs.current[index + 1]?.focus();
-          else if (joined.length === length) onSubmit?.(joined);
-        }
-      };
-      const handleKeyDown = (e, index) => {
-        if (e.key === "Backspace") {
-          const newVal = value.split("");
-          if (!newVal[index] && index > 0) {
-            inputRefs.current[index - 1]?.focus();
-          } else {
-            newVal[index] = "";
-            onChange(newVal.join(""));
-          }
-        }
-      };
-      return (
-        <div className="flex gap-2 justify-center w-full">
-          {Array.from({ length }).map((_, i) => (
-            <input
-              key={i}
-              ref={el => (inputRefs.current[i] = el)}
-              type={showText ? "text" : "password"}
-              inputMode="numeric"
-              value={value[i] || ""}
-              onChange={e => handleChange(e, i)}
-              onKeyDown={e => handleKeyDown(e, i)}
-              className="w-12 h-14 border-2 border-slate-200 rounded-xl text-center text-xl font-black focus:outline-none focus:border-yellow-400 transition-all"
-            />
-          ))}
-        </div>
-      );
-    };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">

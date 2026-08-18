@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 const CustomerSchema = new mongoose.Schema({
   fullName:    { type: String, required: true, trim: true },
   mobile:      { type: String, sparse: true, trim: true },
-  email:       { type: String, sparse: true, default: null, lowercase: true, trim: true },
+  email:       { type: String, sparse: true, lowercase: true, trim: true },
   country:     { type: String, default: 'india', trim: true },
   state:       { type: String, default: 'Gujarat' },
   city:        { type: String, default: '' },

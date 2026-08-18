@@ -15,7 +15,7 @@ import { useWebsiteSettings } from "./hooks/useWebsiteSettings";
 const Header = lazy(() => import("./components/Header"));
 const Hero = lazy(() => import("./components/Hero"));
 const Benefits = lazy(() => import("./components/Benefits"));
-const HowItWorks = lazy(() => import("./components/HowItWorks"));
+const OrderJourneySteps = lazy(() => import("./components/OrderJourneySteps"));
 const LeadForm = lazy(() => import("./components/LeadForm"));
 const TrustSection = lazy(() => import("./components/TrustSection"));
 const EpcProjectsAndStats = lazy(() => import("./components/EpcProjectsAndStats"));
@@ -47,13 +47,18 @@ function AppInner() {
     // Fetch journey settings to know available project types for this country
     const fetchJourney = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:4005"}/api/order-journey/${country || "IN"}`);
+        let countryName = "india";
+        if (country === "AU") countryName = "australia";
+        if (country === "NZ") countryName = "new-zealand";
+        
+        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:4005"}/api/order-journey-settings?country=${countryName}`);
         if(res.ok) {
-          const data = await res.json();
+          const json = await res.json();
+          const data = json.data;
           setJourneySettings(data);
           
-          if(data.projectTypes && data.projectTypes.length > 0 && !selectedPt) {
-            setSelectedPt(data.projectTypes[0].projectType);
+          if(data?.journeys && data.journeys.length > 0 && !selectedPt) {
+            setSelectedPt(data.journeys[0].projectType);
           }
         }
       } catch(err) {
@@ -64,7 +69,8 @@ function AppInner() {
   }, [country]);
 
   // Merge selected project type overrides with global settings
-  const currentPtConfig = settings?.projectTypeConfigs?.find(c => c.type === selectedPt);
+  const normalizedPt = (selectedPt || "").toLowerCase();
+  const currentPtConfig = settings?.projectTypeConfigs?.find(c => (c.type || "").toLowerCase() === normalizedPt);
   
   // Merge dynamic sections by type
   const globalSections = settings?.websiteContent?.dynamicSections || [];
@@ -92,7 +98,7 @@ function AppInner() {
 
   const hasDynamic = (type) => mergedDynamicSections.some(s => s.type === type && s.isVisible !== false);
 
-  const availableProjectTypes = journeySettings?.projectTypes?.filter(pt => pt.enabled) || 
+  const availableProjectTypes = journeySettings?.journeys?.filter(pt => pt.enabled) || 
     (settings?.projectTypeConfigs?.length > 0 ? settings.projectTypeConfigs : [{ type: "residential", projectTypeLabel: "Residential Solar" }, { type: "commercial", projectTypeLabel: "Commercial Solar" }]);
 
   // Hash routing
@@ -205,26 +211,30 @@ function AppInner() {
                     <span className="text-slate-300 font-medium text-sm">Select your project type:</span>
                   </div>
                   <div className="flex space-x-2 overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
-                    {availableProjectTypes.map((pt) => (
-                      <button
-                        key={pt.type || pt.projectType}
-                        onClick={() => setSelectedPt(pt.type || pt.projectType)}
-                        className={`whitespace-nowrap px-4 py-2 rounded-full font-bold text-xs transition-all duration-300 ${
-                          selectedPt === (pt.type || pt.projectType)
-                            ? "bg-solar-yellow text-slate-900 shadow-[0_0_15px_rgba(253,224,71,0.3)]"
-                            : "bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 border border-slate-700"
-                        }`}
-                      >
-                        {pt.projectTypeLabel || pt.type}
-                      </button>
-                    ))}
+                    {availableProjectTypes.map((pt) => {
+                      const ptVal = pt.type || pt.projectType;
+                      const isSelected = (selectedPt || "").toLowerCase() === (ptVal || "").toLowerCase();
+                      return (
+                        <button
+                          key={ptVal}
+                          onClick={() => setSelectedPt(ptVal)}
+                          className={`whitespace-nowrap px-4 py-2 rounded-full font-bold text-xs transition-all duration-300 ${
+                            isSelected
+                              ? "bg-solar-yellow text-slate-900 shadow-[0_0_15px_rgba(253,224,71,0.3)]"
+                              : "bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 border border-slate-700"
+                          }`}
+                        >
+                          {pt.projectTypeLabel || pt.type || pt.projectType}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
             </div>
             {!hasDynamic('hero') && <Hero onScrollToForm={scrollToForm} settings={displaySettings} />}
             {!hasDynamic('cards') && <Benefits onScrollToForm={scrollToForm} settings={displaySettings} />}
-            {!hasDynamic('snap') && <HowItWorks onScrollToForm={scrollToForm} settings={displaySettings} />}
+            <OrderJourneySteps journeySettings={journeySettings} selectedPt={selectedPt} settings={displaySettings} />
             {!hasDynamic('form') && (
               <div id="eligibility-calculator">
                 <LeadForm selectedProjectType={selectedPt} settings={displaySettings} />

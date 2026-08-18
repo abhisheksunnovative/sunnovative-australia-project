@@ -240,19 +240,31 @@ export const applyForProject = async (req, res) => {
       }
     }
 
-    const isIndiaCustomer = (req.customer?.country || '').toLowerCase().trim() === 'india' || 
-                             (req.customer?.country || '').toLowerCase().trim() === 'in' ||
-                             !req.customer?.country;
-    if (currentJourney?.signupToken?.enabled && isIndiaCustomer) {
+        const currencyMap = {
+      'australia': 'AUD', 'au': 'AUD',
+      'india': 'INR', 'in': 'INR',
+      'newzealand': 'NZD', 'nz': 'NZD', 'new_zealand': 'NZD',
+      'uk': 'GBP', 'united kingdom': 'GBP',
+      'us': 'USD', 'united states': 'USD'
+    };
+    
+    let resolvedCurrency = "INR";
+    if (resolvedCountry) {
+       const mapped = currencyMap[resolvedCountry.toLowerCase().trim()];
+       if (mapped) resolvedCurrency = mapped;
+    }
+
+    if (currentJourney?.signupToken?.enabled) {
       const amountInPaise = Math.round((currentJourney.signupToken.amount || 500) * 100);
       const options = {
         amount: amountInPaise,
-        currency: "INR",
+        currency: resolvedCurrency,
         receipt: `rcpt_${order._id}`,
       };
       const rzpOrder = await razorpay.orders.create(options);
       
       order.razorpayOrderId = rzpOrder.id;
+      // Note: we can skip saving currency on the order if schema doesn't support it.
       await order.save();
 
       return res.status(201).json({
@@ -260,6 +272,7 @@ export const applyForProject = async (req, res) => {
         message: 'Payment required',
         requiresPayment: true,
         amount: options.amount / 100,
+        currency: resolvedCurrency,
         razorpayOrderId: rzpOrder.id,
         key_id: process.env.RAZORPAY_KEY_ID,
         data: order,

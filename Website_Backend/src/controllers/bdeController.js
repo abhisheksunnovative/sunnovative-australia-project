@@ -1,3 +1,4 @@
+import axios from "axios";
 import { BDE } from "../models/BDEModel.js";
 import Lead from "../models/Lead.js";
 import { ProjectOrder } from "../models/ProjectModel.js";
@@ -627,7 +628,52 @@ export const requestBdeOtp = async (req, res) => {
     bde.otp = otp;
     bde.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
     await bde.save();
-    console.log('OTP:', otp);
+    
+    console.log('\n======================================================');
+    console.log(`🚀 [BDE OTP GENERATED] For: ${identifier} | OTP CODE: ${otp}`);
+    console.log('======================================================\n');
+    
+    if (identifier.includes('@')) {
+      try {
+        await axios.post(
+          'https://api.brevo.com/v3/smtp/email',
+          {
+            sender:  { name: 'EmergeSun BDE Portal', email: process.env.BREVO_SENDER_EMAIL },
+            to:      [{ email: identifier.toLowerCase() }],
+            subject: 'Your EmergeSun BDE Login OTP',
+            htmlContent: `
+              <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;border:1px solid #e5e7eb;border-radius:12px;">
+                <div style="text-align:center;margin-bottom:20px;">
+                  <h2 style="color:#1d4ed8;margin:0;">EmergeSun BDE Portal</h2>
+                  <p style="color:#6b7280;font-size:13px;margin-top:4px;">Solar Project Management Platform</p>
+                </div>
+                <p style="color:#374151;font-size:15px;">Your OTP for login/reset is:</p>
+                <div style="background:#eff6ff;border:2px solid #3b82f6;border-radius:10px;padding:24px;text-align:center;margin:20px 0;">
+                  <span style="font-size:40px;font-weight:bold;letter-spacing:16px;color:#1d4ed8;">${otp}</span>
+                </div>
+                <p style="color:#6b7280;font-size:13px;">This OTP is valid for <strong>10 minutes</strong>. Do not share with anyone.</p>
+                <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;"/>
+                <p style="color:#9ca3af;font-size:12px;text-align:center;">If you did not request this, please ignore.</p>
+              </div>
+            `,
+          },
+          {
+            headers: {
+              'api-key':      process.env.BREVO_API_KEY,
+              'Content-Type': 'application/json',
+              'Accept':       'application/json',
+            },
+            timeout: 15000,
+          }
+        );
+        console.log(`✅ Brevo API OTP sent successfully to BDE Email: ${identifier}`);
+      } catch (emailErr) {
+        console.error('❌ Failed to send email via Brevo:', emailErr.message);
+      }
+    } else {
+      console.log(`⚠️ Email sending skipped because identifier is not an email (${identifier})`);
+    }
+
     res.json({ success: true, message: 'OTP sent successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

@@ -72,6 +72,11 @@ export default function Header({
     e.preventDefault();
     const { href, isPageLink, isExternalLink } = item;
 
+    if (isExternalLink) {
+      window.open(href, '_blank');
+      return;
+    }
+
     if (href.startsWith('/')) {
       window.location.href = href;
       return;
@@ -86,8 +91,28 @@ export default function Header({
       return;
     }
 
+    // Anchor scroll links (e.g. #how-it-works, #faqs)
+    if (isPageLink && href.startsWith('#')) {
+      // If not on home view, switch first then scroll
+      if (viewMode !== "home") {
+        setViewMode("home");
+        window.location.hash = "";
+        setTimeout(() => {
+          const el = document.querySelector(href);
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 150);
+        return;
+      }
+      const el = document.querySelector(href);
+      if (el) {
+        const offset = 80;
+        const top = el.getBoundingClientRect().top + window.pageYOffset - offset;
+        window.scrollTo({ top, behavior: "smooth" });
+      }
+      return;
+    }
+
     if (!isPageLink) {
-      // Any other non-page link handles (like blog)
       return;
     }
 

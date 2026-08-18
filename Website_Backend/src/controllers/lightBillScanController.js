@@ -119,7 +119,7 @@ export const scanLightBill = async (req, res) => {
       let recommendedKw = 6.6; // default
       if (parsed.dailyKwh) {
         // Recommend enough solar to cover 80% of daily usage
-        recommendedKw = Math.ceil((parsed.dailyKwh * 0.8) / zoneYieldPerKw);
+        recommendedKw = Math.ceil((parsed.dailyKwh * 1.2) / zoneYieldPerKw);
         recommendedKw = Math.max(1.5, Math.min(20, recommendedKw));
         // Round to nearest standard size: 3, 5, 6.6, 10, 13, 15
         const standardSizes = [3, 5, 6.6, 10, 13, 15, 20];

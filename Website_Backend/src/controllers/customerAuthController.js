@@ -57,8 +57,7 @@ export const sendOtp = async (req, res) => {
       const nameToUse = fullName?.trim() || existingLead?.name || 'Customer';
       customer = new Customer({ 
         fullName: nameToUse, 
-        mobile: isIndia ? identifier : null,
-        email: !isIndia ? identifier : null,
+        ...(isIndia ? { mobile: identifier } : { email: identifier }),
         state: state || existingLead?.state || 'New South Wales', 
         country: countryHeader 
       });

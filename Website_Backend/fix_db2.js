@@ -3,20 +3,26 @@ import('mongoose').then(async (m) => {
   const ProjectOrder = m.model('ProjectOrder', new m.Schema({}, { strict: false }));
   
   await ProjectOrder.updateOne(
-    { orderNumber: 'SUN-2026-3672', 'journeySteps.stepId': 'au_res_1' },
-    { $set: { 'journeySteps.$.status': 'in-progress', 'journeySteps.$.completedAt': null, 'journeySteps.$.completedBy': '' } }
-  );
-  await ProjectOrder.updateOne(
-    { orderNumber: 'SUN-2026-3672', 'journeySteps.stepId': 'au_res_2' },
-    { $set: { 'journeySteps.$.status': 'pending', 'journeySteps.$.startedAt': null } }
-  );
-  
-  // also set currentStep
-  await ProjectOrder.updateOne(
     { orderNumber: 'SUN-2026-3672' },
-    { $set: { pendingActionFor: 'customer' } }
+    { 
+      $set: { 
+        stagePayments: [{
+            stageKey: 'stage1',
+            label: 'Stage 1: Deposit / Booking',
+            valueType: 'percentage',
+            value: 10,
+            amount: 15000,
+            status: 'pending',
+            isMandatory: true,
+            recipientType: 'epc',
+            gatewayRequired: true
+        }],
+        paymentBlockActive: true, 
+        activePaymentStage: 'stage1'
+      } 
+    }
   );
   
-  console.log('Reverted step 1 and 2.');
+  console.log('Successfully injected stagePayments and activated block for SUN-2026-3672');
   process.exit();
 });

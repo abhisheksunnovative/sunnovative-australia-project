@@ -15,6 +15,7 @@ const EpcProjectManagement = lazy(() => import('../pages/epc/projects/EpcProject
 const EpcProjectDetail     = lazy(() => import('../pages/epc/projects/EpcProjectDetail'));
 const EpcMyTeam            = lazy(() => import('../pages/epc/team/EpcMyTeam'));
 const EpcAdminSettings     = lazy(() => import('../pages/epc/settings/EpcAdminSettings'));
+const EpcPaymentSettings   = lazy(() => import('../pages/epc/settings/EpcPaymentSettings'));
 const EpcMyPlan            = lazy(() => import('../pages/epc/plan/EpcMyPlan'));
 const EpcMyProfile         = lazy(() => import('../pages/epc/profile/EpcMyProfile'));
 const EpcBrandPricing      = lazy(() => import('../pages/epc/profile/BrandAndPricing'));
@@ -59,6 +60,7 @@ const EpcRoutes = () => (
         <Route path="projects/:id"  element={<Suspense fallback={<PageLoader />}><EpcProjectDetail /></Suspense>} />
         <Route path="team"          element={<Suspense fallback={<PageLoader />}><EpcMyTeam /></Suspense>} />
         <Route path="settings"      element={<Suspense fallback={<PageLoader />}><EpcAdminSettings /></Suspense>} />
+        <Route path="payment-settings" element={<Suspense fallback={<PageLoader />}><EpcPaymentSettings /></Suspense>} />
         <Route path="plan"          element={<Suspense fallback={<PageLoader />}><EpcMyPlan /></Suspense>} />
         <Route path="profile"       element={<Suspense fallback={<PageLoader />}><EpcMyProfile /></Suspense>} />
         <Route path="brand-pricing" element={<Suspense fallback={<PageLoader />}><EpcBrandPricing /></Suspense>} />

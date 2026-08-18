@@ -299,6 +299,44 @@ export const processStepCompletionEngine = async (
     console.error("Step completion notification trigger error:", nErr);
   }
 
+
+  // ????? PAYMENT TRIGGER CHECKS (Evaluates the CURRENT in-progress step) ?????
+  try {
+    const CustomerPaymentSettings = (await import("../models/CustomerPaymentSettings.js")).default;
+    
+    let searchCountry = (order.country || "india").toLowerCase().trim();
+    if (searchCountry === "au") searchCountry = "australia";
+    if (searchCountry === "in") searchCountry = "india";
+
+    const adminSettings = await CustomerPaymentSettings.findOne({ country: searchCountry });
+    if (adminSettings) {
+      const config = adminSettings.projectConfigs?.find(c => c.projectType.toLowerCase() === (order.projectType || "residential").toLowerCase());
+      if (config && config.paymentStages) {
+        // Find the currently active step
+        const activeStep = order.steps.find(s => s.status === 'in-progress');
+        if (activeStep) {
+          const triggeredStage = config.paymentStages.find(s => s.triggerStepId === activeStep.stepId);
+          if (triggeredStage) {
+            const pStageIndex = order.stagePayments?.findIndex(s => s.stageKey === triggeredStage.stageKey);
+            if (pStageIndex !== -1 && pStageIndex !== undefined) {
+              if(order.stagePayments[pStageIndex].status !== "paid") {
+                  order.stagePayments[pStageIndex].status = "pending";
+                  
+                  if (order.stagePayments[pStageIndex].isMandatory) {
+                    order.paymentBlockActive = true;
+                    order.activePaymentStage = triggeredStage.stageKey;
+                  }
+                  console.log(`[Payment Block Activated] Active step ${activeStep.stepId} triggered stage: ${triggeredStage.stageKey} (${order.stagePayments[pStageIndex].amount})`);
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (paymentErr) {
+    console.error("Error checking milestone payment triggers:", paymentErr);
+  }
+
   return { success: true, message: `Step "${step.title}" updated`, order, nextStep, newStatus };
 };
 

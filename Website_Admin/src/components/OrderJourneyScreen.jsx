@@ -711,19 +711,40 @@ const JourneyCard = ({ journey, journeyIndex, onUpdateJourney, onRemoveJourney, 
             <div className="grid grid-cols-2 gap-6 items-start">
               <div>
                 <label className="text-xs font-semibold text-slate-500 uppercase block mb-2">Customer Signup Cost - Token</label>
-                <div className="flex items-center gap-4 bg-white p-3 border border-slate-200 rounded-xl">
-                   <input
-                    type="number"
-                    className="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400/40 disabled:bg-slate-100"
-                    value={journey.signupToken?.amount || 0}
-                    onChange={(e) => onUpdateJourney(journeyIndex, "signupToken", { ...journey.signupToken, amount: Number(e.target.value) })}
-                    disabled={!journey.signupToken?.enabled}
-                  />
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => onUpdateJourney(journeyIndex, "signupToken", { ...journey.signupToken, enabled: !journey.signupToken?.enabled })}>
-                      {journey.signupToken?.enabled ? <ToggleRight className="w-8 h-8 text-yellow-500" /> : <ToggleLeft className="w-8 h-8 text-slate-300" />}
-                    </button>
-                  </div>
+                <div className="bg-white p-3 border border-slate-200 rounded-xl space-y-3">
+                  <select
+                    className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400/40 bg-white font-semibold"
+                    value={journey.signupToken?.tokenType || (journey.signupToken?.enabled ? "fixed" : "none")}
+                    onChange={(e) => {
+                      const tType = e.target.value;
+                      onUpdateJourney(journeyIndex, "signupToken", { 
+                        ...journey.signupToken, 
+                        tokenType: tType,
+                        enabled: tType === 'fixed'
+                      });
+                    }}
+                  >
+                    <option value="none">No Token Amount (Free signup)</option>
+                    <option value="fixed">Platform Token Amount (Fixed Fee)</option>
+                  </select>
+                  
+                  {(journey.signupToken?.tokenType === "fixed" || (journey.signupToken?.enabled && !journey.signupToken?.tokenType)) && (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Token Amount</label>
+                      <input
+                        type="number"
+                        className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400/40"
+                        value={journey.signupToken?.amount || 0}
+                        onChange={(e) => onUpdateJourney(journeyIndex, "signupToken", { ...journey.signupToken, amount: Number(e.target.value) })}
+                      />
+                    </div>
+                  )}
+                  
+                  <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
+                    {(journey.signupToken?.tokenType === "fixed" || (journey.signupToken?.enabled && !journey.signupToken?.tokenType))
+                      ? '✅ Token enabled — Company collects this fixed amount from customer at signup.'
+                      : '⭕ Token disabled — Customer signups are free (No token).'}
+                  </p>
                 </div>
               </div>
 

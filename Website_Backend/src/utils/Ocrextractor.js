@@ -717,7 +717,7 @@ export const parseAuBillText = (text) => {
   // ── 3. Customer Name ──────────────────────────────────────────────────────
   let customerName = null;
   const namePatterns = [
-    /(?:Customer|Account\s*Holder|Account\s*Name|Name)\s*[:\-]?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})/i,
+    /(?:Customer|Account\s*Holder|Account\s*Name|Name)\s*[:\-]?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})(?=\s*(?:Supply|Account|NMI|$))/i,
     /Dear\s+(?:Mr\.?\s*|Ms\.?\s*|Mrs\.?\s*)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3}),?/i,
   ];
   for (const p of namePatterns) {
@@ -801,7 +801,7 @@ export const parseAuBillText = (text) => {
 
   // "Total Usage: 1,234 kWh" or "Electricity Used 987.5 kWh"
   const usagePatterns = [
-    /(?:Total\s*)?(?:Electricity\s*)?(?:Usage|Used|Consumption|kWh\s*Used|Units\s*Used)\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*kWh/i,
+    /(?:Total\s*)?(?:Electricity\s*)?(?:Usage|Used|Consumption|kWh\s*Used|Units\s*Used)[\s\S]{0,40}?([\d,]+(?:\.\d+)?)\s*(?:kWh|kW|units)/i,
     /([\d,]+(?:\.\d+)?)\s*kWh\s*(?:used|consumed|usage)/i,
     /(?:Peak\s*\+\s*Off.?Peak|Total)\s*(?:Usage)?\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*kWh/i,
   ];
@@ -816,7 +816,7 @@ export const parseAuBillText = (text) => {
 
   // ── 7. Daily average kWh (some bills show this directly) ─────────────────
   if (!dailyKwh) {
-    const dailyMatch = t.match(/(?:Daily\s*Average|Avg\.?\s*Daily\s*Usage)\s*[:\-]?\s*([\d.]+)\s*kWh/i);
+    const dailyMatch = t.match(/(?:Daily\s*Average|Avg\.?\s*Daily\s*Usage|Average\s*daily\s*usage)[\s\S]{0,30}?([\d.]+)\s*(?:kWh\/day|kWh|units|kW\/day|kW)/i);
     if (dailyMatch) dailyKwh = parseFloat(dailyMatch[1]);
   }
 

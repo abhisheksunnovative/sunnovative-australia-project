@@ -202,6 +202,30 @@ export const completeStep = async (req, res) => {
       return res.status(400).json({ success: false, message: result.message });
     }
 
+    // Sync uploaded file to project.documents vault
+    if (finalUrl) {
+      let docType = "step_evidence";
+      const idLower = stepId.toLowerCase();
+      if (idLower.includes("registration") || idLower.includes("reg") || idLower.includes("subsidy") || idLower.includes("stc")) {
+        docType = "government_registration";
+      } else if (idLower.includes("design") || idLower.includes("technical") || idLower.includes("plan")) {
+        docType = "technical_specification";
+      } else if (idLower.includes("handover") || idLower.includes("commission") || idLower.includes("cert")) {
+        docType = "handover_certificate";
+      }
+
+      const newDoc = {
+        name: `${stepId.toUpperCase().replace(/_/g, " ")} Evidence Document`,
+        type: docType,
+        url: finalUrl,
+        uploadedBy: completedBy,
+        uploadedAt: new Date()
+      };
+      
+      result.order.documents = result.order.documents || [];
+      result.order.documents.push(newDoc);
+    }
+
     await result.order.save();
 
     res.json({
@@ -345,21 +369,133 @@ export const assignEPC = async (req, res) => {
   try {
     const { epcId, epcName } = req.body;
 
-    const updated = await ProjectOrder.findByIdAndUpdate(
-      req.params.id,
-      { assignedEPCId: epcId, assignedEPCName: epcName, lastActivityAt: new Date() },
-      { new: true }
-    );
+    const project = await ProjectOrder.findById(req.params.id);
+    if (!project) return res.status(404).json({ success: false, message: "Order nahi mila" });
 
-    if (!updated) return res.status(404).json({ success: false, message: "Order nahi mila" });
+    project.assignedEPCId = epcId;
+    project.assignedEPCName = epcName;
+    project.lastActivityAt = new Date();
+
+    // ── Dynamic Sign-up Token & Stages Initialization ──
+    try {
+      const { OrderJourneySettings } = await import("../models/OrderJourneySettings.js");
+      const CustomerPaymentSettings = (await import("../models/CustomerPaymentSettings.js")).default;
+      const EpcPaymentSettings = (await import("../models/EpcPaymentSettings.js")).default;
+
+      let searchCountry = (project.country || "india").toLowerCase().trim();
+      if (searchCountry === "au") searchCountry = "australia";
+      if (searchCountry === "in") searchCountry = "india";
+
+      // 1. Load Admin and EPC configurations
+      const journeyDoc = await OrderJourneySettings.findOne({ country: searchCountry });
+      const adminPaymentDoc = await CustomerPaymentSettings.findOne({ country: searchCountry });
+      const epcSettings = await EpcPaymentSettings.findOne({
+        epcId,
+        country: searchCountry,
+        projectType: project.projectType
+      });
+
+      const isJourneyTokenEnabled = !!(journeyDoc?.journeys?.find(j => j.projectType.toLowerCase() === project.projectType.toLowerCase())?.signupToken?.enabled);
+      const adminConfig = adminPaymentDoc?.projectConfigs?.find(c => c.projectType.toLowerCase() === project.projectType.toLowerCase());
+
+      // 2. Resolve Sign-up Token
+      if (isJourneyTokenEnabled && adminConfig) {
+        let tokenAmount = 0;
+        const tokenType = adminConfig.signupToken?.tokenType || "none";
+        
+        if (tokenType === "fixed") {
+          tokenAmount = adminConfig.signupToken?.fixedAmount || 0;
+        } else if (tokenType === "epc_scope") {
+          tokenAmount = epcSettings?.signupTokenAmount || adminConfig.signupToken?.fixedAmount || 0;
+        }
+
+        if (tokenAmount > 0) {
+          project.signupTokenPayment = {
+            enabled: true,
+            amount: tokenAmount,
+            status: "pending",
+            razorpayOrderId: "",
+            razorpayPaymentId: "",
+            razorpaySignature: "",
+            paidAt: null
+          };
+          project.paymentStatus = "pending";
+        } else {
+          project.signupTokenPayment = {
+            enabled: false,
+            amount: 0,
+            status: "not_required"
+          };
+        }
+      } else {
+        project.signupTokenPayment = {
+          enabled: false,
+          amount: 0,
+          status: "not_required"
+        };
+      }
+
+      // 3. Resolve Dynamic Payment Stages
+      project.stagePayments = [];
+      if (adminConfig && adminConfig.paymentStages && adminConfig.paymentStages.length > 0) {
+        const totalCost = project.totalProjectCost || 0;
+
+        for (const stage of adminConfig.paymentStages) {
+          let value = stage.defaultValue || 0;
+
+          // If EPC can edit and EPC has a customized setting, resolve it
+          if (stage.epcCanEdit && epcSettings && epcSettings.stagePayments) {
+            const customStage = epcSettings.stagePayments.find(s => s.stageKey === stage.stageKey);
+            if (customStage) {
+              value = customStage.customValue;
+            }
+          }
+
+          // Limit validation
+          if (value > stage.maxLimit) {
+            value = stage.maxLimit;
+          }
+
+          // Calculate direct cash amount
+          let calculatedAmount = 0;
+          if (stage.valueType === "fixed") {
+            calculatedAmount = value;
+          } else {
+            calculatedAmount = Math.round(totalCost * (value / 100));
+          }
+
+          project.stagePayments.push({
+            stageKey: stage.stageKey,
+            label: stage.label,
+            valueType: stage.valueType,
+            value: value,
+            amount: calculatedAmount,
+            status: "not_required",
+            isMandatory: !!stage.isMandatory,
+            recipientType: stage.recipientType || "epc",
+            gatewayRequired: stage.gatewayRequired !== false,
+            razorpayOrderId: "",
+            razorpayPaymentId: "",
+            razorpaySignature: "",
+            paidAt: null
+          });
+        }
+      }
+
+    } catch (paymentInitErr) {
+      console.error("Error initializing dynamic payment settings on assignment:", paymentInitErr);
+    }
+
+    await project.save();
 
     res.json({
       success: true,
-      message: `${epcName} assigned to order ${updated.orderNumber}`,
-      data: updated,
+      message: `${epcName} assigned to order ${project.orderNumber}`,
+      data: project,
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("assignEPC error:", err);
+    res.status(500).json({ success: false, message: "Server error: " + err.message });
   }
 };
 
