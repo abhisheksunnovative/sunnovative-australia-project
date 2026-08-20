@@ -19,7 +19,7 @@ export default function Footer({ onScrollToForm, settings: propSettings }) {
   };
 
   return (
-    <footer className="bg-orange-600 text-slate-400 font-sans border-t-4 border-solar-navy">
+    <footer className="bg-solar-navy text-slate-300 font-sans border-t-4 border-solar-orange">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-16">
         {/* Brand Column */}
         <div className="space-y-5">

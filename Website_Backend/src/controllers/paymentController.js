@@ -171,7 +171,25 @@ export const createTokenOrder = async (req, res) => {
       notes: { projectId: project._id.toString(), type: "signup_token" }
     };
 
-    const order = await razorpay.orders.create(options);
+    
+    let order;
+    try {
+        order = await razorpay.orders.create(options);
+    } catch(err) {
+        if (process.env.RAZORPAY_KEY_ID?.startsWith('rzp_test_')) {
+            console.warn("Razorpay error on test key, falling back to simulated mode. Error:", err.error?.description);
+            const mockOrderId = `mock_ord_${Date.now()}`;
+            return res.json({
+              success: true,
+              isSimulated: true,
+              data: { id: mockOrderId, amount: options.amount, currency: options.currency },
+              key_id: "rzp_test_placeholder"
+            });
+        } else {
+            throw err;
+        }
+    }
+
     project.signupTokenPayment.razorpayOrderId = order.id;
     await project.save();
 
@@ -244,7 +262,7 @@ export const verifyTokenPayment = async (req, res) => {
     }
   } catch (error) {
     console.error("Verify Token Payment Error:", error);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.error?.description || error.message || "Failed to create order" });
   }
 };
 
@@ -303,7 +321,25 @@ export const createStageOrder = async (req, res) => {
       notes: { projectId: project._id.toString(), type: "stage_payment", stage }
     };
 
-    const order = await razorpay.orders.create(options);
+    
+    let order;
+    try {
+        order = await razorpay.orders.create(options);
+    } catch(err) {
+        if (process.env.RAZORPAY_KEY_ID?.startsWith('rzp_test_')) {
+            console.warn("Razorpay error on test key, falling back to simulated mode. Error:", err.error?.description);
+            const mockOrderId = `mock_ord_${Date.now()}`;
+            return res.json({
+              success: true,
+              isSimulated: true,
+              data: { id: mockOrderId, amount: options.amount, currency: options.currency },
+              key_id: "rzp_test_placeholder"
+            });
+        } else {
+            throw err;
+        }
+    }
+
     project.stagePayments[stageIndex].razorpayOrderId = order.id;
     await project.save();
 
@@ -314,7 +350,7 @@ export const createStageOrder = async (req, res) => {
     });
   } catch (error) {
     console.error("Create Stage Order Error:", error);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.error?.description || error.message || "Failed to create order" });
   }
 };
 
@@ -386,6 +422,6 @@ export const verifyStagePayment = async (req, res) => {
     }
   } catch (error) {
     console.error("Verify Stage Payment Error:", error);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.error?.description || error.message || "Failed to create order" });
   }
 };
