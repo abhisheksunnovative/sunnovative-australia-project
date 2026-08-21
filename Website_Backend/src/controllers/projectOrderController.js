@@ -3,6 +3,7 @@ import { OrderJourneySettings } from "../models/OrderJourneySettings.js";
 import EpcEnquiry from "../models/EpcEnquiry.js";
 import Lead from "../models/Lead.js";
 import EpcCalendar from "../models/EpcCalender.js";
+import Notification from "../models/Notification.js";
 
 import { calcCompletion, getStatusFromSteps, processStepCompletionEngine } from "../utils/stepEngine.js";
 
@@ -227,6 +228,7 @@ export const completeStep = async (req, res) => {
     }
 
     await result.order.save();
+    if (result.order.assignedBDE) { await Notification.create({ role: "bde", title: "Customer Progress Update", message: `Customer  has completed a step. Current status: `, recipientId: result.order.assignedBDE }); }
 
     res.json({
       success: true,

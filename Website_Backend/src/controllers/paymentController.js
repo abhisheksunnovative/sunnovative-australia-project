@@ -27,25 +27,7 @@ export const createOrder = async (req, res) => {
     };
 
     
-    let order;
-    try {
-        order = await razorpay.orders.create(options);
-    } catch(err) {
-        if (process.env.RAZORPAY_KEY_ID?.startsWith('rzp_test_')) {
-            console.warn("Razorpay error on test key, falling back to simulated mode. Error:", err.error?.description);
-            const mockOrderId = `mock_${stage}_ord_${Date.now()}`;
-            project.stagePayments[stageIndex].razorpayOrderId = mockOrderId;
-            await project.save();
-            return res.json({
-              success: true,
-              isSimulated: true,
-              data: { id: mockOrderId, amount: stageAmount * 100, currency },
-              key_id: "rzp_test_placeholder"
-            });
-        } else {
-            throw err;
-        }
-    }
+    const order = await razorpay.orders.create(options);
     
     
     res.json({
@@ -172,23 +154,7 @@ export const createTokenOrder = async (req, res) => {
     };
 
     
-    let order;
-    try {
-        order = await razorpay.orders.create(options);
-    } catch(err) {
-        if (process.env.RAZORPAY_KEY_ID?.startsWith('rzp_test_')) {
-            console.warn("Razorpay error on test key, falling back to simulated mode. Error:", err.error?.description);
-            const mockOrderId = `mock_ord_${Date.now()}`;
-            return res.json({
-              success: true,
-              isSimulated: true,
-              data: { id: mockOrderId, amount: options.amount, currency: options.currency },
-              key_id: "rzp_test_placeholder"
-            });
-        } else {
-            throw err;
-        }
-    }
+    const order = await razorpay.orders.create(options);
 
     project.signupTokenPayment.razorpayOrderId = order.id;
     await project.save();
@@ -322,23 +288,7 @@ export const createStageOrder = async (req, res) => {
     };
 
     
-    let order;
-    try {
-        order = await razorpay.orders.create(options);
-    } catch(err) {
-        if (process.env.RAZORPAY_KEY_ID?.startsWith('rzp_test_')) {
-            console.warn("Razorpay error on test key, falling back to simulated mode. Error:", err.error?.description);
-            const mockOrderId = `mock_ord_${Date.now()}`;
-            return res.json({
-              success: true,
-              isSimulated: true,
-              data: { id: mockOrderId, amount: options.amount, currency: options.currency },
-              key_id: "rzp_test_placeholder"
-            });
-        } else {
-            throw err;
-        }
-    }
+    const order = await razorpay.orders.create(options);
 
     project.stagePayments[stageIndex].razorpayOrderId = order.id;
     await project.save();

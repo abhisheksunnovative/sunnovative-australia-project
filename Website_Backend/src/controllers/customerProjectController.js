@@ -3,6 +3,7 @@
  * customerProjectController.js
  * Customer project APIs â€” view, apply, track, upload documents
  */
+import Notification from "../models/Notification.js";
 import { ProjectOrder } from '../models/ProjectModel.js';
 import EpcEnquiry from '../models/EpcEnquiry.js';
 import EpcOrder from '../models/EpcOrder.js';
@@ -358,6 +359,7 @@ export const payToken = async (req, res) => {
     }
 
     await project.save();
+    if (project.assignedBDE) { await Notification.create({ role: "bde", title: "Customer Completed a Step", message: `Customer  has completed the step. Current status: `, recipientId: project.assignedBDE }); }
     res.json({ success: true, message: 'Token paid successfully. Order is now Open for EPCs.' });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });

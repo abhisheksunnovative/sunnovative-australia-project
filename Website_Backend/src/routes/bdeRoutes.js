@@ -5,11 +5,13 @@ import {
   bdeLogin, getBDEDashboard, getBDELeads, getDemandPool, assignLeadToBDE, updateBDELead,
   createBDELead, getBDEProjects, getBDEOverdueProjects, uploadBDEProjectDoc, updateBDELeadDetails,
   requestBdeOtp, verifyOtpAndSetPassword, getEpcCalendarForBde, scheduleAndQualifyLead, getAustralianEpcsForBde,
-  getEligibleBDEsForLead, adminAssignLeadToBDE
+  getEligibleBDEsForLead, adminAssignLeadToBDE, getBDEsHierarchy,
+  uploadOnboardingDoc, approveOnboardingDoc
 } from "../controllers/bdeController.js";
 
 const router = express.Router();
 
+router.get("/hierarchy", getBDEsHierarchy);
 router.get("/epcs", getAustralianEpcsForBde);
 
 // Admin Manual Lead Assignment
@@ -48,5 +50,24 @@ router.put("/leads/:leadId", updateBDELead);
 router.put("/leads/:leadId/details", updateBDELeadDetails);
 router.post("/leads/:leadId/schedule", scheduleAndQualifyLead);
 
-export default router;
+// ── BDE Onboarding Documents ──
+import path from "path";
+import fs from "fs";
+const docUploadPath = "uploads/bde-docs/";
+if (!fs.existsSync(docUploadPath)) fs.mkdirSync(docUploadPath, { recursive: true });
 
+const docStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, docUploadPath),
+  filename: (req, file, cb) => {
+    const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, `${req.params.id}-${unique}${path.extname(file.originalname)}`);
+  }
+});
+const docUpload = multer({ storage: docStorage, limits: { fileSize: 10 * 1024 * 1024 } });
+
+// BDE uploads from My Profile
+router.post("/:id/onboarding-docs", docUpload.single("file"), uploadOnboardingDoc);
+// Admin approves a doc
+router.put("/:id/onboarding-docs/:docName/approve", approveOnboardingDoc);
+
+export default router;

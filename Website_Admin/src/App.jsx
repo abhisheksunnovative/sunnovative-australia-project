@@ -26,8 +26,9 @@ import { EpcWalletSettingsScreen } from "./components/Epcwalletsettingsscreen";
 import EpcSystemSettingsScreen from "./components/EpcSystemSettingsScreen";
 import BlogManagementScreen from "./components/BlogManagementScreen";
 import BDEManagementScreen from "./components/BDEManagementScreen";
+import BDEOnboardingScreen from "./components/BDEOnboardingScreen";
 import { EpcRewardsScreen } from "./components/EpcRewardsScreen";
-import LeadScreen from "./components/LeadScreen";
+import LeadScreenNew from "./components/LeadScreenNew";
 import { DemandSupplyScreen } from "./components/DemandSupplyScreen";
 import { DiscomManagementScreen } from "./components/DiscomManagementScreen";
 import BrandManagementScreen from "./components/BrandManagementScreen";
@@ -48,6 +49,7 @@ import BDELeadManagement from "./components/bde/BDELeadManagement";
 import BDEDemandPool from "./components/bde/BDEDemandPool";
 import BDEProjectTracking from "./components/bde/BDEProjectTracking";
 import BDEAustDashboard from "./components/bde/BDEAustDashboard";
+import BDEProfile from "./components/bde/BDEProfile";
 import {
   initialEPCPartners,
   initialQualificationRules,
@@ -494,6 +496,8 @@ export default function App() {
 
       case "bde-management":
         return <BDEManagementScreen />;
+      case "bde-onboarding":
+        return <BDEOnboardingScreen />;
       case "brand-management":
         return <BrandManagementScreen />;
       case "products-configuration":
@@ -518,10 +522,10 @@ export default function App() {
         return <LiveProjectTrackingScreen />;
 
       case "website-leads":
-        return <LeadScreen uploadSource="website" />;
+        return <LeadScreenNew uploadSource="website" />;
 
       case "bde-leads-admin":
-        return <LeadScreen uploadSource="bde_manual" />;
+        return <LeadScreenNew uploadSource="bde_manual" />;
 
       case "demand-supply":
         return <DemandSupplyScreen />;
@@ -534,6 +538,8 @@ export default function App() {
         ) : (
           <BDEDashboard bdeId={userId} />
         );
+      case "bde-profile":
+        return <BDEProfile bdeId={userId} />;
       case "bde-leads":
         return <BDELeadManagement bdeId={userId} country={userCountry} />;
       case "bde-projects":

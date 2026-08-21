@@ -28,14 +28,30 @@ export const useAdminSettings = (country) => {
       try {
         const res = await fetch(`${API_BASE}/api/order-journey-settings?country=${normalizedCountry}`);
         if (!res.ok) throw new Error("Failed to fetch settings");
-        const data = await res.json();
-        if (data && data.projectTypes) {
-          const formatted = data.projectTypes
-            .filter(pt => pt.enabled)
-            .map(pt => ({
-              value: pt.projectType,
-              label: pt.projectTypeLabel || pt.projectType
-            }));
+        const json = await res.json();
+        
+        // Settings are stored in json.data.journeys or json.projectTypes depending on API version
+        let rawProjectTypes = [];
+        if (json && json.data && json.data.journeys) {
+          rawProjectTypes = json.data.journeys;
+        } else if (json && json.projectTypes) {
+          rawProjectTypes = json.projectTypes;
+        }
+
+        if (rawProjectTypes && rawProjectTypes.length > 0) {
+          const formatted = rawProjectTypes
+            .filter(pt => pt.enabled !== false) // enabled by default unless explicitly false
+            .map(pt => {
+              // Convert kebab-case or similar to Title Case if label is missing
+              const fallbackLabel = pt.projectType
+                .split(/[-_]+/)
+                .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                .join(' ');
+              return {
+                value: pt.projectType,
+                label: pt.projectTypeLabel || fallbackLabel
+              };
+            });
           setProjectTypes(formatted);
         } else {
           setProjectTypes([]);

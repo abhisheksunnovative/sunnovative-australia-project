@@ -20,6 +20,161 @@ export default function BDEProjectTracking({ bdeId }) {
   const [bdeEvidenceNote, setBdeEvidenceNote] = useState("");
   const [expandedStepIndex, setExpandedStepIndex] = useState(null);
 
+  // Drill-down UI State
+  const [drillLevel, setDrillLevel] = useState(0);
+  const [drillPath, setDrillPath] = useState({
+    projectType: null,
+    state: null,
+    district: null,
+    statusType: null, // "on-time" | "overdue"
+    overdueType: null // "customer" | "epc"
+  });
+
+  const handleDrillDown = (level, value) => {
+    const newPath = { ...drillPath };
+    if (level === 0) { newPath.projectType = value; newPath.state = null; newPath.district = null; newPath.statusType = null; newPath.overdueType = null; }
+    if (level === 1) { newPath.state = value; newPath.district = null; newPath.statusType = null; newPath.overdueType = null; }
+    if (level === 2) { newPath.district = value; newPath.statusType = null; newPath.overdueType = null; }
+    if (level === 3) { newPath.statusType = value; newPath.overdueType = null; }
+    if (level === 4) { newPath.overdueType = value; }
+    
+    setDrillPath(newPath);
+    setDrillLevel(level + 1);
+  };
+
+  const handleDrillUp = (level) => {
+    setDrillLevel(level);
+  };
+
+  const getOverdueInfo = (project) => {
+    if (!project.steps) return { isOverdue: false, type: null, days: 0, stepTitle: "" };
+    const activeStep = project.steps.find(s => s.status === 'in-progress' || s.status === 'pending');
+    if (!activeStep || !activeStep.isOverdue) return { isOverdue: false, type: null, days: 0, stepTitle: "" };
+    
+    const isCustomer = activeStep.assignedTo === 'customer';
+    return { 
+      isOverdue: true, 
+      type: isCustomer ? 'customer' : 'epc', 
+      days: activeStep.daysOverdue || 0,
+      stepTitle: activeStep.title
+    };
+  };
+
+  // Grouping logic for the current drillLevel
+  const currentOptions = React.useMemo(() => {
+    let filtered = projects;
+
+    if (drillLevel > 0) filtered = filtered.filter(p => (p.projectTypeLabel || p.projectType) === drillPath.projectType);
+    if (drillLevel > 1) filtered = filtered.filter(p => p.state === drillPath.state);
+    if (drillLevel > 2) filtered = filtered.filter(p => p.district === drillPath.district);
+    
+    // Status Filter (Level 3 -> 4)
+    if (drillLevel > 3) {
+      filtered = filtered.filter(p => {
+        const info = getOverdueInfo(p);
+        if (drillPath.statusType === 'overdue') return info.isOverdue;
+        return !info.isOverdue;
+      });
+    }
+
+    // Overdue Type Filter (Level 4 -> 5)
+    if (drillLevel > 4) {
+      filtered = filtered.filter(p => {
+        const info = getOverdueInfo(p);
+        return info.type === drillPath.overdueType;
+      });
+    }
+
+    if (drillLevel === 0) {
+      const types = {};
+      filtered.forEach(p => {
+        const pt = p.projectTypeLabel || p.projectType || 'Unknown';
+        types[pt] = (types[pt] || 0) + 1;
+      });
+      return Object.entries(types).map(([k, v]) => ({ label: k, count: v, value: k }));
+    }
+    if (drillLevel === 1) {
+      const states = {};
+      filtered.forEach(p => {
+        const st = p.state || 'Unknown';
+        states[st] = (states[st] || 0) + 1;
+      });
+      return Object.entries(states).map(([k, v]) => ({ label: k, count: v, value: k }));
+    }
+    if (drillLevel === 2) {
+      const dists = {};
+      filtered.forEach(p => {
+        const dt = p.district || 'Unknown';
+        dists[dt] = (dists[dt] || 0) + 1;
+      });
+      return Object.entries(dists).map(([k, v]) => ({ label: k, count: v, value: k }));
+    }
+    if (drillLevel === 3) {
+      let onTime = 0, overdue = 0;
+      filtered.forEach(p => {
+        if (getOverdueInfo(p).isOverdue) overdue++;
+        else onTime++;
+      });
+      return [
+        { label: 'On-Time Orders', count: onTime, value: 'on-time', color: 'emerald' },
+        { label: 'Overdue Orders', count: overdue, value: 'overdue', color: 'red' }
+      ];
+    }
+    if (drillLevel === 4) {
+      if (drillPath.statusType === 'on-time') return []; // Jump to level 5 instantly
+      
+      let customer = 0, epc = 0;
+      filtered.forEach(p => {
+        const info = getOverdueInfo(p);
+        if (info.type === 'customer') customer++;
+        else if (info.type === 'epc') epc++;
+      });
+      return [
+        { label: 'Customer Steps Overdue', count: customer, value: 'customer', color: 'orange' },
+        { label: 'EPC Steps Overdue', count: epc, value: 'epc', color: 'purple' }
+      ];
+    }
+
+    return filtered; // Level 5 (or 4 for on-time): return actual projects
+  }, [projects, drillLevel, drillPath]);
+
+  // Jump to level 5 if on-time is selected
+  useEffect(() => {
+    if (drillLevel === 4 && drillPath.statusType === 'on-time') {
+      setDrillLevel(5);
+    }
+  }, [drillLevel, drillPath]);
+
+  // Notifications for Overdue
+  const [lastNotified, setLastNotified] = useState(Date.now());
+  const [showOverduePopup, setShowOverduePopup] = useState(null);
+
+  useEffect(() => {
+    const checkOverdue = () => {
+      const overdueProjects = projects.filter(p => getOverdueInfo(p).isOverdue);
+      if (overdueProjects.length > 0) {
+        const worst = overdueProjects.sort((a,b) => getOverdueInfo(b).days - getOverdueInfo(a).days)[0];
+        const info = getOverdueInfo(worst);
+        setShowOverduePopup({
+           project: worst,
+           info: info
+        });
+      }
+    };
+    
+    // Check every 5 minutes
+    const interval = setInterval(checkOverdue, 5 * 60 * 1000); 
+    // Wait for projects to load, then do initial check after 2s
+    if (projects.length > 0 && !showOverduePopup) {
+       setTimeout(checkOverdue, 2000);
+    }
+    
+    return () => clearInterval(interval);
+  }, [projects]);
+
+
+
+
   // Auto-expand active step
   useEffect(() => {
     if (selectedProjectId) {
@@ -277,11 +432,14 @@ export default function BDEProjectTracking({ bdeId }) {
                 roleLabel = "Customer";
               }
 
+              const isOverdue = isActive && step.isOverdue;
+
               return (
                 <div 
                   key={step.stepId || idx} 
                   className={`border rounded-2xl transition-all overflow-hidden ${
                     isDone ? 'border-emerald-200 bg-emerald-50/30' : 
+                    isOverdue ? 'border-l-[6px] border-l-red-500 border-red-300 bg-red-50/20 shadow-sm ring-1 ring-red-200' :
                     isActive ? 'border-amber-300 bg-amber-50/30 shadow-sm ring-1 ring-amber-200' : 
                     'border-slate-200 bg-white'
                   }`}
@@ -315,6 +473,38 @@ export default function BDEProjectTracking({ bdeId }) {
 
                   {isExpanded && (
                     <div className="px-4 pb-4 pt-2 border-t border-slate-100 bg-slate-50/50 rounded-b-xl space-y-3">
+                      {isOverdue && (
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-lg mb-2 text-red-800">
+                          <div className="flex items-center gap-2 mb-1">
+                            <AlertCircle className="w-5 h-5 text-red-600" />
+                            <h4 className="font-bold text-red-700">Step Overdue by {step.daysOverdue} Days</h4>
+                          </div>
+                          <p className="text-xs font-medium opacity-90 mb-2">
+                            This step is pending with <span className="font-bold uppercase">{step.assignedTo}</span>.
+                            {step.assignedTo === 'epc-partner' && " Please contact the EPC to expedite."}
+                            {step.assignedTo === 'customer' && " Please contact the customer to expedite."}
+                            {step.assignedTo === 'admin' && " Pending internal approval/action."}
+                          </p>
+                          {(step.assignedTo === 'epc-partner' || step.assignedTo === 'customer') && (
+                            <div className="bg-white p-2 rounded border border-red-100 text-xs text-slate-700">
+                              <p className="mb-1 text-[10px] text-slate-400 uppercase font-black">{step.assignedTo === 'epc-partner' ? 'EPC Details' : 'Customer Details'}</p>
+                              {step.assignedTo === 'epc-partner' ? (
+                                selectedProject.assignedEPC ? (
+                                  <>
+                                    <p className="font-bold">{selectedProject.assignedEPC.companyName || selectedProject.assignedEPC.name || 'Not assigned'}</p>
+                                    <p>{selectedProject.assignedEPC.phone || selectedProject.assignedEPC.email || 'N/A'}</p>
+                                  </>
+                                ) : "No EPC assigned yet."
+                              ) : (
+                                <>
+                                  <p className="font-bold">{selectedProject.customerName}</p>
+                                  <p>{selectedProject.customerPhone || selectedProject.customerEmail || 'N/A'}</p>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
                       {step.description && (
                         <p className="text-xs text-slate-600 font-medium leading-relaxed bg-white p-2.5 rounded-lg border border-slate-100 animate-fadeIn">
                           {step.description}
@@ -529,147 +719,224 @@ export default function BDEProjectTracking({ bdeId }) {
     );
   }
 
-  // ── MASTER LIST VIEW (Top Filter Bar + Customer/Lead Project Cards) ──
+  
+
   return (
     <div className="space-y-4">
-      {/* Top Filter Bar + Search Integrated In One Row */}
-      <div className="bg-slate-900 p-3 rounded-2xl shadow-md flex flex-wrap gap-2.5 items-center">
-        {/* Search Bar Inline */}
-        <div className="relative flex-1 min-w-[200px]">
-          <input
-            type="text"
-            placeholder="Search customer, order #, or mobile..."
-            className="w-full pl-9 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-white placeholder-slate-400 focus:outline-none focus:border-amber-400 transition"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-        </div>
+      {/* Overdue Popup Modal */}
+      {showOverduePopup && (
+         <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+           <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border-2 border-red-500 animate-in zoom-in-95 duration-300">
+             <div className="bg-red-50 p-4 border-b border-red-100 flex items-center gap-3">
+               <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center shrink-0">
+                 <AlertCircle className="w-5 h-5 text-red-600 animate-pulse" />
+               </div>
+               <div>
+                 <h3 className="font-black text-red-900 leading-tight">Overdue Action Required!</h3>
+                 <p className="text-xs font-bold text-red-700 mt-0.5">Please check immediately</p>
+               </div>
+             </div>
+             <div className="p-5">
+               <p className="text-sm text-slate-600 mb-4">
+                 Project <strong className="text-slate-800">{showOverduePopup.project.customerName}</strong> in <strong className="text-slate-800">{showOverduePopup.project.district}</strong> is overdue by <strong className="text-red-600">{showOverduePopup.info.days} days</strong>.
+               </p>
+               <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 mb-5">
+                 <span className="text-xs font-bold text-slate-500 block mb-1">Overdue Step:</span>
+                 <p className="text-sm font-black text-slate-800">{showOverduePopup.info.stepTitle}</p>
+                 <span className={`inline-block mt-2 px-2 py-0.5 rounded text-[10px] font-black uppercase ${showOverduePopup.info.type === 'customer' ? 'bg-orange-100 text-orange-800' : 'bg-purple-100 text-purple-800'}`}>
+                   {showOverduePopup.info.type === 'customer' ? 'Customer Side' : 'EPC Side'}
+                 </span>
+               </div>
+               <div className="flex gap-2">
+                 <button onClick={() => setShowOverduePopup(null)} className="flex-1 py-2 rounded-xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition">
+                   Snooze
+                 </button>
+                 <button onClick={() => { 
+                   setShowOverduePopup(null); 
+                   setSelectedProjectId(showOverduePopup.project._id); 
+                 }} className="flex-1 py-2 rounded-xl text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition shadow-sm hover:shadow-md">
+                   View Project
+                 </button>
+               </div>
+             </div>
+           </div>
+         </div>
+      )}
 
-        {/* Country Selector */}
-        <select 
-          value={filterCountry} 
-          onChange={e => { setFilterCountry(e.target.value); setFilterState(""); setFilterDistrict(""); }}
-          className="text-xs font-bold text-white border border-slate-700 rounded-xl px-3 py-2 bg-slate-800 focus:outline-none focus:border-amber-400"
-        >
-          <option value="">🌍 All Countries</option>
-          <option value="india">🇮🇳 India</option>
-          <option value="australia">🇦🇺 Australia</option>
-          <option value="newzealand">🇳🇿 New Zealand</option>
-        </select>
-
-        {/* State Selector */}
-        <select 
-          value={filterState} 
-          onChange={e => { setFilterState(e.target.value); setFilterDistrict(""); }} 
-          disabled={!filterCountry}
-          className="text-xs font-bold text-white border border-slate-700 rounded-xl px-3 py-2 bg-slate-800 focus:outline-none focus:border-amber-400 disabled:opacity-50"
-        >
-          <option value="">All States</option>
-          {allStates.map(state => <option key={state} value={state}>{state}</option>)}
-        </select>
-
-        {/* District Selector */}
-        <select 
-          value={filterDistrict} 
-          onChange={e => setFilterDistrict(e.target.value)} 
-          disabled={!filterCountry}
-          className="text-xs font-bold text-white border border-slate-700 rounded-xl px-3 py-2 bg-slate-800 focus:outline-none focus:border-amber-400 disabled:opacity-50"
-        >
-          <option value="">All Districts</option>
-          {availableDistricts.map(dist => <option key={dist} value={dist}>{dist}</option>)}
-        </select>
-
-        {/* Project Type Selector */}
-        <select 
-          value={filterProjectType} 
-          onChange={e => setFilterProjectType(e.target.value)}
-          className="text-xs font-bold text-white border border-slate-700 rounded-xl px-3 py-2 bg-slate-800 focus:outline-none focus:border-amber-400"
-        >
-          <option value="">All Types</option>
-          <option value="residential">Residential</option>
-          <option value="commercial">Commercial</option>
-          <option value="solar-battery">Solar + Battery</option>
-          <option value="farm-rural">Farm / Rural</option>
-          <option value="community-strata">Community / Strata</option>
-        </select>
-
-        {/* Clear Filters Button */}
-        {(search || filterCountry || filterState || filterDistrict || filterProjectType) && (
+      {/* Breadcrumb Navigation */}
+      <div className="bg-white p-3 rounded-xl border border-slate-200 flex items-center gap-2 text-sm font-bold shadow-sm flex-wrap">
+        {drillLevel > 0 && (
           <button 
-            onClick={() => { setSearch(""); setFilterCountry(""); setFilterState(""); setFilterDistrict(""); setFilterProjectType(""); }} 
-            className="px-3 py-2 text-xs font-bold text-red-400 bg-slate-800 border border-red-500/30 rounded-xl hover:bg-red-500/20 hover:text-red-300 transition"
+            onClick={() => handleDrillUp(drillLevel - 1)} 
+            className="flex items-center gap-1 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg mr-2 transition"
           >
-            Clear Filter
+            <ArrowLeft className="w-4 h-4" /> Back
           </button>
+        )}
+        <span 
+          onClick={() => handleDrillUp(0)} 
+          className={`cursor-pointer ${drillLevel === 0 ? 'text-slate-800' : 'text-blue-600 hover:underline'}`}
+        >
+          All Project Types
+        </span>
+        
+        {drillLevel > 0 && (
+          <>
+            <span className="text-slate-400">/</span>
+            <span 
+              onClick={() => handleDrillUp(1)} 
+              className={`cursor-pointer ${drillLevel === 1 ? 'text-slate-800' : 'text-blue-600 hover:underline'}`}
+            >
+              {drillPath.projectType}
+            </span>
+          </>
+        )}
+        
+        {drillLevel > 1 && (
+          <>
+            <span className="text-slate-400">/</span>
+            <span 
+              onClick={() => handleDrillUp(2)} 
+              className={`cursor-pointer ${drillLevel === 2 ? 'text-slate-800' : 'text-blue-600 hover:underline'}`}
+            >
+              {drillPath.state}
+            </span>
+          </>
+        )}
+
+        {drillLevel > 2 && (
+          <>
+            <span className="text-slate-400">/</span>
+            <span 
+              onClick={() => handleDrillUp(3)} 
+              className={`cursor-pointer ${drillLevel === 3 ? 'text-slate-800' : 'text-blue-600 hover:underline'}`}
+            >
+              {drillPath.district}
+            </span>
+          </>
+        )}
+
+        {drillLevel > 3 && (
+          <>
+            <span className="text-slate-400">/</span>
+            <span 
+              onClick={() => handleDrillUp(4)} 
+              className={`cursor-pointer ${drillLevel === 4 ? 'text-slate-800' : 'text-blue-600 hover:underline'}`}
+            >
+              {drillPath.statusType === 'on-time' ? 'On-Time Orders' : 'Overdue Orders'}
+            </span>
+          </>
+        )}
+
+        {drillLevel > 4 && drillPath.statusType === 'overdue' && (
+          <>
+            <span className="text-slate-400">/</span>
+            <span className="text-slate-800">
+              {drillPath.overdueType === 'customer' ? 'Customer Overdue' : 'EPC Overdue'}
+            </span>
+          </>
         )}
       </div>
 
-      {/* Customer / Lead Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredProjects.length === 0 ? (
-          <div className="col-span-full text-center p-12 bg-white rounded-2xl border border-dashed border-slate-200">
-            <FileText className="w-12 h-12 text-slate-300 mx-auto mb-2"/>
-            <p className="text-slate-600 font-bold">No customer project cards found</p>
-            <p className="text-slate-400 text-xs mt-1">Convert leads to see active customer tracking cards.</p>
-          </div>
-        ) : (
-          filteredProjects.map((project) => {
-            const isAU = project.country === "australia" || filterCountry === "australia";
-            const currencySymbol = isAU ? "$" : "₹";
-
+      {/* Grid of Folders / Cards */}
+      {drillLevel < 5 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {currentOptions.map((opt, i) => {
+            const colorClass = opt.color === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:border-emerald-400' :
+                               opt.color === 'red' ? 'bg-red-50 border-red-200 text-red-800 hover:border-red-400' :
+                               opt.color === 'orange' ? 'bg-orange-50 border-orange-200 text-orange-800 hover:border-orange-400' :
+                               opt.color === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-800 hover:border-purple-400' :
+                               'bg-white border-slate-200 text-slate-800 hover:border-blue-400';
+            
             return (
               <div 
-                key={project._id} 
-                onClick={() => setSelectedProjectId(project._id)}
-                className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm hover:shadow-md hover:border-amber-400 transition cursor-pointer flex flex-col justify-between gap-3 group"
+                key={i}
+                onClick={() => handleDrillDown(drillLevel, opt.value)}
+                className={`p-6 rounded-2xl border shadow-sm cursor-pointer transition-all hover:shadow-md ${colorClass} flex flex-col justify-between h-32`}
               >
-                <div>
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div>
-                      <h3 className="font-black text-slate-800 text-base group-hover:text-amber-600 transition">{project.customerName}</h3>
-                      <p className="text-[11px] text-slate-400 font-mono font-bold mt-0.5">{project.orderNumber || 'SUN-ACCOUNT'}</p>
-                    </div>
-                    <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-[10px] font-black uppercase border border-emerald-200 shrink-0">
-                      {project.status}
-                    </span>
-                  </div>
-
-                  <p className="text-xs font-bold text-slate-600 flex items-center gap-1 mt-1">
-                    <Building className="w-3.5 h-3.5 text-amber-500" />
-                    {project.projectTypeLabel || project.projectType} Solar
-                  </p>
-                  <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                    {project.location?.city || project.district || 'Location'}
-                  </p>
-                </div>
-
-                <div className="space-y-2 border-t border-slate-100 pt-2.5">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-500 font-bold">Progress</span>
-                    <span className="font-black text-amber-700">{project.completionPercentage || 0}%</span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                    <div className="bg-gradient-to-r from-amber-400 to-yellow-500 h-2 rounded-full transition-all" style={{ width: `${project.completionPercentage || 0}%` }}></div>
-                  </div>
-                  <div className="flex justify-between text-[11px] font-bold text-slate-500 pt-1">
-                    <span>System: {project.systemSizeKW || 1} kW</span>
-                    <span className="text-emerald-700">Cost: {currencySymbol}{(project.totalProjectCost || 0).toLocaleString()}</span>
-                  </div>
-                </div>
-
-                <div className="pt-1 flex items-center justify-between text-xs font-black text-amber-600 group-hover:underline">
-                  <span>Open Live Tracking UI →</span>
-                  <span className="text-[10px] bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-amber-800">
-                    BDE On-Behalf
-                  </span>
+                <h3 className="font-black text-lg">{opt.label}</h3>
+                <div className="flex justify-between items-end">
+                  <span className="text-sm font-bold opacity-80">View Orders</span>
+                  <span className="text-3xl font-black">{opt.count}</span>
                 </div>
               </div>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      ) : (
+        /* Actual Projects View */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {currentOptions.length === 0 ? (
+             <div className="col-span-full text-center p-12 bg-white rounded-2xl border border-dashed border-slate-200">
+               <FileText className="w-12 h-12 text-slate-300 mx-auto mb-2"/>
+               <p className="text-slate-600 font-bold">No orders found</p>
+             </div>
+          ) : (
+            currentOptions.map((project) => {
+              const isAU = project.country === "australia" || filterCountry === "australia";
+              const currencySymbol = isAU ? "$" : "₹";
+              const info = getOverdueInfo(project);
+
+              return (
+                <div 
+                  key={project._id} 
+                  onClick={() => setSelectedProjectId(project._id)}
+                  className={`bg-white rounded-2xl p-5 border-2 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between gap-3 group ${
+                    info.isOverdue ? (info.type === 'customer' ? 'border-orange-300' : 'border-purple-300') : 'border-slate-200 hover:border-amber-400'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div>
+                        <h3 className="font-black text-slate-800 text-base group-hover:text-amber-600 transition">{project.customerName}</h3>
+                        <p className="text-[11px] text-slate-400 font-mono font-bold mt-0.5">{project.orderNumber || 'SUN-ACCOUNT'}</p>
+                      </div>
+                      <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-[10px] font-black uppercase border border-emerald-200 shrink-0">
+                        {project.status}
+                      </span>
+                    </div>
+
+                    <p className="text-xs font-bold text-slate-600 flex items-center gap-1 mt-1">
+                      <Building className="w-3.5 h-3.5 text-amber-500" />
+                      {project.projectTypeLabel || project.projectType} Solar
+                    </p>
+                  </div>
+
+                  <div className="space-y-2 border-t border-slate-100 pt-2.5">
+                    {info.isOverdue && (
+                      <div className={`p-2 rounded-lg border text-xs font-bold mb-2 ${
+                        info.type === 'customer' ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-purple-50 border-purple-200 text-purple-800'
+                      }`}>
+                        <div className="flex items-center gap-1 mb-1">
+                          <AlertCircle className="w-3.5 h-3.5" /> 
+                          {info.type === 'customer' ? 'Customer Step Overdue' : 'EPC Step Overdue'}
+                        </div>
+                        <p className="text-[10px] opacity-90 leading-tight">Step: {info.stepTitle}</p>
+                        <p className="text-[10px] opacity-90 mt-0.5">Overdue by: <span className="text-red-600 font-black">{info.days} days</span></p>
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-500 font-bold">Progress</span>
+                      <span className="font-black text-amber-700">{project.completionPercentage || 0}%</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                      <div className="bg-gradient-to-r from-amber-400 to-yellow-500 h-2 rounded-full transition-all" style={{ width: `${project.completionPercentage || 0}%` }}></div>
+                    </div>
+                  </div>
+
+                  <div className="pt-1 flex items-center justify-between text-xs font-black text-amber-600 group-hover:underline border-t border-slate-100 mt-1">
+                    <span>Open Live Tracking UI →</span>
+                    <span className="text-[10px] bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-amber-800">
+                      BDE View
+                    </span>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
     </div>
   );
 }

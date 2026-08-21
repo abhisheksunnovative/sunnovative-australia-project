@@ -74,6 +74,7 @@ export function BDEManagementContent({ selectedCountryObj, onBack }) {
   
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("all"); 
+  const [districtFilter, setDistrictFilter] = useState("all"); 
   
   // Modal state
   const [isEditing, setIsEditing] = useState(false);
@@ -361,21 +362,52 @@ export function BDEManagementContent({ selectedCountryObj, onBack }) {
       </div>
     );
   };
-
   const renderBDEs = () => {
     // We now use districtBDEs calculated at the top
-    const filteredBDEs = districtBDEs.filter(bde => bde.name.toLowerCase().includes(searchQuery.toLowerCase()) || bde.email.toLowerCase().includes(searchQuery.toLowerCase()));
+    const searchedBDEs = districtBDEs.filter(bde => bde.name.toLowerCase().includes(searchQuery.toLowerCase()) || bde.email.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    const isFreelancerType = (bdeType) => (bdeType || "").toLowerCase() === "freelancer";
+    const isEmployeeType = (bdeType) => !isFreelancerType(bdeType); // anything not freelancer = employee/company
+
+    const filteredBDEs = searchedBDEs.filter(bde => {
+      if (districtFilter === "freelancer") return isFreelancerType(bde.bdeType);
+      if (districtFilter === "employee") return isEmployeeType(bde.bdeType);
+      return true;
+    });
+
+    const allCount = searchedBDEs.length;
+    const freelancerCount = searchedBDEs.filter(b => isFreelancerType(b.bdeType)).length;
+    const employeeCount = searchedBDEs.filter(b => isEmployeeType(b.bdeType)).length;
 
     return (
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-4">
           <div className="flex items-center gap-4">
-            <button onClick={() => { setSelectedDistrict(null); setSearchQuery(""); }} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600">
+            <button onClick={() => { setSelectedDistrict(null); setSearchQuery(""); setDistrictFilter("all"); }} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600">
               <ArrowLeft className="w-5 h-5" />
             </button>
             <h2 className="text-xl font-bold uppercase text-slate-800">BDEs in {selectedDistrict === 'unassigned' ? "Unassigned" : selectedDistrict}</h2>
           </div>
-
+          <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
+            <button
+              onClick={() => setDistrictFilter("all")}
+              className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${districtFilter === 'all' ? 'bg-white shadow text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              All <span className="ml-1 bg-blue-100 text-blue-700 text-xs px-1.5 py-0.5 rounded-full">{allCount}</span>
+            </button>
+            <button
+              onClick={() => setDistrictFilter("freelancer")}
+              className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${districtFilter === 'freelancer' ? 'bg-white shadow text-amber-700' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Freelancer BDE <span className="ml-1 bg-amber-100 text-amber-700 text-xs px-1.5 py-0.5 rounded-full">{freelancerCount}</span>
+            </button>
+            <button
+              onClick={() => setDistrictFilter("employee")}
+              className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${districtFilter === 'employee' ? 'bg-white shadow text-emerald-700' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Company Full Time <span className="ml-1 bg-emerald-100 text-emerald-700 text-xs px-1.5 py-0.5 rounded-full">{employeeCount}</span>
+            </button>
+          </div>
         </div>
 
         {filteredBDEs.length === 0 && (

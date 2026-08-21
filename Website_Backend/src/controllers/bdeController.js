@@ -85,6 +85,58 @@ export const deleteBDE = async (req, res) => {
 
 
 // ==============================
+// BDE Onboarding Documents
+// ==============================
+
+// BDE uploads a doc from My Profile page
+export const uploadOnboardingDoc = async (req, res) => {
+  try {
+    const { id } = req.params;        // bdeId
+    const { docName } = req.body;
+    if (!req.file) return res.status(400).json({ success: false, message: "No file uploaded" });
+
+    const fileUrl = `/uploads/bde-docs/${req.file.filename}`;
+    const bde = await BDE.findById(id);
+    if (!bde) return res.status(404).json({ success: false, message: "BDE not found" });
+
+    // Upsert: if same docName exists, replace it; otherwise add new
+    const existingIdx = bde.onboardingDocs.findIndex(d => d.docName === docName);
+    if (existingIdx !== -1) {
+      bde.onboardingDocs[existingIdx].fileUrl = fileUrl;
+      bde.onboardingDocs[existingIdx].verified = false; // reset approval on re-upload
+      bde.onboardingDocs[existingIdx].uploadedAt = new Date();
+    } else {
+      bde.onboardingDocs.push({ docName, fileUrl, verified: false, uploadedAt: new Date() });
+    }
+    await bde.save();
+    res.json({ success: true, onboardingDocs: bde.onboardingDocs });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Admin approves a single doc
+export const approveOnboardingDoc = async (req, res) => {
+  try {
+    const { id, docName } = req.params;  // bdeId, docName
+    const { approved } = req.body;        // true / false
+    const bde = await BDE.findById(id);
+    if (!bde) return res.status(404).json({ success: false, message: "BDE not found" });
+
+    const doc = bde.onboardingDocs.find(d => d.docName === docName);
+    if (!doc) return res.status(404).json({ success: false, message: "Document not found" });
+
+    doc.verified = approved !== false;  // default true
+    await bde.save();
+    res.json({ success: true, onboardingDocs: bde.onboardingDocs });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+
+// ==============================
 // BDE Portal Authentication
 // ==============================
 
@@ -206,6 +258,20 @@ export const getBDEDashboard = async (req, res) => {
       { $group: { _id: "$district", count: { $sum: 1 } } }
     ]);
 
+    // Analytics for Last 7 days
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    const leadsLast7Days = await Lead.countDocuments({
+      assignedBde: bdeId,
+      createdAt: { $gte: sevenDaysAgo }
+    });
+
+    const conversionsLast7Days = await ProjectOrder.countDocuments({
+      assignedBde: bdeId,
+      createdAt: { $gte: sevenDaysAgo }
+    });
+
     res.json({
       success: true,
       bde,
@@ -221,7 +287,11 @@ export const getBDEDashboard = async (req, res) => {
         targetConversions: bde.targets?.conversions || 0,
         revenue: { generated: revenueGenerated, target: revenueTarget },
         stcPipeline,
-        zoneStats: Object.values(zoneStatsMap)
+        zoneStats: Object.values(zoneStatsMap),
+        last7Days: {
+          leads: leadsLast7Days,
+          conversions: conversionsLast7Days
+        }
       }
     });
   } catch (error) {
@@ -859,6 +929,34 @@ export const adminAssignLeadToBDE = async (req, res) => {
 
     res.json({ success: true, message: 'Lead successfully assigned to BDE', data: lead });
   } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==============================
+// GET BDES HIERARCHY
+// ==============================
+export const getBDEsHierarchy = async (req, res) => {
+  try {
+    const bdes = await BDE.find().sort({ createdAt: -1 });
+
+    const hierarchy = {};
+
+    bdes.forEach(bde => {
+      const country = (bde.country || 'India').toUpperCase();
+      const state = (bde.assignedStates && bde.assignedStates[0]) || 'Unassigned State';
+      const district = (bde.assignedDistricts && bde.assignedDistricts[0]) || 'Unassigned District';
+
+      if (!hierarchy[country]) hierarchy[country] = {};
+      if (!hierarchy[country][state]) hierarchy[country][state] = {};
+      if (!hierarchy[country][state][district]) hierarchy[country][state][district] = [];
+
+      hierarchy[country][state][district].push(bde);
+    });
+
+    res.json({ success: true, hierarchy });
+  } catch (error) {
+    console.error("BDE Hierarchy error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

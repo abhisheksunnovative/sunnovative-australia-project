@@ -170,7 +170,7 @@ export default function HorizontalJourneyTracker({
                 {/* Circle Button */}
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black ring-2 ring-white mb-1 transition-all ${
                   done ? "bg-orange-500 text-white shadow-sm" : 
-                  reallyActive ? "bg-amber-400 text-white shadow-md ring-amber-100 animate-pulse" : 
+                  reallyActive ? (step.isOverdue ? "bg-red-500 text-white shadow-md ring-4 ring-red-200 animate-pulse scale-110" : "bg-amber-400 text-white shadow-md ring-amber-100 animate-pulse scale-110") : 
                   "bg-slate-200 text-slate-500"
                 }`}>
                   {done ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : (step.stepNumber || i + 1)}
@@ -179,7 +179,7 @@ export default function HorizontalJourneyTracker({
                 {/* Step Title (Compact) */}
                 <p className={`text-[10px] text-center font-bold px-1 line-clamp-1 max-w-[90px] ${
                   done ? "text-slate-800" : 
-                  reallyActive ? "text-amber-700 font-extrabold" : 
+                  reallyActive ? (step.isOverdue ? "text-red-700 font-extrabold" : "text-amber-700 font-extrabold") : 
                   "text-slate-400"
                 }`}>
                   {step.title}
@@ -266,6 +266,18 @@ export default function HorizontalJourneyTracker({
                   {selectedStep.status} • Assigned to: {selectedStep.assignedTo || 'Company'}
                 </span>
               </div>
+              {selectedStep.slaDays > 0 && (
+                <div className="flex gap-2 mt-3 mb-2">
+                  <span className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded font-bold flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5"/> SLA: {selectedStep.slaDays} Days
+                  </span>
+                  {selectedStep.isOverdue && (
+                    <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5"/> Overdue by: {selectedStep.daysOverdue} Days
+                    </span>
+                  )}
+                </div>
+              )}
               <button onClick={() => setSelectedStep(null)} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg">
                 <X className="w-5 h-5" />
               </button>

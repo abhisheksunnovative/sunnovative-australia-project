@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { LayoutDashboard, Users, Map, LogOut, Sun, ClipboardList, AlertTriangle, Bell, Trash2, CheckSquare, Square, Check } from "lucide-react";
+import { LayoutDashboard, Users, Map, LogOut, Sun, ClipboardList, AlertTriangle, Bell, Trash2, CheckSquare, Square, Check, User } from "lucide-react";
 
 export default function BDELayout({ children, currentTab, onTabChange, onLogout, bdeName, bdeId }) {
   const [notifications, setNotifications] = useState([]);
@@ -15,7 +15,7 @@ export default function BDELayout({ children, currentTab, onTabChange, onLogout,
     try {
       const [leadsRes, projRes] = await Promise.all([
         fetch(`${API_BASE}/api/bde/${bdeId}/leads`).catch(() => null),
-        fetch(`${API_BASE}/api/bde/projects/${bdeId}`).catch(() => null)
+        fetch(`${API_BASE}/api/bde/${bdeId}/projects`).catch(() => null)
       ]);
       let leadsCount = 0;
       let projCount = 0;
@@ -57,8 +57,9 @@ export default function BDELayout({ children, currentTab, onTabChange, onLogout,
   const navItems = [
     { id: "bde-aust", name: "Dashboard", icon: <LayoutDashboard className="w-5 h-5 text-emerald-400" /> },
     { id: "bde-leads", name: "My Leads", icon: <Users className="w-5 h-5" />, count: tabCounts.leads },
-    { id: "bde-projects", name: "My Projects", icon: <ClipboardList className="w-5 h-5" />, count: tabCounts.projects },
-    { id: "bde-demand", name: "Demand Pool", icon: <Map className="w-5 h-5" /> }
+    { id: "bde-projects", name: "Customer Order Journey", icon: <ClipboardList className="w-5 h-5" />, count: tabCounts.projects },
+    { id: "bde-demand", name: "Demand Pool", icon: <Map className="w-5 h-5" /> },
+    { id: "bde-profile", name: "My Profile", icon: <User className="w-5 h-5" /> }
   ];
 
   const toggleSelectNotif = (id) => {
@@ -202,7 +203,7 @@ export default function BDELayout({ children, currentTab, onTabChange, onLogout,
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 bg-gray-50/50 overflow-hidden relative">
-        <header className="min-h-16 py-3 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0 z-10 sticky top-0 backdrop-blur-md bg-white/80">
+        <header className="min-h-16 py-3 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0 z-[100] sticky top-0 backdrop-blur-md bg-white/80">
           <h1 className="text-xl font-bold text-gray-800">
             {navItems.find(i => i.id === currentTab)?.name || "Dashboard"}
           </h1>

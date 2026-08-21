@@ -10,7 +10,15 @@ const bdeSchema = new mongoose.Schema(
     region: { type: String, trim: true, default: '' },
     isActive: { type: Boolean, default: true },
     
-    bdeType: { type: String, enum: ['Employee', 'Freelancer'], default: 'Employee' },
+    bdeType: { type: String, enum: ['Employee', 'Freelancer', 'Company BDE', 'Freelancer BDE'], default: 'Company BDE' },
+    
+    // Onboarding Documents
+    onboardingDocs: [{
+      docName: { type: String },
+      fileUrl: { type: String },
+      verified: { type: Boolean, default: false },
+      uploadedAt: { type: Date, default: null }
+    }],
 
     // Freelancer Settings
     freelancerSettings: {

@@ -36,6 +36,7 @@ import {
   CheckSquare,
   Square,
   Check,
+  ClipboardList,
 } from "lucide-react";
 
 export const MainLayout = ({
@@ -210,6 +211,11 @@ export const MainLayout = ({
       name: "BDE Management",
       id: "bde-management",
       icon: <Users className="w-5 h-5" />,
+    },
+    {
+      name: "BDE Onboarding",
+      id: "bde-onboarding",
+      icon: <ClipboardList className="w-5 h-5" />,
     },
   ];
 

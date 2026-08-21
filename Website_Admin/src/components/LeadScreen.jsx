@@ -415,8 +415,8 @@ const AssignBDEModal = ({ lead, onClose, onSuccess }) => {
 };
 
 // ── Main LeadsScreen ──────────────────────────────────────────────────────────
-const LeadScreen = ({ uploadSource = 'website' }) => {
-  const [filterCountry, setFilterCountry] = useState("");
+const LeadScreen = ({ uploadSource = 'website', injectedFilters = null, hideInjectedFilters = false }) => {
+  const [filterCountry, setFilterCountry] = useState(injectedFilters?.country || "");
   const { projectTypes: dynamicProjectTypes } = useAdminSettings(filterCountry);
   
   const dynamicSolarTypes = dynamicProjectTypes.length > 0
@@ -431,9 +431,9 @@ const LeadScreen = ({ uploadSource = 'website' }) => {
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
-  const [filterState, setFilterState] = useState("");
-  const [filterDistrict, setFilterDistrict] = useState("");
+  const [typeFilter, setTypeFilter] = useState(injectedFilters?.projectType || "");
+  const [filterState, setFilterState] = useState(injectedFilters?.state || "");
+  const [filterDistrict, setFilterDistrict] = useState(injectedFilters?.district || "");
   const [assignedBde, setAssignedBde] = useState("");
   const [bdes, setBdes] = useState([]);
   const [cardFilter, setCardFilter] = useState("all");
@@ -582,11 +582,15 @@ const LeadScreen = ({ uploadSource = 'website' }) => {
         statusFilter={statusFilter}
         setStatusFilter={(val) => { setStatusFilter(val); setCardFilter("all"); }}
         statusOptions={STATUS_OPTIONS}
-        countryFilter={filterCountry}
-        setCountryFilter={setFilterCountry}
+        countryFilter={hideInjectedFilters && injectedFilters?.country ? undefined : filterCountry}
+        setCountryFilter={hideInjectedFilters && injectedFilters?.country ? undefined : setFilterCountry}
         onClear={() => { 
-          setStatusFilter(""); setTypeFilter(""); setSearch(""); 
-          setFilterCountry(""); setFilterState(""); setFilterDistrict(""); 
+          setStatusFilter(""); 
+          setTypeFilter(hideInjectedFilters && injectedFilters?.projectType ? injectedFilters.projectType : ""); 
+          setSearch(""); 
+          setFilterCountry(hideInjectedFilters && injectedFilters?.country ? injectedFilters.country : ""); 
+          setFilterState(hideInjectedFilters && injectedFilters?.state ? injectedFilters.state : ""); 
+          setFilterDistrict(hideInjectedFilters && injectedFilters?.district ? injectedFilters.district : ""); 
           setAssignedBde("");
           setCardFilter("all"); 
         }}
@@ -605,25 +609,25 @@ const LeadScreen = ({ uploadSource = 'website' }) => {
           {
             isActive: Boolean(typeFilter),
             component: (
-              <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+              !(hideInjectedFilters && injectedFilters?.projectType) ? (<select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
                 className="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium">
                 <option value="">Solar Type</option>
                 {dynamicSolarTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
+              </select>) : null
             )
           },
           {
             isActive: Boolean(filterState),
             component: (
-              <input type="text" value={filterState} onChange={e => setFilterState(e.target.value)} placeholder="Filter State"
-                className="w-32 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium" />
+              !(hideInjectedFilters && injectedFilters?.state) ? (<input type="text" value={filterState} onChange={e => setFilterState(e.target.value)} placeholder="Filter State"
+                className="w-32 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium" />) : null
             )
           },
           {
             isActive: Boolean(filterDistrict),
             component: (
-              <input type="text" value={filterDistrict} onChange={e => setFilterDistrict(e.target.value)} placeholder="Filter District"
-                className="w-32 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium" />
+              !(hideInjectedFilters && injectedFilters?.district) ? (<input type="text" value={filterDistrict} onChange={e => setFilterDistrict(e.target.value)} placeholder="Filter District"
+                className="w-32 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400/40 font-medium" />) : null
             )
           }
         ]}
