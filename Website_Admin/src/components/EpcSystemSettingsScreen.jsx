@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Save, AlertTriangle, ShieldCheck, Settings, CheckCircle, Plus, ChevronRight, ArrowLeft, MapPin, Briefcase } from 'lucide-react';
+import FeatureTrialConnector from './FeatureTrialConnector';
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
@@ -374,7 +375,14 @@ const EpcSystemSettingsScreen = ({ selectedCountryCode }) => {
 
                 {activeTab === 'trustbadge' && (
                   <div className="space-y-6">
-                    <h2 className="text-lg font-bold text-blue-600 flex items-center gap-2 mb-4"><ShieldCheck className="w-5 h-5"/> Trust Badge Limitations</h2>
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-lg font-bold text-blue-600 flex items-center gap-2"><ShieldCheck className="w-5 h-5"/> Trust Badge Limitations</h2>
+                      <FeatureTrialConnector 
+                        featureName="Trust Badge Requirements" 
+                        description="Trial Trust Badge limitation counters for EPCs to gauge impact on lead conversion."
+                        targetAudience="EPC"
+                      />
+                    </div>
                     
                     <div className="flex items-center gap-3 mb-6 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
                       <input type="checkbox" id="counterEnabled" checked={currentRule.trustBadgeSettings?.counterEnabled || false} onChange={e => updateCurrentRule('trustBadgeSettings', 'counterEnabled', e.target.checked)} className="w-5 h-5 text-blue-600 rounded" />

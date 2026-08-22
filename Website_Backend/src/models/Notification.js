@@ -8,6 +8,8 @@ const NotificationSchema = new mongoose.Schema({
   leadId: { type: mongoose.Schema.Types.ObjectId, ref: 'Lead', default: null },
   projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'ProjectOrder', default: null },
   isRead: { type: Boolean, default: false },
+  type: { type: String, default: 'general' }, // e.g., 'document_upload', 'lead_update', 'epc_registration'
+  relatedTab: { type: String, default: null } // The exact tab id to highlight (e.g., 'bde-onboarding')
 }, { timestamps: true });
 
 export default mongoose.model('Notification', NotificationSchema);

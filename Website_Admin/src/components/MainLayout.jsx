@@ -50,6 +50,8 @@ export const MainLayout = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  
+
 
   // Dynamic Administrator Session Mapping
   const sessionEmail =
@@ -78,10 +80,11 @@ export const MainLayout = ({
   }
 
   const allMenuItems = [
+    { name: "Overview", id: "dashboard", icon: <LayoutDashboard className="w-5 h-5" /> },
     {
-      name: "Overview",
-      id: "dashboard",
-      icon: <LayoutDashboard className="w-5 h-5" />,
+      name: "Platform Analytics",
+      id: "platform-analytics",
+      icon: <Activity className="w-5 h-5" />,
     },
     {
       name: "Country Settings",
@@ -216,11 +219,11 @@ export const MainLayout = ({
       name: "BDE Onboarding",
       id: "bde-onboarding",
       icon: <ClipboardList className="w-5 h-5" />,
-    },
+    }
   ];
 
   const filteredMenuItems = isVeneet 
-    ? allMenuItems.filter(item => ["dashboard", "project-orders", "order-journey"].includes(item.id))
+    ? allMenuItems.filter(item => ["dashboard", "project-orders", "order-journey", "platform-analytics"].includes(item.id))
     : allMenuItems;
 
   // ── Website Content — Now a single unified page ──
@@ -280,6 +283,10 @@ export const MainLayout = ({
   const [notifications, setNotifications] = useState([]);
   const [selectedNotifIds, setSelectedNotifIds] = useState([]);
   const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
+
+  const getBadgeCount = (tabId) => {
+    return notifications.filter(n => !n.isRead && (n.relatedTab === tabId || (tabId === 'epc-partners' && n.type === 'epc') || (tabId === 'website-leads' && n.type === 'lead'))).length;
+  };
 
   const toggleSelectNotif = (id) => {
     setSelectedNotifIds(prev => 
@@ -512,6 +519,11 @@ export const MainLayout = ({
               >
                 {item.icon}
                 <span className="truncate">{item.name}</span>
+                {getBadgeCount(item.id) > 0 && (
+                  <span className="shrink-0 ml-auto bg-red-500 text-white font-black text-[10px] px-1.5 min-w-[20px] h-5 rounded-full flex items-center justify-center animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]">
+                    {getBadgeCount(item.id)}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -552,6 +564,11 @@ export const MainLayout = ({
                 {item.id === "trust-badge-epc" && pendingBadgeCount > 0 && (
                   <span className="shrink-0 bg-red-500 text-white font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
                     {pendingBadgeCount}
+                  </span>
+                )}
+                {item.id !== "website-leads" && item.id !== "trust-badge-epc" && getBadgeCount(item.id) > 0 && (
+                  <span className="shrink-0 ml-auto bg-red-500 text-white font-black text-[10px] px-1.5 min-w-[20px] h-5 rounded-full flex items-center justify-center animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]">
+                    {getBadgeCount(item.id)}
                   </span>
                 )}
               </button>
@@ -659,6 +676,11 @@ export const MainLayout = ({
                   >
                     {item.icon}
                     <span className="truncate">{item.name}</span>
+                    {getBadgeCount(item.id) > 0 && (
+                      <span className="shrink-0 ml-auto bg-red-500 text-white font-black text-[10px] px-1.5 min-w-[20px] h-5 rounded-full flex items-center justify-center animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]">
+                        {getBadgeCount(item.id)}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -703,6 +725,11 @@ export const MainLayout = ({
                     {item.id === "trust-badge-epc" && pendingBadgeCount > 0 && (
                       <span className="shrink-0 bg-red-500 text-white font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
                         {pendingBadgeCount}
+                      </span>
+                    )}
+                    {item.id !== "website-leads" && item.id !== "trust-badge-epc" && getBadgeCount(item.id) > 0 && (
+                      <span className="shrink-0 ml-auto bg-red-500 text-white font-black text-[10px] px-1.5 min-w-[20px] h-5 rounded-full flex items-center justify-center animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]">
+                        {getBadgeCount(item.id)}
                       </span>
                     )}
                   </button>

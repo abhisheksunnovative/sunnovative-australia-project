@@ -115,11 +115,12 @@ function BDEOnboardingCard({ bde, requiredDocs, onApproved }) {
   const approvedCount = requiredDocs.filter(d => getDoc(d.id)?.verified).length;
   const isFullyApproved = approvedCount === requiredDocs.length && requiredDocs.length > 0;
 
+  const [reviewOpen, setReviewOpen] = useState(false);
+
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      {/* Header */}
-      <div className="p-4 flex items-center justify-between border-b border-slate-100">
-        <div className="flex items-center gap-3">
+    <>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex items-center justify-between p-4 hover:shadow-md transition">
+        <div className="flex items-center gap-4 flex-1">
           <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-lg ${(bde.bdeType || '').toLowerCase() === "freelancer" ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"}`}>
             {(bde.name || "?")[0].toUpperCase()}
           </div>
@@ -133,66 +134,88 @@ function BDEOnboardingCard({ bde, requiredDocs, onApproved }) {
             <p className="text-xs text-slate-400">{bde.email} • {bde.mobile}</p>
           </div>
         </div>
-        <div className="text-right">
-          <div className={`text-xs font-black uppercase px-3 py-1 rounded-full ${isFullyApproved ? "bg-emerald-100 text-emerald-700" : uploadedCount > 0 ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-400"}`}>
-            {isFullyApproved ? "✓ All Approved" : `${uploadedCount}/${requiredDocs.length} Uploaded`}
+        
+        <div className="flex items-center gap-6">
+          <div className="text-right">
+            <div className={`text-xs font-black uppercase px-3 py-1 rounded-full ${isFullyApproved ? "bg-emerald-100 text-emerald-700" : uploadedCount > 0 ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-400"}`}>
+              {isFullyApproved ? "✓ All Approved" : `${uploadedCount}/${requiredDocs.length} Uploaded`}
+            </div>
+            {!isFullyApproved && uploadedCount > 0 && (
+              <p className="text-[10px] text-slate-400 mt-1">{approvedCount}/{uploadedCount} approved</p>
+            )}
           </div>
-          {!isFullyApproved && uploadedCount > 0 && (
-            <p className="text-[10px] text-slate-400 mt-0.5">{approvedCount}/{uploadedCount} approved</p>
-          )}
+          <button 
+            onClick={() => setReviewOpen(true)}
+            className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition shadow-sm"
+          >
+            Review & Approve
+          </button>
         </div>
       </div>
 
-      {/* Doc List */}
-      <div className="p-4 space-y-2.5">
-        {requiredDocs.map(doc => {
-          const uploaded = getDoc(doc.id);
-          const isApproving = approving === doc.id;
-
-          return (
-            <div key={doc.id} className={`p-3 rounded-xl border transition-all ${uploaded?.verified ? 'bg-emerald-50 border-emerald-200' : uploaded ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-dashed border-slate-200'}`}>
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  {uploaded?.verified
-                    ? <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0"/>
-                    : uploaded
-                    ? <Clock className="w-4 h-4 text-blue-400 shrink-0"/>
-                    : <AlertCircle className="w-4 h-4 text-slate-300 shrink-0"/>}
-                  <div className="min-w-0">
-                    <span className="text-sm font-semibold text-slate-700">{doc.id}</span>
-                    {doc.required && <span className="ml-1 text-[9px] text-red-500 font-bold uppercase">Required</span>}
-                    {uploaded && <p className="text-[10px] text-slate-400 truncate">{uploaded.fileUrl?.split('/').pop()}</p>}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {uploaded?.fileUrl && (
-                    <button onClick={() => setViewingDoc(uploaded)}
-                      className="p-1.5 bg-slate-100 text-slate-500 hover:bg-slate-200 rounded-lg transition text-xs font-bold flex items-center gap-1">
-                      <ExternalLink className="w-3.5 h-3.5"/> View
-                    </button>
-                  )}
-                  {uploaded && !uploaded.verified && (
-                    <button onClick={() => handleApprove(doc.id, true)} disabled={isApproving}
-                      className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition disabled:opacity-50">
-                      <ThumbsUp className="w-3.5 h-3.5"/> {isApproving ? '...' : 'Approve'}
-                    </button>
-                  )}
-                  {uploaded?.verified && (
-                    <button onClick={() => handleApprove(doc.id, false)} disabled={isApproving}
-                      className="flex items-center gap-1 px-2.5 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-100 transition disabled:opacity-50">
-                      <ThumbsDown className="w-3.5 h-3.5"/> {isApproving ? '...' : 'Revoke'}
-                    </button>
-                  )}
-                  {!uploaded && <span className="text-xs text-slate-300 italic">Not uploaded</span>}
-                </div>
+      {reviewOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl flex flex-col max-h-[90vh]">
+            <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <div>
+                <h2 className="text-lg font-black text-slate-800">Review Documents — {bde.name}</h2>
+                <p className="text-xs text-slate-500 font-semibold mt-0.5">Approve or reject uploaded files</p>
               </div>
+              <button onClick={() => setReviewOpen(false)} className="p-2 hover:bg-slate-200 rounded-full text-slate-400 transition"><X className="w-5 h-5"/></button>
             </div>
-          );
-        })}
-      </div>
+            
+            <div className="p-5 space-y-3 overflow-y-auto flex-1">
+              {requiredDocs.map(doc => {
+                const uploaded = getDoc(doc.id);
+                const isApproving = approving === doc.id;
+
+                return (
+                  <div key={doc.id} className={`p-4 rounded-xl border transition-all ${uploaded?.verified ? 'bg-emerald-50 border-emerald-200' : uploaded ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-dashed border-slate-200'}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {uploaded?.verified
+                          ? <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0"/>
+                          : uploaded
+                          ? <Clock className="w-5 h-5 text-blue-400 shrink-0"/>
+                          : <AlertCircle className="w-5 h-5 text-slate-300 shrink-0"/>}
+                        <div className="min-w-0">
+                          <span className="text-sm font-bold text-slate-700">{doc.id}</span>
+                          {doc.required && <span className="ml-2 text-[10px] text-red-500 font-black uppercase">Required</span>}
+                          {uploaded && <p className="text-xs text-slate-500 truncate mt-0.5">{uploaded.fileUrl?.split('/').pop()}</p>}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {uploaded?.fileUrl && (
+                          <button onClick={() => setViewingDoc(uploaded)}
+                            className="p-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl transition text-xs font-bold flex items-center gap-1.5">
+                            <ExternalLink className="w-4 h-4"/> View File
+                          </button>
+                        )}
+                        {uploaded && !uploaded.verified && (
+                          <button onClick={() => handleApprove(doc.id, true)} disabled={isApproving}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition disabled:opacity-50 shadow-sm">
+                            <ThumbsUp className="w-4 h-4"/> {isApproving ? '...' : 'Approve'}
+                          </button>
+                        )}
+                        {uploaded?.verified && (
+                          <button onClick={() => handleApprove(doc.id, false)} disabled={isApproving}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-xs font-bold hover:bg-red-100 transition disabled:opacity-50">
+                            <ThumbsDown className="w-4 h-4"/> {isApproving ? '...' : 'Revoke'}
+                          </button>
+                        )}
+                        {!uploaded && <span className="text-xs font-bold text-slate-300 uppercase px-2">Not uploaded</span>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
       {viewingDoc && <DocViewerModal doc={viewingDoc} onClose={() => setViewingDoc(null)} />}
-    </div>
+    </>
   );
 }
 
@@ -241,7 +264,8 @@ export default function BDEOnboardingScreen() {
 
   const scopedBDEs = allBDEs.filter(bde => {
     const bdeCountries = (bde.assignedCountries || []).map(c => c.toLowerCase());
-    if (selectedCountry && !bdeCountries.includes(selectedCountry.code.toLowerCase()) && (bde.country || '').toLowerCase() !== selectedCountry.code.toLowerCase()) return false;
+    const matchCountry = bdeCountries.includes(selectedCountry?.code.toLowerCase()) || (bde.country || '').toLowerCase() === selectedCountry?.code.toLowerCase();
+    if (selectedCountry && !matchCountry) return false;
     if (selectedDistrict) {
       const bdeDists = (bde.assignedDistricts || []).map(d => d.toLowerCase());
       return bdeDists.includes(selectedDistrict.toLowerCase());
@@ -256,7 +280,8 @@ export default function BDEOnboardingScreen() {
   const stateBDEs = (stateName) =>
     allBDEs.filter(b => {
       const bdeCountries = (b.assignedCountries || []).map(c => c.toLowerCase());
-      const inCountry = selectedCountry ? bdeCountries.includes(selectedCountry.code.toLowerCase()) : true;
+      const matchCountry = bdeCountries.includes(selectedCountry?.code.toLowerCase()) || (b.country || '').toLowerCase() === selectedCountry?.code.toLowerCase();
+      const inCountry = selectedCountry ? matchCountry : true;
       // Check assignedStates directly — exact match only
       const inState = (b.assignedStates || []).map(s => s.toLowerCase()).includes(stateName.toLowerCase());
       return inCountry && inState;
@@ -265,7 +290,8 @@ export default function BDEOnboardingScreen() {
   const districtBDECount = (distName) =>
     allBDEs.filter(b => {
       const bdeCountries = (b.assignedCountries || []).map(c => c.toLowerCase());
-      const inCountry = selectedCountry ? bdeCountries.includes(selectedCountry.code.toLowerCase()) : true;
+      const matchCountry = bdeCountries.includes(selectedCountry?.code.toLowerCase()) || (b.country || '').toLowerCase() === selectedCountry?.code.toLowerCase();
+      const inCountry = selectedCountry ? matchCountry : true;
       const inDist = (b.assignedDistricts || []).map(d => d.toLowerCase()).includes(distName.toLowerCase());
       return inCountry && inDist;
     }).length;
@@ -273,7 +299,8 @@ export default function BDEOnboardingScreen() {
   const projectTypeBDECount = (ptValue) =>
     allBDEs.filter(b => {
       const bdeCountries = (b.assignedCountries || []).map(c => c.toLowerCase());
-      const inCountry = selectedCountry ? bdeCountries.includes(selectedCountry.code.toLowerCase()) : true;
+      const matchCountry = bdeCountries.includes(selectedCountry?.code.toLowerCase()) || (b.country || '').toLowerCase() === selectedCountry?.code.toLowerCase();
+      const inCountry = selectedCountry ? matchCountry : true;
       const inPT = !ptValue || (b.assignedProjectTypes || []).map(p => p.toLowerCase()).includes(ptValue.toLowerCase());
       return inCountry && inPT;
     }).length;
@@ -347,7 +374,7 @@ export default function BDEOnboardingScreen() {
             <p className="font-semibold">No BDEs assigned to {selectedDistrict}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="flex flex-col gap-3">
             {scopedBDEs.map(bde => (
               <BDEOnboardingCard key={bde._id} bde={bde} requiredDocs={docs} onApproved={refreshData}/>
             ))}

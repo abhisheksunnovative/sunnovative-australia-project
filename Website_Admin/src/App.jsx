@@ -27,6 +27,7 @@ import EpcSystemSettingsScreen from "./components/EpcSystemSettingsScreen";
 import BlogManagementScreen from "./components/BlogManagementScreen";
 import BDEManagementScreen from "./components/BDEManagementScreen";
 import BDEOnboardingScreen from "./components/BDEOnboardingScreen";
+import PlatformAnalyticsScreen from "./components/PlatformAnalyticsScreen";
 import { EpcRewardsScreen } from "./components/EpcRewardsScreen";
 import LeadScreenNew from "./components/LeadScreenNew";
 import { DemandSupplyScreen } from "./components/DemandSupplyScreen";
@@ -299,7 +300,15 @@ export default function App() {
         );
 
       case "trust-badge-epc":
-        return <TrustBadgeEpcScreen />;
+        return (
+          <TrustBadgeEpcScreen 
+            partners={partners}
+            projects={projects}
+            installers={installers}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+          />
+        );
 
       case "epc-rewards":
         return <EpcRewardsScreen />;
@@ -498,6 +507,8 @@ export default function App() {
         return <BDEManagementScreen />;
       case "bde-onboarding":
         return <BDEOnboardingScreen />;
+      case "platform-analytics":
+        return <PlatformAnalyticsScreen />;
       case "brand-management":
         return <BrandManagementScreen />;
       case "products-configuration":

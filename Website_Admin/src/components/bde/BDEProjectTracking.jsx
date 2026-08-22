@@ -27,16 +27,18 @@ export default function BDEProjectTracking({ bdeId }) {
     state: null,
     district: null,
     statusType: null, // "on-time" | "overdue"
-    overdueType: null // "customer" | "epc"
+    overdueType: null, // "customer" | "epc"
+    stageName: null // the active journey step
   });
 
   const handleDrillDown = (level, value) => {
     const newPath = { ...drillPath };
-    if (level === 0) { newPath.projectType = value; newPath.state = null; newPath.district = null; newPath.statusType = null; newPath.overdueType = null; }
-    if (level === 1) { newPath.state = value; newPath.district = null; newPath.statusType = null; newPath.overdueType = null; }
-    if (level === 2) { newPath.district = value; newPath.statusType = null; newPath.overdueType = null; }
-    if (level === 3) { newPath.statusType = value; newPath.overdueType = null; }
-    if (level === 4) { newPath.overdueType = value; }
+    if (level === 0) { newPath.projectType = value; newPath.state = null; newPath.district = null; newPath.statusType = null; newPath.overdueType = null; newPath.stageName = null; }
+    if (level === 1) { newPath.state = value; newPath.district = null; newPath.statusType = null; newPath.overdueType = null; newPath.stageName = null; }
+    if (level === 2) { newPath.district = value; newPath.statusType = null; newPath.overdueType = null; newPath.stageName = null; }
+    if (level === 3) { newPath.statusType = value; newPath.overdueType = null; newPath.stageName = null; }
+    if (level === 4) { newPath.overdueType = value; newPath.stageName = null; }
+    if (level === 5) { newPath.stageName = value; }
     
     setDrillPath(newPath);
     setDrillLevel(level + 1);
@@ -78,10 +80,18 @@ export default function BDEProjectTracking({ bdeId }) {
     }
 
     // Overdue Type Filter (Level 4 -> 5)
-    if (drillLevel > 4) {
+    if (drillLevel > 4 && drillPath.statusType === 'overdue') {
       filtered = filtered.filter(p => {
         const info = getOverdueInfo(p);
         return info.type === drillPath.overdueType;
+      });
+    }
+
+    // Stage Filter (Level 5 -> 6)
+    if (drillLevel > 5) {
+      filtered = filtered.filter(p => {
+        const info = getOverdueInfo(p);
+        return info.stepTitle === drillPath.stageName;
       });
     }
 
@@ -135,7 +145,17 @@ export default function BDEProjectTracking({ bdeId }) {
       ];
     }
 
-    return filtered; // Level 5 (or 4 for on-time): return actual projects
+    if (drillLevel === 5) {
+      const stages = {};
+      filtered.forEach(p => {
+         const info = getOverdueInfo(p);
+         const stage = info.stepTitle || 'Unknown Stage';
+         stages[stage] = (stages[stage] || 0) + 1;
+      });
+      return Object.entries(stages).map(([k, v]) => ({ label: `Stage: ${k}`, count: v, value: k, color: 'blue' }));
+    }
+
+    return filtered; // Level 6
   }, [projects, drillLevel, drillPath]);
 
   // Jump to level 5 if on-time is selected
@@ -336,7 +356,19 @@ export default function BDEProjectTracking({ bdeId }) {
     const activeStep = selectedProject.steps?.find(s => s.status === 'in-progress' || s.status === 'pending') || selectedProject.steps?.[0];
 
     return (
-      <div className="max-w-3xl mx-auto space-y-5">
+      <div className="max-w-7xl w-full mx-auto space-y-5 pb-10">
+        
+        {/* Top Back Button above the Hero */}
+        <div className="flex items-center mb-1">
+          <button 
+            onClick={() => setSelectedProjectId(null)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 shadow-sm text-slate-700 hover:text-blue-600 hover:border-blue-300 rounded-xl font-bold transition-colors text-sm"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Orders
+          </button>
+        </div>
+
         {/* Sticky Dark Blue Hero Container matching Screenshot */}
         <div className="sticky top-0 z-20 bg-[#0f172a] rounded-3xl p-4 md:p-5 text-white shadow-2xl space-y-3.5 border border-slate-800 backdrop-blur-md">
           
@@ -831,18 +863,31 @@ export default function BDEProjectTracking({ bdeId }) {
         {drillLevel > 4 && drillPath.statusType === 'overdue' && (
           <>
             <span className="text-slate-400">/</span>
-            <span className="text-slate-800">
+            <span 
+              onClick={() => handleDrillUp(5)} 
+              className={`cursor-pointer ${drillLevel === 5 ? 'text-slate-800' : 'text-blue-600 hover:underline'}`}
+            >
               {drillPath.overdueType === 'customer' ? 'Customer Overdue' : 'EPC Overdue'}
+            </span>
+          </>
+        )}
+
+        {drillLevel > 5 && drillPath.stageName && (
+          <>
+            <span className="text-slate-400">/</span>
+            <span className="text-slate-800">
+              {drillPath.stageName}
             </span>
           </>
         )}
       </div>
 
       {/* Grid of Folders / Cards */}
-      {drillLevel < 5 ? (
+      {drillLevel < 6 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {currentOptions.map((opt, i) => {
             const colorClass = opt.color === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:border-emerald-400' :
+                               opt.color === 'blue' ? 'bg-blue-50 border-blue-200 text-blue-800 hover:border-blue-400' :
                                opt.color === 'red' ? 'bg-red-50 border-red-200 text-red-800 hover:border-red-400' :
                                opt.color === 'orange' ? 'bg-orange-50 border-orange-200 text-orange-800 hover:border-orange-400' :
                                opt.color === 'purple' ? 'bg-purple-50 border-purple-200 text-purple-800 hover:border-purple-400' :

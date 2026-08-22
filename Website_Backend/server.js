@@ -145,8 +145,11 @@ app.use("/api/country-website-settings", countryWebsiteSettingsRoutes);
 app.use("/api/leads", leadRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/demand-supply", demandSupplyRoutes);
+import featureAnalyticsRoutes from "./src/routes/featureAnalyticsRoutes.js";
+
 app.use("/api/country-settings", countryWebsiteSettingsRoutes);
 app.use("/api/project-pricing", pricingRoutes);
+app.use("/api/platform-analytics", featureAnalyticsRoutes);
 app.use("/api/pricing-system-settings", pricingSystemSettingsRoutes);
 app.use("/api/project-types", projectTypeRoutes);
 app.use("/api/product-configs", productConfigRoutes);

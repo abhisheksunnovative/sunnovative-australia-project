@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
+
 import {
   Globe,
   Settings,
@@ -404,6 +405,14 @@ export default function TrustBadgeEpcScreen ({
 
   return (
     <div className="space-y-6">
+
+      <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+        <div>
+          <h2 className="text-lg font-black text-slate-800">Trust Badge Configuration</h2>
+          <p className="text-xs text-slate-500 font-semibold mt-1">Configure criteria and manage EPC badges</p>
+        </div>
+
+      </div>
 
       {!selectedPartner && (<>
         {/* HIERARCHY NAVIGATION UI */}

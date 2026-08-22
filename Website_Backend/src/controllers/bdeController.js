@@ -109,6 +109,19 @@ export const uploadOnboardingDoc = async (req, res) => {
       bde.onboardingDocs.push({ docName, fileUrl, verified: false, uploadedAt: new Date() });
     }
     await bde.save();
+
+    // Trigger Notification for Admin
+    try {
+      const Notification = (await import('../models/Notification.js')).default;
+      await Notification.create({
+        role: 'Admin',
+        title: 'New BDE Document Uploaded',
+        message: `${bde.name} uploaded ${docName}. Review required.`,
+        type: 'document_upload',
+        relatedTab: 'bde-onboarding'
+      });
+    } catch(err) { console.error('Notification Error', err); }
+
     res.json({ success: true, onboardingDocs: bde.onboardingDocs });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
