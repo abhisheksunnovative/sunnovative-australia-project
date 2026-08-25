@@ -33,8 +33,12 @@ const leadSchema = new mongoose.Schema(
     preferredInverterBrand: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand' },
     sourceOfMedia: { type: String },
     billUrl: { type: String },
-    uploadSource: { type: String, enum: ['website', 'bde_manual'], default: 'website' },
+    uploadSource: { type: String, enum: ['website', 'bde_manual', 'bde_bulk'], default: 'website' },
     hasLoggedIn: { type: Boolean, default: false },
+    billFetched: { type: Boolean, default: false },
+    installDateBooked: { type: Boolean, default: false },
+    finalInstallDate: { type: Date },
+    tokenPaid: { type: Boolean, default: false },
     profession: { type: String },
     notes: { type: String, trim: true },
 

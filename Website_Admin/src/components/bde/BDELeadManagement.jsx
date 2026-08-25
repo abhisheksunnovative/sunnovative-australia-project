@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { MapPin, PhoneCall, Calendar, ArrowRight, UserCheck, CheckCircle, Edit2, Plus, X, ShieldCheck, XCircle, Clock } from "lucide-react";
+import { MapPin, PhoneCall, Calendar, ArrowRight, UserCheck, CheckCircle, Edit2, Plus, X, ShieldCheck, XCircle, Clock, Zap } from "lucide-react";
 import UnifiedAddLeadModal from "../UnifiedAddLeadModal";
 import { useAdminSettings } from "../../hooks/useAdminSettings";
 
@@ -18,7 +18,18 @@ const STATUS_RANK = {
   "Lost": 0
 };
 
-export default function BDELeadManagement({ bdeId, country }) {
+export default function BDELeadManagement({ bdeId, country, bdeType }) {
+  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
+  const [isFreelancer, setIsFreelancer] = useState(bdeType?.toLowerCase().includes("freelance") || false);
+  useEffect(() => {
+    fetch(`${API_BASE}/api/bde/${bdeId}`).then(r => r.json()).then(d => { 
+      if(d.success && d.bde?.bdeType?.toLowerCase().includes("freelance")) { 
+        setIsFreelancer(true); setActiveTab("manual"); 
+      } else {
+        setIsFreelancer(false); setActiveTab("website");
+      }
+    }).catch(e=>{});
+  }, [bdeId, API_BASE]);
   const [leads, setLeads] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState("date-desc");
@@ -26,7 +37,6 @@ export default function BDELeadManagement({ bdeId, country }) {
   const { projectTypes: dynamicProjectTypes } = useAdminSettings(country);
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [loading, setLoading] = useState(true);
-  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
   
   const isAU = country?.toLowerCase() === 'australia' || country?.toLowerCase() === 'au' || localStorage.getItem('userCountry')?.toLowerCase() === 'australia' || window.location.pathname.includes('aust');
 
@@ -122,6 +132,7 @@ export default function BDELeadManagement({ bdeId, country }) {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [selectedRawDate, setSelectedRawDate] = useState(null);
   const [qualifyingLead, setQualifyingLead] = useState(null);
+  const [billUploadLead, setBillUploadLead] = useState(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   useEffect(() => {
@@ -224,6 +235,62 @@ export default function BDELeadManagement({ bdeId, country }) {
     updateLeadStatus(lead._id, "Not Interested");
   };
 
+  
+  const handleOpenUploadBill = (lead) => {
+    setBillUploadLead(lead);
+    setUploadedFile(null);
+    setScanError("");
+  };
+
+  const handleBillUploadAndQualify = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadedFile(file);
+    setIsScanning(true);
+    setScanError("");
+
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append("billFile", file);
+
+      const res = await fetch(`${API_BASE}/api/light-bill/scan`, {
+        method: "POST",
+        headers: { "x-country": isAU ? "australia" : "india" },
+        body: formDataUpload
+      });
+      const data = await res.json();
+
+      if (data.success && (data.details || data.extracted)) {
+         const details = data.details || data.extracted;
+         // Now update the lead with these details!
+         const updateRes = await fetch(`${API_BASE}/api/bde/leads/${billUploadLead._id}/details`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", "x-country": isAU ? "australia" : "india" },
+            body: JSON.stringify({
+               billAmount: details.billAmount,
+               nmi: details.nmi || details.consumerNumber || details.accountNumber,
+               consumerNumber: details.consumerNumber || details.accountNumber,
+               retailer: details.retailer || details.discom,
+               discom: details.discom,
+               kw: details.kwRecommendation || data.recommendedKw,
+               solarType: details.projectTypeRecommendation || 'residential'
+            })
+         });
+         if (updateRes.ok) {
+            alert("Bill scanned and Lead details updated successfully!");
+            setBillUploadLead(null);
+            fetchLeads();
+         }
+      } else {
+        setScanError(data.message || "Failed to extract details.");
+      }
+    } catch (err) {
+      setScanError("Error scanning bill.");
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
   const handleQualify = async (lead) => {
     setQualifyingLead(lead);
     setSelectedSlot(null);
@@ -293,7 +360,7 @@ export default function BDELeadManagement({ bdeId, country }) {
         });
         const data = await res.json();
         if (data.success) {
-          alert("Lead scheduled successfully! After Admin approval, this lead will be broadcast to the EPC portal.");
+          alert("Installation date locked successfully! The lead is now moved to your Prospects.");
           setIsCalendarModalOpen(false);
           fetchLeads();
         } else {
@@ -495,8 +562,11 @@ export default function BDELeadManagement({ bdeId, country }) {
 
   const [activeTab, setActiveTab] = useState("manual"); // 'manual' or 'website'
 
-  const manualLeads = leads.filter(l => l.history?.some(h => h.action.includes("Manually created by BDE")));
-  const websiteLeads = leads.filter(l => !l.history?.some(h => h.action.includes("Manually created by BDE")));
+  console.log("Total leads fetched:", leads.length);
+  const baseLeads = leads.filter(l => !l.installDateBooked && l.status !== 'Converted' && l.status !== 'Not Interested' && l.status !== 'Lost' && !l.convertedProjectId);
+  const manualLeads = baseLeads.filter(l => l.history?.some(h => h.action.includes("Manually created by BDE")));
+  console.log("Manual leads count:", manualLeads.length);
+  const websiteLeads = baseLeads.filter(l => !l.history?.some(h => h.action.includes("Manually created by BDE")));
   const displayedLeads = (activeTab === "manual" ? manualLeads : websiteLeads).filter(l => { 
     if (filterStatus !== "ALL" && l.status !== filterStatus) return false;
     if (projectTypeFilter !== "All" && (l.solarType || l.projectType || "").toLowerCase() !== projectTypeFilter.toLowerCase()) return false;
@@ -504,6 +574,7 @@ export default function BDELeadManagement({ bdeId, country }) {
     const sq = searchQuery.toLowerCase(); 
     return (l.name || "").toLowerCase().includes(sq) || (l.email || "").toLowerCase().includes(sq) || (l.mobile || "").toLowerCase().includes(sq); 
   });
+  console.log("Displayed leads count:", displayedLeads.length, { filterStatus, projectTypeFilter, activeTab, isFreelancer });
   displayedLeads.sort((a, b) => { if (sortOrder === "date-desc") return new Date(b.createdAt) - new Date(a.createdAt); if (sortOrder === "date-asc") return new Date(a.createdAt) - new Date(b.createdAt); if (sortOrder === "name-asc") return (a.name || "").localeCompare(b.name || ""); if (sortOrder === "name-desc") return (b.name || "").localeCompare(a.name || ""); return 0; });
 
   if (loading) return <div className="p-8 text-center text-gray-500 font-medium">Loading My Leads...</div>;
@@ -641,25 +712,28 @@ export default function BDELeadManagement({ bdeId, country }) {
       {/* --- TABS & ADD ACTION --- */}
       <div className="flex items-center justify-between border-b border-gray-200 pb-2">
         <div className="flex items-center gap-2">
-          <button 
-            onClick={() => setActiveTab("manual")}
-            className={`px-4 py-2 text-sm font-bold border-b-2 transition-all ${activeTab === "manual" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}
-          >
-            Self-Sourced Leads ({manualLeads.length})
-          </button>
-          <button 
-            onClick={() => setActiveTab("website")}
-            className={`px-4 py-2 text-sm font-bold border-b-2 transition-all ${activeTab === "website" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}
-          >
-            Website Enquiries ({websiteLeads.length})
-          </button>
+          {!isFreelancer ? (
+            <button 
+              className="px-4 py-2 text-sm font-bold border-b-2 transition-all border-blue-600 text-blue-600"
+            >
+              Website Enquiries ({websiteLeads.length})
+            </button>
+          ) : (
+            <button 
+              className="px-4 py-2 text-sm font-bold border-b-2 transition-all border-blue-600 text-blue-600"
+            >
+              Self-Sourced Leads ({manualLeads.length})
+            </button>
+          )}
         </div>
-        <button 
-          onClick={handleOpenAdd}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
-        >
-          <Plus className="w-4 h-4" /> Add Lead
-        </button>
+        {isFreelancer && (
+          <button 
+            onClick={handleOpenAdd}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+          >
+            <Plus className="w-4 h-4" /> Add Lead
+          </button>
+        )}
       </div>
 
       
@@ -705,7 +779,7 @@ export default function BDELeadManagement({ bdeId, country }) {
           </div>
         </div>
       </div>
-\n      <div className="space-y-4">
+      <div className="space-y-4">
         {displayedLeads.length === 0 ? (
           <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-500 font-bold shadow-sm">
             No {activeTab === "manual" ? "self-sourced" : "website"} leads found for the selected filters.
@@ -773,48 +847,12 @@ export default function BDELeadManagement({ bdeId, country }) {
                 </div>
               </div>
 
-              {/* Col 3: Status & Follow-up */}
-              <div className="flex-1 min-w-[220px] lg:border-l lg:border-slate-100 lg:pl-6 flex flex-col justify-center gap-3">
-                <div className="w-full">
-                  <select 
-                    value={lead.status || "New"} 
-                    onChange={(e) => updateLeadStatus(lead._id, e.target.value, lead.nextFollowUp)}
-                    className={`w-full p-2.5 rounded-xl border-2 text-sm font-bold shadow-sm focus:outline-none transition-colors appearance-none cursor-pointer ${
-                      lead.status === "Converted" ? "bg-emerald-50 border-emerald-300 text-emerald-800" :
-                      lead.status === "Lost" ? "bg-rose-50 border-rose-300 text-rose-800" :
-                      "bg-white border-slate-200 text-slate-700 hover:border-blue-400"
-                    }`}
-                  >
-                    {STATUS_OPTIONS.map(st => {
-                      const currentRank = STATUS_RANK[lead.status] || 1;
-                      const optRank = STATUS_RANK[st] || 1;
-                      const isDowngrade = optRank < currentRank && lead.status !== "Not Interested";
-                      const isDisabled = isDowngrade;
-
-                      return (
-                        <option key={st} value={st} disabled={isDisabled}>
-                          {st === "Converted" ? "Converted (Ready for Installation)" : st} {isDowngrade ? "🔒 (Locked)" : ""}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-
-                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex flex-col gap-2">
-                  <div className="flex items-center gap-2 text-xs font-bold">
-                    {lead.hasLoggedIn ? (
-                      <span className="text-emerald-600 flex items-center gap-1.5 bg-emerald-100/50 px-2 py-1 rounded-md w-full">
-                        <CheckCircle className="w-3.5 h-3.5"/> Customer Logged In
-                      </span>
-                    ) : (
-                      <span className="text-rose-600 flex items-center gap-1.5 bg-rose-100/50 px-2 py-1 rounded-md w-full">
-                        <Clock className="w-3.5 h-3.5"/> Waiting for Customer Login
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex justify-between items-center bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
+              {/* Col 4: Actions */}
+              <div className="flex-1 min-w-[200px] lg:border-l lg:border-slate-100 lg:pl-6 flex flex-col items-end gap-3 justify-center">
+                <div className="w-full bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex flex-col gap-2 shadow-sm mb-1">
+                  <div className="flex justify-between items-center">
                     <div className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1">
-                      <Calendar className="w-3 h-3"/> Follow-up
+                      <Calendar className="w-3 h-3"/> Follow-up Date
                     </div>
                     <input 
                       type="date" 
@@ -824,10 +862,7 @@ export default function BDELeadManagement({ bdeId, country }) {
                     />
                   </div>
                 </div>
-              </div>
 
-              {/* Col 4: Actions */}
-              <div className="flex-1 min-w-[200px] lg:border-l lg:border-slate-100 lg:pl-6 flex flex-col items-end gap-3 justify-center">
                 <button 
                   onClick={() => setViewingDetailLead(lead)} 
                   className="w-full justify-center px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-black uppercase tracking-wider rounded-xl transition-colors border border-slate-200 flex items-center gap-2 shadow-sm"
@@ -835,39 +870,37 @@ export default function BDELeadManagement({ bdeId, country }) {
                   <ShieldCheck className="w-4 h-4 text-blue-500"/> Lead Details
                 </button>
 
-                {lead.status === "Converted" ? (
-                  <div className="w-full flex flex-col gap-2">
-                    <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200 text-center shadow-sm">
-                      <span className="font-black text-emerald-700 text-sm flex items-center justify-center gap-2 mb-2">
-                        <CheckCircle className="w-4 h-4"/> Converted Lead
-                      </span>
-                      <p className="text-[10px] text-emerald-600 font-bold leading-tight">This lead has been converted. You can track its progress in the Project Tracking tab.</p>
+                {isFreelancer ? (
+                  !lead.billAmount ? (
+                    <div className="w-full flex flex-col gap-2 mt-auto">
+                      <button onClick={() => handleOpenUploadBill(lead)} className="w-full justify-center flex items-center gap-2 text-white text-sm font-bold px-4 py-3 bg-amber-500 hover:bg-amber-600 rounded-xl shadow-md transition-all hover:-translate-y-0.5">
+                        <Zap className="w-4 h-4" /> Upload Bill
+                      </button>
                     </div>
-                    
-                    {/* Progress tags directly mapped from old table logic */}
-                    {lead.convertedProjectId && (
-                      lead.projectStatus === "awaiting-admin-confirmation" ? (
-                        <div className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-1.5 rounded-lg border border-amber-200 text-center w-full shadow-sm">
-                          <Clock className="inline w-3 h-3 mb-0.5"/> Awaiting Admin Confirmation
-                        </div>
+                  ) : (
+                    <div className="w-full flex flex-col gap-2 mt-auto">
+                      { (lead.hasLoggedIn || lead.preferredInstallDate) ? (
+                        <button onClick={() => handleQualify(lead)} className="w-full justify-center flex items-center gap-2 text-white text-sm font-bold px-4 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md transition-all hover:-translate-y-0.5">
+                          <Calendar className="w-4 h-4" /> Finalize Date
+                        </button>
                       ) : (
-                        <div className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1.5 rounded-lg border border-emerald-200 text-center w-full shadow-sm">
-                          <CheckCircle className="inline w-3 h-3 mb-0.5"/> Order Approved
+                        <div className="text-[10px] text-rose-600 bg-rose-50 border border-rose-200 p-2 rounded-lg font-bold text-center w-full shadow-sm">
+                          Ask customer to login and provide an installation date to unlock Finalize Date.
                         </div>
-                      )
-                    )}
-                    
-                    {lead.isInstallDateFixed && (
-                      <div className="text-[11px] font-bold text-blue-700 bg-blue-50 px-2 py-1.5 rounded-lg border border-blue-200 text-center w-full shadow-sm">
-                        <Calendar className="inline w-3 h-3 mb-0.5"/> Install Date Locked
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )
                 ) : (
                   <div className="w-full flex flex-col gap-2 mt-auto">
-                    <button onClick={() => handleQualify(lead)} className="w-full justify-center flex items-center gap-2 text-white text-sm font-bold px-4 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5">
-                      Qualify & Book <ArrowRight className="w-4 h-4" />
-                    </button>
+                    { (lead.hasLoggedIn || lead.preferredInstallDate) ? (
+                        <button onClick={() => handleQualify(lead)} className="w-full justify-center flex items-center gap-2 text-white text-sm font-bold px-4 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md transition-all hover:-translate-y-0.5">
+                          <Calendar className="w-4 h-4" /> Finalize Date
+                        </button>
+                      ) : (
+                        <div className="text-[10px] text-rose-600 bg-rose-50 border border-rose-200 p-2 rounded-lg font-bold text-center w-full shadow-sm">
+                          Ask customer to login and provide an installation date to unlock Finalize Date.
+                        </div>
+                      )}
                     <button onClick={() => handleReject(lead)} className="w-full justify-center px-4 py-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl text-xs font-bold border border-rose-100 transition-colors flex items-center gap-1.5">
                       <XCircle className="w-3.5 h-3.5"/> Reject Lead
                     </button>
@@ -880,6 +913,35 @@ export default function BDELeadManagement({ bdeId, country }) {
         )}
       </div>
 
+
+      
+      {/* Upload Bill Modal for Freelancers */}
+      {billUploadLead && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden p-6 relative">
+            <button onClick={() => setBillUploadLead(null)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><XCircle className="w-6 h-6"/></button>
+            <h3 className="text-xl font-black text-slate-800 mb-2">Upload Customer Bill</h3>
+            <p className="text-sm text-slate-500 mb-6">Scan bill for {billUploadLead.name} to auto-fill details and qualify lead.</p>
+            
+            <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center bg-slate-50 flex flex-col items-center justify-center relative">
+              <input type="file" accept="image/*,application/pdf" onChange={handleBillUploadAndQualify} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" disabled={isScanning} />
+              {isScanning ? (
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-sm font-bold text-blue-600">Scanning Document...</span>
+                </div>
+              ) : (
+                <>
+                  <Zap className="w-10 h-10 text-slate-300 mb-3" />
+                  <span className="text-sm font-bold text-slate-700">Click to Browse or Drag Bill Here</span>
+                  <span className="text-xs text-slate-400 mt-1">PDF, JPG, PNG up to 5MB</span>
+                </>
+              )}
+            </div>
+            {scanError && <p className="text-xs text-rose-500 font-bold mt-4 text-center">{scanError}</p>}
+          </div>
+        </div>
+      )}
 
       {/* EPC Calendar Modal */}
       {isCalendarModalOpen && qualifyingLead && (

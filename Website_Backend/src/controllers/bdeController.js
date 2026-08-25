@@ -176,6 +176,7 @@ export const bdeLogin = async (req, res) => {
         name: bde.name, 
         email: bde.email, 
         country: country,
+        bdeType: bde.bdeType,
         assignedCountries: bde.assignedCountries || [country],
         assignedDistricts: bde.assignedDistricts || []
       }, 
@@ -831,32 +832,44 @@ export const scheduleAndQualifyLead = async (req, res) => {
     const lead = await Lead.findById(leadId);
     if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
 
-    lead.status = 'Converted';
+    // Mark as booked, but do NOT set status to Converted yet so it remains in Prospect
+    lead.status = 'Interested'; // Keep it active
+    lead.installDateBooked = true; // This makes it a prospect
     if (scheduledDate) {
       lead.preferredInstallDate = new Date(scheduledDate);
+      lead.finalInstallDate = new Date(scheduledDate);
       lead.isInstallDateFixed = true;
     }
     if (notes) lead.notes = notes;
     lead.history.push({ 
-      action: `Lead Scheduled by BDE - Auto Converted for Admin Approval`, 
+      action: `Installation Date Finalized by BDE`, 
       date: new Date() 
     });
     await lead.save();
 
-    // Trigger Admin Notification for Order Conversion
+    // Trigger Notification for Customer and EPC
     try {
       const { default: Notification } = await import('../models/Notification.js');
+      // To EPCs / Admin (Broadcasted)
       await Notification.create({
-        role: 'Admin',
-        title: '🔔 Lead Scheduled - Convert to Order',
-        message: `Lead ${lead.name} (${lead.district || lead.state || 'India'}) was scheduled by BDE. Please convert to Order & assign EPC.`,
+        role: 'EPC', // Assuming EPCs can see these
+        title: 'New Installation Date Fixed',
+        message: `Lead ${lead.name} has finalized installation date for ${new Date(scheduledDate).toLocaleDateString()}.`,
         leadId: lead._id
       });
+      // To Customer
+      await Notification.create({
+        role: 'Customer',
+        title: 'Installation Date Confirmed',
+        message: `Your installation has been scheduled for ${new Date(scheduledDate).toLocaleDateString()}.`,
+        leadId: lead._id,
+        userId: lead._id // If Customer notifications use leadId or userId
+      });
     } catch (notifErr) {
-      console.error("Failed to create admin notification:", notifErr);
+      console.error("Failed to create notifications:", notifErr);
     }
 
-    res.json({ success: true, lead, message: 'Lead auto-converted successfully! Waiting for Admin to Confirm Order.' });
+    res.json({ success: true, lead, message: 'Installation date locked successfully! The lead is now moved to your Prospects.' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

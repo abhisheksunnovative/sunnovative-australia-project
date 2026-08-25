@@ -565,7 +565,7 @@ const StepCard = ({ step, index, totalSteps, onUpdate, onRemove, onMoveUp, onMov
 };
 
 // ── Journey Card ──────────────────────────────────────────────────────────────
-const JourneyCard = ({ journey, journeyIndex, onUpdateJourney, onRemoveJourney, onSaveConfig, isSaving }) => {
+const JourneyCard = ({ journey, journeyIndex, onUpdateJourney, onRemoveJourney, onSaveConfig, isSaving, selectedCountry }) => {
   const [open, setOpen] = useState(false);
   const enabledSteps = (journey.steps || []).filter(s => s.enabled).length;
   const totalSteps = (journey.steps || []).length;
@@ -713,7 +713,7 @@ const JourneyCard = ({ journey, journeyIndex, onUpdateJourney, onRemoveJourney, 
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-semibold text-slate-500 uppercase block">Customer Signup Cost - Token</label>
-                  <FeatureTrialConnector 
+                  <FeatureTrialConnector preSelectedCountry={selectedCountry} 
                     featureName={`Customer Token Fee - ${journey.projectType}`} 
                     description="Trial charging a signup token amount to measure drop-off and conversion rates."
                     targetAudience="Customer"
@@ -816,6 +816,7 @@ const JourneyCard = ({ journey, journeyIndex, onUpdateJourney, onRemoveJourney, 
                   onMoveDown={(i) => moveStep(i, 1)}
                   onSaveConfig={onSaveConfig}
                   isSaving={isSaving}
+                  selectedCountry={selectedCountry}
                 />
               ))}
             </div>
@@ -1166,7 +1167,7 @@ export const OrderJourneyScreen = ({ selectedCountry: propCountry, readOnly = fa
         
         {/* Main Actions */}
         <div className="flex items-center gap-3">
-          <FeatureTrialConnector 
+          <FeatureTrialConnector preSelectedCountry={selectedCountry} 
             featureName="Custom Order Journey" 
             description="Trial custom project steps for a specific location before rolling out country-wide."
             targetAudience="Both"
@@ -1326,6 +1327,7 @@ export const OrderJourneyScreen = ({ selectedCountry: propCountry, readOnly = fa
             onRemoveJourney={removeJourney}
             onSaveConfig={handleSave}
             isSaving={saving}
+            selectedCountry={selectedCountry}
           />
         ))}
       </div>

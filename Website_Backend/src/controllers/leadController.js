@@ -381,7 +381,7 @@ export const getLeadById = async (req, res) => {
 export const updateLead = async (req, res) => {
   try {
     const { status, ...updateData } = req.body;
-    let lead = await Lead.findOne({ _id: req.params.id, isActive: true });
+    let lead = await Lead.findById(req.params.id);
     if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
 
     Object.assign(lead, updateData);
@@ -390,6 +390,25 @@ export const updateLead = async (req, res) => {
       lead.history.push({ action: `Status updated to ${status}` });
     }
 
+    if (req.body.tokenPaid && !lead.convertedProjectId) {
+      const { ProjectOrder } = await import("../models/ProjectModel.js");
+      const orderNumber = "ORD-" + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000);
+      const newOrder = await ProjectOrder.create({
+        orderNumber,
+        customerName: lead.name,
+        customerMobile: lead.mobile,
+        customerEmail: lead.email,
+        country: lead.country,
+        state: lead.state,
+        district: lead.district,
+        projectType: lead.solarType || "surya-ghar",
+        status: "Project Under Evaluation",
+        assignedBde: lead.assignedBde,
+        assignedEPCId: lead.assignedEpc || null
+      });
+      lead.convertedProjectId = newOrder._id;
+      lead.history.push({ action: "Converted to ProjectOrder: " + orderNumber });
+    }
     await lead.save();
     res.json({ success: true, data: lead });
   } catch (err) {
@@ -449,6 +468,25 @@ export const assignLead = async (req, res) => {
 
     lead.assignedTo = assignedTo;
     lead.history.push({ action: `Assigned to ${assignedTo}` });
+    if (req.body.tokenPaid && !lead.convertedProjectId) {
+      const { ProjectOrder } = await import("../models/ProjectModel.js");
+      const orderNumber = "ORD-" + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000);
+      const newOrder = await ProjectOrder.create({
+        orderNumber,
+        customerName: lead.name,
+        customerMobile: lead.mobile,
+        customerEmail: lead.email,
+        country: lead.country,
+        state: lead.state,
+        district: lead.district,
+        projectType: lead.solarType || "surya-ghar",
+        status: "Project Under Evaluation",
+        assignedBde: lead.assignedBde,
+        assignedEPCId: lead.assignedEpc || null
+      });
+      lead.convertedProjectId = newOrder._id;
+      lead.history.push({ action: "Converted to ProjectOrder: " + orderNumber });
+    }
     await lead.save();
 
     res.json({ success: true, data: lead });
@@ -459,6 +497,8 @@ export const assignLead = async (req, res) => {
 
 // ─── BULK UPLOAD CSV/XLSX ─────────────────────────────────────────────────────
 export const uploadLeads = async (req, res) => {
+  console.log("=== BULK UPLOAD STARTED ===");
+  console.log("Body:", req.body);
   try {
     if (!req.file)
       return res.status(400).json({ success: false, message: 'File required' });
@@ -479,7 +519,7 @@ export const uploadLeads = async (req, res) => {
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const mobile = String(row.phone || row.mobile || '').trim();
-      const name = String(row.name || '').trim();
+      const name = String(row.name || row.full_name || row.Name || '').trim();
       if (!mobile) { errors.push(`Row ${i + 2}: phone/mobile missing`); continue; }
 
       leads.push({
@@ -488,17 +528,18 @@ export const uploadLeads = async (req, res) => {
         whatsapp: mobile,
         email: row.email || undefined,
         state: row.state || undefined,
-        district: row.district || undefined,
+        district: row.district || row.city || row.City || undefined,
         city: row.city || undefined,
-        pincode: row.pincode ? String(row.pincode) : undefined,
+        pincode: (row.pincode || row.postcode) ? String(row.pincode || row.postcode) : undefined,
         address: row.address || undefined,
         solarType: solarType,
         country: country,
-        kw: row.systemCapacity ? String(row.systemCapacity) : '0',
+        kw: (row.systemCapacity || row.KW || row.kw) ? String(row.systemCapacity || row.KW || row.kw) : '0',
         billAmount: row.billAmount ? Number(row.billAmount) : 0,
         notes: row.notes || undefined,
-        uploadSource: 'bde_manual',
-        history: [{ action: 'Bulk uploaded' }],
+        uploadSource: req.body.bdeId ? 'bde_manual' : 'admin_manual',
+        assignedBde: req.body.bdeId ? req.body.bdeId : undefined,
+        history: [{ action: 'Manually created by BDE (Bulk Upload)' }],
       });
     }
 
@@ -507,13 +548,17 @@ export const uploadLeads = async (req, res) => {
 
     let insertedCount = 0;
     try {
+      console.log("Attempting to insert:", leads.length, "leads");
       const inserted = await Lead.insertMany(leads, { ordered: false });
+      console.log("Successfully inserted:", inserted.length);
       insertedCount = inserted.length;
     } catch (bulkErr) {
       if (bulkErr.code === 11000 || bulkErr.name === 'BulkWriteError') {
         insertedCount = bulkErr.insertedDocs ? bulkErr.insertedDocs.length : 0;
         errors.push(`${leads.length - insertedCount} leads were skipped due to duplicate mobile numbers.`);
+        console.log("--- SKIPPED DUPLICATES ---", `${leads.length - insertedCount} duplicates found!`);
       } else {
+        console.error("INNER CATCH ERROR:", bulkErr);
         throw bulkErr;
       }
     }
@@ -525,7 +570,7 @@ export const uploadLeads = async (req, res) => {
       errors: errors.length ? errors : undefined,
     });
   } catch (err) {
-    console.error('uploadLeads error:', err);
+    console.error('==== OUTER CATCH uploadLeads error ====', err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -660,6 +705,7 @@ export const convertLeadToProject = async (req, res) => {
       completionPercentage: 0,
       status: isAU ? 'awaiting-admin-confirmation' : 'Enquiry Created',
       assignedBde: lead.assignedBde,
+        assignedEPCId: lead.assignedEpc || null,
       assignedEPCId: assignedEpc ? assignedEpc.toString() : null,
       preferredInstallDate: installationDate,
       bdeRecommendationStatus: isCustomerSelect ? 'pending' : 'accepted',
@@ -710,6 +756,25 @@ export const convertLeadToProject = async (req, res) => {
     lead.status = 'Converted';
     lead.convertedProjectId = po._id;
     lead.history.push({ action: 'Converted to Project', date: new Date() });
+    if (req.body.tokenPaid && !lead.convertedProjectId) {
+      const { ProjectOrder } = await import("../models/ProjectModel.js");
+      const orderNumber = "ORD-" + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000);
+      const newOrder = await ProjectOrder.create({
+        orderNumber,
+        customerName: lead.name,
+        customerMobile: lead.mobile,
+        customerEmail: lead.email,
+        country: lead.country,
+        state: lead.state,
+        district: lead.district,
+        projectType: lead.solarType || "surya-ghar",
+        status: "Project Under Evaluation",
+        assignedBde: lead.assignedBde,
+        assignedEPCId: lead.assignedEpc || null
+      });
+      lead.convertedProjectId = newOrder._id;
+      lead.history.push({ action: "Converted to ProjectOrder: " + orderNumber });
+    }
     await lead.save();
 
     // Accrue Freelancer BDE earnings & update conversion stats

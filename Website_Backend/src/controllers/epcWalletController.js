@@ -59,6 +59,17 @@ const checkAndSendLowBalanceAlert = async (wallet, epc) => {
       });
       wallet.lastLowBalanceAlertAt = new Date();
       await wallet.save();
+      
+      // Feature Attribution tracking
+      if (req.body.attributedFeatureId) {
+        try {
+          // Fire and forget attribution
+          fetch(`http://localhost:4005/api/platform-analytics/${req.body.attributedFeatureId}/track-attribution`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'recharge', kw: req.body.kwRechargeAmount })
+          }).catch(e => console.error("Attribution error:", e));
+        } catch (e) {}
+      }
     } else if (!isLow && wallet.lastLowBalanceAlertAt) {
       // balance recovered — allow a fresh alert next time it dips again
       wallet.lastLowBalanceAlertAt = null;

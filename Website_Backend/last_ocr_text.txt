@@ -1,38 +1,27 @@
-AGL Energy
+Origin Energy
 Tax Invoice / Electricity Bill
-ABN 74 115 061 375
-Account Name
-Michael Thompson
-Supply Address
-24 Wattle Crescent, Sydney NSW 2145
-NMI
-5260181590D
-Account Number
-140260662
-Distributor (DNSP)
-Ausgrid
-Tariff
-Time of Use (Residential TOU1)
-Bill Issue Date
-01 Aug 2026
-Billing Period
-29 Apr – 28 Jul 2026
-Payment Due Date
-15 Aug 2026
-Read Type
-Actual
+ABN 30 000 051 696
+Account Name           Sarah Nguyen
+Supply Address         8 Banksia Street, Brisbane QLD 4000
+NMI                    1860913909G
+Account Number         153246119
+Distributor (DNSP)     Energex
+Tariff                 Flat Rate (Residential)
+Bill Issue Date        02 Aug 2026
+Billing Period         03 May - 01 Aug 2026
+Payment Due Date       16 Aug 2026
+Read Type              Actual
 Electricity Usage & Charges
-ChargeUsage (kWh)Rate (c/kWh)Amount
-Peak Usage28745.21$129.75
-Shoulder Usage13027.65$35.95
-Off-Peak Usage23718.92$44.84
-Supply Charge90 days110.23 c/day$99.21
-Total electricity usage this period: 654 kWh  |  Average daily usage: 7.27 kWh/day
+Charge          Usage (kWh)   Rate (c/kWh)   Amount
+General Usage   1710         29.84          $510.26
+Supply Charge   90 days       104.56 c/day     $94.10
+Total electricity usage this period: 1710 kWh | Average daily usage: 19.00 kWh/day
 Solar Feed-in Credit
-Feed-in Tariff Rate: 5.0 c/kWh  |  Exported this period: 0 kWh (no solar system connected to this NMI)  |  Credit: $0.00
+Feed-in Tariff Rate: 6.0 c/kWh | Exported this period: 0 kWh (no solar system connected to this NMI) | Credit: $0.00
 Bill Summary
-Total Charges (excl. GST)$309.75
-GST (10%)$30.97
-Total Amount Due$340.72
-This is a MOCK / SAMPLE bill generated for software testing purposes only. All names, addresses, NMI, account numbers and usage figures
-are fictional and randomly generated. It is not an official AGL Energy document and carries no billing validity.
+Total Charges (excl. GST)                    $604.37
+GST (10%)                                     $60.44
+Total Amount Due                              $664.80
+This is a MOCK / SAMPLE bill generated for software testing purposes only. Usage calibrated for approx. 5kW solar system eligibility. All names,
+addresses, NMI, account numbers and usage figures are fictional and randomly generated. It is not an official Origin Energy document and carries no billing
+validity.

@@ -92,6 +92,11 @@ export default function BDEAustDashboard({ bdeId }) {
     }
   };
 
+  
+  const isFreelancer = stats?.isFreelancer;
+  // removed trueLeads for Aust Dashboard since leads are not fetched here directly
+
+  
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between mb-2">
@@ -164,7 +169,7 @@ export default function BDEAustDashboard({ bdeId }) {
           </div>
           <div>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Orders Generated</p>
-            <h3 className="text-3xl font-black text-slate-900 mt-0.5">{stats.ordersGenerated}</h3>
+            <h3 className="text-3xl font-black text-slate-900 mt-0.5">{stats?.ordersGenerated || 0}</h3>
           </div>
         </div>
 
@@ -182,7 +187,7 @@ export default function BDEAustDashboard({ bdeId }) {
       {/* PROJECT TYPES CARDS REPLACING STC */}
       <div>
         <h3 className="text-base font-black text-slate-800 mb-3 flex items-center gap-2">
-          <Zap className="w-5 h-5 text-yellow-500" /> Authorized Project Types
+          <Zap className="w-5 h-5 text-yellow-500" /> Commission Per Lead
         </h3>
         <p className="text-sm text-slate-500 mb-4">Click a project type to view commission rates.</p>
         

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { LayoutDashboard, Users, Map, LogOut, Sun, ClipboardList, AlertTriangle, Bell, Trash2, CheckSquare, Square, Check, User } from "lucide-react";
 
-export default function BDELayout({ children, currentTab, onTabChange, onLogout, bdeName, bdeId }) {
+export default function BDELayout({ children, currentTab, onTabChange, onLogout, bdeName, bdeId, bdeType }) {
   const [notifications, setNotifications] = useState([]);
   const [selectedNotifIds, setSelectedNotifIds] = useState([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [tabCounts, setTabCounts] = useState({ leads: 0, projects: 0 });
+  const [tabCounts, setTabCounts] = useState({ leads: 0, projects: 0, prospects: 0 });
   const notifRef = useRef(null);
 
   const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
@@ -19,15 +19,29 @@ export default function BDELayout({ children, currentTab, onTabChange, onLogout,
       ]);
       let leadsCount = 0;
       let projCount = 0;
+      let prospectsCount = 0;
       if (leadsRes && leadsRes.ok) {
         const d = await leadsRes.json();
-        leadsCount = d.leads?.length || 0;
+        const bdeLeads = d.leads || [];
+        const isFreelance = bdeType?.toLowerCase().includes("freelance");
+        
+        leadsCount = bdeLeads.filter(l => {
+             const isManual = l.history?.some(h => h.action.includes("Manually created by BDE"));
+             const isTargetSource = isFreelance ? isManual : !isManual;
+             return isTargetSource && !l.installDateBooked && l.status !== 'Converted' && l.status !== 'Not Interested' && l.status !== 'Lost' && !l.convertedProjectId;
+        }).length;
+        
+        prospectsCount = bdeLeads.filter(l => {
+             const isManual = l.history?.some(h => h.action.includes("Manually created by BDE"));
+             const isTargetSource = isFreelance ? isManual : !isManual;
+             return isTargetSource && l.installDateBooked && !l.tokenPaid && !l.convertedProjectId;
+        }).length;
       }
       if (projRes && projRes.ok) {
         const p = await projRes.json();
         projCount = p.data?.length || p.projects?.length || 0;
       }
-      setTabCounts({ leads: leadsCount, projects: projCount });
+      setTabCounts({ leads: leadsCount, projects: projCount, prospects: prospectsCount });
     } catch (e) {
       console.warn("Failed to load BDE tab counts", e);
     }
@@ -38,9 +52,11 @@ export default function BDELayout({ children, currentTab, onTabChange, onLogout,
       if (!bdeId) return;
       const res = await fetch(`${API_BASE}/api/notifications/bde/${bdeId}`);
       const data = await res.json();
-      if (data.success) setNotifications(data.data);
+      if (data.success) {
+        setNotifications(data.notifications || []);
+      }
     } catch (e) {
-      console.warn('BDE Notifications fetch failed:', e);
+      console.error(e);
     }
   };
 
@@ -54,11 +70,15 @@ export default function BDELayout({ children, currentTab, onTabChange, onLogout,
     return () => clearInterval(int);
   }, [bdeId]);
 
+  const isFreelancer = bdeType?.toLowerCase().includes("freelance");
+
   const navItems = [
     { id: "bde-aust", name: "Dashboard", icon: <LayoutDashboard className="w-5 h-5 text-emerald-400" /> },
-    { id: "bde-leads", name: "My Leads", icon: <Users className="w-5 h-5" />, count: tabCounts.leads },
+    { id: "bde-leads", name: isFreelancer ? "Self Leads" : "My Leads", icon: <Users className="w-5 h-5" />, count: tabCounts.leads },
+    { id: "bde-prospects", name: "My Prospects", icon: <CheckSquare className="w-5 h-5" />, count: tabCounts.prospects },
     { id: "bde-projects", name: "Customer Order Journey", icon: <ClipboardList className="w-5 h-5" />, count: tabCounts.projects },
-    { id: "bde-demand", name: "Demand Pool", icon: <Map className="w-5 h-5" /> },
+    ...(!isFreelancer ? [{ id: "bde-demand", name: "Demand Pool", icon: <Map className="w-5 h-5" /> }] : []),
+
     { id: "bde-profile", name: "My Profile", icon: <User className="w-5 h-5" /> }
   ];
 

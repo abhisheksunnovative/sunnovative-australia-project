@@ -1,0 +1,10 @@
+const fs = require('fs'); 
+let f = 'src/components/bde/BDEAustDashboard.jsx'; 
+let c = fs.readFileSync(f, 'utf8'); 
+let blockStart = c.indexOf('{/* NEW COUNTRY CARD */}'); 
+let blockEnd = c.indexOf('<div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">'); 
+let block = c.substring(blockStart, blockEnd); 
+c = c.substring(0, blockStart) + c.substring(blockEnd); 
+let kpiIdx = c.indexOf('{/* KPI CARDS */}'); 
+c = c.substring(0, kpiIdx) + block + c.substring(kpiIdx); 
+fs.writeFileSync(f, c);

@@ -22,6 +22,7 @@ export default function PlatformAnalyticsScreen() {
   // Analytics Data
   const [features, setFeatures] = useState([]);
   const [analytics, setAnalytics] = useState(null);
+  const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const { states: stateList, districts: districtList, loading: geoLoading } = useGeography(
@@ -33,6 +34,24 @@ export default function PlatformAnalyticsScreen() {
   const [projectTypes, setProjectTypes] = useState([]);
 
   // Fetch Countries from backend
+  const handleImplementToCountry = async (featureId) => {
+    if (!window.confirm("Are you sure you want to implement this feature nationwide? This will make it active across the entire country.")) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/platform-analytics/${featureId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Business", "activeLocations.0.district": null, "activeLocations.0.state": null, scopeLevel: "Country" })
+      });
+      if (res.ok) {
+        alert("Feature is now live for the entire Country!");
+        fetchData();
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Failed to update rollout scope.");
+    }
+  };
+
   useEffect(() => {
     const fetchCountries = async () => {
       try {
@@ -86,6 +105,7 @@ export default function PlatformAnalyticsScreen() {
       if (data.success) {
         setFeatures(data.features.filter(f => activeTab === "Trial Analytics" ? f.status === "Trial" : f.status === "Business"));
         setAnalytics(data.analytics);
+        if (data.chartData) setChartData(data.chartData);
       }
     } catch (err) {
       console.error(err);
@@ -345,13 +365,47 @@ export default function PlatformAnalyticsScreen() {
                       <span className={`px-3 py-1 rounded-full text-xs font-black uppercase ${f.metrics?.successStatus === 'Success' ? 'bg-emerald-100 text-emerald-700' : f.metrics?.successStatus === 'Failure' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
                         {f.metrics?.successStatus || 'Evaluating'}
                       </span>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase mt-2">
-                        Start: {new Date(f.startDate).toLocaleDateString()}
-                      </p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase mt-2">{f.targetAudience} • {f.trialDuration}</p>
+                      
                     </div>
                   </div>
 
-                  {/* Exhaustive Dashboard Metrics */}
+                  {/* Advanced Usage Tracking & Attribution */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl mb-4 border border-slate-100">
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Total Usage Clicks</p>
+                        <p className="text-xl font-black text-indigo-600">{f.metrics?.usageCount || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Orders Attributed</p>
+                        <p className="text-xl font-black text-blue-600">{f.metrics?.ordersAttributed || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Recharges Attributed</p>
+                        <p className="text-xl font-black text-purple-600">{f.metrics?.rechargesAttributed || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Total Attributed kW</p>
+                        <p className="text-xl font-black text-emerald-600">{f.metrics?.kwAttributed || 0} kW</p>
+                      </div>
+                    </div>
+
+                    {f.metrics?.clicksHistory && f.metrics.clicksHistory.length > 0 && (
+                      <div className="mb-6 h-48">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Feature Usage Timeline</p>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={f.metrics.clicksHistory}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0"/>
+                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94a3b8'}} />
+                            <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94a3b8'}} />
+                            <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                            <Line type="monotone" dataKey="count" stroke="#6366f1" strokeWidth={3} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+
+                    {/* Exhaustive Dashboard Metrics */}
                   {f.metrics && (
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-5">
                       <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
@@ -386,26 +440,37 @@ export default function PlatformAnalyticsScreen() {
                   )}
 
                   {/* Implementation Workflow Controls */}
-                  <div className="flex gap-3 justify-end items-center border-t border-slate-100 pt-4 mt-2 flex-wrap">
-                    <button onClick={() => setSelectedFeatureDetails(f)} className="mr-auto px-4 py-2 bg-indigo-50 text-indigo-600 font-bold text-xs uppercase rounded-lg hover:bg-indigo-100 border border-indigo-200 transition flex items-center gap-2">
-                      <Activity className="w-4 h-4" /> View Detailed Analytics
-                    </button>
-                    {activeTab === "Trial Analytics" ? (
-                      <>
-                        <button onClick={() => updateFeatureStatus(f._id, "Stopped")} className="px-4 py-2 bg-red-50 text-red-600 font-bold text-xs uppercase rounded-lg hover:bg-red-100 border border-red-200 transition">Stop Trial</button>
-                        <button onClick={() => updateFeatureStatus(f._id, "Trial")} className="px-4 py-2 bg-slate-100 text-slate-600 font-bold text-xs uppercase rounded-lg hover:bg-slate-200 border border-slate-200 transition">Modify Setting</button>
-                        <button onClick={() => updateFeatureStatus(f._id, "Trial")} className="px-4 py-2 bg-blue-50 text-blue-600 font-bold text-xs uppercase rounded-lg hover:bg-blue-100 border border-blue-200 transition">Continue Trial</button>
-                        <button onClick={() => updateFeatureStatus(f._id, "Business", { country: selectedCountry.name, state: selectedState, projectType: selectedProjectType })} className="px-4 py-2 bg-purple-600 text-white font-bold text-xs uppercase rounded-lg hover:bg-purple-700 shadow-sm transition">Implement for State</button>
-                      </>
-                    ) : (
-                      <>
-                        <button onClick={() => updateFeatureStatus(f._id, "Trial")} className="px-4 py-2 bg-slate-100 text-slate-600 font-bold text-xs uppercase rounded-lg hover:bg-slate-200 border border-slate-200 transition">Downgrade to Trial</button>
-                        <button onClick={() => updateFeatureStatus(f._id, "Business", { country: selectedCountry.name, projectType: selectedProjectType })} className="px-4 py-2 bg-emerald-600 text-white font-bold text-xs uppercase rounded-lg hover:bg-emerald-700 shadow-sm transition">Implement for Country</button>
-                      </>
-                    )}
+                    <div className="flex gap-3 justify-end items-center border-t border-slate-100 pt-4 mt-2 flex-wrap">
+                      <button onClick={() => setSelectedFeatureDetails(f)} className="mr-auto px-4 py-2 bg-indigo-50 text-indigo-600 font-bold text-xs uppercase rounded-lg hover:bg-indigo-100 border border-indigo-200 transition flex items-center gap-2">
+                        <Activity className="w-4 h-4" /> View Detailed Analytics
+                      </button>
+                      
+                      {activeTab === "Trial Analytics" ? (
+                        <>
+                          <button onClick={() => updateFeatureStatus(f._id, "Stopped")} className="px-4 py-2 bg-red-50 text-red-600 font-bold text-xs uppercase rounded-lg hover:bg-red-100 border border-red-200 transition">Stop Trial</button>
+                          
+                          {f.activeLocations && f.activeLocations[0]?.district ? (
+                             <button onClick={() => updateFeatureStatus(f._id, "Business", { country: f.activeLocations[0].country, state: f.activeLocations[0].state, projectType: selectedProjectType })} className="px-4 py-2 bg-purple-600 text-white font-bold text-xs uppercase rounded-lg hover:bg-purple-700 shadow-sm transition">
+                               Implement to State
+                             </button>
+                          ) : (f.activeLocations && f.activeLocations[0]?.state) ? (
+                             <button onClick={() => updateFeatureStatus(f._id, "Business", { country: f.activeLocations[0].country, projectType: selectedProjectType })} className="px-4 py-2 bg-emerald-600 text-white font-bold text-xs uppercase rounded-lg hover:bg-emerald-700 shadow-sm transition">
+                               Implement to Country
+                             </button>
+                          ) : (
+                             <button onClick={() => updateFeatureStatus(f._id, "Business", { country: f.activeLocations[0]?.country || selectedCountry.name, projectType: selectedProjectType })} className="px-4 py-2 bg-emerald-600 text-white font-bold text-xs uppercase rounded-lg hover:bg-emerald-700 shadow-sm transition">
+                               Implement to Country
+                             </button>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => updateFeatureStatus(f._id, "Trial")} className="px-4 py-2 bg-slate-100 text-slate-600 font-bold text-xs uppercase rounded-lg hover:bg-slate-200 border border-slate-200 transition">Downgrade to Trial</button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           </div>
 
@@ -494,7 +559,7 @@ export default function PlatformAnalyticsScreen() {
               <div>
                 <h2 className="text-xl font-black text-slate-800 uppercase">{selectedFeatureDetails.featureName}</h2>
                 <p className="text-sm font-semibold text-slate-500 uppercase mt-1">
-                  Detailed Impact Analysis • {selectedFeatureDetails.trialDuration || 'Ongoing'}
+                  Detailed Impact Analysis • {selectedFeatureDetails.trialDuration || 'Ongoing'} • Focus: {selectedFeatureDetails.impactTarget || 'Customer Conversion'}
                 </p>
               </div>
               <button onClick={() => setSelectedFeatureDetails(null)} className="text-slate-400 hover:text-slate-700 bg-slate-200 hover:bg-slate-300 rounded-full p-2">
@@ -522,29 +587,87 @@ export default function PlatformAnalyticsScreen() {
                 </div>
               </div>
 
-              <div>
-                <h3 className="text-sm font-bold text-slate-700 uppercase mb-4">Growth Trend (Simulated)</h3>
-                <div className="h-72 w-full bg-white border border-slate-100 rounded-xl p-4">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={[
-                      { name: 'W1', customers: 12, epcs: 2, orders: 3 },
-                      { name: 'W2', customers: 25, epcs: 5, orders: 8 },
-                      { name: 'W3', customers: 45, epcs: 12, orders: 15 },
-                      { name: 'W4', customers: selectedFeatureDetails.metrics?.customersCount || 80, epcs: selectedFeatureDetails.metrics?.epcsCount || 20, orders: selectedFeatureDetails.metrics?.ordersGenerated || 25 }
-                    ]}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                      <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                      <Legend iconType="circle" />
-                      <Line type="monotone" dataKey="customers" name="Customers Gained" stroke="#3b82f6" strokeWidth={3} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
-                      <Line type="monotone" dataKey="orders" name="Orders Closed" stroke="#10b981" strokeWidth={3} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
-                      <Line type="monotone" dataKey="epcs" name="EPCs Joined" stroke="#a855f7" strokeWidth={3} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
-                    </LineChart>
-                  </ResponsiveContainer>
+              
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Graph 1: Growth Trend */}
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-700 uppercase mb-4">Growth Trend (Conversions)</h3>
+                    <div className="h-72 w-full bg-white border border-slate-100 rounded-xl p-4 shadow-sm">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={chartData.length > 0 ? chartData : [{name: 'No Data', customers: 0, epcs: 0, orders: 0}]}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
+                          <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
+                          <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                          <Legend iconType="circle" wrapperStyle={{fontSize: '11px', fontWeight: 'bold'}} />
+                          <Line type="monotone" dataKey="customers" name="Customers Gained" stroke="#3b82f6" strokeWidth={3} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
+                          <Line type="monotone" dataKey="orders" name="Orders Closed" stroke="#10b981" strokeWidth={3} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
+                          <Line type="monotone" dataKey="epcs" name="EPCs Joined" stroke="#a855f7" strokeWidth={3} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Graph 2: Feature Usage Timeline */}
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-700 uppercase mb-4">Feature Usage Timeline (Clicks)</h3>
+                    <div className="h-72 w-full bg-white border border-slate-100 rounded-xl p-4 shadow-sm">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={selectedFeatureDetails.metrics?.clicksHistory?.length > 0 ? selectedFeatureDetails.metrics.clicksHistory : [{date: 'No Data', count: 0}]}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
+                          <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
+                          <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                          <Legend iconType="circle" wrapperStyle={{fontSize: '11px', fontWeight: 'bold'}} />
+                          <Line type="monotone" dataKey="count" name="Daily Clicks" stroke="#f59e0b" strokeWidth={3} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Graph 3: Trial vs State Benchmark */}
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-700 uppercase mb-4">Trial vs Baseline Impact</h3>
+                    <div className="h-72 w-full bg-white border border-slate-100 rounded-xl p-4 shadow-sm">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={[
+                          { name: 'Conversion Rate', trial: selectedFeatureDetails.metrics?.conversionRate || 0, baseline: analytics?.stateComparison?.stateConversion || 0 },
+                          { name: 'EPC Acceptance', trial: selectedFeatureDetails.metrics?.epcsCount || 0, baseline: analytics?.stateComparison?.stateEpcs || 0 }
+                        ]}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
+                          <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
+                          <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                          <Legend iconType="circle" wrapperStyle={{fontSize: '11px', fontWeight: 'bold'}} />
+                          <Bar dataKey="trial" name="Trial Result" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="baseline" name="State Baseline" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Graph 4: Attribution Overview */}
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-700 uppercase mb-4">Direct Feature Attribution</h3>
+                    <div className="h-72 w-full bg-white border border-slate-100 rounded-xl p-4 shadow-sm">
+                      <ResponsiveContainer width="100%" height="100%">
+                         <BarChart data={[
+                           { name: 'Total Orders', count: selectedFeatureDetails.metrics?.ordersGenerated || 0 },
+                           { name: 'Attributed Orders', count: selectedFeatureDetails.metrics?.ordersAttributed || 0 },
+                           { name: 'Attributed Recharges', count: selectedFeatureDetails.metrics?.rechargesAttributed || 0 }
+                         ]}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
+                          <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
+                          <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                          <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
                 </div>
+
               </div>
-            </div>
 
             <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-between items-center sticky bottom-0">
               <button 
@@ -562,22 +685,38 @@ export default function PlatformAnalyticsScreen() {
                   Modify Setting
                 </button>
 
-                {selectedFeatureDetails.status === 'Trial' && (
-                  <button 
-                    onClick={() => { 
-                      updateFeatureStatus(selectedFeatureDetails._id, "Business", { 
-                        country: selectedCountry?.name, 
-                        state: selectedState, 
-                        projectType: selectedProjectType 
-                        // Note: district is omitted, effectively rolling it out to the whole state
-                      }); 
-                      setSelectedFeatureDetails(null); 
-                    }} 
-                    className="px-5 py-2.5 bg-indigo-600 text-white font-bold text-sm uppercase rounded-xl hover:bg-indigo-700 shadow-md transition"
-                  >
-                    Implement for State
-                  </button>
-                )}
+                
+                  {selectedFeatureDetails.status === 'Trial' && (
+                    selectedFeatureDetails.activeLocations && selectedFeatureDetails.activeLocations[0]?.district ? (
+                      <button 
+                        onClick={() => { 
+                          updateFeatureStatus(selectedFeatureDetails._id, "Business", { 
+                            country: selectedFeatureDetails.activeLocations[0].country, 
+                            state: selectedFeatureDetails.activeLocations[0].state, 
+                            projectType: selectedProjectType 
+                          }); 
+                          setSelectedFeatureDetails(null); 
+                        }} 
+                        className="px-5 py-2.5 bg-purple-600 text-white font-bold text-sm uppercase rounded-xl hover:bg-purple-700 shadow-md transition"
+                      >
+                        Implement to State
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => { 
+                          updateFeatureStatus(selectedFeatureDetails._id, "Business", { 
+                            country: selectedFeatureDetails.activeLocations?.[0]?.country || selectedCountry?.name, 
+                            projectType: selectedProjectType 
+                          }); 
+                          setSelectedFeatureDetails(null); 
+                        }} 
+                        className="px-5 py-2.5 bg-emerald-600 text-white font-bold text-sm uppercase rounded-xl hover:bg-emerald-700 shadow-md transition"
+                      >
+                        Implement to Country
+                      </button>
+                    )
+                  )}
+
 
                 {selectedFeatureDetails.status === 'Business' && (
                   <button 

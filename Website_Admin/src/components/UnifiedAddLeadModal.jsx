@@ -1,10 +1,11 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Upload, X, CheckCircle, AlertTriangle, ScanLine, FileText } from "lucide-react";
+import { useAdminSettings } from "../hooks/useAdminSettings";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
-const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bdeId = null, isBDE = false, userCountry = "India" }) => {
-  const [activeTab, setActiveTab] = useState("scan"); // "scan" or "bulk"
+const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bdeId = null, isBDE = false, isFreelancer = false, userCountry = "India" }) => {
+  const [activeTab, setActiveTab] = useState(isFreelancer ? "bulk" : "scan"); // "scan" or "bulk"
 
   // -- Scan/Manual Tab State --
   const [file, setFile] = useState(null);
@@ -12,8 +13,7 @@ const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bd
   const [scanError, setScanError] = useState("");
   const [scanConfidence, setScanConfidence] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const isAU = userCountry.toLowerCase() === "australia";
+const isAU = userCountry.toLowerCase() === "australia";
 
   const [formData, setFormData] = useState({
     name: "", mobile: "", email: "", district: "",
@@ -31,6 +31,41 @@ const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bd
   const [isBulkLoading, setIsBulkLoading] = useState(false);
   const [bulkResult, setBulkResult] = useState(null);
   const [bulkError, setBulkError] = useState("");
+
+  const { projectTypes } = useAdminSettings(userCountry);
+  const [bdeProjectTypes, setBdeProjectTypes] = useState([]);
+  
+  useEffect(() => {
+    if (isBDE && bdeId) {
+      fetch(`${API_BASE}/api/bde/${bdeId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.bde && data.bde.assignedProjectTypes) {
+            setBdeProjectTypes(data.bde.assignedProjectTypes);
+          }
+        })
+        .catch(err => console.error("Failed to fetch BDE details:", err));
+    }
+  }, [isBDE, bdeId]);
+
+  // Filter project types
+  const availableProjectTypes = isBDE && bdeProjectTypes.length > 0 
+    ? projectTypes.filter(pt => bdeProjectTypes.includes(pt.value))
+    : projectTypes;
+
+  useEffect(() => {
+    if (availableProjectTypes.length > 0 && (!bulkSolarType || !availableProjectTypes.find(pt => pt.value === bulkSolarType))) {
+      setBulkSolarType(availableProjectTypes[0].value);
+    }
+  }, [availableProjectTypes, bulkSolarType]);
+
+  // Ensure bulkCountry matches userCountry
+  useEffect(() => {
+    if (userCountry && bulkCountry.toLowerCase() !== userCountry.toLowerCase()) {
+      setBulkCountry(userCountry);
+    }
+  }, [userCountry, bulkCountry]);
+
 
   const fileInputRef = useRef(null);
   const bulkFileInputRef = useRef(null);
@@ -52,6 +87,7 @@ const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bd
       });
 
       const data = await res.json();
+      console.log("Bulk upload response:", data);
       if (!res.ok) throw new Error(data.message || "Scan failed");
 
       setScanConfidence(data.confidence);
@@ -123,6 +159,7 @@ const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bd
 
   // 2. Bulk Upload Logic
   const handleBulkUpload = async () => {
+    console.log("Starting bulk upload... bdeId:", bdeId);
     if (!bulkFile) { setBulkError("Please select a file"); return; }
     setIsBulkLoading(true); setBulkError("");
     try {
@@ -131,6 +168,7 @@ const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bd
       form.append("solarType", bulkSolarType);
       form.append("country", bulkCountry);
       form.append("uploadSource", isBDE ? "bde_manual" : "admin_manual");
+      if (isBDE && bdeId) form.append("bdeId", bdeId);
 
       const res = await fetch(`${API_BASE}/api/leads/upload`, { method: "POST", body: form });
       const data = await res.json();
@@ -159,12 +197,14 @@ const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bd
 
         {/* Tabs */}
         <div className="flex px-5 pt-3 border-b border-gray-100 gap-4">
+          {!isFreelancer && (
           <button 
             onClick={() => setActiveTab("scan")}
             className={`pb-2 px-1 text-sm font-bold border-b-2 transition-colors ${activeTab === 'scan' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
           >
-            Bill Scan & Manual Entry
+            Single Lead (Manual)
           </button>
+          )}
           <button 
             onClick={() => setActiveTab("bulk")}
             className={`pb-2 px-1 text-sm font-bold border-b-2 transition-colors ${activeTab === 'bulk' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
@@ -262,19 +302,13 @@ const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bd
             <div className="space-y-6">
               {!bulkResult ? (
                 <>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4">
                     <div>
                       <label className="text-xs font-semibold text-gray-500 block mb-1">Solar Type</label>
                       <select value={bulkSolarType} onChange={e => setBulkSolarType(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50">
-                        <option value="residential">Residential</option>
-                        <option value="commercial">Commercial</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-gray-500 block mb-1">Country</label>
-                      <select value={bulkCountry} onChange={e => setBulkCountry(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50">
-                        <option value="India">India</option>
-                        <option value="Australia">Australia</option>
+                        {availableProjectTypes.map(pt => (
+                          <option key={pt.value} value={pt.value}>{pt.label}</option>
+                        ))}
                       </select>
                     </div>
                   </div>

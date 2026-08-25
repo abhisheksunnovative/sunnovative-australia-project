@@ -574,7 +574,7 @@ export default function BDEProjectTracking({ bdeId }) {
                             {!previousStepsCompleted ? (
                               <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs font-bold text-red-750 flex items-start gap-2">
                                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                                Pehle isse pichle saare steps complete hone chahiye. / Please complete all previous steps first.
+                                Please complete all previous steps first.
                               </div>
                             ) : (
                               <>

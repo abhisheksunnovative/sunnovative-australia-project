@@ -51,6 +51,7 @@ import BDEDemandPool from "./components/bde/BDEDemandPool";
 import BDEProjectTracking from "./components/bde/BDEProjectTracking";
 import BDEAustDashboard from "./components/bde/BDEAustDashboard";
 import BDEProfile from "./components/bde/BDEProfile";
+import BDEProspects from "./components/bde/BDEProspects";
 import {
   initialEPCPartners,
   initialQualificationRules,
@@ -86,18 +87,25 @@ export default function App() {
   const [userCountry, setUserCountry] = useState(() => {
     return localStorage.getItem("sunnovative_user_country") || "";
   });
+  
+  const [bdeType, setBdeType] = useState(() => {
+    return localStorage.getItem("sunnovative_bde_type") || "";
+  });
 
-  const handleLoginSuccess = (email, role = "admin", loginUserId = null, country = "") => {
+  const handleLoginSuccess = (email, role = "admin", loginUserId = null, country = "", type = "") => {
     setIsAuthenticated(true);
     setAdminEmail(email);
     setUserRole(role);
     setUserId(loginUserId);
     if (country) setUserCountry(country);
+    if (type) setBdeType(type);
 
     localStorage.setItem("sunnovative_admin_authenticated", "true");
     localStorage.setItem("sunnovative_admin_email", email);
     localStorage.setItem("sunnovative_user_role", role);
     if (loginUserId) localStorage.setItem("sunnovative_user_id", loginUserId);
+    if (country) localStorage.setItem("sunnovative_user_country", country);
+    if (type) localStorage.setItem("sunnovative_bde_type", type);
     if (country) localStorage.setItem("sunnovative_user_country", country);
     
     if (role === "BDE") {
@@ -545,16 +553,18 @@ export default function App() {
       case "bde-dashboard":
       case "bde-aust":
         return userCountry?.toLowerCase() === "australia" ? (
-          <BDEAustDashboard bdeId={userId} />
+          <BDEAustDashboard bdeId={userId} onTabChange={setCurrentTab} bdeType={bdeType} />
         ) : (
-          <BDEDashboard bdeId={userId} />
+          <BDEDashboard bdeId={userId} onTabChange={setCurrentTab} bdeType={bdeType} />
         );
       case "bde-profile":
         return <BDEProfile bdeId={userId} />;
       case "bde-leads":
-        return <BDELeadManagement bdeId={userId} country={userCountry} />;
+        return <BDELeadManagement bdeId={userId} country={userCountry} bdeType={bdeType} />;
       case "bde-projects":
         return <BDEProjectTracking bdeId={userId} />;
+      case "bde-prospects":
+        return <BDEProspects bdeId={userId} country={userCountry} />;
       case "bde-demand":
         return <BDEDemandPool bdeId={userId} />;
 
@@ -579,6 +589,7 @@ export default function App() {
         onLogout={handleLogout}
         bdeName={adminEmail} // For now, passing email as name
         bdeId={userId}
+        bdeType={bdeType}
       >
         <div className="animate-fade-in-up duration-300">
           {renderTabContent()}

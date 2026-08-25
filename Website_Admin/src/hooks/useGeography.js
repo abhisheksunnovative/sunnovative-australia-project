@@ -8,14 +8,11 @@ export function useGeography(country, state) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!country) {
-      setStates([]);
-      return;
-    }
     const fetchStates = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${API_BASE}/api/districts/states?country=${country}`);
+        const url = country ? `${API_BASE}/api/districts/states?country=${country}` : `${API_BASE}/api/districts/states`;
+        const res = await fetch(url);
         const data = await res.json();
         if (data.success) {
           setStates(data.data || []);
@@ -30,17 +27,20 @@ export function useGeography(country, state) {
   }, [country]);
 
   useEffect(() => {
-    if (!country || !state) {
+    if (!state && country) {
       setDistricts([]);
       return;
     }
     const fetchDistricts = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${API_BASE}/api/districts?country=${country}&state=${state}`);
+        let url = `${API_BASE}/api/districts?1=1`;
+        if (country) url += `&country=${country}`;
+        if (state) url += `&state=${state}`;
+        
+        const res = await fetch(url);
         const data = await res.json();
         if (data.success && data.data) {
-          // Unique districts
           const dists = data.data.map(d => d.district);
           setDistricts([...new Set(dists)]);
         } else if (Array.isArray(data)) {

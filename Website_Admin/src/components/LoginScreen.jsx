@@ -115,7 +115,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
         if (data.success) {
           setSuccess(true);
           setTimeout(() => {
-            onLoginSuccess(data.bde.email, "BDE", data.bde._id, data.bde.country);
+            onLoginSuccess(data.bde.email, "BDE", data.bde._id, data.bde.country, data.bde.bdeType);
           }, 800);
         } else {
           setError(data.message || "Invalid BDE credentials");
@@ -319,34 +319,43 @@ export const LoginScreen = ({ onLoginSuccess }) => {
           </form>
         )}
 
-        {/* Demo Fast-Track Presets */}
-        {!success && (
-          <div className="mt-8 pt-6 border-t border-sky-900/40">
-            <div className="flex items-center gap-2 mb-3">
-              <ShieldAlert className="w-4 h-4 text-secondary shrink-0" />
-              <span className="text-xs font-semibold text-sky-300 font-mono">
-                Operator Presets & Audits
-              </span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {presets.map((p, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handlePresetSelect(p.email)}
-                  className="p-2.5 rounded-xl bg-[#0c2c3e]/50 hover:bg-[#0c2c3e] border border-sky-900/30 text-left transition-colors cursor-pointer text-xs group"
-                >
-                  <p className="font-bold text-white leading-tight group-hover:text-secondary transition-colors">
-                    {p.role}
-                  </p>
-                  <p className="text-[10px] text-sky-300 font-mono truncate">
-                    {p.email}
-                  </p>
-                </button>
-              ))}
-            </div>
+      {/* Demo Fast-Track Presets */}
+      {!success && (
+        <div className="mt-8 pt-6 border-t border-sky-900/40">
+          <div className="flex items-center gap-2 mb-3">
+            <ShieldAlert className="w-4 h-4 text-secondary shrink-0" />
+            <span className="text-xs font-semibold text-sky-300 font-mono">
+              Operator Presets & Audits
+            </span>
           </div>
-        )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {[
+              { email: "superadmin@emergesun.com", role: "Admin", bdeType: "" },
+              { email: "bde@test.com", role: "BDE", bdeType: "Company" },
+              { email: "freelancer@test.com", role: "BDE", bdeType: "Freelancer" },
+            ].map((p, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  setSuccess(true);
+                  setTimeout(() => {
+                    onLoginSuccess(p.email, p.role, null, "", p.bdeType);
+                  }, 800);
+                }}
+                className="p-2.5 rounded-xl bg-[#0c2c3e]/50 hover:bg-[#0c2c3e] border border-sky-900/30 text-left transition-colors cursor-pointer text-xs group"
+              >
+                <p className="font-bold text-white leading-tight group-hover:text-secondary transition-colors">
+                  {p.role} {p.bdeType ? `(${p.bdeType})` : ""}
+                </p>
+                <p className="text-[10px] text-sky-300 font-mono truncate">
+                  {p.email}
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );
