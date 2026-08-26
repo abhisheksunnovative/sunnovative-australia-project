@@ -93,11 +93,20 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
     } catch (e) { console.error(e); }
   };
 
-  const filteredLeads = leads.filter(l => {
-    const isProspect = l.installDateBooked && !l.tokenPaid && !l.convertedProjectId;
-    if (!isProspect) return false;
+  const baseProspects = leads.filter(l => {
+    if (l.status === 'Converted' || l.convertedProjectId) return false;
+    const isAU = l.country?.toLowerCase() === 'australia' || l.country?.toLowerCase() === 'au';
+    const isEligibleForOrderJourney = isAU ? l.bdeMovedToOrderJourney : (l.tokenPaid && l.assignedEPCId);
+    return l.installDateBooked && !isEligibleForOrderJourney;
+  });
 
-    if (projectTypeFilter !== "All" && l.solarType !== projectTypeFilter) return false;
+  const getCountForProjectType = (ptValue) => {
+    if (ptValue === "All") return baseProspects.length;
+    return baseProspects.filter(l => (l.solarType || l.projectType || "").toLowerCase() === ptValue.toLowerCase()).length;
+  };
+
+  const filteredLeads = baseProspects.filter(l => {
+    if (projectTypeFilter !== "All" && (l.solarType || l.projectType || "").toLowerCase() !== projectTypeFilter.toLowerCase()) return false;
     
     if (kwFilter !== "All") {
       const kw = parseFloat(l.kw) || 0;
@@ -144,10 +153,30 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
           onChange={e => setSearchQuery(e.target.value)}
         />
         
-        <select value={projectTypeFilter} onChange={e => setProjectTypeFilter(e.target.value)} className="px-3 py-2 border rounded-lg text-sm outline-none bg-slate-50">
-          <option value="All">All Types</option>
-          {dynamicProjectTypes.map(pt => <option key={pt.value} value={pt.value}>{pt.label}</option>)}
-        </select>
+        {/* Project Type Filter Cards */}
+      <div className="w-full flex gap-3 overflow-x-auto pb-2 mb-2 scrollbar-hide">
+        <button 
+          onClick={() => setProjectTypeFilter("All")}
+          className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-sm font-bold border transition-all flex items-center gap-2 ${projectTypeFilter === 'All' ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50'}`}
+        >
+          All Types
+          <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-black ${projectTypeFilter === 'All' ? 'bg-white text-blue-600' : 'bg-slate-200 text-slate-600'}`}>{getCountForProjectType("All")}</span>
+        </button>
+        {dynamicProjectTypes.map(pt => {
+          const ptCount = getCountForProjectType(pt.value);
+          if (ptCount === 0 && projectTypeFilter !== pt.value) return null;
+          return (
+            <button 
+              key={pt.value}
+              onClick={() => setProjectTypeFilter(pt.value)}
+              className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-sm font-bold border transition-all flex items-center gap-2 ${projectTypeFilter === pt.value ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50'}`}
+            >
+              {pt.label}
+              <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-black ${projectTypeFilter === pt.value ? 'bg-white text-blue-600' : 'bg-slate-200 text-slate-600'}`}>{ptCount}</span>
+            </button>
+          )
+        })}
+      </div>
 
         <select value={kwFilter} onChange={e => setKwFilter(e.target.value)} className="px-3 py-2 border rounded-lg text-sm outline-none bg-slate-50">
           <option value="All">All kW Sizes</option>
@@ -201,12 +230,16 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
                     </div>
                   )}
 
-                  <p className="text-xs font-bold text-slate-400 uppercase mb-2">Set Follow Up</p>
-                  <div className="flex gap-2">
-                    <button onClick={() => setFollowUpDate(lead, 0)} className="px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-bold rounded border border-amber-200">Today</button>
-                    <button onClick={() => setFollowUpDate(lead, 1)} className="px-3 py-1 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded border border-slate-200">Tomorrow</button>
-                    <button onClick={() => setFollowUpDate(lead, 7)} className="px-3 py-1 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded border border-slate-200">Next Wk</button>
-                  </div>
+                  {lead.assignedEPCName ? (
+                    <p className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-1 rounded w-fit mb-2">
+                      EPC: {lead.assignedEPCName}
+                    </p>
+                  ) : (
+                    <p className="text-xs font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-1 rounded w-fit mb-2">
+                      Waiting for EPC assignment
+                    </p>
+                  )}
+
                   {lead.nextFollowUp && <p className="text-xs text-amber-600 mt-2 font-semibold flex items-center gap-1"><Clock className="w-3.5 h-3.5"/> Scheduled: {new Date(lead.nextFollowUp).toDateString()}</p>}
               </div>
 
@@ -217,15 +250,56 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
                 </div>
                 {!lead.tokenPaid ? (
     <div className="flex flex-col gap-2 mt-4 lg:mt-0">
-      {!isAU ? (
-        <p className="text-[10px] font-bold text-rose-600 text-center uppercase">Ask customer to pay token to start order journey</p>
-      ) : (
-        <p className="text-[10px] font-bold text-rose-600 text-center uppercase">Ask customer to start Order Journey & make their first payment</p>
-      )}
-      <button disabled className="w-full py-2.5 bg-slate-300 text-slate-500 cursor-not-allowed text-sm font-bold rounded-lg transition flex justify-center items-center gap-2">
-        <DollarSign className="w-4 h-4" /> Go to Order Journey
-      </button>
-      <button onClick={() => handleSimulatePayment(lead)} className="text-[10px] text-blue-600 underline text-center mt-1">Simulate Token Payment</button>
+                  {/* Follow-up Date Editor */}
+                  <div className="w-full bg-slate-50 p-2 rounded-lg border border-slate-200 flex flex-col gap-1 shadow-sm mb-1">
+                    <div className="flex justify-between items-center">
+                      <div className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-1">
+                        <Calendar className="w-3 h-3"/> Follow-up Date
+                      </div>
+                      <input 
+                        type="date" 
+                        className="bg-transparent border-none p-0 text-[10px] font-bold text-blue-700 cursor-pointer focus:ring-0"
+                        value={lead.nextFollowUp ? lead.nextFollowUp.split("T")[0] : ""}
+                        onChange={async (e) => {
+                          try {
+                            const token = localStorage.getItem('token');
+                            const res = await fetch(`${API_BASE}/api/bde/leads/${lead._id}/status`, {
+                              method: "PUT",
+                              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                              body: JSON.stringify({ status: lead.status, nextFollowUp: e.target.value })
+                            });
+                            if (res.ok) { fetchLeads(); }
+                          } catch (err) {}
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {!isAU ? (
+                    lead.tokenPaid ? (
+                      <p className="text-[10px] font-bold text-emerald-600 text-center uppercase bg-emerald-50 py-2 rounded border border-emerald-100">Token Paid. Waiting for EPC.</p>
+                    ) : (
+                      <>
+                        <p className="text-[10px] font-bold text-rose-600 text-center uppercase bg-rose-50 border border-rose-200 py-1.5 rounded shadow-sm">Ask customer to pay token amount</p>
+                        <button onClick={() => handleSimulatePayment(lead)} className="text-[9px] text-blue-600 font-bold underline text-center">Simulate Token Payment</button>
+                      </>
+                    )
+                  ) : (
+                    <>
+                      <button onClick={async () => {
+                        try {
+                          const token = localStorage.getItem('token');
+                          const res = await fetch(`${API_BASE}/api/leads/${lead._id}/convert`, { 
+                            method: "POST", 
+                            headers: { Authorization: `Bearer ${token}` } 
+                          });
+                          if (res.ok) { alert("Moved to Order Journey!"); fetchLeads(); }
+                        } catch (e) {}
+                      }} className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm text-sm font-bold rounded-lg transition flex justify-center items-center gap-2">
+                         Move to Order Journey
+                      </button>
+                    </>
+                  )}
     </div>
   ) : (
                   <div className="text-center text-sm font-bold text-blue-600">

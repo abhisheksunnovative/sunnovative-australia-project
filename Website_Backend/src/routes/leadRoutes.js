@@ -1,7 +1,10 @@
 import express from 'express';
-import { createLead, getAllLeads, getLeadById, updateLead, deleteLead, getLeadsByProject, assignLead, uploadLeads, upload, getAnalytics, getLeadStats, exportUnassignedLeads, convertLeadToProject, getLeadsHierarchy } from '../controllers/leadController.js';
+import { fixPayments, fixDistricts, createLead, getAllLeads, getLeadById, updateLead, deleteLead, getLeadsByProject, assignLead, uploadLeads, upload, getAnalytics, getLeadStats, exportUnassignedLeads, convertLeadToProject, getLeadsHierarchy } from '../controllers/leadController.js';
 
 const router = express.Router();
+
+router.get('/fix-districts', fixDistricts);
+router.get('/fix-payments', fixPayments);
 
 // Analytics + project + stats + export — specific routes BEFORE /:id
 router.get('/hierarchy', getLeadsHierarchy);

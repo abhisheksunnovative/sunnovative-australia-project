@@ -761,13 +761,13 @@ export function BDEManagementContent({ selectedCountryObj, onBack }) {
                       <div>
                         <label className="block text-xs font-semibold text-amber-700 uppercase mb-1">Commission Type</label>
                         <select value={formData.commissionType} onChange={e => setFormData({...formData, commissionType: e.target.value})} className="w-full bg-white border border-amber-200 rounded-lg px-3 py-2 text-slate-800 focus:outline-none font-bold text-xs">
-                          <option value="Fixed">Fixed Amount per Conversion</option>
+                          <option value="Fixed">Fixed Amount per Lead (On Conversion)</option>
                           <option value="PerKW">Pay per kW</option>
                         </select>
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-amber-700 uppercase mb-1">
-                          {formData.commissionType === "PerKW" ? "Amount per kW" : "Amount per Conversion"}
+                          {formData.commissionType === "PerKW" ? "Amount per kW" : "Amount per Lead"}
                         </label>
                         <div className="relative">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
@@ -779,8 +779,8 @@ export function BDEManagementContent({ selectedCountryObj, onBack }) {
                     </div>
                     <p className="text-xs text-amber-600 mt-2">
                       {formData.commissionType === "PerKW" 
-                        ? `Commission will credit ${selectedCountry === "australia" ? "AUD $" : "₹"}${formData.commissionAmount} × System kW for every confirmed conversion.`
-                        : `Commission will credit fixed ${selectedCountry === "australia" ? "AUD $" : "₹"}${formData.commissionAmount} for every confirmed conversion.`
+                        ? `Commission will credit ${selectedCountry === "australia" ? "AUD $" : "₹"}${formData.commissionAmount} × System kW for every lead that converts to Order Journey.`
+                        : `Commission will credit fixed ${selectedCountry === "australia" ? "AUD $" : "₹"}${formData.commissionAmount} for every lead that converts to Order Journey.`
                       }
                     </p>
                   </div>

@@ -34,6 +34,17 @@ export const scanLightBill = async (req, res) => {
       });
     }
 
+    // Save the file to disk so we can return a URL
+    const ext = req.file.originalname.split('.').pop();
+    const filename = `bill-${Date.now()}-${Math.round(Math.random() * 1E9)}.${ext}`;
+    const dir = './uploads/bills';
+    if (!fs.existsSync(dir)){
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(dir + '/' + filename, req.file.buffer);
+    const fileUrl = '/uploads/bills/' + filename;
+
+
     // ── 2. Extract raw text ────────────────────────────────────────────────
     let rawText;
 
@@ -163,6 +174,7 @@ export const scanLightBill = async (req, res) => {
           : null,
 
         // ── Extracted bill details (AU-specific) ──
+        fileUrl,
         extracted: {
           // Identity
           retailer:         parsed.retailer,
@@ -290,7 +302,8 @@ export const scanLightBill = async (req, res) => {
       confidence: parsed.confidence,
       country: 'india',
 
-      extracted: {
+      fileUrl,
+        extracted: {
         discomId:           parsed.discomId,
         detectedState:      parsed.detectedState,
         billFormat:         parsed.billFormat,

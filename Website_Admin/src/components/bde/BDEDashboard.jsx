@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Users, CheckCircle, TrendingUp, Calendar, MapPin, PhoneForwarded, DollarSign, Building, Zap, Briefcase } from "lucide-react";
 import { useAdminSettings } from "../../hooks/useAdminSettings";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 export default function BDEDashboard({ bdeId, bdeType }) {
   const [stats, setStats] = useState(null);
@@ -101,7 +102,7 @@ export default function BDEDashboard({ bdeId, bdeType }) {
       )}
 
       
-      {/* NEW COUNTRY CARD */}
+            {/* TOP 4 METRICS CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         <div className="bg-gradient-to-br from-indigo-50 to-white rounded-2xl p-5 shadow-sm border border-indigo-100 flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-200">
@@ -118,18 +119,8 @@ export default function BDEDashboard({ bdeId, bdeType }) {
             <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Leads</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Leads</p>
             <h3 className="text-3xl font-black text-slate-900 mt-0.5">{stats?.totalAssigned || 0}</h3>
-          </div>
-        </div>
-
-        <div onClick={() => typeof onTabChange !== 'undefined' && onTabChange("bde-prospects")} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 flex items-center gap-4 hover:border-amber-500 cursor-pointer transition-colors">
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>
-          </div>
-          <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Prospects</p>
-            <h3 className="text-3xl font-black text-slate-900 mt-0.5">{stats?.activeCustomers || 0}</h3>
           </div>
         </div>
 
@@ -140,6 +131,16 @@ export default function BDEDashboard({ bdeId, bdeType }) {
           <div>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Order Journey</p>
             <h3 className="text-3xl font-black text-slate-900 mt-0.5">{stats?.ordersGenerated || 0}</h3>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 border border-purple-100">
+            <TrendingUp className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Conversion Ratio</p>
+            <h3 className="text-3xl font-black text-slate-900 mt-0.5">{stats?.conversionRatio || 0}%</h3>
           </div>
         </div>
       </div>
@@ -284,67 +285,54 @@ export default function BDEDashboard({ bdeId, bdeType }) {
 
             )}
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-            <Users className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-500">Active Customers</p>
-            <h3 className="text-2xl font-bold text-gray-900">{stats.activeCustomers}</h3>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-            <CheckCircle className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-500">Orders Generated</p>
-            <h3 className="text-2xl font-bold text-gray-900">{stats.ordersGenerated}</h3>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-            <TrendingUp className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-500">Conversion Ratio</p>
-            <h3 className="text-2xl font-bold text-gray-900">{stats.conversionRatio}%</h3>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
-            <Calendar className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-500">Today's Follow-ups</p>
-            <h3 className="text-2xl font-bold text-gray-900">{stats.todaysFollowups}</h3>
-          </div>
+      
+      
+      {/* 7 Days Performance Graph */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mt-6 mb-6">
+        <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Last 7 Days Performance
+        </h3>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart 
+              data={[
+                { name: "Last 7 Days", Leads: stats.last7Days?.leads || 0, Conversions: stats.last7Days?.conversions || 0 }
+              ]} 
+              margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip 
+                cursor={{ fill: '#f8fafc' }}
+                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+              />
+              <Bar dataKey="Leads" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={50} />
+              <Bar dataKey="Conversions" fill="#10b981" radius={[4, 4, 0, 0]} barSize={50} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
-
-      {/* Detailed Sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  
+      {/* Detailed Sections with Graph */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         {/* Today's Follow-ups */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
             <h3 className="font-bold text-gray-900 flex items-center gap-2"><PhoneForwarded className="w-4 h-4 text-orange-500"/> Today's Follow-ups</h3>
-            <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-bold rounded-full">{stats.todaysFollowups}</span>
+            <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-bold rounded-full">{stats.todaysFollowups || 0}</span>
           </div>
           <div className="p-0">
-            {stats.followupList?.length === 0 ? (
+            {!stats.followupList || stats.followupList.length === 0 ? (
               <div className="p-6 text-center text-gray-500 text-sm">No follow-ups scheduled for today.</div>
             ) : (
-              <ul className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
-                {stats.followupList?.map(lead => (
+              <ul className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
+                {stats.followupList.map(lead => (
                   <li key={lead._id} className="p-4 hover:bg-gray-50 transition flex justify-between items-center">
                     <div>
                       <p className="font-medium text-gray-900">{lead.name}</p>
-                      <p className="text-xs text-gray-500">{lead.mobile} {lead.email && <span className="ml-1 bg-gray-100 px-1 rounded">{lead.email}</span>} ? {lead.district}</p>
+                      <p className="text-xs text-gray-500">{lead.mobile} {lead.email && <span className="ml-1 bg-gray-100 px-1 rounded">{lead.email}</span>} - {lead.district || lead.suburb}</p>
                     </div>
                     <span className="text-xs font-semibold px-2 py-1 bg-blue-50 text-blue-700 rounded-md">{lead.status}</span>
                   </li>
@@ -354,32 +342,32 @@ export default function BDEDashboard({ bdeId, bdeType }) {
           </div>
         </div>
 
-        {/* District-wise Lead Status */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        {/* District-wise Lead Status Graph */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
           <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-            <h3 className="font-bold text-gray-900 flex items-center gap-2"><MapPin className="w-4 h-4 text-blue-500"/> Active Leads by District</h3>
+            <h3 className="font-bold text-gray-900 flex items-center gap-2"><MapPin className="w-4 h-4 text-blue-500"/> Active Leads by Region (Graph)</h3>
           </div>
-          <div className="p-4">
-            {stats.districtStats?.length === 0 ? (
-              <div className="text-center text-gray-500 text-sm p-4">No active leads assigned yet.</div>
+          <div className="p-4 flex-1 min-h-[300px]">
+            {!stats.districtStats || stats.districtStats.length === 0 ? (
+              <div className="text-center text-gray-500 text-sm p-4 h-full flex items-center justify-center">No regional lead data available yet.</div>
             ) : (
-              <div className="space-y-4 max-h-64 overflow-y-auto pr-2">
-                {stats.districtStats?.map(dist => (
-                  <div key={dist._id} className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">{dist._id || 'Unknown'}</span>
-                    <div className="flex items-center gap-3 w-1/2">
-                      <div className="w-full bg-gray-100 rounded-full h-2">
-                        <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${Math.min(100, (dist.count / stats.totalAssigned) * 100)}%` }}></div>
-                      </div>
-                      <span className="text-sm font-bold text-gray-900 w-8 text-right">{dist.count}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.districtStats} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="_id" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                  <Tooltip 
+                    cursor={{ fill: '#f8fafc' }}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  />
+                  <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={32} name="Active Leads" />
+                </BarChart>
+              </ResponsiveContainer>
             )}
           </div>
         </div>
       </div>
+  
     </div>
   );
 }

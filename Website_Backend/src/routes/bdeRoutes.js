@@ -4,6 +4,7 @@ import {
   createBDE, getAllBDEs, getBDEById, updateBDE, deleteBDE,
   bdeLogin, getBDEDashboard, getBDELeads, getDemandPool, assignLeadToBDE, updateBDELead,
   createBDELead, getBDEProjects, getBDEOverdueProjects, uploadBDEProjectDoc, updateBDELeadDetails,
+  markLeadEligible, moveLeadToOrderJourney,
   requestBdeOtp, verifyOtpAndSetPassword, getEpcCalendarForBde, scheduleAndQualifyLead, getAustralianEpcsForBde,
   getEligibleBDEsForLead, adminAssignLeadToBDE, getBDEsHierarchy,
   uploadOnboardingDoc, approveOnboardingDoc
@@ -48,6 +49,8 @@ router.get("/:bdeId/demand-pool", getDemandPool);
 router.post("/assign-lead", assignLeadToBDE);
 router.put("/leads/:leadId", updateBDELead);
 router.put("/leads/:leadId/details", updateBDELeadDetails);
+router.put("/leads/:leadId/eligibility", markLeadEligible);
+router.put("/leads/:leadId/move-to-order", moveLeadToOrderJourney);
 router.post("/leads/:leadId/schedule", scheduleAndQualifyLead);
 
 // ── BDE Onboarding Documents ──

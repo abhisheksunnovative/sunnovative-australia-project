@@ -90,11 +90,26 @@ const isAU = userCountry.toLowerCase() === "australia";
       console.log("Bulk upload response:", data);
       if (!res.ok) throw new Error(data.message || "Scan failed");
 
+      let savedBillUrl = null;
+      try {
+        const uploadRes = await fetch(`${API_BASE}/api/upload-file`, {
+          method: "POST",
+          body: form
+        });
+        const uploadData = await uploadRes.json();
+        if (uploadData.success) {
+          savedBillUrl = uploadData.fileUrl;
+        }
+      } catch(e) {
+        console.warn("Could not upload actual file, only scanned:", e);
+      }
+
       setScanConfidence(data.confidence);
       const ex = data.extracted;
 
       setFormData(prev => ({
         ...prev,
+        billUrl: savedBillUrl,
         name: ex.consumerName || prev.name,
         consumerNumber: ex.consumerNumber || prev.consumerNumber,
         meterCategory: ex.meterCategory || prev.meterCategory,

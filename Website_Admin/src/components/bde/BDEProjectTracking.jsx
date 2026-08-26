@@ -51,7 +51,8 @@ export default function BDEProjectTracking({ bdeId }) {
   const getOverdueInfo = (project) => {
     if (!project.steps) return { isOverdue: false, type: null, days: 0, stepTitle: "" };
     const activeStep = project.steps.find(s => s.status === 'in-progress' || s.status === 'pending');
-    if (!activeStep || !activeStep.isOverdue) return { isOverdue: false, type: null, days: 0, stepTitle: "" };
+    if (!activeStep) return { isOverdue: false, type: null, days: 0, stepTitle: "Unknown Stage" };
+    if (!activeStep.isOverdue) return { isOverdue: false, type: activeStep.assignedTo === 'customer' ? 'customer' : 'epc', days: 0, stepTitle: activeStep.title || "Unknown Stage" };
     
     const isCustomer = activeStep.assignedTo === 'customer';
     return { 
@@ -66,9 +67,9 @@ export default function BDEProjectTracking({ bdeId }) {
   const currentOptions = React.useMemo(() => {
     let filtered = projects;
 
-    if (drillLevel > 0) filtered = filtered.filter(p => (p.projectTypeLabel || p.projectType) === drillPath.projectType);
-    if (drillLevel > 1) filtered = filtered.filter(p => p.state === drillPath.state);
-    if (drillLevel > 2) filtered = filtered.filter(p => p.district === drillPath.district);
+    if (drillLevel > 0) filtered = filtered.filter(p => (p.projectTypeLabel || p.projectType || 'Unknown') === drillPath.projectType);
+    if (drillLevel > 1) filtered = filtered.filter(p => (p.state || 'Unknown') === drillPath.state);
+    if (drillLevel > 2) filtered = filtered.filter(p => (p.district || 'Unknown') === drillPath.district);
     
     // Status Filter (Level 3 -> 4)
     if (drillLevel > 3) {
@@ -189,7 +190,31 @@ export default function BDEProjectTracking({ bdeId }) {
        setTimeout(checkOverdue, 2000);
     }
     
-    return () => clearInterval(interval);
+    
+  const getCountForProjectType = (ptValue) => {
+    const arr = typeof filteredLeads !== 'undefined' ? filteredLeads : (typeof displayedProjects !== 'undefined' ? displayedProjects : []);
+    // wait, if we use filteredLeads, it will filter by itself. We need base leads!
+    // Since BDEProspects and BDEProjectTracking use different variable names (leads vs projects),
+    // let's do a loose filter just on the state array (leads or projects).
+    const srcArray = (typeof leads !== 'undefined' ? leads : (typeof projects !== 'undefined' ? projects : []));
+    
+    // Quick filter just for project type
+    let matches = srcArray;
+    
+    // In Prospects, we only count leads that are prospects.
+    if (file.includes('Prospects')) {
+       matches = matches.filter(l => {
+          const isAU = l.country === 'australia' || l.country === 'AU';
+          const isEligibleForOrderJourney = isAU ? l.bdeMovedToOrderJourney : (l.tokenPaid && l.assignedEPCId);
+          return l.installDateBooked && !isEligibleForOrderJourney;
+       });
+    }
+
+    if (ptValue === "All") return matches.length;
+    return matches.filter(l => (l.solarType || l.projectType || "").toLowerCase() === ptValue.toLowerCase()).length;
+  };
+
+  return () => clearInterval(interval);
   }, [projects]);
 
 
@@ -885,6 +910,13 @@ export default function BDEProjectTracking({ bdeId }) {
       {/* Grid of Folders / Cards */}
       {drillLevel < 6 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {currentOptions.length === 0 && (
+             <div className="col-span-full text-center p-12 bg-white rounded-2xl border border-dashed border-slate-200">
+               <FileText className="w-12 h-12 text-slate-300 mx-auto mb-2"/>
+               <p className="text-slate-500 font-bold">No customer projects found here yet.</p>
+               <p className="text-xs text-slate-400">Projects will appear once BDE moves them to Order Journey.</p>
+             </div>
+          )}
           {currentOptions.map((opt, i) => {
             const colorClass = opt.color === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:border-emerald-400' :
                                opt.color === 'blue' ? 'bg-blue-50 border-blue-200 text-blue-800 hover:border-blue-400' :

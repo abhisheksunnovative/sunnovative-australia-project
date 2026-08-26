@@ -37,7 +37,7 @@ const epcEnquirySchema = new mongoose.Schema({
   },
   assignmentType: {
     type: String,
-    enum: ['FirstComeFirstServe', 'BidSystem'],
+    enum: ['FirstComeFirstServe', 'BidSystem', 'CustomerSelect'],
     default: 'FirstComeFirstServe',
   },
   acceptedAt:    { type: Date },

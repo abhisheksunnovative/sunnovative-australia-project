@@ -12,7 +12,7 @@ if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
   console.warn('⚠️  RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET missing in .env — wallet recharge payments will fail.');
 }
 
-export const razorpay = new Razorpay({
+export const razorpay = (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) ? new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+}) : null;

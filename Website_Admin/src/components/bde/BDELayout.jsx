@@ -11,37 +11,49 @@ export default function BDELayout({ children, currentTab, onTabChange, onLogout,
   const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
   const loadCounts = async () => {
-    if (!bdeId) return;
     try {
       const [leadsRes, projRes] = await Promise.all([
         fetch(`${API_BASE}/api/bde/${bdeId}/leads`).catch(() => null),
         fetch(`${API_BASE}/api/bde/${bdeId}/projects`).catch(() => null)
       ]);
+      let eligibilityCount = 0;
       let leadsCount = 0;
-      let projCount = 0;
       let prospectsCount = 0;
+      let projCount = 0;
+      
       if (leadsRes && leadsRes.ok) {
         const d = await leadsRes.json();
         const bdeLeads = d.leads || [];
         const isFreelance = bdeType?.toLowerCase().includes("freelance");
         
-        leadsCount = bdeLeads.filter(l => {
+        bdeLeads.forEach(l => {
              const isManual = l.history?.some(h => h.action.includes("Manually created by BDE"));
              const isTargetSource = isFreelance ? isManual : !isManual;
-             return isTargetSource && !l.installDateBooked && l.status !== 'Converted' && l.status !== 'Not Interested' && l.status !== 'Lost' && !l.convertedProjectId;
-        }).length;
-        
-        prospectsCount = bdeLeads.filter(l => {
-             const isManual = l.history?.some(h => h.action.includes("Manually created by BDE"));
-             const isTargetSource = isFreelance ? isManual : !isManual;
-             return isTargetSource && l.installDateBooked && !l.tokenPaid && !l.convertedProjectId;
-        }).length;
+             
+             if (!isTargetSource) return;
+             if (l.status === 'Converted' || l.status === 'Not Interested' || l.status === 'Lost' || l.convertedProjectId) return;
+             
+             const isAU = l.country === 'australia' || l.country === 'AU';
+             const isEligibleForOrderJourney = isAU ? l.bdeMovedToOrderJourney : (l.tokenPaid && l.assignedEPCId);
+             
+             if (isEligibleForOrderJourney) return; // Means it's moved to order journey
+             
+             if (l.installDateBooked) {
+                 prospectsCount++;
+             } else {
+                 if (isFreelance && !l.isEligibleForInstallation) {
+                     eligibilityCount++;
+                 } else {
+                     leadsCount++;
+                 }
+             }
+        });
       }
       if (projRes && projRes.ok) {
         const p = await projRes.json();
         projCount = p.data?.length || p.projects?.length || 0;
       }
-      setTabCounts({ leads: leadsCount, projects: projCount, prospects: prospectsCount });
+      setTabCounts({ eligibility: eligibilityCount, leads: leadsCount, prospects: prospectsCount, projects: projCount });
     } catch (e) {
       console.warn("Failed to load BDE tab counts", e);
     }
@@ -74,7 +86,8 @@ export default function BDELayout({ children, currentTab, onTabChange, onLogout,
 
   const navItems = [
     { id: "bde-aust", name: "Dashboard", icon: <LayoutDashboard className="w-5 h-5 text-emerald-400" /> },
-    { id: "bde-leads", name: isFreelancer ? "Self Leads" : "My Leads", icon: <Users className="w-5 h-5" />, count: tabCounts.leads },
+    { id: "bde-customer-eligibility", name: "Customer Eligibility List", icon: <Users className="w-5 h-5" />, count: tabCounts.eligibility || 0 },
+    { id: "bde-leads", name: isFreelancer ? "Self Leads" : "My Leads", icon: <Users className="w-5 h-5" />, count: tabCounts.leads || 0 },
     { id: "bde-prospects", name: "My Prospects", icon: <CheckSquare className="w-5 h-5" />, count: tabCounts.prospects },
     { id: "bde-projects", name: "Customer Order Journey", icon: <ClipboardList className="w-5 h-5" />, count: tabCounts.projects },
     ...(!isFreelancer ? [{ id: "bde-demand", name: "Demand Pool", icon: <Map className="w-5 h-5" /> }] : []),

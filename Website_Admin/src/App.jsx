@@ -559,8 +559,10 @@ export default function App() {
         );
       case "bde-profile":
         return <BDEProfile bdeId={userId} />;
+      case "bde-customer-eligibility":
+        return <BDELeadManagement bdeId={userId} country={userCountry} bdeType={bdeType} filterTab="eligibility" />;
       case "bde-leads":
-        return <BDELeadManagement bdeId={userId} country={userCountry} bdeType={bdeType} />;
+        return <BDELeadManagement bdeId={userId} country={userCountry} bdeType={bdeType} filterTab="self-leads" />;
       case "bde-projects":
         return <BDEProjectTracking bdeId={userId} />;
       case "bde-prospects":

@@ -694,7 +694,7 @@ function SolarPackages({ onApply, preselectedType }) {
               <button onClick={() => onApply(pkg, selectedState, stateSubsidy, minBookingDays)}
                 className={`w-full py-3 text-sm font-black rounded-xl flex items-center justify-center gap-2 transition-all ${
                   isPopular ? "bg-yellow-400 hover:bg-amber-400 text-yellow-900 shadow-md" :
-                  "bg-orange-600 hover:bg-slate-700 text-white"
+                  "bg-[#28377f] hover:bg-slate-700 text-white"
                 }`}>
                 Apply Now <ArrowRight className="w-4 h-4" />
               </button>
@@ -1525,7 +1525,7 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 md:pl-64">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col">
-        <div className="bg-orange-600 rounded-t-3xl p-5 border-b border-slate-800 shrink-0">
+        <div className="bg-[#28377f] rounded-t-3xl p-5 border-b border-slate-800 shrink-0">
           <div className="flex justify-between items-start">
             <div>
               <h3 className="font-black text-2xl text-white">{pkg.name}</h3>
@@ -1650,25 +1650,39 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
                 </div>
                 <div className="mb-4">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Utility Bill / Site Document (Required) *</label>
-                  <div className={`border-2 border-dashed rounded-xl p-3 text-center cursor-pointer transition ${applyUploadFile || customerLead?.billUrl ? "border-green-300 bg-green-50" : "border-slate-200 hover:border-slate-300"}`}
-                    onClick={() => document.getElementById('apply-upload-file').click()}>
+                  <div className={`border-2 border-dashed rounded-xl p-3 text-center transition ${applyUploadFile || customerLead?.billUrl ? "border-green-300 bg-green-50" : "border-slate-200 hover:border-slate-300 cursor-pointer"}`}
+                    onClick={(e) => {
+                      if (e.target.tagName !== 'A' && e.target.tagName !== 'BUTTON') {
+                        if (!customerLead?.billUrl || applyUploadFile) document.getElementById('apply-upload-file').click();
+                      }
+                    }}>
                     <input id="apply-upload-file" type="file" accept="image/*,application/pdf" className="hidden" onChange={handleApplyUploadFileChange} />
                     {applyUploadFile ? (
                       <div>
                         <p className="text-xs font-bold text-green-700">📄 {applyUploadFile.name}</p>
                         {geo.lat && <p className="text-[10px] text-green-600 font-bold mt-1">📍 Auto-fetched location ({geo.lat.toFixed(4)}, {geo.lng.toFixed(4)})</p>}
+                        <p className="text-[10px] text-slate-500 mt-1 cursor-pointer underline" onClick={(e) => { e.stopPropagation(); document.getElementById('apply-upload-file').click(); }}>Click to change</p>
                       </div>
                     ) : customerLead?.billUrl ? (
-                      <div className="flex flex-col items-center">
-                        <p className="text-xs font-bold text-green-700 flex items-center justify-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Previous Bill Attached: 
-                          <a href={`${API}${customerLead.billUrl}`} target="_blank" rel="noreferrer" 
-                             className="underline text-blue-600 hover:text-blue-800 ml-1 font-extrabold"
-                             onClick={(e) => e.stopPropagation()}>
-                            {customerLead.billUrl.split('/').pop()}
-                          </a>
+                      <div className="flex flex-col items-center bg-white p-3 rounded-lg border border-green-100 shadow-sm w-full">
+                        <p className="text-xs font-black text-green-700 flex items-center justify-center gap-1 mb-2">
+                          <CheckCircle2 className="w-4 h-4" /> Your Uploaded Bill
                         </p>
-                        <p className="text-[10px] text-slate-500 mt-1">Tap here to replace with a new document</p>
+                        {customerLead.billUrl.match(/\.(jpeg|jpg|gif|png)$/i) ? (
+                          <img src={`${import.meta.env.VITE_API_URL || "http://localhost:4005"}${customerLead.billUrl}`} alt="Your Uploaded Bill" className="h-20 w-auto object-contain rounded-md border border-slate-200 mb-2" />
+                        ) : null}
+                        <div className="flex items-center justify-center gap-3 mt-1">
+                          <a href={`${import.meta.env.VITE_API_URL || "http://localhost:4005"}${customerLead.billUrl}`} target="_blank" rel="noreferrer" 
+                             className="text-[11px] px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-md font-bold flex items-center gap-1 transition-all"
+                             onClick={(e) => e.stopPropagation()}>
+                            View
+                          </a>
+                          <button type="button"
+                             className="text-[11px] px-3 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-md font-bold flex items-center gap-1 transition-all"
+                             onClick={(e) => { e.stopPropagation(); document.getElementById('apply-upload-file').click(); }}>
+                            Change
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <p className="text-xs font-bold text-slate-500 flex items-center justify-center gap-2">
@@ -1733,7 +1747,7 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
                   <input type="text" value={consumerNumber} onChange={e => setConsumerNumber(e.target.value)}
                     placeholder="e.g. 1234567890"
                     className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-yellow-400/50" />
-                  <button type="button" onClick={handleCheckEligibility} className="px-5 py-2.5 bg-orange-600 text-white rounded-xl font-bold text-xs whitespace-nowrap hover:bg-slate-800 transition">
+                  <button type="button" onClick={handleCheckEligibility} className="px-5 py-2.5 bg-[#28377f] text-white rounded-xl font-bold text-xs whitespace-nowrap hover:bg-slate-800 transition">
                     Verify
                   </button>
                 </div>
@@ -1779,13 +1793,39 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
                 Rooftop Photo *
               </label>
-              <div className={`border-2 border-dashed rounded-xl p-3 text-center cursor-pointer transition ${rooftopPhoto ? "border-green-300 bg-green-50" : "border-slate-200 hover:border-slate-300"}`}
-                onClick={() => fileRef.current?.click()}>
-                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+              <div className={`border-2 border-dashed rounded-xl p-3 text-center transition ${rooftopPhoto || customerLead?.billUrl ? "border-green-300 bg-green-50" : "border-slate-200 hover:border-slate-300 cursor-pointer"}`}
+                onClick={(e) => {
+                  if (e.target.tagName !== 'A' && e.target.tagName !== 'BUTTON') {
+                    if (!customerLead?.billUrl || rooftopPhoto) fileRef.current?.click();
+                  }
+                }}>
+                <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handlePhotoChange} />
                 {rooftopPhoto ? (
                   <div>
                     <p className="text-xs font-bold text-green-700">📎 {rooftopPhoto.name}</p>
                     {geo.lat && <p className="text-[10px] text-green-600 font-bold mt-1">📍 Auto-fetched location ({geo.lat.toFixed(4)}, {geo.lng.toFixed(4)})</p>}
+                    <p className="text-[10px] text-slate-500 mt-1 cursor-pointer underline" onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}>Click to change</p>
+                  </div>
+                ) : customerLead?.billUrl ? (
+                  <div className="flex flex-col items-center bg-white p-3 rounded-lg border border-green-100 shadow-sm w-full">
+                    <p className="text-xs font-black text-green-700 flex items-center justify-center gap-1 mb-2">
+                      <CheckCircle2 className="w-4 h-4" /> Your Uploaded Bill
+                    </p>
+                    {customerLead.billUrl.match(/\.(jpeg|jpg|gif|png)$/i) ? (
+                      <img src={`${import.meta.env.VITE_API_URL || "http://localhost:4005"}${customerLead.billUrl}`} alt="Your Uploaded Bill" className="h-20 w-auto object-contain rounded-md border border-slate-200 mb-2" />
+                    ) : null}
+                    <div className="flex items-center justify-center gap-3 mt-1">
+                      <a href={`${import.meta.env.VITE_API_URL || "http://localhost:4005"}${customerLead.billUrl}`} target="_blank" rel="noreferrer" 
+                         className="text-[11px] px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-md font-bold flex items-center gap-1 transition-all"
+                         onClick={(e) => e.stopPropagation()}>
+                        View
+                      </a>
+                      <button type="button"
+                         className="text-[11px] px-3 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-md font-bold flex items-center gap-1 transition-all"
+                         onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}>
+                        Change
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <p className="text-xs font-bold text-slate-500 flex items-center justify-center gap-2">

@@ -1,27 +1,50 @@
 Origin Energy
-Tax Invoice / Electricity Bill
-ABN 30 000 051 696
-Account Name           Sarah Nguyen
-Supply Address         8 Banksia Street, Brisbane QLD 4000
-NMI                    1860913909G
-Account Number         153246119
-Distributor (DNSP)     Energex
-Tariff                 Flat Rate (Residential)
-Bill Issue Date        02 Aug 2026
-Billing Period         03 May - 01 Aug 2026
-Payment Due Date       16 Aug 2026
-Read Type              Actual
-Electricity Usage & Charges
-Charge          Usage (kWh)   Rate (c/kWh)   Amount
-General Usage   1710         29.84          $510.26
-Supply Charge   90 days       104.56 c/day     $94.10
-Total electricity usage this period: 1710 kWh | Average daily usage: 19.00 kWh/day
+
+Tax Invoice /E lectricity Bill
+
+ABN 30000051 888
+
+AccountName Priya Kaur
+
+Supply Address 45 Eucalyptus Ave. Sunshine Coast 010 4581
+
+NMI 18609152246
+
+AccountNumber 153248102
+
+Distributor (DNSP) Energex
+
+Tariff FlatRate (Residential)
+
+Bill Issue Date 02 Aug 2028
+
+Billing Period 03 May-01 Aug 2028
+
+Payment Due Date 16 Aug 2026
+
+Read Type Actual
+
+Electricity Usage हि Charges
+
+Charge Usage (kWh) Rate (cAWh) Amount
+
+General Usage 2430 29.84 $725.11
+
+Supply Charge 90 days 104.56 cAay $84.10
+
+Total electricity usage this period: 2430 kW h | Average daily usage: 27.00 kW h/day
+
 Solar Feed-in Credit
-Feed-in Tariff Rate: 6.0 c/kWh | Exported this period: 0 kWh (no solar system connected to this NMI) | Credit: $0.00
+
+Feed-in Taniff Rate: 6.0 cAW h | Exported this period: 0 kW h (no solar system connected to this NM 1) | Credit: $0.00
 Bill Summary
-Total Charges (excl. GST)                    $604.37
-GST (10%)                                     $60.44
-Total Amount Due                              $664.80
-This is a MOCK / SAMPLE bill generated for software testing purposes only. Usage calibrated for approx. 5kW solar system eligibility. All names,
-addresses, NMI, account numbers and usage figures are fictional and randomly generated. It is not an official Origin Energy document and carries no billing
-validity.
+
+Total Charges (excl. 6ST) $819.22
+
+BST (10%) $81.92
+
+Total Amount Due $801.14
+
+Thisis a MOCK /SAMPLE bill generated far software testing purposes only. Usage calibrated for approx. 7kW solar system eligibility. Allnames
+addresses, NM |, account numbers and usage figures are fictional and randomly generated. Itis not an official 0 igin Energy document and carries na billing
+validity

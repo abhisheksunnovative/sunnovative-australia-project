@@ -63,6 +63,14 @@ export const sendOtp = async (req, res) => {
       });
     }
 
+    if (req.body.checkOnly) {
+      return res.json({
+        success: true,
+        isNewUser: isNew,
+        pinSet: customer?.pinSet || false,
+        message: "User status checked"
+      });
+    }
     const otp = genOtp();
     customer.otp = otp;
     customer.otpExpiry = otpExp();

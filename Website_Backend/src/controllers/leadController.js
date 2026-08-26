@@ -84,6 +84,7 @@ export const createLead = async (req, res) => {
       meterCategory,
       sourceOfMedia, profession, notes,
       billUrl: req.body.billUrl || undefined,
+      rooftopPhoto: req.body.rooftopPhoto || undefined,
       uploadSource: req.body.uploadSource || 'website',
       history: [{ action: 'Created' }],
     });
@@ -676,6 +677,7 @@ export const convertLeadToProject = async (req, res) => {
       const slot = await EpcCalendar.findById(epcCalendarSlotId);
       if (slot) {
         installationDate = slot.date;
+        assignedEpc = slot.epcPartner;
       }
     }
 
@@ -688,31 +690,75 @@ export const convertLeadToProject = async (req, res) => {
 
     // Clean up any temporary/placeholder project applications (status: 'lead') created by the customer from the portal
     // This prevents duplicate projects showing up in the Customer Portal once the lead is fully converted.
+    const { ProjectOrder } = await import("../models/ProjectModel.js");
     await ProjectOrder.deleteMany({ customerMobile: lead.mobile, status: 'lead' });
 
-    const po = new ProjectOrder({
-      customerName: lead.name,
-      customerMobile: lead.mobile,
-      customerEmail: lead.email,
-      projectType,
-      systemSizeKW: parseFloat(lead.kw) || parseFloat(lead.systemKw) || parseFloat(lead.systemCapacity) || 1,
-      monthlyBillAmount: lead.billAmount || 0,
-      state: lead.state || '',
-      location: { city: lead.city, pincode: lead.pincode, address: lead.address },
-      steps,
-      currentStepNumber: steps.length > 0 ? steps[0].stepNumber : 1,
-      currentStepTitle: steps.length > 0 ? steps[0].title : 'Project Started',
-      completionPercentage: 0,
-      status: isAU ? 'awaiting-admin-confirmation' : 'Enquiry Created',
-      assignedBde: lead.assignedBde,
-        assignedEPCId: lead.assignedEpc || null,
-      assignedEPCId: assignedEpc ? assignedEpc.toString() : null,
-      preferredInstallDate: installationDate,
-      bdeRecommendationStatus: isCustomerSelect ? 'pending' : 'accepted',
-      pendingActionAlert: isAU ? 'Waiting for Admin Confirmation' : (isCustomerSelect ? 'BDE is selecting top certified installers for you' : 'Waiting for FCFS EPC Partner to claim order...'),
-      pendingActionFor: isAU ? 'admin' : (isCustomerSelect ? 'bde' : 'epc-partner')
-    });
+    let po = await ProjectOrder.findOne({ customerMobile: lead.mobile });
+    if (!po) {
+      po = new ProjectOrder({
+        customerName: lead.name,
+        customerMobile: lead.mobile,
+        customerEmail: lead.email,
+        projectType,
+        systemSizeKW: parseFloat(lead.kw) || parseFloat(lead.systemKw) || parseFloat(lead.systemCapacity) || 1,
+        monthlyBillAmount: lead.billAmount || 0,
+        state: lead.state || '',
+        location: { district: lead.district || lead.city || 'Unknown', address: lead.address, pincode: lead.pincode },
+        steps,
+        currentStepNumber: steps.length > 0 ? steps[0].stepNumber : 1,
+        currentStepTitle: steps.length > 0 ? steps[0].title : 'Project Started',
+        completionPercentage: 0,
+        status: isAU ? 'awaiting-admin-confirmation' : 'Enquiry Created',
+        assignedBde: lead.assignedBde,
+        assignedEPCId: assignedEpc ? assignedEpc.toString() : null,
+        preferredInstallDate: installationDate,
+        bdeRecommendationStatus: isCustomerSelect ? 'pending' : 'accepted',
+        pendingActionAlert: isAU ? 'Waiting for Admin Confirmation' : (isCustomerSelect ? 'BDE is selecting top certified installers for you' : 'Waiting for FCFS EPC Partner to claim order...'),
+        pendingActionFor: isAU ? 'admin' : (isCustomerSelect ? 'bde' : 'epc-partner')
+      });
+    }
     
+    
+    // ?????? Dynamic Payment Stages Initialization ??????
+    try {
+      const CustomerPaymentSettings = (await import("../models/CustomerPaymentSettings.js")).default;
+      let searchCountry = (po.country || "india").toLowerCase().trim();
+      if (searchCountry === "au") searchCountry = "australia";
+      if (searchCountry === "in") searchCountry = "india";
+
+      const adminPaymentDoc = await CustomerPaymentSettings.findOne({ country: searchCountry });
+      const adminConfig = adminPaymentDoc?.projectConfigs?.find(c => c.projectType.toLowerCase() === po.projectType.toLowerCase());
+
+      po.stagePayments = [];
+      if (adminConfig && adminConfig.paymentStages && adminConfig.paymentStages.length > 0) {
+        const totalCost = po.totalProjectCost || 0;
+        for (const stage of adminConfig.paymentStages) {
+          let value = stage.defaultValue || 0;
+          if (value > stage.maxLimit) value = stage.maxLimit;
+          let calculatedAmount = stage.valueType === "fixed" ? value : Math.round(totalCost * (value / 100));
+
+          po.stagePayments.push({
+            stageKey: stage.stageKey,
+            label: stage.label,
+            valueType: stage.valueType,
+            value: value,
+            amount: calculatedAmount,
+            status: "not_required",
+            isMandatory: !!stage.isMandatory,
+            recipientType: stage.recipientType || "epc",
+            gatewayRequired: stage.gatewayRequired !== false,
+            razorpayOrderId: "",
+            razorpayPaymentId: "",
+            razorpaySignature: "",
+            paidAt: null
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Error initializing stagePayments:", err);
+    }
+    // ?????????????????????????????????????????????????????????????????????????????????????????
+
     await po.save();
 
     // Map project type to EpcEnquiry enum
@@ -732,32 +778,35 @@ export const convertLeadToProject = async (req, res) => {
     const kw = parseFloat(lead.kw) || 1;
     const tokenAmt = kw * 2000;
 
-    const enquiry = new EpcEnquiry({
-      customerName: po.customerName,
-      customerMobile: po.customerMobile,
-      customerEmail: po.customerEmail || "",
-      enquiryType: 'ECommerce',
-      projectType: mappedType,
-      systemCapacityKw: po.systemSizeKW,
-      state: po.state || "",
-      district: lead.district || lead.city || po.location?.city || "",
-      city: po.location?.city || "",
-      address: po.location?.address || "",
-      rooftopPhoto: "",
-      preferredInstallDate: po.preferredInstallDate,
-      tokenAmount: tokenAmt,
-      tokenPaid: false,
-      status: isCustomerSelect ? 'Lead' : 'Open For EPC',
-      assignmentType: isCustomerSelect ? 'CustomerSelect' : 'FirstComeFirstServe',
-      orderNumber: po.orderNumber
-    });
-    await enquiry.save();
+    let enquiry = await EpcEnquiry.findOne({ customerMobile: po.customerMobile });
+    if (!enquiry) {
+      enquiry = new EpcEnquiry({
+        customerName: po.customerName,
+        customerMobile: po.customerMobile,
+        customerEmail: po.customerEmail || "",
+        enquiryType: 'ECommerce',
+        projectType: mappedType,
+        systemCapacityKw: po.systemSizeKW,
+        state: po.state || "",
+        district: lead.district || lead.city || po.location?.city || "",
+        city: po.location?.city || "",
+        address: po.location?.address || "",
+        rooftopPhoto: "",
+        preferredInstallDate: po.preferredInstallDate,
+        tokenAmount: tokenAmt,
+        tokenPaid: false,
+        status: isCustomerSelect ? 'Lead' : 'Open For EPC',
+        assignmentType: isCustomerSelect ? 'CustomerSelect' : 'FirstComeFirstServe',
+        orderNumber: po.orderNumber
+      });
+      await enquiry.save();
+    }
 
     lead.status = 'Converted';
     lead.convertedProjectId = po._id;
+    lead.bdeMovedToOrderJourney = true;
     lead.history.push({ action: 'Converted to Project', date: new Date() });
-    if (req.body.tokenPaid && !lead.convertedProjectId) {
-      const { ProjectOrder } = await import("../models/ProjectModel.js");
+    if (req.body?.tokenPaid && !lead.convertedProjectId) {
       const orderNumber = "ORD-" + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000);
       const newOrder = await ProjectOrder.create({
         orderNumber,
@@ -780,6 +829,7 @@ export const convertLeadToProject = async (req, res) => {
     // Accrue Freelancer BDE earnings & update conversion stats
     if (lead.assignedBde) {
       try {
+        const { BDE } = await import('../models/BDEModel.js');
         const bde = await BDE.findById(lead.assignedBde);
         if (bde) {
           if (!bde.performance) bde.performance = { leadsAcquired: 0, leadsConverted: 0 };
@@ -807,7 +857,8 @@ export const convertLeadToProject = async (req, res) => {
     res.json({ success: true, message: 'Lead converted successfully', projectOrder: po });
   } catch (error) {
     console.error('convertLeadToProject error:', error);
-    res.status(500).json({ success: false, message: 'Server Error during conversion' });
+    import('fs').then(fs => fs.writeFileSync('convert_error.txt', error.stack));
+    res.status(500).json({ success: false, message: 'Server Error during conversion: ' + error.message });
   }
 };
 
@@ -835,5 +886,77 @@ export const getLeadsHierarchy = async (req, res) => {
   } catch (error) {
     console.error("Hierarchy error:", error);
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const fixDistricts = async (req, res) => {
+  try {
+    const { ProjectOrder } = await import("../models/ProjectModel.js");
+    const docs = await ProjectOrder.find({ "location.district": { $in: [null, "", undefined] } });
+    let count = 0;
+    for (const d of docs) {
+      const l = await Lead.findOne({ convertedProjectId: d._id });
+      if (l) {
+        d.location = d.location || {};
+        d.location.district = l.district || l.city || 'Unknown';
+        await d.save();
+        count++;
+      } else {
+        d.location = d.location || {};
+        d.location.district = 'Unknown';
+        await d.save();
+        count++;
+      }
+    }
+    res.json({ success: true, message: "Fixed " + count + " projects!" });
+  } catch(e) {
+    res.json({ success: false, message: e.message });
+  }
+};
+
+export const fixPayments = async (req, res) => {
+  try {
+    const { ProjectOrder } = await import("../models/ProjectModel.js");
+    const CustomerPaymentSettings = (await import("../models/CustomerPaymentSettings.js")).default;
+    const docs = await ProjectOrder.find();
+    let count = 0;
+    for (const po of docs) {
+      if (!po.stagePayments || po.stagePayments.length === 0) {
+        let searchCountry = (po.country || "india").toLowerCase().trim();
+        if (searchCountry === "au") searchCountry = "australia";
+        if (searchCountry === "in") searchCountry = "india";
+
+        const adminPaymentDoc = await CustomerPaymentSettings.findOne({ country: searchCountry });
+        if (adminPaymentDoc) {
+          const adminConfig = adminPaymentDoc.projectConfigs?.find(c => c.projectType.toLowerCase() === po.projectType.toLowerCase());
+          if (adminConfig && adminConfig.paymentStages && adminConfig.paymentStages.length > 0) {
+            const totalCost = po.totalProjectCost || 0;
+            po.stagePayments = [];
+            for (const stage of adminConfig.paymentStages) {
+              let value = stage.defaultValue || 0;
+              if (value > stage.maxLimit) value = stage.maxLimit;
+              let calculatedAmount = stage.valueType === "fixed" ? value : Math.round(totalCost * (value / 100));
+
+              po.stagePayments.push({
+                stageKey: stage.stageKey,
+                label: stage.label,
+                valueType: stage.valueType,
+                value: value,
+                amount: calculatedAmount,
+                status: "not_required",
+                isMandatory: !!stage.isMandatory,
+                recipientType: stage.recipientType || "epc",
+                gatewayRequired: stage.gatewayRequired !== false
+              });
+            }
+            await po.save();
+            count++;
+          }
+        }
+      }
+    }
+    res.json({ success: true, message: "Fixed payments for " + count + " projects!" });
+  } catch(e) {
+    res.json({ success: false, message: e.message });
   }
 };

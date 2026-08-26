@@ -122,7 +122,7 @@ export default function CustomerLogin({ onClose, onSuccess }) {
     setLoading(true);
     // Quick check — try send-otp to see if user exists and if PIN is set
     try {
-      const payload = isIndia ? { mobile } : { email };
+      const payload = isIndia ? { mobile, checkOnly: true } : { email, checkOnly: true };
       const res = await fetch(`${API}/api/customer/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-country": getCountryCode() },

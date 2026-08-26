@@ -218,6 +218,8 @@ export const applyForProject = async (req, res) => {
           kw: systemSizeKW || undefined,
           solarType: projectType || undefined,
           billAmount: monthlyBillAmount || undefined,
+          assignedEPCId: payload.selectedEpcId || undefined,
+          assignedEPCName: payload.selectedEpcName || undefined,
         },
         { new: true }
       );

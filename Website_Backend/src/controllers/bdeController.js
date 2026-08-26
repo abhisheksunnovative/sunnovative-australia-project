@@ -598,7 +598,7 @@ export const updateBDELeadDetails = async (req, res) => {
     const lead = await Lead.findById(req.params.leadId);
     if (!lead) return res.status(404).json({ success: false, message: "Lead not found" });
     
-    const updates = ['name', 'mobile', 'email', 'district', 'state', 'pincode', 'kw', 'billAmount', 'solarType', 'notes', 'consumerNumber', 'discom', 'tariff', 'meterCategory'];
+    const updates = ['name', 'mobile', 'email', 'district', 'state', 'pincode', 'kw', 'billAmount', 'solarType', 'notes', 'consumerNumber', 'discom', 'tariff', 'meterCategory', 'billUrl', 'nmi', 'rooftopPhoto', 'retailer'];
     updates.forEach(field => {
       if (req.body[field] !== undefined) {
         lead[field] = req.body[field];
@@ -606,6 +606,19 @@ export const updateBDELeadDetails = async (req, res) => {
     });
 
     lead.history.push({ action: "Lead details updated manually", date: new Date() });
+    await lead.save();
+    res.json({ success: true, lead });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+export const moveLeadToOrderJourney = async (req, res) => {
+  try {
+    const lead = await Lead.findById(req.params.leadId);
+    if (!lead) return res.status(404).json({ success: false, message: "Lead not found" });
+    lead.bdeMovedToOrderJourney = true;
+    lead.history.push({ action: "BDE manually moved lead to Order Journey", date: new Date() });
     await lead.save();
     res.json({ success: true, lead });
   } catch (error) {
@@ -632,8 +645,23 @@ export const getBDEProjects = async (req, res) => {
       ];
     }
 
-    const projects = await ProjectOrder.find(filter).sort({ createdAt: -1 });
-    res.json({ success: true, projects });
+    const projects = await ProjectOrder.find(filter).sort({ createdAt: -1 }).lean();
+    const Lead = (await import('../models/Lead.js')).default;
+    const projectLeads = await Lead.find({ convertedProjectId: { $in: projects.map(p => p._id) } }).lean();
+
+    const eligibleProjects = projects.filter(p => {
+      const lead = projectLeads.find(l => l.convertedProjectId?.toString() === p._id.toString());
+      if (!lead) return true; // If no lead found, just show it
+      
+      const isAU = lead.country?.toLowerCase() === 'australia' || lead.country?.toLowerCase() === 'au';
+      if (isAU) {
+        return lead.bdeMovedToOrderJourney || lead.status === 'Converted';
+      } else {
+        return lead.tokenPaid && lead.assignedEPCId;
+      }
+    });
+
+    res.json({ success: true, projects: eligibleProjects });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -983,6 +1011,23 @@ export const getBDEsHierarchy = async (req, res) => {
     res.json({ success: true, hierarchy });
   } catch (error) {
     console.error("BDE Hierarchy error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const markLeadEligible = async (req, res) => {
+  try {
+    const { leadId } = req.params;
+    const { isEligibleForInstallation } = req.body;
+    const Lead = (await import("../models/Lead.js")).default || (await import("../models/Lead.js")).Lead;
+    const lead = await Lead.findByIdAndUpdate(
+      leadId,
+      { isEligibleForInstallation },
+      { new: true }
+    );
+    if (!lead) return res.status(404).json({ success: false, message: "Lead not found" });
+    res.json({ success: true, lead });
+  } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };

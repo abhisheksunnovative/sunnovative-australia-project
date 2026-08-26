@@ -1,0 +1,3 @@
+TypeError: Cannot read properties of undefined (reading 'tokenPaid')
+    at convertLeadToProject (file:///D:/sunnovative-australia-website/Website_Backend/src/controllers/leadController.js:804:18)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
