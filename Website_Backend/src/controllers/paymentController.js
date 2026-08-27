@@ -85,7 +85,7 @@ export const verifyPayment = async (req, res) => {
               estimatedSubsidy: order.estimatedSubsidy,
               monthlyBillAmount: order.monthlyBillAmount,
               preferredInstallDate: order.preferredInstallDate,
-              assignedEPCId: order.assignedEPCId,
+              epcPartner: order.assignedEPCId,
               status: 'Pending',
               history: [{
                 status: 'Pending',

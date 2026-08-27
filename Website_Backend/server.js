@@ -132,6 +132,9 @@ app.post("/api/upload-file", (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════
 // WEBSITE / ADMIN SETTINGS ROUTES
 // ══════════════════════════════════════════════════════════════════════════
+import tempRoutes from "./src/routes/tempRoutes.js";
+app.use("/api/temp", tempRoutes);
+
 app.use("/api/website-settings", websiteSettingsRoutes);
 app.use("/api/eligibility-settings", eligibilitySettingsRoutes);
 app.use("/api/order-journey-settings", orderJourneySettingsRoutes);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { MapPin, PhoneCall, Calendar, ArrowRight, CheckCircle, Clock, Zap, DollarSign } from "lucide-react";
+import { MapPin, PhoneCall, Calendar, ArrowRight, CheckCircle, Clock, Zap, DollarSign, ClipboardList, ShieldCheck, Mail, KeyRound, X } from "lucide-react";
 import { useAdminSettings } from "../../hooks/useAdminSettings";
 
 export default function BDEProspects({ bdeId, country, bdeType }) {
@@ -11,7 +11,167 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
   const [followUpFilter, setFollowUpFilter] = useState("All"); 
   const { projectTypes: dynamicProjectTypes } = useAdminSettings(country);
   const [loading, setLoading] = useState(true);
+  
   const [bookingLead, setBookingLead] = useState(null);
+  
+  // OTP & Calendar States
+  const [otpModalLead, setOtpModalLead] = useState(null);
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
+  const [otpValue, setOtpValue] = useState(''); // kept for backward compat
+  const [isOtpLoading, setIsOtpLoading] = useState(false);
+  const [dummyOtpDisplay, setDummyOtpDisplay] = useState('');
+  const otpInputRefs = React.useRef([]);
+
+  const handleOtpDigit = (index, val) => {
+    const digit = val.replace(/\D/g, '').slice(-1);
+    const newDigits = [...otpDigits];
+    newDigits[index] = digit;
+    setOtpDigits(newDigits);
+    setOtpValue(newDigits.join(''));
+    if (digit && index < 5) otpInputRefs.current[index + 1]?.focus();
+  };
+
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
+      otpInputRefs.current[index - 1]?.focus();
+    }
+    if (e.key === 'Enter' && otpDigits.join('').length === 6) verifyOtpAndOpenCalendar();
+  };
+
+  const handleOtpPaste = (e) => {
+    const paste = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (paste.length) {
+      const newDigits = paste.split('').concat(Array(6).fill('')).slice(0, 6);
+      setOtpDigits(newDigits);
+      setOtpValue(paste);
+      otpInputRefs.current[Math.min(paste.length, 5)]?.focus();
+    }
+    e.preventDefault();
+  };
+
+  const handleRequestOtp = async (lead) => {
+    setOtpModalLead(lead);
+    setCustomerEmail(lead.email || '');
+    setOtpSent(false);
+    setOtpDigits(['', '', '', '', '', '']);
+    setOtpValue('');
+  };
+
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [calendarSlots, setCalendarSlots] = useState([]);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [selectedRawDate, setSelectedRawDate] = useState(null);
+  const [isSelectLoading, setIsSelectLoading] = useState(false);
+
+  const getDaysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  const getFirstDayOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+
+  const sendOtp = async () => {
+    if (!customerEmail) return alert("Email required");
+    setIsOtpLoading(true);
+    console.log(`[OTP-UI] Sending OTP for lead: ${otpModalLead?._id}, email: ${customerEmail}`);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/api/leads/${otpModalLead._id}/request-date-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ email: customerEmail })
+      });
+      console.log(`[OTP-UI] Send OTP response status: ${res.status}`);
+      const data = await res.json();
+      console.log(`[OTP-UI] Send OTP response data:`, data);
+      if (data.success) {
+        setOtpSent(true);
+        setDummyOtpDisplay(data.dummyOtp || ''); // Show OTP in modal, not alert
+      } else { alert(data.message); }
+    } catch (e) { 
+      console.error('[OTP-UI] sendOtp error:', e);
+      alert("Error sending OTP: " + e.message); 
+    }
+    setIsOtpLoading(false);
+  };
+
+  const verifyOtpAndOpenCalendar = async () => {
+    const fullOtp = otpDigits.join('');
+    console.log(`[OTP-UI] Verifying OTP: "${fullOtp}", digits: ${JSON.stringify(otpDigits)}, otpValue state: "${otpValue}"`);
+    if (fullOtp.length < 6) {
+      alert(`Please enter all 6 digits. Currently entered: "${fullOtp}"`);
+      return;
+    }
+    setIsOtpLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      console.log(`[OTP-UI] Sending verify request to: ${API_BASE}/api/leads/${otpModalLead._id}/verify-date-otp`);
+      const res = await fetch(`${API_BASE}/api/leads/${otpModalLead._id}/verify-date-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ otp: fullOtp })
+      });
+      console.log(`[OTP-UI] Verify response status: ${res.status}`);
+      const data = await res.json();
+      console.log(`[OTP-UI] Verify response data:`, data);
+      if (data.success) {
+        const leadToBook = otpModalLead;
+        setOtpModalLead(null);
+        setOtpSent(false);
+        setOtpDigits(['', '', '', '', '', '']);
+        setOtpValue('');
+        setDummyOtpDisplay('');
+        fetchCalendarForLead(leadToBook);
+      } else { alert(data.message || 'Invalid OTP'); }
+    } catch (e) { 
+      console.error('[OTP-UI] verifyOtp error:', e);
+      alert("Error verifying OTP: " + e.message); 
+    }
+    setIsOtpLoading(false);
+  };
+
+  const fetchCalendarForLead = async (lead) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/api/leads/${lead._id}/epc-calendar`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCalendarSlots(data.slots || []);
+        setBookingLead(lead); 
+        setIsCalendarOpen(true);
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const handleBookInstallSlot = async () => {
+    if (!selectedSlot && !selectedRawDate) return alert("Select a date!");
+    setIsSelectLoading(true);
+    try {
+      let payload = { date: selectedRawDate };
+      if (selectedSlot) {
+        payload.epcCalendarSlotId = selectedSlot._id;
+        payload.date = selectedSlot.date;
+      }
+      
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/api/leads/${bookingLead._id}/select-install-date`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        alert("Date Locked successfully!");
+        setIsCalendarOpen(false);
+        setBookingLead(null);
+        fetchLeads(); 
+      } else { alert(data.message); }
+    } catch (e) { alert("Error"); }
+    setIsSelectLoading(false);
+  };
+
   const [selectedDate, setSelectedDate] = useState("");
   const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
   
@@ -93,12 +253,25 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
     } catch (e) { console.error(e); }
   };
 
+  console.log(`[BDEProspects] Total leads loaded: ${leads.length}, isFreelancer: ${isFreelancer}, bdeType: ${bdeType}`);
+
   const baseProspects = leads.filter(l => {
     if (l.status === 'Converted' || l.convertedProjectId) return false;
-    const isAU = l.country?.toLowerCase() === 'australia' || l.country?.toLowerCase() === 'au';
-    const isEligibleForOrderJourney = isAU ? l.bdeMovedToOrderJourney : (l.tokenPaid && l.assignedEPCId);
-    return l.installDateBooked && !isEligibleForOrderJourney;
+    
+    const isManualLead = l.history?.some(h => h.action.includes("Manually created by BDE"));
+    if (isFreelancer && !isManualLead) return false;
+    if (!isFreelancer && isManualLead) return false;
+    
+    if (isFreelancer && !l.isEligibleForInstallation && !l.installDateBooked) {
+      console.log(`[BDEProspects] EXCLUDED (not eligible): ${l.name} | isEligible=${l.isEligibleForInstallation} | installDateBooked=${l.installDateBooked}`);
+      return false;
+    }
+    
+    console.log(`[BDEProspects] INCLUDED: ${l.name} | isEligible=${l.isEligibleForInstallation} | status=${l.status}`);
+    return true;
   });
+
+  console.log(`[BDEProspects] baseProspects count: ${baseProspects.length}`);
 
   const getCountForProjectType = (ptValue) => {
     if (ptValue === "All") return baseProspects.length;
@@ -135,6 +308,30 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
     return true;
   });
 
+  // Collect all unique project types present in the BDE's current leads
+  const leadProjectTypes = React.useMemo(() => {
+    const types = new Set();
+    baseProspects.forEach(l => {
+      const type = (l.solarType || l.projectType);
+      if (type) types.add(type.toLowerCase());
+    });
+    return Array.from(types).map(t => ({
+      value: t,
+      label: t.split(/[-_]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+    }));
+  }, [baseProspects]);
+
+  // Combine admin-defined project types with lead-derived types to ensure no lead type is missing
+  const allProjectTypes = React.useMemo(() => {
+    const combined = [...dynamicProjectTypes];
+    leadProjectTypes.forEach(lpt => {
+      if (!combined.find(pt => pt.value.toLowerCase() === lpt.value.toLowerCase())) {
+        combined.push(lpt);
+      }
+    });
+    return combined;
+  }, [dynamicProjectTypes, leadProjectTypes]);
+
   return (
     <div className="p-4 max-w-7xl mx-auto min-h-screen">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
@@ -162,7 +359,7 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
           All Types
           <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-black ${projectTypeFilter === 'All' ? 'bg-white text-blue-600' : 'bg-slate-200 text-slate-600'}`}>{getCountForProjectType("All")}</span>
         </button>
-        {dynamicProjectTypes.map(pt => {
+        {allProjectTypes.map(pt => {
           const ptCount = getCountForProjectType(pt.value);
           if (ptCount === 0 && projectTypeFilter !== pt.value) return null;
           return (
@@ -243,109 +440,279 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
                   {lead.nextFollowUp && <p className="text-xs text-amber-600 mt-2 font-semibold flex items-center gap-1"><Clock className="w-3.5 h-3.5"/> Scheduled: {new Date(lead.nextFollowUp).toDateString()}</p>}
               </div>
 
-              {/* Col 3: Action Buttons */}
-              <div className="flex-1 min-w-[250px] w-full lg:border-l lg:border-slate-100 lg:pl-6 flex flex-col justify-center gap-2">
+              {/* Col 3: Auto-Conversion Status & Follow-Up */}
+              <div className="flex-1 min-w-[300px] w-full lg:border-l lg:border-slate-100 lg:pl-6 flex flex-col justify-center gap-2">
                 <div className="hidden lg:block absolute top-4 right-4">
                   <span className="bg-amber-100 text-amber-700 text-[10px] px-2 py-1 rounded-full font-bold">PROSPECT</span>
                 </div>
-                {!lead.tokenPaid ? (
-    <div className="flex flex-col gap-2 mt-4 lg:mt-0">
-                  {/* Follow-up Date Editor */}
-                  <div className="w-full bg-slate-50 p-2 rounded-lg border border-slate-200 flex flex-col gap-1 shadow-sm mb-1">
-                    <div className="flex justify-between items-center">
-                      <div className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-1">
-                        <Calendar className="w-3 h-3"/> Follow-up Date
-                      </div>
-                      <input 
-                        type="date" 
-                        className="bg-transparent border-none p-0 text-[10px] font-bold text-blue-700 cursor-pointer focus:ring-0"
-                        value={lead.nextFollowUp ? lead.nextFollowUp.split("T")[0] : ""}
-                        onChange={async (e) => {
-                          try {
-                            const token = localStorage.getItem('token');
-                            const res = await fetch(`${API_BASE}/api/bde/leads/${lead._id}/status`, {
-                              method: "PUT",
-                              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                              body: JSON.stringify({ status: lead.status, nextFollowUp: e.target.value })
-                            });
-                            if (res.ok) { fetchLeads(); }
-                          } catch (err) {}
-                        }}
-                      />
-                    </div>
+                
+                {lead.status === 'Converted' ? (
+                  <div className="text-center p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                    <p className="text-sm font-bold text-emerald-700 uppercase">Converted to Order</p>
+                    <p className="text-xs text-emerald-600 mt-1">Moved to Customer Order Journey</p>
                   </div>
+                ) : (
+                  <div className="flex flex-col gap-2 w-full mt-4 lg:mt-0">
+                    <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Conversion Requirements</p>
+                    
+                    {/* Condition 1: Installation Date */}
+                    <div className={`p-2 rounded border text-xs font-semibold flex items-center justify-between ${lead.preferredInstallDate ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'}`}>
+                      <span className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5"/> 
+                        {lead.preferredInstallDate ? 'Date Selected' : '1. Date Pending'}
+                      </span>
+                      {!lead.preferredInstallDate && (
+                        <button onClick={() => handleRequestOtp(lead)} className="text-[9px] bg-white px-2 py-1 border border-rose-200 rounded shadow-sm text-rose-600 hover:bg-rose-50 cursor-pointer">Select Date</button>
+                      )}
+                    </div>
+                    
+                    {/* Condition 2: EPC Assigned */}
+                    <div className={`p-2 rounded border text-xs font-semibold flex items-center justify-between ${lead.assignedEPCName ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'}`}>
+                      <span className="flex items-center gap-1.5">
+                        <ShieldCheck className="w-3.5 h-3.5"/> 
+                        {lead.assignedEPCName ? 'EPC Assigned' : '2. EPC Pending'}
+                      </span>
+                    </div>
 
-                  {!isAU ? (
-                    lead.tokenPaid ? (
-                      <p className="text-[10px] font-bold text-emerald-600 text-center uppercase bg-emerald-50 py-2 rounded border border-emerald-100">Token Paid. Waiting for EPC.</p>
+                    {/* Condition 3: Apply Form Completed */}
+                    <div className={`p-2 rounded border text-xs font-semibold flex items-center justify-between ${lead.address ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'}`}>
+                      <span className="flex items-center gap-1.5">
+                        <ClipboardList className="w-3.5 h-3.5"/> 
+                        {lead.address ? 'Apply Form Done' : '3. Apply Form Pending'}
+                      </span>
+                    </div>
+
+                    {/* Condition 4: Token Paid (if applicable) */}
+                    {!isAU && (
+                      <div className={`p-2 rounded border text-xs font-semibold flex items-center justify-between ${lead.tokenPaid ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'}`}>
+                        <span className="flex items-center gap-1.5">
+                          <DollarSign className="w-3.5 h-3.5"/> 
+                          {lead.tokenPaid ? 'Token Paid' : '4. Token Pending'}
+                        </span>
+                        {!lead.tokenPaid && (
+                          <button onClick={() => handleSimulatePayment(lead)} className="text-[9px] bg-white px-2 py-1 border border-rose-200 rounded shadow-sm text-rose-600 hover:bg-rose-50">Simulate</button>
+                        )}
+                      </div>
+                    )}
+
+                    {!lead.preferredInstallDate || !lead.assignedEPCName || !lead.address || (!isAU && !lead.tokenPaid) ? (
+                      <p className="text-[10px] text-rose-500 font-medium text-center mt-1 leading-tight">
+                        * Note: Above pending condition(s) must be fulfilled to auto-convert to Order Journey.
+                      </p>
                     ) : (
-                      <>
-                        <p className="text-[10px] font-bold text-rose-600 text-center uppercase bg-rose-50 border border-rose-200 py-1.5 rounded shadow-sm">Ask customer to pay token amount</p>
-                        <button onClick={() => handleSimulatePayment(lead)} className="text-[9px] text-blue-600 font-bold underline text-center">Simulate Token Payment</button>
-                      </>
-                    )
-                  ) : (
-                    <>
-                      <button onClick={async () => {
-                        try {
-                          const token = localStorage.getItem('token');
-                          const res = await fetch(`${API_BASE}/api/leads/${lead._id}/convert`, { 
-                            method: "POST", 
-                            headers: { Authorization: `Bearer ${token}` } 
-                          });
-                          if (res.ok) { alert("Moved to Order Journey!"); fetchLeads(); }
-                        } catch (e) {}
-                      }} className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm text-sm font-bold rounded-lg transition flex justify-center items-center gap-2">
-                         Move to Order Journey
-                      </button>
-                    </>
-                  )}
-    </div>
-  ) : (
-                  <div className="text-center text-sm font-bold text-blue-600">
-                    Converted to Order
+                      <p className="text-[10px] text-emerald-600 font-bold text-center mt-1 animate-pulse">
+                        All conditions met! Converting...
+                      </p>
+                    )}
+
+                    {/* Follow up date picker */}
+                    <div className="w-full bg-slate-50 p-2 rounded-lg border border-slate-200 flex flex-col gap-1 shadow-sm mt-2">
+                      <div className="text-[9px] font-black text-slate-500 uppercase">
+                        {isAU ? "Ask customer to pay initial payment" : "Ask customer to pay token"}
+                      </div>
+                      <div className="flex justify-between items-center mt-1">
+                        <div className="text-[10px] font-bold text-slate-700 flex items-center gap-1">
+                          <Clock className="w-3 h-3"/> Follow-up Date
+                        </div>
+                        <input 
+                          type="date" 
+                          className="bg-transparent border border-slate-300 rounded px-1 text-[10px] font-bold text-blue-700 cursor-pointer focus:ring-0"
+                          value={lead.nextFollowUp ? lead.nextFollowUp.split("T")[0] : ""}
+                          onChange={async (e) => {
+                            try {
+                              const token = localStorage.getItem('token');
+                              const res = await fetch(`${API_BASE}/api/bde/leads/${lead._id}`, {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                body: JSON.stringify({ status: lead.status, nextFollowUp: e.target.value })
+                              });
+                              if (res.ok) { fetchLeads(); }
+                            } catch (err) {}
+                          }}
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
           ))}
+
         </div>
       )}
-      {bookingLead && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-sm rounded-xl overflow-hidden shadow-2xl">
-            <div className="p-4 bg-slate-50 border-b border-slate-100 font-bold text-slate-700 uppercase text-sm">
-              Confirm Installation Date
+      
+      {/* OTP Modal */}
+      {otpModalLead && (
+        <div 
+          className="fixed inset-0 bg-slate-900/60 z-[999] flex items-center justify-center p-4"
+        >
+          <div 
+            className="bg-white w-full max-w-md rounded-2xl overflow-hidden shadow-2xl relative z-[1000]"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-4 border-b flex justify-between items-center bg-slate-50">
+              <h2 className="font-bold text-slate-800 flex items-center gap-2">
+                <KeyRound className="w-5 h-5 text-blue-600"/> Secure Date Selection
+              </h2>
+              <button onClick={() => { setOtpModalLead(null); setOtpSent(false); setOtpValue(''); }} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5"/></button>
             </div>
-            <div className="p-4 space-y-4">
-              <p className="text-xs text-slate-500">Check EPC availability and confirm the final date with the customer before taking the sign-up token.</p>
+            
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-slate-500 font-medium">
+                Selecting date on behalf of: <span className="font-bold text-slate-700">{otpModalLead.name}</span>
+              </p>
+              
+              {!otpSent ? (
+                <div className="space-y-3">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase">Customer Email</label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                    <input 
+                      autoFocus
+                      type="email" 
+                      value={customerEmail} 
+                      onChange={e => setCustomerEmail(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && sendOtp()}
+                      className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" 
+                      placeholder="customer@email.com" 
+                    />
+                  </div>
+                  <button 
+                    onClick={sendOtp} 
+                    disabled={isOtpLoading || !customerEmail} 
+                    className="w-full py-2.5 bg-blue-600 disabled:opacity-50 text-white font-bold rounded-lg"
+                  >
+                    {isOtpLoading ? 'Sending...' : 'Send OTP to Customer'}
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-xs text-emerald-700 font-medium">
+                    ✅ OTP sent to <strong>{customerEmail}</strong>
+                  </div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase text-center">Enter 6-Digit OTP</label>
+                  
+                  {/* 6 separate OTP digit boxes */}
+                  <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
+                    {otpDigits.map((digit, index) => (
+                      <input
+                        key={index}
+                        ref={el => otpInputRefs.current[index] = el}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={1}
+                        value={digit}
+                        autoFocus={index === 0}
+                        onChange={e => handleOtpDigit(index, e.target.value)}
+                        onKeyDown={e => handleOtpKeyDown(index, e)}
+                        onClick={e => e.target.select()}
+                        className={`w-12 h-14 text-center text-2xl font-black border-2 rounded-xl outline-none transition-all
+                          ${digit ? 'border-blue-500 bg-blue-50 text-blue-800' : 'border-slate-200 text-slate-700'}
+                          focus:border-blue-500 focus:ring-2 focus:ring-blue-100`}
+                      />
+                    ))}
+                  </div>
+
+                  <button 
+                    onClick={verifyOtpAndOpenCalendar} 
+                    disabled={isOtpLoading || otpDigits.join('').length < 6} 
+                    className="w-full py-2.5 bg-emerald-600 disabled:opacity-40 text-white font-bold rounded-lg"
+                  >
+                    {isOtpLoading ? 'Verifying...' : 'Verify OTP & Open Calendar'}
+                  </button>
+                  <button 
+                    onClick={() => { setOtpSent(false); setOtpDigits(['','','','','','']); setOtpValue(''); }} 
+                    className="w-full text-xs text-slate-400 underline"
+                  >
+                    Wrong email? Go back
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EPC Calendar Modal */}
+      {isCalendarOpen && bookingLead && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-fade-in-up">
+            <div className="p-4 border-b flex justify-between items-center bg-slate-50">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Final Install Date</label>
-                <input 
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded outline-none focus:border-blue-500"
-                />
+                <h2 className="font-bold text-lg text-slate-900">Book EPC Installation</h2>
+                <p className="text-xs text-slate-500">Select an available date for {bookingLead.name} in {bookingLead.district || bookingLead.city}</p>
+              </div>
+              <button onClick={() => setIsCalendarOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-6 h-6"/></button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50">
+              {/* Calendar Grid Logic inside */}
+              <div className="grid grid-cols-7 gap-2 mb-2">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <div key={d} className="text-center text-[10px] font-black text-slate-400 uppercase">{d}</div>)}
+              </div>
+              <div className="grid grid-cols-7 gap-2">
+                {Array.from({ length: getFirstDayOfMonth(currentMonth) }).map((_, i) => <div key={`empty-${i}`}></div>)}
+                {Array.from({ length: getDaysInMonth(currentMonth) }).map((_, i) => {
+                  const day = i + 1;
+                  const dateObj = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+                  const dateString = dateObj.toDateString();
+                  const isPastDate = dateObj < (new Date(new Date().setHours(0,0,0,0)));
+                  
+                  const daySlots = calendarSlots.filter(s => new Date(s.date).toDateString() === dateString);
+                  const allSlotsBlocked = daySlots.length > 0 && daySlots.every(s => s.isBlocked || s.currentBookings >= s.maxBookings);
+                  const isRawSelected = selectedRawDate === dateString && !selectedSlot;
+                  
+                  return (
+                    <div 
+                      key={day}
+                      onClick={() => {
+                        if (isPastDate) return;
+                        setSelectedSlot(null);
+                        setSelectedRawDate(dateString);
+                      }}
+                      className={`min-h-[80px] border p-1.5 rounded-xl flex flex-col gap-1 transition-all ${isPastDate ? 'bg-slate-100/50 border-slate-200 text-slate-300 cursor-not-allowed' : isRawSelected ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-300 cursor-pointer shadow-md' : allSlotsBlocked ? 'bg-rose-50/70 border-rose-200 cursor-pointer hover:bg-rose-100' : 'bg-emerald-50 border-emerald-200 cursor-pointer hover:bg-emerald-100'}`}
+                    >
+                       <div className="flex items-center justify-between">
+                         <span className={`text-xs font-black ${isPastDate ? 'text-slate-300' : isRawSelected ? 'text-blue-800' : 'text-slate-700'}`}>{day}</span>
+                       </div>
+                       
+                       {!isPastDate && (
+                         <div className="flex-1 flex flex-col gap-1 mt-1">
+                           {daySlots.map(slot => {
+                              const isFull = slot.isBlocked || slot.currentBookings >= slot.maxBookings;
+                              return (
+                                <button
+                                  key={slot._id}
+                                  onClick={(e) => { e.stopPropagation(); if(isFull) return; setSelectedSlot(slot); setSelectedRawDate(dateString); }}
+                                  className={`text-[9px] font-bold p-1 rounded w-full text-left truncate ${selectedSlot?._id === slot._id ? 'bg-blue-500 text-white' : isFull ? 'bg-rose-100 text-rose-700 line-through' : 'bg-emerald-200/50 text-emerald-800 hover:bg-emerald-200'}`}
+                                >
+                                  {isFull ? 'Booked Out' : (slot.epcPartner?.companyName || 'EPC Available')}
+                                </button>
+                              )
+                           })}
+                           {daySlots.length === 0 && (
+                              <div className="text-[9px] font-bold p-1 rounded bg-emerald-100 text-emerald-700 text-center">EPC Available</div>
+                           )}
+                         </div>
+                       )}
+                    </div>
+                  )
+                })}
               </div>
             </div>
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-              <button 
-                onClick={() => setBookingLead(null)}
-                className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleBookInstall}
-                className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded shadow-sm hover:bg-blue-700"
-              >
-                Confirm Booking
+
+            <div className="p-4 border-t bg-slate-50 flex justify-between items-center">
+              <span className="text-sm font-bold text-slate-600">
+                {selectedSlot ? `Selected Slot: ${new Date(selectedSlot.date).toLocaleDateString()}` : selectedRawDate ? `Selected Date: ${new Date(selectedRawDate).toLocaleDateString()}` : 'Please select a date'}
+              </span>
+              <button onClick={handleBookInstallSlot} disabled={isSelectLoading || (!selectedSlot && !selectedRawDate)} className="px-6 py-2 bg-blue-600 disabled:opacity-50 text-white font-bold rounded-xl flex items-center gap-2 shadow-md">
+                <ShieldCheck className="w-4 h-4"/> {isSelectLoading ? 'Saving...' : 'Confirm Date'}
               </button>
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 }

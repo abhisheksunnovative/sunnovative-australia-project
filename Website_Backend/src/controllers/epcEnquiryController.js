@@ -9,8 +9,13 @@ export const getMyEnquiries = async (req, res) => {
     const { status, projectType, district, enquiryType } = req.query;
 
     let filter = {};
+    let nullEpcCondition = {
+      epcPartner: null,
+      status: { $in: ['Open For EPC', 'Bid Running', 'Lead', 'Token Paid', 'Order Generated'] }
+    };
+
     if (epc.country?.toLowerCase() === 'india' || !epc.country) {
-      filter.state = epc.state;
+      nullEpcCondition.state = epc.state;
     } else {
       let allowedDistricts = [];
       if (epc.plan === 'Free' || epc.plan === '1 Installer Plan') {
@@ -18,15 +23,12 @@ export const getMyEnquiries = async (req, res) => {
       } else {
         allowedDistricts = epc.activeDistricts && epc.activeDistricts.length > 0 ? epc.activeDistricts : [epc.district];
       }
-      filter.district = { $in: allowedDistricts };
+      nullEpcCondition.district = { $in: allowedDistricts };
     }
 
     filter.$or = [
       { epcPartner: req.epc._id },
-      {
-        epcPartner: null,
-        status: { $in: ['Open For EPC', 'Bid Running', 'Lead', 'Token Paid', 'Order Generated'] }
-      },
+      nullEpcCondition
     ];
 
     if (epc.trustBadge?.status !== 'Approved') {
@@ -181,6 +183,13 @@ export const acceptEnquiry = async (req, res) => {
             project.status = 'EPC Accepted';
             project.pendingActionAlert = 'EPC Partner accepted your project! Site survey scheduled.';
             project.pendingActionFor = 'epc-partner';
+            
+            const { processStepCompletionEngine } = await import('../utils/stepEngine.js');
+            const targetStep = project.steps?.find(s => s.title.includes('EPC Assign'));
+            if (targetStep) {
+               await processStepCompletionEngine(project, targetStep.stepId, 'System', '', 'EPC Accepted the order');
+            }
+            
             await project.save();
           }
 

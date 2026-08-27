@@ -40,6 +40,8 @@ const leadSchema = new mongoose.Schema(
     billFetched: { type: Boolean, default: false },
     installDateBooked: { type: Boolean, default: false },
     finalInstallDate: { type: Date },
+    installDateOtp: { type: String },
+    installDateOtpExpiry: { type: Date },
     assignedEPCId: { type: String },
     assignedEPCName: { type: String },
     epcDetails: { type: Object },

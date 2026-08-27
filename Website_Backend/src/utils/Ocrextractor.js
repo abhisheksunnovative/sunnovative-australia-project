@@ -339,13 +339,11 @@ export const parseBillText = (rawText) => {
   const discomId = discom.id;
 
   // ── Consumer Number ────────────────────────────────────────────────────────
-  // English labels + Hindi: उपभोक्ता संख्या / Consumer No. / Account No.
-  // v5: Added "Account No", "C/h No", "खाता संo", 8-15 digit range
   let consumerNumber = null;
   const cnPatterns = [
     /(?:consumer\s*(?:no|number|code|#|id)|account\s*(?:no|number)|C\/h\s*No|खाता\s*(?:सं|संo|संख्या)|उपभोक्ता\s*(?:सं|संख्या|क्रमांक))[.:\s]*([0-9]{7,15})/i,
-    /\b(0[0-9]{9,11})\b/,            // PGVCL/PVVNL format: starts with 0, 10-12 digits
-    /\b([0-9]{10,12})\b/,            // generic 10–12 digit
+    /\b(0[0-9]{9,11})\b/,
+    /\b([0-9]{10,12})\b/,
   ];
   for (const p of cnPatterns) {
     const m = text.match(p);
@@ -353,21 +351,14 @@ export const parseBillText = (rawText) => {
   }
 
   // ── Consumer Name ──────────────────────────────────────────────────────────
-  // English: "Name : RAMESH PATEL" or "Consumer Name: ..."
-  // Hindi: "नाम : रमेश पटेल"
-  // v5: Added "नाम / Name" pattern for PVVNL bills, bare "Name:" pattern
   let consumerName = null;
   const namePatterns = [
-    /(?:consumer\s*name|name\s*of\s*consumer)[\s:\-2]*([A-Z][A-Za-z\s.]{2,40})(?=\s+(?:address|s\/o|w\/o|d\/o|mobile|meter|bill|consumer|tariff|\n))/i,
-    // PVVNL extreme noise: "जाया Name 2 CHETAN KHANNA Wu Division"
-    // Case-sensitive to ensure we only capture UPPERCASE names and stop at Title Case words (like Wu)
-    /(?:नाम|Name|NAME|जाया)[\s:\-2]*(?:Name|NAME)?[\s:\-2]*\n?([A-Z][A-Z\s.]{2,40}?)\s*(?=[A-Z][a-z]|Division|Div|पिता|Husband|Address|\n)/,
-    // Hindi only: "नाम :"
+    /(?<!SDO\s*)(?:consumer\s*name|name\s*of\s*consumer|Name)[\s:\-2]*([A-Z][A-Za-z\s.]{2,40})(?=\s+(?:address|s\/o|w\/o|d\/o|mobile|meter|bill|consumer|tariff|GST|\n))/i,
+    /(?<!SDO\s*)(?:नाम|Name|NAME|जाया)[\s:\-2]*(?:Name|NAME)?[\s:\-2]*\n?([A-Z][A-Z\s.]{2,40}?)\s*(?=[A-Z][a-z]|Division|Div|पिता|Husband|Address|\n)/,
     /(?:नाम|उपभोक्ता\s*का\s*नाम)[\s:\-2]*(.{3,40}?)(?=\s+(?:पता|मोबाइल|मीटर|बिल|\n))/,
-    // PGVCL: name appears after "Consumer No." line
     /(?:CONSUMER\s*(?:NO|CODE|NAME)[^a-z\n]{0,30}\n\s*)([A-Z][A-Z\s.]{3,40})\n/,
-    // Bare "Name :" pattern with strict newline ending
-    /\bName[\s:\-2]*([A-Z][A-Za-z\s.]{2,40})\n/i,
+    /SDO\s*Name.*?\n([A-Z][A-Za-z\s.]{3,40})\n/i,
+    /(?<!SDO\s*)\bName[\s:\-2]*([A-Z][A-Za-z\s.]{2,40})\n/i,
   ];
   for (const p of namePatterns) {
     const m = text.match(p);
@@ -379,12 +370,10 @@ export const parseBillText = (rawText) => {
   let tariffCode = extractTariffCode(text);
 
   // ── Sanctioned Load (kW) — extract BEFORE resolveMeterCategory ─────────────
-  // v5: Moved up so sanctionedLoad is available for DISCOM-context fallback
   let sanctionedLoad = null;
   const loadPatterns = [
     /(?:sanctioned?\s*load|connected\s*load|contract\s*demand|max\s*dem(?:and)?|authorized?\s*load|sanction\s*load)\s*[:\-]?\s*([0-9]+(?:\.[0-9]+)?)\s*(?:k[wW]|KVA)?/i,
     /(?:स्वीकृत\s*भार|संयोजित\s*भार|भारित\s*भार)\s*[:\-]?\s*([0-9]+(?:\.[0-9]+)?)\s*(?:kw|किलोवाट|KVA)?/i,
-    // bare: a number followed by KW near load label
     /(?:sanctioned?|connected|max)\s*[:\-]?\s*([0-9]+(?:\.[0-9]+)?)\s*k[wW]/i,
   ];
   for (const p of loadPatterns) {
@@ -393,7 +382,6 @@ export const parseBillText = (rawText) => {
   }
 
   // ── v5: Enhanced Meter Category — DISCOM-context-aware fallback ────────────
-  // If regex failed, use DISCOM + sanctioned load to resolve
   meterCategory = resolveMeterCategory(text, meterCategory, discomId, sanctionedLoad);
 
   // Fallback tariff code if extraction failed but category is known
@@ -406,9 +394,6 @@ export const parseBillText = (rawText) => {
   const tariffDesc = getTariffDesc(tariffCode);
 
   // ── Monthly Units ──────────────────────────────────────────────────────────
-  // PGVCL: "Total Consumption 137", "Net Units 137"
-  // PVVNL: "Net Billed Unit 63.00", "Meter Units 63 KWH" (OCR noise: "नेट बिल्ड यूनिट/ 63.00")
-  // Hindi: "कुल खपत", "कुल उपभोग"
   let monthlyUnits = null;
   const unitPatterns = [
     /(?:total\s*consumption|net\s*consumption|total\s*units|net\s*units|units?\s*consumed|current\s*consumption|net\s*billed\s*unit)[\s:\-\/]*\n?([0-9]+(?:\.[0-9]+)?)/i,
@@ -449,7 +434,10 @@ export const parseBillText = (rawText) => {
   for (const p of amtPatterns) {
     const m = text.match(p);
     if (m) {
-      const v = parseNum(m[1]);
+      let v = parseNum(m[1]);
+      if (v > 20000 && !m[1].includes('.') && meterCategory && meterCategory.includes('Residential')) {
+        v = v / 100;
+      }
       if (v && v > 0) { billAmount = v; break; }
     }
   }

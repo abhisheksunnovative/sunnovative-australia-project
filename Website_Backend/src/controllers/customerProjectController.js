@@ -208,24 +208,40 @@ export const applyForProject = async (req, res) => {
       if (req.customer.mobile) queryOr.push({ mobile: req.customer.mobile });
       if (mobileRegex) queryOr.push({ mobile: mobileRegex });
       if (req.customer.email) queryOr.push({ email: req.customer.email });
-
-      const updatedLead = await LeadModel.findOneAndUpdate(
-        { $or: queryOr },
-        { 
-          preferredInstallDate: preferredInstallDate ? new Date(preferredInstallDate) : null,
-          consumerNumber: payload.consumerNumber || undefined,
-          rooftopPhoto: rooftopPhotoUrl || undefined,
-          kw: systemSizeKW || undefined,
-          solarType: projectType || undefined,
-          billAmount: monthlyBillAmount || undefined,
-          assignedEPCId: payload.selectedEpcId || undefined,
-          assignedEPCName: payload.selectedEpcName || undefined,
-        },
-        { new: true }
-      );
-      console.log(`[Sync] Successfully updated Lead (${updatedLead?._id}) with preferredInstallDate: ${preferredInstallDate}`);
+      
+      const relatedLead = await LeadModel.findOne({ $or: queryOr }).sort({ createdAt: -1 });
+      if (relatedLead) {
+        relatedLead.history.push({ action: 'Customer Submitted Application', date: new Date() });
+        if (preferredInstallDate) relatedLead.preferredInstallDate = new Date(preferredInstallDate);
+        if (payload.consumerNumber) relatedLead.consumerNumber = payload.consumerNumber;
+        if (rooftopPhotoUrl) relatedLead.rooftopPhoto = rooftopPhotoUrl;
+        if (systemSizeKW) relatedLead.kw = systemSizeKW;
+        if (projectType) relatedLead.solarType = projectType;
+        if (monthlyBillAmount) relatedLead.billAmount = monthlyBillAmount;
+        if (payload.selectedEpcId) {
+          relatedLead.assignedEPCId = payload.selectedEpcId;
+          relatedLead.assignedEPCName = payload.selectedEpcName;
+        }
+        if (location) {
+          relatedLead.address = location.address || relatedLead.address;
+          relatedLead.city = location.city || relatedLead.city;
+          relatedLead.district = location.city || relatedLead.district;
+          relatedLead.state = state || location.state || relatedLead.state;
+          relatedLead.pincode = location.pincode || relatedLead.pincode;
+        }
+        await relatedLead.save();
+        order.leadId = relatedLead._id;
+        order.assignedBde = relatedLead.assignedBde;
+        await order.save();
+      }
     } catch (e) {
       console.error('Error linking project to lead:', e);
+    }
+
+    // Auto-complete the first step ("Lead Captured" or "Apply Form")
+    if (order.steps && order.steps.length > 0) {
+      const { processStepCompletionEngine } = await import('../utils/stepEngine.js');
+      await processStepCompletionEngine(order, order.steps[0].stepId, 'Customer', '', 'Application Submitted');
     }
 
     // Track Trust Badge Assignment & Skipped Analytics

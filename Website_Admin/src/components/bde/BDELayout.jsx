@@ -33,19 +33,16 @@ export default function BDELayout({ children, currentTab, onTabChange, onLogout,
              if (!isTargetSource) return;
              if (l.status === 'Converted' || l.status === 'Not Interested' || l.status === 'Lost' || l.convertedProjectId) return;
              
-             const isAU = l.country === 'australia' || l.country === 'AU';
-             const isEligibleForOrderJourney = isAU ? l.bdeMovedToOrderJourney : (l.tokenPaid && l.assignedEPCId);
-             
-             if (isEligibleForOrderJourney) return; // Means it's moved to order journey
-             
-             if (l.installDateBooked) {
+             if (isFreelance) {
+               // Freelancer: eligible leads go to My Prospects, non-eligible go to Customer Eligibility
+               if (l.isEligibleForInstallation) {
                  prospectsCount++;
+               } else {
+                 eligibilityCount++;
+               }
              } else {
-                 if (isFreelance && !l.isEligibleForInstallation) {
-                     eligibilityCount++;
-                 } else {
-                     leadsCount++;
-                 }
+               // Full-time: all their leads are prospects (claimed from Demand Pool)
+               prospectsCount++;
              }
         });
       }
@@ -86,12 +83,10 @@ export default function BDELayout({ children, currentTab, onTabChange, onLogout,
 
   const navItems = [
     { id: "bde-aust", name: "Dashboard", icon: <LayoutDashboard className="w-5 h-5 text-emerald-400" /> },
-    { id: "bde-customer-eligibility", name: "Customer Eligibility List", icon: <Users className="w-5 h-5" />, count: tabCounts.eligibility || 0 },
-    { id: "bde-leads", name: isFreelancer ? "Self Leads" : "My Leads", icon: <Users className="w-5 h-5" />, count: tabCounts.leads || 0 },
-    { id: "bde-prospects", name: "My Prospects", icon: <CheckSquare className="w-5 h-5" />, count: tabCounts.prospects },
-    { id: "bde-projects", name: "Customer Order Journey", icon: <ClipboardList className="w-5 h-5" />, count: tabCounts.projects },
+    ...(isFreelancer ? [{ id: "bde-customer-eligibility", name: "Customer Eligibility List", icon: <Users className="w-5 h-5" />, count: tabCounts.eligibility || 0 }] : []),
+    { id: "bde-prospects", name: "My Prospects", icon: <CheckSquare className="w-5 h-5" />, count: tabCounts.prospects || 0 },
+    { id: "bde-projects", name: "Customer Order Journey", icon: <ClipboardList className="w-5 h-5" />, count: tabCounts.projects || 0 },
     ...(!isFreelancer ? [{ id: "bde-demand", name: "Demand Pool", icon: <Map className="w-5 h-5" /> }] : []),
-
     { id: "bde-profile", name: "My Profile", icon: <User className="w-5 h-5" /> }
   ];
 

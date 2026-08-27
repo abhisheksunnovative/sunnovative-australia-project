@@ -566,7 +566,7 @@ export default function App() {
       case "bde-projects":
         return <BDEProjectTracking bdeId={userId} />;
       case "bde-prospects":
-        return <BDEProspects bdeId={userId} country={userCountry} />;
+        return <BDEProspects bdeId={userId} country={userCountry} bdeType={bdeType} />;
       case "bde-demand":
         return <BDEDemandPool bdeId={userId} />;
 

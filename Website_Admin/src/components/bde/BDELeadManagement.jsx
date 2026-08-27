@@ -260,7 +260,26 @@ export default function BDELeadManagement({ bdeId, country, bdeType, filterTab =
             })
          });
          if (updateRes.ok) {
-            alert("Bill scanned and Lead details updated successfully!");
+            // Auto-qualify the lead into My Prospects (no manual button needed)
+            console.log(`[BDE] Bill uploaded for lead ${billUploadLead._id}. Calling eligibility API...`);
+            try {
+              const eligRes = await fetch(`${API_BASE}/api/bde/leads/${billUploadLead._id}/eligibility`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ isEligibleForInstallation: true })
+              });
+              const eligData = await eligRes.json();
+              console.log(`[BDE] Eligibility API response:`, eligRes.status, eligData);
+              if (!eligRes.ok) {
+                console.error("[BDE] Eligibility API failed:", eligData);
+                alert("Bill scanned but auto-qualification failed. Please refresh and check My Prospects.");
+              } else {
+                alert(`Bill scanned! Lead "${billUploadLead.name}" moved to My Prospects automatically.`);
+              }
+            } catch (e) { 
+              console.error("[BDE] Auto-eligibility exception:", e); 
+              alert("Bill scanned but qualification error occurred. Check console.");
+            }
             setBillUploadLead(null);
             fetchLeads();
          }
@@ -528,7 +547,13 @@ export default function BDELeadManagement({ bdeId, country, bdeType, filterTab =
   const [activeTab, setActiveTab] = useState("manual"); // 'manual' or 'website'
 
   console.log("Total leads fetched:", leads.length);
-  const baseLeads = leads.filter(l => !l.installDateBooked && l.status !== 'Converted' && l.status !== 'Not Interested' && l.status !== 'Lost' && !l.convertedProjectId);
+  // For eligibility tab: exclude leads already qualified (they move to My Prospects)
+  // For other tabs: exclude installDateBooked leads (those are shown in prospects)
+  const baseLeads = leads.filter(l => {
+    if (l.status === 'Converted' || l.status === 'Not Interested' || l.status === 'Lost' || l.convertedProjectId) return false;
+    if (filterTab === 'eligibility' && l.isEligibleForInstallation) return false; // Already qualified → in My Prospects
+    return true;
+  });
   const manualLeads = baseLeads.filter(l => l.history?.some(h => h.action.includes("Manually created by BDE")));
   console.log("Manual leads count:", manualLeads.length);
   const websiteLeads = baseLeads.filter(l => !l.history?.some(h => h.action.includes("Manually created by BDE")));
@@ -854,26 +879,19 @@ export default function BDELeadManagement({ bdeId, country, bdeType, filterTab =
 
                 {isFreelancer && filterTab === 'eligibility' ? (
                   <div className="w-full flex flex-col gap-2 mt-auto">
-                    <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 p-2 rounded-lg font-bold text-center w-full shadow-sm">
-                      Note: Firstly upload the bill of customer to get recommended system of KW.
-                    </p>
                     {!lead.billAmount ? (
-                      <button onClick={() => handleOpenUploadBill(lead)} className="w-full justify-center flex items-center gap-2 text-white text-sm font-bold px-4 py-3 bg-amber-500 hover:bg-amber-600 rounded-xl shadow-md transition-all hover:-translate-y-0.5">
-                        <Zap className="w-4 h-4" /> Upload Bill
-                      </button>
+                      <>
+                        <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 p-2 rounded-lg font-bold text-center w-full shadow-sm">
+                          Note: Upload the customer's bill to auto-qualify and move to My Prospects.
+                        </p>
+                        <button onClick={() => handleOpenUploadBill(lead)} className="w-full justify-center flex items-center gap-2 text-white text-sm font-bold px-4 py-3 bg-amber-500 hover:bg-amber-600 rounded-xl shadow-md transition-all hover:-translate-y-0.5">
+                          <Zap className="w-4 h-4" /> Upload Bill
+                        </button>
+                      </>
                     ) : (
-                      <button onClick={async () => {
-                          try {
-                            const res = await fetch(`${API_BASE}/api/bde/leads/${lead._id}/eligibility`, {
-                              method: "PUT",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ isEligibleForInstallation: true })
-                            });
-                            if (res.ok) { window.location.reload(); }
-                          } catch (e) {}
-                        }} className="w-full justify-center flex items-center gap-2 text-white text-sm font-bold px-4 py-3 bg-emerald-500 hover:bg-emerald-600 rounded-xl shadow-md transition-all hover:-translate-y-0.5">
-                        <CheckCircle className="w-4 h-4" /> Mark as Eligible
-                      </button>
+                      <p className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 p-2 rounded-lg font-bold text-center w-full shadow-sm">
+                        ✅ Bill uploaded — Lead is being automatically qualified and moved to My Prospects.
+                      </p>
                     )}
                   </div>
                 ) : (

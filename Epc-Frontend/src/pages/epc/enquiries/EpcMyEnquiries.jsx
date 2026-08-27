@@ -347,7 +347,12 @@ const EpcMyEnquiries = () => {
                                 <div>
                                   <label className="block text-gray-500 text-xs mb-1 font-medium">Proposed Install Date</label>
                                   <input type="date" value={installDate} onChange={e => setInstallDate(e.target.value)}
-                                    className={`${inputCls} w-full`} min={new Date().toISOString().split('T')[0]} />
+                                    className={`${inputCls} w-full ${enquiries.some(e => e._id !== enq._id && !['Rejected', 'Expired'].includes(e.status) && (e.scheduledInstallDate?.split('T')[0] === installDate || e.preferredInstallDate?.split('T')[0] === installDate)) ? 'border-red-500 focus:ring-red-500 bg-red-50' : ''}`} min={new Date().toISOString().split('T')[0]} />
+                                  {enquiries.some(e => e._id !== enq._id && !['Rejected', 'Expired'].includes(e.status) && (e.scheduledInstallDate?.split('T')[0] === installDate || e.preferredInstallDate?.split('T')[0] === installDate)) && (
+                                    <p className="text-[10px] text-red-600 font-bold mt-1 bg-red-50 px-1 py-0.5 rounded border border-red-200">
+                                      ⚠️ Change the date, you already have an order on this date!
+                                    </p>
+                                  )}
                                 </div>
                                 <div>
                                   <label className="block text-gray-500 text-xs mb-1 font-medium">Customer KYC (PDF/JPG)</label>
@@ -367,7 +372,12 @@ const EpcMyEnquiries = () => {
                               </div>
                             </div>
                           ) : (
-                            <button onClick={() => setConfirmingDateFor(enq._id)}
+                            <button onClick={() => {
+                              setConfirmingDateFor(enq._id);
+                              if (enq.preferredInstallDate) {
+                                setInstallDate(new Date(new Date(enq.preferredInstallDate).getTime() - new Date(enq.preferredInstallDate).getTimezoneOffset() * 60000).toISOString().split('T')[0]);
+                              }
+                            }}
                               className="bg-orange-50 border border-orange-300 text-orange-700 text-xs font-bold px-4 py-2 rounded-xl hover:bg-orange-100 transition-colors flex items-center gap-2">
                               📅 Propose Install Date & Upload Docs
                             </button>

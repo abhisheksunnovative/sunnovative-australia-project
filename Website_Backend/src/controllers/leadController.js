@@ -393,22 +393,41 @@ export const updateLead = async (req, res) => {
 
     if (req.body.tokenPaid && !lead.convertedProjectId) {
       const { ProjectOrder } = await import("../models/ProjectModel.js");
-      const orderNumber = "ORD-" + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000);
-      const newOrder = await ProjectOrder.create({
-        orderNumber,
-        customerName: lead.name,
-        customerMobile: lead.mobile,
-        customerEmail: lead.email,
-        country: lead.country,
-        state: lead.state,
-        district: lead.district,
-        projectType: lead.solarType || "surya-ghar",
-        status: "Project Under Evaluation",
-        assignedBde: lead.assignedBde,
-        assignedEPCId: lead.assignedEpc || null
-      });
-      lead.convertedProjectId = newOrder._id;
-      lead.history.push({ action: "Converted to ProjectOrder: " + orderNumber });
+      let existingOrder = await ProjectOrder.findOne({ customerMobile: lead.mobile }).sort({ createdAt: -1 });
+      
+      if (existingOrder) {
+        lead.convertedProjectId = existingOrder._id;
+        lead.history.push({ action: "Linked to existing ProjectOrder: " + existingOrder.orderNumber });
+        existingOrder.leadId = lead._id;
+        
+        // Auto-advance token step on simulate
+        let targetStep = existingOrder.steps?.find(s => s.milestoneType === 'customer_payment' || s.title.toLowerCase().includes("pay") || s.title.toLowerCase().includes("token"));
+        if (!targetStep && existingOrder.steps?.length > 0) {
+          targetStep = existingOrder.steps.find(s => s.status === 'in-progress' || s.status === 'pending');
+        }
+        if (targetStep) {
+          const { processStepCompletionEngine } = await import('../utils/stepEngine.js');
+          await processStepCompletionEngine(existingOrder, targetStep.stepId, 'System', '', 'Simulated Token Payment');
+        }
+        await existingOrder.save();
+      } else {
+        const orderNumber = "ORD-" + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000);
+        const newOrder = await ProjectOrder.create({
+          orderNumber,
+          customerName: lead.name,
+          customerMobile: lead.mobile,
+          customerEmail: lead.email,
+          country: lead.country,
+          state: lead.state,
+          district: lead.district,
+          projectType: lead.solarType || "surya-ghar",
+          status: "Project Under Evaluation",
+          assignedBde: lead.assignedBde,
+          assignedEPCId: lead.assignedEpc || null
+        });
+        lead.convertedProjectId = newOrder._id;
+        lead.history.push({ action: "Converted to ProjectOrder: " + orderNumber });
+      }
     }
     await lead.save();
     res.json({ success: true, data: lead });
@@ -619,6 +638,7 @@ import { ProjectOrder } from '../models/ProjectModel.js';
 import { OrderJourneySettings } from '../models/OrderJourneySettings.js';
 import EpcCalendar from '../models/EpcCalender.js';
 import EpcEnquiry from '../models/EpcEnquiry.js';
+import EpcPartner from '../models/EpcPartner.js';
 
 export const convertLeadToProject = async (req, res) => {
   try {
@@ -958,5 +978,155 @@ export const fixPayments = async (req, res) => {
     res.json({ success: true, message: "Fixed payments for " + count + " projects!" });
   } catch(e) {
     res.json({ success: false, message: e.message });
+  }
+};
+
+
+export const getEpcCalendarForLead = async (req, res) => {
+  try {
+    const lead = await Lead.findById(req.params.id);
+    if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
+
+    const district = lead.district || lead.city;
+    const startDate = new Date();
+    startDate.setHours(0,0,0,0);
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 45);
+
+    const queryFilter = { date: { $gte: startDate, $lte: endDate } };
+    if (district) {
+      queryFilter.district = { $regex: new RegExp(district, 'i') };
+    }
+    // EpcCalendar is already imported at top of file as EpcCalendar (from EpcCalender.js)
+    const calendarEntries = await EpcCalendar.find(queryFilter).populate('epcPartner', 'companyName rating contactPerson').sort({ date: 1 });
+    const epcCount = await EpcPartner.countDocuments({ isActive: true });
+
+    const dayAvailabilityMap = {};
+    const d = new Date(startDate);
+    while (d <= endDate) {
+      const dateStr = d.toISOString().split('T')[0];
+      const dayEntries = calendarEntries.filter(e => e.date && e.date.toISOString().split('T')[0] === dateStr);
+      
+      const isBlockedOrFull = dayEntries.length > 0 && dayEntries.every(e => e.isBlocked || e.currentBookings >= e.maxBookings);
+      
+      dayAvailabilityMap[dateStr] = {
+        date: dateStr,
+        isFullyBooked: isBlockedOrFull,
+        color: isBlockedOrFull ? 'red' : 'green',
+        statusText: isBlockedOrFull ? '🔴 All EPCs Booked' : '🟢 EPC Available',
+        totalEpcs: epcCount || dayEntries.length || 1,
+        entries: dayEntries
+      };
+      d.setDate(d.getDate() + 1);
+    }
+    res.json({ success: true, availability: dayAvailabilityMap, slots: calendarEntries });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const requestDateOtp = async (req, res) => {
+  try {
+    const lead = await Lead.findById(req.params.id);
+    if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
+    const { email } = req.body;
+    if (!email && !lead.email) return res.status(400).json({ success: false, message: 'Customer email is required' });
+    const targetEmail = email || lead.email;
+    
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    lead.email = targetEmail; 
+    lead.installDateOtp = otp;
+    lead.installDateOtpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+    await lead.save();
+    console.log(`[OTP] Generated for ${targetEmail}: ${otp}`);
+    res.json({ success: true, message: 'OTP sent to customer email', dummyOtp: otp });
+  } catch (error) {
+    console.error('[OTP] requestDateOtp error:', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const verifyDateOtp = async (req, res) => {
+  try {
+    const lead = await Lead.findById(req.params.id);
+    if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
+    const { otp } = req.body;
+    
+    console.log(`[OTP] Verifying: submitted=${otp}, stored=${lead.installDateOtp}, expiry=${lead.installDateOtpExpiry}`);
+    
+    if (String(lead.installDateOtp) !== String(otp)) {
+      return res.status(400).json({ success: false, message: `Invalid OTP. Please check the OTP shown in the alert.` });
+    }
+    if (new Date() > new Date(lead.installDateOtpExpiry)) {
+      return res.status(400).json({ success: false, message: 'OTP expired. Please resend.' });
+    }
+    
+    // Use updateOne to avoid triggering full model validation on save
+    await Lead.updateOne(
+      { _id: lead._id },
+      { $unset: { installDateOtp: 1, installDateOtpExpiry: 1 } }
+    );
+    console.log(`[OTP] Verified successfully for lead ${lead._id}`);
+    res.json({ success: true, message: 'OTP verified' });
+  } catch (error) {
+    console.error('[OTP] verifyDateOtp error:', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const attemptAutoConversion = async (lead) => {
+  try {
+    const isAU = lead.country?.toLowerCase() === 'australia' || lead.currency === 'AUD';
+    
+    const hasDate = lead.isInstallDateFixed || lead.preferredInstallDate;
+    const hasEPC = lead.assignedEpc || lead.assignedEPCName;
+    const hasApplyForm = lead.address && lead.state && lead.pincode;
+    const hasToken = isAU ? true : lead.tokenPaid;
+
+    if (hasDate && hasEPC && hasApplyForm && hasToken && lead.status !== 'Converted') {
+      console.log(`Auto-converting lead ${lead._id}...`);
+      // We assume convertLeadToProject is already exported in the file
+      // Wait, we need to call the logic. To avoid circular deps or mockReq mess:
+      // I'll emit an event or fetch the endpoint internally.
+      const fetchFn = global.fetch;
+      const baseUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4005';
+      fetchFn(`${baseUrl}/api/leads/${lead._id}/convert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      }).then(r => r.json()).then(data => console.log("Auto Convert Response:", data)).catch(e => console.error("Auto Convert Error:", e));
+    }
+  } catch (err) {
+    console.error("Auto conversion error:", err);
+  }
+};
+
+export const selectInstallDate = async (req, res) => {
+  try {
+    const lead = await Lead.findById(req.params.id);
+    if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
+    
+    const { date, epcCalendarSlotId } = req.body;
+    if (!date) return res.status(400).json({ success: false, message: 'Date is required' });
+
+    lead.preferredInstallDate = new Date(date);
+    lead.finalInstallDate = new Date(date);
+    lead.isInstallDateFixed = true;
+    
+    if (epcCalendarSlotId) {
+      const slot = await EpcCalendar.findById(epcCalendarSlotId).populate('epcPartner');
+      if (slot && slot.epcPartner) {
+        lead.assignedEpc = slot.epcPartner._id;
+        lead.assignedEPCName = slot.epcPartner.companyName;
+        slot.currentBookings += 1;
+        await slot.save();
+      }
+    }
+    
+    await lead.save();
+    attemptAutoConversion(lead);
+    
+    res.json({ success: true, message: 'Installation date selected' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };

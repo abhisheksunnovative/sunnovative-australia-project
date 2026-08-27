@@ -427,11 +427,24 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
     }
     setIsSubmitting(true);
 
-    // Evaluate final capacity to submit (prefer user's chosen kW from scale)
-    const baseCapacity = eligibilityResult?.suggestedKW || (fetchedData?.eligibleCapacityKw) || Math.ceil(monthlyBill / 700);
+    // Match the UI's calculation for Recommended Size based on current monthly bill
+    const currentMaxKw = (() => {
+      const matchSlug = selectedProjectType || (isAU ? 'residential' : 'surya-ghar');
+      const cfg = projectTypeConfigs?.find(c => c.slug === matchSlug);
+      return cfg?.maxKwLimit || (isAU ? 20 : 10);
+    })();
     
-    // Prefer user's explicit selection (customKw or selectedKw) over the base calculation
-    let finalCapacity = customKw || selectedKw || baseCapacity;
+    let uiRecommendedKw;
+    if (isAU) {
+      uiRecommendedKw = selectedKw || Math.max(3, Math.min(currentMaxKw, Math.ceil(monthlyBill / 100)));
+    } else {
+      const units = Math.round(monthlyBill / 7.2);
+      uiRecommendedKw = Math.max(1, Math.min(currentMaxKw, Math.ceil(units / 115)));
+    }
+
+    // Prefer user's explicit selection (customKw) over the UI recommended base
+    let finalCapacity = customKw || uiRecommendedKw;
+    
     if (selectedUpgradeKw && selectedUpgradeKw > finalCapacity) {
       finalCapacity = selectedUpgradeKw;
     }
@@ -896,6 +909,12 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
                   {scanError && (
                     <div className="text-[10px] text-red-500 font-semibold mt-1 flex items-center gap-1">
                       <AlertTriangle className="w-3 h-3 shrink-0" /> {scanError}
+                    </div>
+                  )}
+                  {uploadedFile && !scanError && !isScanning && (
+                    <div className="text-[10.5px] text-orange-600 font-semibold mt-1.5 flex items-start gap-1 bg-orange-50 p-1.5 rounded-md border border-orange-100">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> 
+                      <span>Note: Verify the auto-filled details. AI can sometimes make mistakes. If anything looks incorrect, please manually edit the fields above.</span>
                     </div>
                   )}
                 </div>
