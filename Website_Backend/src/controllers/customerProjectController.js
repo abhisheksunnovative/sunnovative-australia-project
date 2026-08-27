@@ -296,14 +296,92 @@ export const applyForProject = async (req, res) => {
         key_id: process.env.RAZORPAY_KEY_ID,
         data: order,
       });
-    }
+    } else {
+      // Token is bypassed: trigger token success logic immediately
+      order.paymentStatus = 'paid';
+      
+      let targetStep = order.steps?.find(s => s.milestoneType === 'customer_payment' || s.title.toLowerCase().includes("pay") || s.title.toLowerCase().includes("token"));
+      if (!targetStep && order.steps?.length > 0) {
+        targetStep = order.steps.find(s => s.status === 'in-progress' || s.status === 'pending');
+      }
+      if (targetStep) {
+        const { processStepCompletionEngine } = await import('../utils/stepEngine.js');
+        await processStepCompletionEngine(order, targetStep.stepId, 'System', '', 'Token bypassed');
+      }
+      await order.save();
 
-    res.status(201).json({
-      success: true,
-      message: 'Application submitted successfully!',
-      requiresPayment: false,
-      data: order,
-    });
+      const LeadModel = (await import('../models/Lead.js')).default;
+      const relatedLead = await LeadModel.findById(order.leadId);
+      if (relatedLead) {
+        relatedLead.tokenPaid = true;
+        await relatedLead.save();
+      }
+
+      // Create EPC Enquiry if not exists
+      const EpcEnquiry = (await import('../models/EpcEnquiry.js')).default;
+      let enquiry = await EpcEnquiry.findOne({ orderNumber: order.orderNumber });
+      if (!enquiry) {
+        const pTypeMap = {
+          "surya-ghar": "Surya Ghar Yojana",
+          "residential": "Residential Solar",
+          "commercial": "Commercial Solar",
+          "group": "Group Solar",
+          "au-small-home": "AU Small Home (6.6kW)",
+          "au-standard-family": "AU Standard Family (8-10kW)",
+          "au-large-home": "AU Large Home (10-13kW)",
+          "au-ev-owners": "AU EV Owners (13-20kW)",
+          "au-solar-battery": "AU Solar + Battery"
+        };
+        const mappedType = pTypeMap[order.projectType?.toLowerCase()] || "Residential Solar";
+
+        let enquiryData = {
+          customerName: order.customerName,
+          customerMobile: order.customerMobile,
+          customerEmail: order.customerEmail || "",
+          enquiryType: 'ECommerce',
+          projectType: mappedType,
+          systemCapacityKw: order.systemSizeKW || 1,
+          location: order.state ? `${order.location?.district || ''}, ${order.state}, ${order.location?.pincode || ''}` : '',
+          state: order.state || 'Unknown',
+          district: order.location?.district || order.state || 'Unknown',
+          city: order.location?.district || order.state || 'Unknown',
+          orderNumber: order.orderNumber,
+          preferredInstallDate: order.preferredInstallDate || null,
+          status: 'Open For EPC',
+        };
+
+        if (order.assignedEPCId) {
+          const EpcPartner = (await import('../models/EpcPartner.js')).default;
+          const epc = await EpcPartner.findById(order.assignedEPCId);
+          if (epc) {
+            enquiryData.epcPartner = epc._id.toString();
+            enquiryData.assignedEPCName = epc.companyName;
+            enquiryData.status = 'EPC Accepted';
+            
+            // Advance step in ProjectOrder since EPC is assigned
+            const epcStep = order.steps?.find(s => s.title.toLowerCase().includes("epc assign"));
+            if (epcStep) {
+              const { processStepCompletionEngine } = await import('../utils/stepEngine.js');
+              await processStepCompletionEngine(order, epcStep.stepId, 'System', '', 'EPC auto-assigned via bypassed application');
+            }
+          }
+        }
+        enquiry = new EpcEnquiry(enquiryData);
+        await enquiry.save();
+      }
+
+      if (relatedLead) {
+        const { attemptAutoConversion } = await import('./leadController.js');
+        await attemptAutoConversion(relatedLead);
+      }
+
+      res.status(201).json({
+        success: true,
+        message: 'Application submitted successfully!',
+        requiresPayment: false,
+        data: order,
+      });
+    }
   } catch (err) {
     console.error('applyForProject error:', err.message);
     console.error('Stack:', err.stack);

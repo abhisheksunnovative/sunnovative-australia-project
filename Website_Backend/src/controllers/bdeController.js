@@ -211,101 +211,105 @@ export const getBDEDashboard = async (req, res) => {
 
     const conversionRatio = totalAssigned > 0 ? ((ordersGenerated / totalAssigned) * 100).toFixed(2) : 0;
     
-    // Dynamic Revenue Calculation
     const revenueGenerated = bdeProjects.reduce((sum, p) => sum + (p.totalProjectCost || 0), 0);
     const revenueTarget = bde.targets?.revenue || 200000;
 
-    // Dynamic STC Pipeline Calculations for Australia
-    const stcPipeline = {
-      total: 0,
-      approved: 0,
-      pending: 0,
-      rejected: 0
-    };
-
+    const stcPipeline = { total: 0, approved: 0, pending: 0, rejected: 0 };
     bdeProjects.forEach(p => {
       if (p.country === "australia") {
         const status = p.stcDetails?.status || "not_started";
         if (status !== "not_started") {
           stcPipeline.total += 1;
-          if (status === "approved") {
-            stcPipeline.approved += 1;
-          } else if (status === "rejected") {
-            stcPipeline.rejected += 1;
-          } else {
-            stcPipeline.pending += 1;
-          }
+          if (status === "approved") stcPipeline.approved += 1;
+          else if (status === "rejected") stcPipeline.rejected += 1;
+          else stcPipeline.pending += 1;
         }
       }
     });
 
-    // Zone-wise Lead Distribution calculation
     const zoneStatsMap = {
       "Zone 1": { zone: "Zone 1 (Far North QLD/NT)", count: 0, kw: 0 },
       "Zone 2": { zone: "Zone 2 (WA North/QLD)", count: 0, kw: 0 },
       "Zone 3": { zone: "Zone 3 (NSW/VIC/QLD/SA/WA)", count: 0, kw: 0 },
       "Zone 4": { zone: "Zone 4 (TAS/VIC South)", count: 0, kw: 0 }
     };
-
     bdeProjects.forEach(p => {
       if (p.country === "australia" && p.stcDetails?.zone) {
-        const zKey = p.stcDetails.zone; // e.g. "Zone 3"
-        if (zoneStatsMap[zKey]) {
-          zoneStatsMap[zKey].count += 1;
-          zoneStatsMap[zKey].kw += p.systemSizeKW || 0;
-        }
+        const zKey = p.stcDetails.zone;
+        if (zoneStatsMap[zKey]) { zoneStatsMap[zKey].count += 1; zoneStatsMap[zKey].kw += p.systemSizeKW || 0; }
       }
     });
 
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-    const endOfToday = new Date();
-    endOfToday.setHours(23, 59, 59, 999);
-    
-    const todaysFollowupLeads = await Lead.find({ 
-      assignedBde: bdeId, 
-      nextFollowUp: { $gte: startOfToday, $lte: endOfToday }
-    });
-
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date(); endOfToday.setHours(23, 59, 59, 999);
+    const todaysFollowupLeads = await Lead.find({ assignedBde: bdeId, nextFollowUp: { $gte: startOfToday, $lte: endOfToday } });
     const districtStats = await Lead.aggregate([
       { $match: { assignedBde: bdeId, status: { $ne: 'Converted' } } },
       { $group: { _id: "$district", count: { $sum: 1 } } }
     ]);
+    const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const leadsLast7Days = await Lead.countDocuments({ assignedBde: bdeId, createdAt: { $gte: sevenDaysAgo } });
+    const conversionsLast7Days = await ProjectOrder.countDocuments({ assignedBde: bdeId, createdAt: { $gte: sevenDaysAgo } });
 
-    // Analytics for Last 7 days
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
-    const leadsLast7Days = await Lead.countDocuments({
-      assignedBde: bdeId,
-      createdAt: { $gte: sevenDaysAgo }
-    });
+    // ── NEW 9 METRICS ──────────────────────────────────────────
+    const isFreelancer = bde.bdeType === 'Freelancer';
+    let newLeadsAvailable = 0;
+    if (!isFreelancer) {
+      const bdeCountries = bde.assignedCountries?.length > 0 ? bde.assignedCountries : (bde.country ? [bde.country] : ['india']);
+      const countryConditions = bdeCountries.map(c => {
+        const code = c.trim().toLowerCase();
+        if (code === 'australia' || code === 'au') return { country: { $regex: /australia|au/i } };
+        return { country: { $regex: /india|in/i } };
+      });
+      const activeTerritories = [
+        ...(bde.region ? [bde.region] : []),
+        ...(bde.assignedRegions || []),
+        ...(bde.assignedDistricts || []),
+        ...(bde.assignedStates || [])
+      ].filter(t => t && t.trim() && t.trim().toLowerCase() !== 'all');
+      const andConds = [{ assignedBde: null }];
+      if (countryConditions.length > 0) andConds.push({ $or: countryConditions });
+      if (activeTerritories.length > 0) {
+        const regs = activeTerritories.map(t => new RegExp(t.trim(), 'i'));
+        andConds.push({ $or: [{ district: { $in: regs } }, { city: { $in: regs } }, { state: { $in: regs } }] });
+      }
+      newLeadsAvailable = await Lead.countDocuments(andConds.length > 1 ? { $and: andConds } : { assignedBde: null });
+    } else {
+      const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      newLeadsAvailable = await Lead.countDocuments({ assignedBde: bdeId, createdAt: { $gte: thirtyDaysAgo } });
+    }
 
-    const conversionsLast7Days = await ProjectOrder.countDocuments({
-      assignedBde: bdeId,
-      createdAt: { $gte: sevenDaysAgo }
+    const myProspects = await Lead.countDocuments({ assignedBde: bdeId, status: { $ne: 'Converted' } });
+    const qualifiedLeads = await Lead.countDocuments({ assignedBde: bdeId, isInstallDateFixed: true, status: { $ne: 'Converted' } });
+    const tokenPending = await Lead.countDocuments({ assignedBde: bdeId, tokenPaid: { $ne: true }, status: { $ne: 'Converted' } });
+    const epcPending = await Lead.countDocuments({ 
+      assignedBde: bdeId, tokenPaid: true, 
+      $or: [{ assignedEPCId: null }, { assignedEPCId: '' }],
+      status: { $ne: 'Converted' }
     });
+    const ordersCreated = ordersGenerated;
+    const leadToProspectPct = totalAssigned > 0 ? ((myProspects / totalAssigned) * 100).toFixed(1) : 0;
+    const prospectToOrderPct = totalAssigned > 0 ? ((ordersCreated / totalAssigned) * 100).toFixed(1) : 0;
+    const totalConvertedKW = bdeProjects.reduce((sum, p) => sum + (parseFloat(p.systemSizeKW) || 0), 0);
+    // ───────────────────────────────────────────────────────────
 
     res.json({
-      success: true,
-      bde,
+      success: true, bde,
       stats: {
-        totalAssigned,
-        activeCustomers,
-        ordersGenerated,
-        conversionRatio,
+        totalAssigned, activeCustomers, ordersGenerated, conversionRatio,
         todaysFollowups: todaysFollowupLeads.length,
         followupList: todaysFollowupLeads,
         districtStats,
         targetLeads: bde.targets?.leads || 0,
         targetConversions: bde.targets?.conversions || 0,
         revenue: { generated: revenueGenerated, target: revenueTarget },
-        stcPipeline,
-        zoneStats: Object.values(zoneStatsMap),
-        last7Days: {
-          leads: leadsLast7Days,
-          conversions: conversionsLast7Days
-        }
+        stcPipeline, zoneStats: Object.values(zoneStatsMap),
+        last7Days: { leads: leadsLast7Days, conversions: conversionsLast7Days },
+        // 9 NEW METRICS
+        newLeadsAvailable, myProspects, qualifiedLeads,
+        tokenPending, epcPending, ordersCreated,
+        leadToProspectPct, prospectToOrderPct,
+        totalConvertedKW: parseFloat(totalConvertedKW.toFixed(2)),
       }
     });
   } catch (error) {
@@ -657,7 +661,7 @@ export const getBDEProjects = async (req, res) => {
       if (isAU) {
         return lead.bdeMovedToOrderJourney || lead.status === 'Converted';
       } else {
-        return lead.tokenPaid && lead.assignedEPCId;
+        return lead.status === 'Converted';
       }
     });
 

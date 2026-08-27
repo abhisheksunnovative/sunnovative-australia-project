@@ -26,17 +26,17 @@ export const getMyEnquiries = async (req, res) => {
       nullEpcCondition.district = { $in: allowedDistricts };
     }
 
+    if (epc.trustBadge?.status !== 'Approved') {
+      // Normal EPCs cannot see FCFS leads created in the last 60 minutes
+      const delayMinutes = process.env.TRUST_BADGE_DELAY_MINUTES || 60;
+      const delayTime = new Date(Date.now() - delayMinutes * 60 * 1000);
+      nullEpcCondition.createdAt = { $lte: delayTime };
+    }
+
     filter.$or = [
       { epcPartner: req.epc._id },
       nullEpcCondition
     ];
-
-    if (epc.trustBadge?.status !== 'Approved') {
-      // Normal EPCs cannot see leads created in the last 60 minutes
-      const delayMinutes = process.env.TRUST_BADGE_DELAY_MINUTES || 60;
-      const delayTime = new Date(Date.now() - delayMinutes * 60 * 1000);
-      filter.createdAt = { $lte: delayTime };
-    }
 
     if (status)      filter.status      = status;
     if (projectType) filter.projectType = projectType;
@@ -210,6 +210,12 @@ export const acceptEnquiry = async (req, res) => {
               }
             }
           );
+          
+          const updatedLead = await LeadModel.findOne({ mobile: lockedEnquiry.customerMobile });
+          if (updatedLead) {
+             const { attemptAutoConversion } = await import('./leadController.js');
+             await attemptAutoConversion(updatedLead);
+          }
         }
       } catch (syncErr) {
         console.error('Error syncing ProjectOrder and Lead on FCFS acceptance:', syncErr);
@@ -249,9 +255,31 @@ export const confirmInstallDate = async (req, res) => {
     const { scheduledInstallDate } = req.body;
     if (!scheduledInstallDate) return res.status(400).json({ message: 'Scheduled Install Date is required' });
 
+    const prevDateStr = enquiry.preferredInstallDate ? new Date(enquiry.preferredInstallDate).toISOString().split('T')[0] : '';
+    const newDateStr = new Date(scheduledInstallDate).toISOString().split('T')[0];
+
+    if (prevDateStr && prevDateStr !== newDateStr) {
+        try {
+            const { createNotification } = await import('./notificationController.js');
+            const Lead = (await import('../models/Lead.js')).default;
+            const lead = await Lead.findOne({ mobile: enquiry.customerMobile });
+            if (lead && lead.customerId) {
+                await createNotification('Customer', 'Install Date Changed', `Your EPC Partner requested a change of installation date to ${newDateStr} due to prior commitments on your selected date.`, lead.customerId);
+            }
+        } catch(e) { console.error('Notification error', e); }
+    }
+
     enquiry.status = 'Date Confirmed';
-    // Optionally save the date on the enquiry or pass it when converting to order
-    // For now we just mark the status. The real order gets the date when Customer pays Escrow.
+    enquiry.preferredInstallDate = new Date(scheduledInstallDate);
+
+    // Sync to Project Order
+    try {
+        const { ProjectOrder } = await import('../models/ProjectModel.js');
+        await ProjectOrder.updateOne(
+            { orderNumber: enquiry.orderNumber },
+            { scheduledInstallDate: new Date(scheduledInstallDate) }
+        );
+    } catch(e) { console.error('Sync project date error', e); }
 
     await enquiry.save();
     res.json({ message: 'Install date confirmed. Customer will now be prompted for Escrow Payment.', enquiry });

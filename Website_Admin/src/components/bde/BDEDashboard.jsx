@@ -101,52 +101,121 @@ export default function BDEDashboard({ bdeId, bdeType }) {
         </div>
       )}
 
-      
-            {/* TOP 4 METRICS CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        <div className="bg-gradient-to-br from-indigo-50 to-white rounded-2xl p-5 shadow-sm border border-indigo-100 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-200">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+
+
+      {/* ── 9 METRICS GRID ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+        {/* 1. New Leads */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center gap-4 hover:border-blue-400 transition-colors">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
           </div>
-          <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Operating Country</p>
-            <h3 className="text-xl font-black text-slate-900 mt-0.5 uppercase">{bdeData?.country || "GLOBAL"}</h3>
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{isFreelancer ? 'New (Last 30 Days)' : 'New Leads (Pool)'}</p>
+            <h3 className="text-3xl font-black text-slate-900">{stats?.newLeadsAvailable ?? 0}</h3>
           </div>
         </div>
 
-        <div onClick={() => typeof onTabChange !== 'undefined' && onTabChange("bde-leads")} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 flex items-center gap-4 hover:border-blue-500 cursor-pointer transition-colors">
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        {/* 2. Qualified Leads */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center gap-4 hover:border-indigo-400 transition-colors">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Leads</p>
-            <h3 className="text-3xl font-black text-slate-900 mt-0.5">{stats?.totalAssigned || 0}</h3>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Qualified Leads</p>
+            <h3 className="text-3xl font-black text-slate-900">{stats?.qualifiedLeads ?? 0}</h3>
+            <p className="text-[10px] text-slate-400 mt-0.5">Date Fixed</p>
           </div>
         </div>
 
-        <div onClick={() => typeof onTabChange !== 'undefined' && onTabChange("bde-projects")} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 flex items-center gap-4 hover:border-emerald-500 cursor-pointer transition-colors">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        {/* 3. My Prospects */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center gap-4 hover:border-violet-400 transition-colors">
+          <div className="w-12 h-12 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center shrink-0">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Order Journey</p>
-            <h3 className="text-3xl font-black text-slate-900 mt-0.5">{stats?.ordersGenerated || 0}</h3>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">My Prospects</p>
+            <h3 className="text-3xl font-black text-slate-900">{stats?.myProspects ?? 0}</h3>
+            <p className="text-[10px] text-slate-400 mt-0.5">Active claimed leads</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 border border-purple-100">
-            <TrendingUp className="w-6 h-6" />
+        {/* 4. Token Pending */}
+        <div className="bg-white rounded-2xl p-5 border border-amber-200 shadow-sm flex items-center gap-4 hover:border-amber-400 transition-colors">
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Conversion Ratio</p>
-            <h3 className="text-3xl font-black text-slate-900 mt-0.5">{stats?.conversionRatio || 0}%</h3>
+            <p className="text-xs font-bold text-amber-500 uppercase tracking-wider">Token Pending</p>
+            <h3 className="text-3xl font-black text-slate-900">{stats?.tokenPending ?? 0}</h3>
+            <p className="text-[10px] text-amber-400 mt-0.5">Awaiting payment</p>
           </div>
         </div>
+
+        {/* 5. EPC Selection Pending */}
+        <div className="bg-white rounded-2xl p-5 border border-orange-200 shadow-sm flex items-center gap-4 hover:border-orange-400 transition-colors">
+          <div className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <div>
+            <p className="text-xs font-bold text-orange-500 uppercase tracking-wider">EPC Selection Pending</p>
+            <h3 className="text-3xl font-black text-slate-900">{stats?.epcPending ?? 0}</h3>
+            <p className="text-[10px] text-orange-400 mt-0.5">Token paid, no EPC yet</p>
+          </div>
+        </div>
+
+        {/* 6. Orders Created */}
+        <div className="bg-white rounded-2xl p-5 border border-emerald-200 shadow-sm flex items-center gap-4 hover:border-emerald-500 transition-colors">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <div>
+            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Orders Created</p>
+            <h3 className="text-3xl font-black text-slate-900">{stats?.ordersCreated ?? 0}</h3>
+            <p className="text-[10px] text-emerald-400 mt-0.5">Fully converted</p>
+          </div>
+        </div>
+
+        {/* 7. Lead-to-Prospect % */}
+        <div className="bg-gradient-to-br from-sky-50 to-white rounded-2xl p-5 border border-sky-200 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-bold text-sky-600 uppercase tracking-wider">Lead → Prospect</p>
+            <span className="text-2xl font-black text-sky-700">{stats?.leadToProspectPct ?? 0}%</span>
+          </div>
+          <div className="w-full bg-sky-100 rounded-full h-2">
+            <div className="bg-sky-500 h-2 rounded-full transition-all" style={{ width: `${Math.min(100, stats?.leadToProspectPct ?? 0)}%` }}></div>
+          </div>
+          <p className="text-[10px] text-sky-400 mt-1.5">Conversion Rate</p>
+        </div>
+
+        {/* 8. Prospect-to-Order % */}
+        <div className="bg-gradient-to-br from-purple-50 to-white rounded-2xl p-5 border border-purple-200 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-bold text-purple-600 uppercase tracking-wider">Prospect → Order</p>
+            <span className="text-2xl font-black text-purple-700">{stats?.prospectToOrderPct ?? 0}%</span>
+          </div>
+          <div className="w-full bg-purple-100 rounded-full h-2">
+            <div className="bg-purple-500 h-2 rounded-full transition-all" style={{ width: `${Math.min(100, stats?.prospectToOrderPct ?? 0)}%` }}></div>
+          </div>
+          <p className="text-[10px] text-purple-400 mt-1.5">Conversion Rate</p>
+        </div>
+
+        {/* 9. Total Converted KW */}
+        <div className="bg-gradient-to-br from-yellow-50 to-white rounded-2xl p-5 border border-yellow-200 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-yellow-100 text-yellow-600 flex items-center justify-center shrink-0">
+            <Zap className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-yellow-600 uppercase tracking-wider">Total KW Converted</p>
+            <h3 className="text-3xl font-black text-slate-900">{stats?.totalConvertedKW ?? 0} <span className="text-lg font-bold text-slate-400">kW</span></h3>
+          </div>
+        </div>
+
       </div>
 
       {/* Target Progress Bars */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Leads Target</h3>
           <div className="flex justify-between items-end mb-2">

@@ -687,6 +687,7 @@ export default function BDEProjectTracking({ bdeId }) {
                         type="date"
                         value={proposedDate}
                         onChange={(e) => setProposedDate(e.target.value)}
+                        min={new Date(new Date().setDate(new Date().getDate() + 5)).toISOString().split('T')[0]}
                         className="px-3 py-2 rounded-lg border border-slate-300 text-sm focus:border-amber-400 focus:outline-none flex-1"
                       />
                       <button 

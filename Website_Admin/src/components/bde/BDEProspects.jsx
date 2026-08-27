@@ -647,6 +647,13 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
             
             <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50">
               {/* Calendar Grid Logic inside */}
+              <div className="flex justify-between items-center mb-4">
+                <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))} className="px-3 py-1 bg-white border border-slate-200 rounded text-slate-600 hover:bg-slate-50 transition-colors shadow-sm text-xs font-semibold">&lt; Prev</button>
+                <h3 className="font-bold text-slate-800 text-sm">
+                  {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                </h3>
+                <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))} className="px-3 py-1 bg-white border border-slate-200 rounded text-slate-600 hover:bg-slate-50 transition-colors shadow-sm text-xs font-semibold">Next &gt;</button>
+              </div>
               <div className="grid grid-cols-7 gap-2 mb-2">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <div key={d} className="text-center text-[10px] font-black text-slate-400 uppercase">{d}</div>)}
               </div>
@@ -656,7 +663,11 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
                   const day = i + 1;
                   const dateObj = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
                   const dateString = dateObj.toDateString();
-                  const isPastDate = dateObj < (new Date(new Date().setHours(0,0,0,0)));
+                  
+                  const minAllowedDate = new Date();
+                  minAllowedDate.setHours(0,0,0,0);
+                  minAllowedDate.setDate(minAllowedDate.getDate() + 5);
+                  const isPastDate = dateObj < minAllowedDate;
                   
                   const daySlots = calendarSlots.filter(s => new Date(s.date).toDateString() === dateString);
                   const allSlotsBlocked = daySlots.length > 0 && daySlots.every(s => s.isBlocked || s.currentBookings >= s.maxBookings);

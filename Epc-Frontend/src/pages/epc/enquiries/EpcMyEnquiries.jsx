@@ -345,7 +345,14 @@ const EpcMyEnquiries = () => {
                               <h4 className="text-gray-800 text-sm font-bold">Confirm Installation Details</h4>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <div>
-                                  <label className="block text-gray-500 text-xs mb-1 font-medium">Proposed Install Date</label>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <label className="text-gray-500 text-xs font-medium">Proposed Install Date</label>
+                                    {enq.preferredInstallDate && installDate === new Date(new Date(enq.preferredInstallDate).getTime() - new Date(enq.preferredInstallDate).getTimezoneOffset() * 60000).toISOString().split('T')[0] && (
+                                      <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded">
+                                        ✨ Customer Preferred
+                                      </span>
+                                    )}
+                                  </div>
                                   <input type="date" value={installDate} onChange={e => setInstallDate(e.target.value)}
                                     className={`${inputCls} w-full ${enquiries.some(e => e._id !== enq._id && !['Rejected', 'Expired'].includes(e.status) && (e.scheduledInstallDate?.split('T')[0] === installDate || e.preferredInstallDate?.split('T')[0] === installDate)) ? 'border-red-500 focus:ring-red-500 bg-red-50' : ''}`} min={new Date().toISOString().split('T')[0]} />
                                   {enquiries.some(e => e._id !== enq._id && !['Rejected', 'Expired'].includes(e.status) && (e.scheduledInstallDate?.split('T')[0] === installDate || e.preferredInstallDate?.split('T')[0] === installDate)) && (
