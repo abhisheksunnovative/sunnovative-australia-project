@@ -163,7 +163,7 @@ export const checkBillEligibility = async (req, res) => {
       ) {
         isEligible = false;
         reasons.push(
-          `Bill amount ₹${billAmount} is category ke allowed range (₹${matchedCategory.minMonthlyBill}–₹${matchedCategory.maxMonthlyBill}) se bahar hai.`
+          `Bill amount ${currency}${billAmount} is category ke allowed range (₹${matchedCategory.minMonthlyBill}–₹${matchedCategory.maxMonthlyBill}) se bahar hai.`
         );
       }
     }
@@ -275,7 +275,22 @@ export const checkBillEligibility = async (req, res) => {
 
     // Fetch pricing from ProjectPricing model (Generalised for all countries/projectTypes)
     const projTypeStr = req.body.projectType || (matchedCategory?.category?.includes('Residential') ? 'residential' : 'commercial');
-    let basePrice = suggestedKW * 60000; // default fallback
+    // AU specific snapping logic
+    if (countryStr === 'australia' || countryStr === 'au') {
+      const snapSizes = [3, 5, 6.6, 8.8, 10, 13, 15, 20];
+      let bestSnap = snapSizes[0];
+      let minDiff = Math.abs(suggestedKW - snapSizes[0]);
+      for (let i = 1; i < snapSizes.length; i++) {
+        const diff = Math.abs(suggestedKW - snapSizes[i]);
+        if (diff < minDiff) {
+          minDiff = diff;
+          bestSnap = snapSizes[i];
+        }
+      }
+      suggestedKW = bestSnap;
+    }
+
+    let basePrice = (countryStr === 'australia' || countryStr === 'au') ? (suggestedKW * 1100) : (suggestedKW * 60000); // default fallback
     
     try {
       const pricingObj = await ProjectPricing.findOne({

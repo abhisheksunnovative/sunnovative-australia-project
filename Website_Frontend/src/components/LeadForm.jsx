@@ -299,6 +299,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
       if (ex.consumerName)   setFullName(ex.consumerName);
       if (ex.consumerNumber) setConsumerNumber(ex.consumerNumber);
       if (ex.meterCategory)  setMeterCategory(ex.meterCategory);
+      if (ex.tariffType) setMeterCategory(ex.tariffType);
       if (ex.discom || ex.retailer) setDiscom(ex.discom || ex.retailer);
         if (ex.tariffDesc || ex.tariffCode || ex.tariffType || ex.tariff) setTariffDesc(ex.tariffDesc || ex.tariffCode || ex.tariffType || ex.tariff);
         if (ex.meterType) setMeterCategory(ex.meterType);
