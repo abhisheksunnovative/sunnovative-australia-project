@@ -186,10 +186,14 @@ const DEFAULT_SETTINGS = {
       { label: "Consumer Number (For Auto-Scan)", key: "consumerNumber", type: "text", required: true, options: [] },
       { label: "Full Name", key: "fullName", type: "text", required: true, options: [] },
       { label: "Mobile Number", key: "mobileNumber", type: "tel", required: true, options: [] },
+      { label: "Email Address", key: "email", type: "email", required: true, options: [] },
       { label: "Postcode / Pincode", key: "postcode", type: "number", required: true, options: [] },
       { label: "City", key: "city", type: "text", required: true, options: [] },
       { label: "State", key: "customerState", type: "select", required: true, options: ["Gujarat", "Maharashtra", "Rajasthan", "New South Wales", "Victoria", "Queensland"] },
       { label: "Average Monthly Bill", key: "monthlyBill", type: "number", required: true, options: [] },
+      { label: "Tariff", key: "tariffDesc", type: "text", required: false, options: [] },
+      { label: "Meter Category", key: "meterCategory", type: "text", required: false, options: [] },
+      { label: "Discom / Retailer", key: "discom", type: "text", required: false, options: [] },
       { label: "Do you own the property?", key: "ownsProperty", type: "select", required: true, options: ["Yes", "No"] },
       { label: "Upload Electricity Bill", key: "billFile", type: "file", required: false, options: [] }
     ]

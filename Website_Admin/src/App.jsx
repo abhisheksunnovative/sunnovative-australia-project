@@ -558,17 +558,17 @@ export default function App() {
           <BDEDashboard bdeId={userId} onTabChange={setCurrentTab} bdeType={bdeType} />
         );
       case "bde-profile":
-        return <BDEProfile bdeId={userId} />;
+        return <BDEProfile bdeId={userId} onTabChange={setCurrentTab} />;
       case "bde-customer-eligibility":
-        return <BDELeadManagement bdeId={userId} country={userCountry} bdeType={bdeType} filterTab="eligibility" />;
+        return <BDELeadManagement bdeId={userId} country={userCountry} bdeType={bdeType} filterTab="eligibility" onTabChange={setCurrentTab} />;
       case "bde-leads":
-        return <BDELeadManagement bdeId={userId} country={userCountry} bdeType={bdeType} filterTab="self-leads" />;
+        return <BDELeadManagement bdeId={userId} country={userCountry} bdeType={bdeType} filterTab="self-leads" onTabChange={setCurrentTab} />;
       case "bde-projects":
-        return <BDEProjectTracking bdeId={userId} />;
+        return <BDEProjectTracking bdeId={userId} onTabChange={setCurrentTab} />;
       case "bde-prospects":
-        return <BDEProspects bdeId={userId} country={userCountry} bdeType={bdeType} />;
+        return <BDEProspects bdeId={userId} country={userCountry} bdeType={bdeType} onTabChange={setCurrentTab} />;
       case "bde-demand":
-        return <BDEDemandPool bdeId={userId} />;
+        return <BDEDemandPool bdeId={userId} onTabChange={setCurrentTab} />;
 
       default:
         return (

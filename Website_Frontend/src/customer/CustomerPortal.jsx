@@ -2310,8 +2310,9 @@ export default function CustomerPortal({ onClose }) {
     }
   };
 
-  const active = projects.filter(p => !["completed","closed","cancelled"].includes(p.status));
+  const active = projects.filter(p => !["completed","closed","cancelled","Cancelled","Lost"].includes(p.status));
   const done = projects.filter(p => ["completed","closed"].includes(p.status));
+  const cancelledList = projects.filter(p => ["cancelled","Cancelled","Lost"].includes(p.status));
 
   useEffect(() => {
     const targetId = selectedProjectId || active[0]?._id;
@@ -3978,4 +3979,81 @@ function ProjectFormEditor({ proj, authFetch, fetchProjects }) {
       )}
     </div>
   );
-}
+
+  const handleCancelOverdueProject = async (projectId) => {
+    try {
+      const res = await authFetch(`/api/customer/projects/${projectId}/cancel`, { method: 'POST' });
+      const d = await res.json();
+      if (d.success) {
+        toast.success("Your order has been cancelled.");
+        fetchProjects();
+      } else {
+        toast.error(d.message || "Failed to cancel order.");
+      }
+    } catch(e) {
+      toast.error("Error cancelling order.");
+    }
+  };
+
+  const getOverdueProject = () => {
+    if (!projects || projects.length === 0) return null;
+    const slaDays = journeySettings?.installDateSelectionSlaDays || 3;
+    
+    return projects.find(p => {
+      if (p.status === 'Cancelled' || p.status === 'Lost') return false;
+      const hasDate = p.preferredInstallDate || (p.installDateNegotiation && p.installDateNegotiation.customerStatus !== 'pending');
+      if (hasDate) return false;
+
+      const created = new Date(p.createdAt);
+      const diffDays = Math.ceil(Math.abs(new Date() - created) / (1000 * 60 * 60 * 24));
+      
+      return diffDays > slaDays;
+    });
+  };
+  const overdueProject = getOverdueProject();
+  const slaDays = journeySettings?.installDateSelectionSlaDays || 3;
+
+  
+      {/* Overdue Installation Date Popup */}
+      {overdueProject && (
+        <div className="fixed inset-0 bg-slate-900/60 z-[999] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center border-t-8 border-red-500 relative overflow-hidden animate-in zoom-in duration-300">
+            <div className="absolute -top-10 -right-10 w-32 h-32 bg-red-50 rounded-full blur-3xl"></div>
+            
+            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-5 relative z-10 animate-pulse" />
+            <h2 className="text-2xl font-black text-slate-800 mb-3 relative z-10">Action Required!</h2>
+            
+            <div className="bg-red-50 border border-red-100 rounded-xl p-4 mb-6 relative z-10">
+              <p className="text-slate-700 text-sm font-medium leading-relaxed">
+                Your installation date selection is overdue by <strong className="text-red-600 font-black">{(Math.ceil(Math.abs(new Date() - new Date(overdueProject.createdAt)) / (1000 * 60 * 60 * 24)) - slaDays)} days</strong>. 
+                Please select your preferred installation date immediately to keep your project active, otherwise you can cancel your order.
+              </p>
+            </div>
+            
+            <div className="flex flex-col gap-3 relative z-10">
+              <button 
+                onClick={() => {
+                   setProjectView("detail");
+                   setSelectedProjectId(overdueProject._id);
+                   setTab("new-project"); // Assuming they need to fill the form
+                }} 
+                className="w-full py-3.5 bg-yellow-400 text-yellow-900 font-black rounded-xl hover:bg-amber-400 transition shadow-sm"
+              >
+                Select Installation Date
+              </button>
+              <button 
+                onClick={() => {
+                  if (window.confirm("Are you sure you want to cancel this order? This action cannot be undone.")) {
+                    handleCancelOverdueProject(overdueProject._id);
+                  }
+                }} 
+                className="w-full py-3.5 bg-white text-red-600 font-bold rounded-xl border border-red-200 hover:bg-red-50 transition"
+              >
+                Cancel My Order
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      }

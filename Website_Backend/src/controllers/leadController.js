@@ -306,11 +306,11 @@ export const getAllLeads = async (req, res) => {
     }
 
     if (country && country !== 'All') {
-      query.country = { $regex: new RegExp(country.trim(), 'i') };
+      query.country = new RegExp('^' + country.trim() + '$', 'i');
     }
 
     if (state && state !== 'All') {
-      query.state = { $regex: new RegExp(state.trim(), 'i') };
+      query.state = new RegExp('^' + state.trim() + '$', 'i');
     }
 
     const distToMatch = district || city;

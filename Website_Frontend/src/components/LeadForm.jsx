@@ -299,7 +299,9 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
       if (ex.consumerName)   setFullName(ex.consumerName);
       if (ex.consumerNumber) setConsumerNumber(ex.consumerNumber);
       if (ex.meterCategory)  setMeterCategory(ex.meterCategory);
-      if (ex.discom)         setDiscom(ex.discom);
+      if (ex.discom || ex.retailer) setDiscom(ex.discom || ex.retailer);
+        if (ex.tariffDesc || ex.tariffCode || ex.tariffType || ex.tariff) setTariffDesc(ex.tariffDesc || ex.tariffCode || ex.tariffType || ex.tariff);
+        if (ex.meterType) setMeterCategory(ex.meterType);
 
       if (data.confidence === "low") {
         setScanError(data.message || "Some fields could not be clearly extracted. Please verify manually.");
@@ -679,7 +681,10 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
       customerState: [customerState, setCustomerState],
       monthlyBill: [monthlyBill, (v) => setMonthlyBill(Number(v))],
       postcode: [postcode, setPostcode],
-      ownsProperty: [ownsProperty ? "Yes" : "No", (v) => setOwnsProperty(v === "Yes")],
+      tariffDesc: [tariffDesc, setTariffDesc],
+        meterCategory: [meterCategory, setMeterCategory],
+        discom: [discom, setDiscom],
+        ownsProperty: [ownsProperty ? "Yes" : "No", (v) => setOwnsProperty(v === "Yes")],
       billFile: [null, null], // handled separately
     };
     const mapped = stateKeyMap[field.key];
@@ -772,7 +777,13 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-1 mb-2">1. Your Details</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
-                  {formSettings.fields.filter(f => f.key !== "billFile").map((field, idx) => renderDynamicField(field, idx))}
+                  {(() => {
+                    const dynamicFields = [...formSettings.fields.filter(f => f.key !== 'billFile')];
+                    if (!dynamicFields.find(f => f.key === 'tariffDesc')) dynamicFields.push({ label: 'Tariff', key: 'tariffDesc', type: 'text', required: false, options: [] });
+                    if (!dynamicFields.find(f => f.key === 'meterCategory')) dynamicFields.push({ label: 'Meter Category', key: 'meterCategory', type: 'text', required: false, options: [] });
+                    if (!dynamicFields.find(f => f.key === 'discom')) dynamicFields.push({ label: 'Discom / Retailer', key: 'discom', type: 'text', required: false, options: [] });
+                    return dynamicFields.map((field, idx) => renderDynamicField(field, idx));
+                  })()}
                 </div>
               </div>
             ) : (
@@ -821,7 +832,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Full Name (Owner Name) *</label>
+                  </div></div><div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-2.5"><div><label className="block text-[11px] font-bold text-slate-700 mb-1">Tariff</label><input type="text" value={tariffDesc || ''} onChange={(e) => setTariffDesc(e.target.value)} className="w-full px-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium" /></div><div><label className="block text-[11px] font-bold text-slate-700 mb-1">Meter Category</label><input type="text" value={meterCategory || ''} onChange={(e) => setMeterCategory(e.target.value)} className="w-full px-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium" /></div><div><label className="block text-[11px] font-bold text-slate-700 mb-1">Discom / Retailer</label><input type="text" value={discom || ''} onChange={(e) => setDiscom(e.target.value)} className="w-full px-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium" /></div></div><div className="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label className="block text-[11px] font-bold text-slate-700 mb-1">Full Name (Owner Name) *</label>
                   <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)}
                     placeholder="e.g. Rajeshbhai Kunjibhai Patel"
                     className="w-full px-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium" />
@@ -1195,6 +1206,9 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
     </section>
   );
 }
+
+
+
 
 
 

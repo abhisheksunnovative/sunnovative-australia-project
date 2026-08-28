@@ -72,35 +72,41 @@ export default function BDEDashboard({ bdeId, bdeType }) {
 
   return (
     <div className="space-y-6">
-      
-      {/* Freelancer vs Company Header Banner */}
-      {isFreelancer ? (
-        <div className="bg-gradient-to-br from-amber-500 via-yellow-500 to-amber-600 rounded-2xl p-6 text-slate-950 shadow-md flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-slate-950 text-yellow-400 flex items-center justify-center font-bold">
-              <DollarSign className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="font-black text-xl text-slate-950">Freelancer Commission Accrued</h3>
-              <p className="text-sm font-medium text-slate-900">Total Accrued: ${(freelancerSettings.totalEarnings || 0).toLocaleString()}</p>
-            </div>
-          </div>
-          <span className="bg-slate-950 text-yellow-400 text-xs font-black px-4 py-2 rounded-full uppercase tracking-wider">FREELANCER</span>
-        </div>
-      ) : (
-        <div className="bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-2xl p-6 text-white shadow-md flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
-              <Building className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h3 className="font-black text-xl text-white">Company BDE</h3>
-              <p className="text-blue-100 text-sm">Keep up the great work generating orders!</p>
-            </div>
-          </div>
-        </div>
-      )}
 
+      {/* Header Row: Title LEFT + Banner RIGHT */}
+      <div className="flex flex-col md:flex-row md:items-center gap-4">
+        {/* Title */}
+        <div className="flex-1">
+          <h2 className="text-2xl font-black text-slate-800 capitalize">
+            {(bdeData?.country || 'India').charAt(0).toUpperCase() + (bdeData?.country || 'India').slice(1)} Regional BDE Dashboard
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">Track your Leads, Orders, and Performance</p>
+        </div>
+
+        {/* Banner (right side) */}
+        {isFreelancer ? (
+          <div className="bg-gradient-to-br from-amber-500 via-yellow-500 to-amber-600 rounded-2xl px-6 py-4 text-slate-950 shadow-md flex items-center gap-4 min-w-0 md:max-w-sm">
+            <div className="w-10 h-10 rounded-xl bg-slate-950 text-yellow-400 flex items-center justify-center shrink-0">
+              <DollarSign className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-black text-base text-slate-950 truncate">Freelancer Commission</h3>
+              <p className="text-xs font-medium text-slate-900">Total Accrued: ${(freelancerSettings.totalEarnings || 0).toLocaleString()}</p>
+            </div>
+            <span className="bg-slate-950 text-yellow-400 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider shrink-0">FREELANCER</span>
+          </div>
+        ) : (
+          <div className="bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-2xl px-6 py-4 text-white shadow-md flex items-center gap-4 min-w-0 md:max-w-sm">
+            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+              <Building className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="font-black text-base text-white">Company BDE</h3>
+              <p className="text-blue-100 text-xs">Keep up the great work generating orders!</p>
+            </div>
+          </div>
+        )}
+      </div>
 
 
       {/* ── 9 METRICS GRID ── */}

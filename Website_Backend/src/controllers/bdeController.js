@@ -323,16 +323,35 @@ export const getBDELeads = async (req, res) => {
   try {
     const leads = await Lead.find({ assignedBde: req.params.bdeId }).sort({ createdAt: -1 }).lean();
     
+    // Bulk fetch ProjectOrders
+    const projectIds = leads.map(l => l.convertedProjectId).filter(Boolean);
+    const { ProjectOrder } = await import('../models/ProjectModel.js');
+    const projectOrders = await ProjectOrder.find({ _id: { $in: projectIds } }).lean();
+    const poMap = new Map(projectOrders.map(po => [po._id.toString(), po]));
+
+    // Bulk fetch EPC Partners
+    const epcIds = projectOrders.map(po => po.assignedEPCId).filter(Boolean);
+    const { default: EpcPartner } = await import('../models/EpcPartner.js');
+    const epcPartners = await EpcPartner.find({ _id: { $in: epcIds } }).select('companyName ownerName contactPerson mobile email').lean();
+    const epcMap = new Map(epcPartners.map(epc => [epc._id.toString(), epc]));
+
+    // Bulk fetch Enquiries
+    const orderNumbers = projectOrders.map(po => po.orderNumber).filter(Boolean);
+    const { default: EpcEnquiry } = await import('../models/EpcEnquiry.js');
+    const enquiries = await EpcEnquiry.find({ orderNumber: { $in: orderNumbers } }).populate('epcPartner', 'companyName contactPerson mobile email').lean();
+    const enquiryMap = new Map(enquiries.map(enq => [enq.orderNumber, enq]));
+
+    // OrderJourneySettings Cache
+    const settingsCache = new Map();
+    const OrderJourneySettingsModel = (await import('../models/OrderJourneySettings.js')).OrderJourneySettings;
+
     for (let lead of leads) {
       if (lead.convertedProjectId) {
-        const po = await ProjectOrder.findById(lead.convertedProjectId);
+        const po = poMap.get(lead.convertedProjectId.toString());
         if (po) {
-          
-          
           lead.isInstallDateFixed = po.isInstallDateFixed || lead.isInstallDateFixed;
           lead.preferredInstallDate = po.preferredInstallDate || lead.preferredInstallDate;
 
-          // Fetch selection type dynamically
           let epcSelectionType = "FCFS";
           try {
             let searchCountry = (lead.country || 'india').toLowerCase().trim();
@@ -342,49 +361,37 @@ export const getBDELeads = async (req, res) => {
             if (searchCountry === 'uk') searchCountry = 'uk';
             if (searchCountry === 'us' || searchCountry === 'usa') searchCountry = 'usa';
 
-            const OrderJourneySettingsModel = (await import('../models/OrderJourneySettings.js')).OrderJourneySettings;
-            let journeySettings = await OrderJourneySettingsModel.findOne({ 
-              country: searchCountry, 
-              state: lead.state || 'all', 
-              district: lead.district || 'all', 
-              discom: 'all' 
-            });
+            const cacheKey = searchCountry + '_' + (lead.state || 'all');
+            let journeySettings = settingsCache.get(cacheKey);
             if (!journeySettings) {
-              journeySettings = await OrderJourneySettingsModel.findOne({ 
-                country: searchCountry, 
-                state: 'all', 
-                district: 'all', 
-                discom: 'all' 
-              });
+              journeySettings = await OrderJourneySettingsModel.findOne({ country: searchCountry, state: lead.state || 'all' }).lean();
+              if (!journeySettings) {
+                journeySettings = await OrderJourneySettingsModel.findOne({ country: searchCountry, state: 'all' }).lean();
+              }
+              settingsCache.set(cacheKey, journeySettings);
             }
+
             const projectType = lead.solarType || 'residential';
             const journey = journeySettings?.journeys?.find(j => j.projectType === projectType && j.enabled);
             if (journey?.epcSelectionType) {
               epcSelectionType = journey.epcSelectionType;
             }
-          } catch (settingsErr) {
-            console.error('Error fetching settings in getBDELeads:', settingsErr);
-          }
+          } catch (err) {}
           lead.epcSelectionType = epcSelectionType;
 
           if (po.assignedEPCId) {
-            try {
-              const { default: EpcPartner } = await import('../models/EpcPartner.js');
-              const epc = await EpcPartner.findById(po.assignedEPCId).select('companyName ownerName contactPerson mobile email').lean();
-              if (epc) {
-                lead.epcDetails = {
-                  companyName: epc.companyName,
-                  contactPerson: epc.ownerName || epc.contactPerson || "Installer Representative",
-                  mobile: epc.mobile || "0412345671",
-                  email: epc.email
-                };
-                lead.enquiryStatus = "EPC Accepted";
-              }
-            } catch (epcErr) {
-              console.error('Error populating epcDetails in getBDELeads:', epcErr);
+            const epc = epcMap.get(po.assignedEPCId.toString());
+            if (epc) {
+              lead.epcDetails = {
+                companyName: epc.companyName,
+                contactPerson: epc.ownerName || epc.contactPerson || "Installer Representative",
+                mobile: epc.mobile || "0412345671",
+                email: epc.email
+              };
+              lead.enquiryStatus = "EPC Accepted";
             }
           } else {
-            const enquiry = await EpcEnquiry.findOne({ orderNumber: po.orderNumber }).populate('epcPartner', 'companyName contactPerson mobile email');
+            const enquiry = enquiryMap.get(po.orderNumber);
             if (enquiry && enquiry.epcPartner) {
               lead.epcDetails = enquiry.epcPartner;
               lead.enquiryStatus = enquiry.status;
@@ -602,7 +609,7 @@ export const updateBDELeadDetails = async (req, res) => {
     const lead = await Lead.findById(req.params.leadId);
     if (!lead) return res.status(404).json({ success: false, message: "Lead not found" });
     
-    const updates = ['name', 'mobile', 'email', 'district', 'state', 'pincode', 'kw', 'billAmount', 'solarType', 'notes', 'consumerNumber', 'discom', 'tariff', 'meterCategory', 'billUrl', 'nmi', 'rooftopPhoto', 'retailer'];
+    const updates = ['name', 'mobile', 'email', 'district', 'state', 'pincode', 'address', 'kw', 'billAmount', 'solarType', 'notes', 'consumerNumber', 'discom', 'tariff', 'meterCategory', 'billUrl', 'nmi', 'rooftopPhoto', 'retailer', 'subsidy', 'propertyType', 'roofType', 'isEligibleForInstallation'];
     updates.forEach(field => {
       if (req.body[field] !== undefined) {
         lead[field] = req.body[field];
@@ -1035,3 +1042,4 @@ export const markLeadEligible = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+

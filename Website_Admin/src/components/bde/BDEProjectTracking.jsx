@@ -19,6 +19,7 @@ export default function BDEProjectTracking({ bdeId }) {
   const [bdeUploadFile, setBdeUploadFile] = useState(null);
   const [bdeEvidenceNote, setBdeEvidenceNote] = useState("");
   const [expandedStepIndex, setExpandedStepIndex] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(null);
 
   // Drill-down UI State
   const [drillLevel, setDrillLevel] = useState(0);
@@ -1003,16 +1004,109 @@ export default function BDEProjectTracking({ bdeId }) {
                     </div>
                   </div>
 
-                  <div className="pt-1 flex items-center justify-between text-xs font-black text-amber-600 group-hover:underline border-t border-slate-100 mt-1">
-                    <span>Open Live Tracking UI →</span>
-                    <span className="text-[10px] bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-amber-800">
-                      BDE View
-                    </span>
+                  <div className="pt-2 flex items-center justify-between gap-2 border-t border-slate-100 mt-1">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setShowDetailsModal(project); }}
+                      className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-bold transition flex items-center gap-1.5 border border-slate-200 shadow-sm"
+                    >
+                      <User className="w-3.5 h-3.5 text-blue-500" /> Show Details
+                    </button>
+                    <div className="flex items-center gap-1 text-xs font-black text-amber-600 group-hover:underline">
+                      <span>Tracker →</span>
+                      <span className="text-[9px] bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 text-amber-800 ml-1 no-underline">
+                        BDE
+                      </span>
+                    </div>
                   </div>
                 </div>
               );
             })
           )}
+        </div>
+      )}
+
+      {/* Customer Details Modal */}
+      {showDetailsModal && (
+        <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowDetailsModal(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <div className="bg-slate-50 p-4 border-b border-slate-200 flex items-center justify-between sticky top-0 z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
+                  <User className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-900 leading-tight">Customer Details</h3>
+                  <p className="text-xs font-bold text-slate-500 mt-0.5">{showDetailsModal.orderNumber || 'SUN-ACCOUNT'}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowDetailsModal(null)} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition cursor-pointer">
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-5 overflow-y-auto space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">Customer Name</p>
+                  <p className="font-black text-slate-800 text-sm mt-0.5 truncate">{showDetailsModal.customerName}</p>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">Mobile</p>
+                  <p className="font-black text-slate-800 text-sm mt-0.5">{showDetailsModal.customerMobile || 'N/A'}</p>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">Project Type</p>
+                  <p className="font-black text-slate-800 text-sm mt-0.5 truncate">{showDetailsModal.projectTypeLabel || showDetailsModal.projectType || 'N/A'}</p>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 md:col-span-3">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">Email</p>
+                  <p className="font-black text-slate-800 text-sm mt-0.5 break-all">{showDetailsModal.customerEmail || 'N/A'}</p>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                <h4 className="font-bold text-slate-700 text-xs flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                  <MapPin className="w-4 h-4 text-blue-500"/> Location Details
+                </h4>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div><span className="text-slate-500 text-xs block mb-0.5">State</span> <span className="font-bold text-slate-800">{showDetailsModal.state || 'N/A'}</span></div>
+                  <div><span className="text-slate-500 text-xs block mb-0.5">District / Suburb</span> <span className="font-bold text-slate-800">{showDetailsModal.district || showDetailsModal.suburb || 'N/A'}</span></div>
+                  <div className="col-span-2"><span className="text-slate-500 text-xs block mb-0.5">Full Address</span> <span className="font-bold text-slate-800">{showDetailsModal.address || 'N/A'}</span></div>
+                  <div><span className="text-slate-500 text-xs block mb-0.5">Pincode</span> <span className="font-bold text-slate-800">{showDetailsModal.pincode || 'N/A'}</span></div>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                <h4 className="font-bold text-slate-700 text-xs flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                  <Zap className="w-4 h-4 text-amber-500"/> Technical Specs
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                  <div><span className="text-slate-500 text-xs block mb-0.5">System Size</span> <span className="font-bold text-slate-800">{showDetailsModal.systemSizeKW || 'N/A'} kW</span></div>
+                  <div><span className="text-slate-500 text-xs block mb-0.5">Property Type</span> <span className="font-bold text-slate-800">{showDetailsModal.propertyType || 'N/A'}</span></div>
+                  <div><span className="text-slate-500 text-xs block mb-0.5">Roof Type</span> <span className="font-bold text-slate-800">{showDetailsModal.roofType || 'N/A'}</span></div>
+                  <div><span className="text-slate-500 text-xs block mb-0.5">Phase Type</span> <span className="font-bold text-slate-800">{showDetailsModal.phaseType || 'N/A'}</span></div>
+                  <div><span className="text-slate-500 text-xs block mb-0.5">Monthly Bill</span> <span className="font-bold text-slate-800">{showDetailsModal.monthlyBill ? (showDetailsModal.country === 'australia' || showDetailsModal.country === 'au' ? '$' : '₹') + showDetailsModal.monthlyBill : 'N/A'}</span></div>
+                  <div><span className="text-slate-500 text-xs block mb-0.5">Total Cost</span> <span className="font-bold text-slate-800">{showDetailsModal.totalProjectCost ? (showDetailsModal.country === 'australia' || showDetailsModal.country === 'au' ? '$' : '₹') + showDetailsModal.totalProjectCost.toLocaleString('en-IN') : 'N/A'}</span></div>
+                </div>
+              </div>
+              
+              {(showDetailsModal.preferredInstallDate || showDetailsModal.isInstallDateFixed || showDetailsModal.scheduledInstallDate) && (
+                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                   <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Installation Date</p>
+                   <p className="font-black text-emerald-800 text-sm">
+                     {showDetailsModal.isInstallDateFixed ? 'Confirmed: ' : 'Preferred: '} 
+                     {new Date(showDetailsModal.scheduledInstallDate || showDetailsModal.preferredInstallDate).toLocaleDateString('en-GB')}
+                   </p>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end shrink-0 rounded-b-2xl">
+              <button onClick={() => setShowDetailsModal(null)} className="px-6 py-2 rounded-xl text-sm font-bold text-white bg-slate-800 hover:bg-slate-900 transition shadow-sm cursor-pointer">
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

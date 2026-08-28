@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { MapPin, PhoneCall, Calendar, ArrowRight, CheckCircle, Clock, Zap, DollarSign, ClipboardList, ShieldCheck, Mail, KeyRound, X } from "lucide-react";
+import { MapPin, PhoneCall, Calendar, ArrowRight, CheckCircle, Clock, Zap, DollarSign, ClipboardList, ShieldCheck, Mail, KeyRound, X , User } from "lucide-react";
 import { useAdminSettings } from "../../hooks/useAdminSettings";
 
 export default function BDEProspects({ bdeId, country, bdeType }) {
   const isFreelancer = bdeType?.toLowerCase().includes("freelance");
   const [leads, setLeads] = useState([]);
+  const [showDetailsModal, setShowDetailsModal] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [projectTypeFilter, setProjectTypeFilter] = useState("All");
   const [kwFilter, setKwFilter] = useState("All");
-  const [followUpFilter, setFollowUpFilter] = useState("All"); 
+  const [followUpFilter, setFollowUpFilter] = useState("All");
+  const [activeSummaryFilter, setActiveSummaryFilter] = useState('All'); // 'All', 'DatePending', 'EPCPending', 'FollowUpToday', 'FollowUpTomorrow', 'FollowUpFuture' 
   const { projectTypes: dynamicProjectTypes } = useAdminSettings(country);
   const [loading, setLoading] = useState(true);
   
@@ -17,6 +19,7 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
   // OTP & Calendar States
   const [otpModalLead, setOtpModalLead] = useState(null);
   const [customerEmail, setCustomerEmail] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [otpValue, setOtpValue] = useState(''); // kept for backward compat
@@ -279,6 +282,22 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
   };
 
   const filteredLeads = baseProspects.filter(l => {
+    // Summary Card Filters
+    if (activeSummaryFilter === 'DatePending' && l.preferredInstallDate) return false;
+    if (activeSummaryFilter === 'EPCPending' && l.assignedEPCName) return false;
+    
+    if (activeSummaryFilter === 'FollowUpToday' || activeSummaryFilter === 'FollowUpTomorrow' || activeSummaryFilter === 'FollowUpFuture') {
+      if (!l.nextFollowUp) return false;
+      const today = new Date();
+      const fu = new Date(l.nextFollowUp);
+      const isToday = fu.toDateString() === today.toDateString();
+      const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+      const isTomorrow = fu.toDateString() === tomorrow.toDateString();
+      
+      if (activeSummaryFilter === 'FollowUpToday' && !isToday) return false;
+      if (activeSummaryFilter === 'FollowUpTomorrow' && !isTomorrow) return false;
+      if (activeSummaryFilter === 'FollowUpFuture' && (isToday || isTomorrow || fu < today)) return false;
+    }
     if (projectTypeFilter !== "All" && (l.solarType || l.projectType || "").toLowerCase() !== projectTypeFilter.toLowerCase()) return false;
     
     if (kwFilter !== "All") {
@@ -306,6 +325,27 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
              (l.mobile || "").includes(searchQuery);
     }
     return true;
+  });
+
+  
+  const datePendingCount = baseProspects.filter(l => !l.preferredInstallDate).length;
+  const epcPendingCount = baseProspects.filter(l => !l.assignedEPCName).length;
+  
+  const todayStr = new Date().toDateString();
+  const tomorrowObj = new Date(); tomorrowObj.setDate(tomorrowObj.getDate() + 1);
+  const tomorrowStr = tomorrowObj.toDateString();
+  
+  let fuTodayCount = 0;
+  let fuTomorrowCount = 0;
+  let fuFutureCount = 0;
+  
+  baseProspects.forEach(l => {
+    if(l.nextFollowUp) {
+       const fuStr = new Date(l.nextFollowUp).toDateString();
+       if(fuStr === todayStr) fuTodayCount++;
+       else if(fuStr === tomorrowStr) fuTomorrowCount++;
+       else if(new Date(l.nextFollowUp) > new Date()) fuFutureCount++;
+    }
   });
 
   // Collect all unique project types present in the BDE's current leads
@@ -341,7 +381,66 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-wrap gap-4 items-center">
+      
+        {/* Top Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div 
+            onClick={() => setActiveSummaryFilter(activeSummaryFilter === 'DatePending' ? 'All' : 'DatePending')}
+            className={`p-4 rounded-xl border-2 transition-all cursor-pointer shadow-sm flex flex-col justify-between ${activeSummaryFilter === 'DatePending' ? 'bg-rose-50 border-rose-400 ring-4 ring-rose-100' : 'bg-white border-slate-200 hover:border-rose-300'}`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2 text-rose-600 font-bold">
+                <Calendar className="w-5 h-5"/> Installation Date Pending
+              </div>
+              <span className={`text-xl font-black ${activeSummaryFilter === 'DatePending' ? 'text-rose-700' : 'text-slate-800'}`}>{datePendingCount}</span>
+            </div>
+            <p className="text-[10px] text-slate-500 font-semibold uppercase">Needs Installation Date</p>
+          </div>
+
+          <div 
+            onClick={() => setActiveSummaryFilter(activeSummaryFilter === 'EPCPending' ? 'All' : 'EPCPending')}
+            className={`p-4 rounded-xl border-2 transition-all cursor-pointer shadow-sm flex flex-col justify-between ${activeSummaryFilter === 'EPCPending' ? 'bg-blue-50 border-blue-400 ring-4 ring-blue-100' : 'bg-white border-slate-200 hover:border-blue-300'}`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2 text-blue-600 font-bold">
+                <MapPin className="w-5 h-5"/> EPC Assignment Pending
+              </div>
+              <span className={`text-xl font-black ${activeSummaryFilter === 'EPCPending' ? 'text-blue-700' : 'text-slate-800'}`}>{epcPendingCount}</span>
+            </div>
+            <p className="text-[10px] text-slate-500 font-semibold uppercase">Awaiting EPC Partner</p>
+          </div>
+
+          <div className="p-4 rounded-xl border-2 border-slate-200 bg-white shadow-sm flex flex-col justify-between">
+            <div className="flex items-center gap-2 text-amber-600 font-bold mb-3">
+              <PhoneCall className="w-5 h-5"/> Follow-up Dates
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div 
+                onClick={() => setActiveSummaryFilter(activeSummaryFilter === 'FollowUpToday' ? 'All' : 'FollowUpToday')}
+                className={`text-center p-1.5 rounded-lg border transition-all cursor-pointer ${activeSummaryFilter === 'FollowUpToday' ? 'bg-amber-100 border-amber-400 text-amber-800 shadow-inner' : 'bg-slate-50 border-slate-200 hover:bg-amber-50 text-slate-600'}`}
+              >
+                <div className="text-[10px] uppercase font-bold mb-1">Today</div>
+                <div className="font-black text-sm">{fuTodayCount}</div>
+              </div>
+              <div 
+                onClick={() => setActiveSummaryFilter(activeSummaryFilter === 'FollowUpTomorrow' ? 'All' : 'FollowUpTomorrow')}
+                className={`text-center p-1.5 rounded-lg border transition-all cursor-pointer ${activeSummaryFilter === 'FollowUpTomorrow' ? 'bg-amber-100 border-amber-400 text-amber-800 shadow-inner' : 'bg-slate-50 border-slate-200 hover:bg-amber-50 text-slate-600'}`}
+              >
+                <div className="text-[10px] uppercase font-bold mb-1">Tmrw</div>
+                <div className="font-black text-sm">{fuTomorrowCount}</div>
+              </div>
+              <div 
+                onClick={() => setActiveSummaryFilter(activeSummaryFilter === 'FollowUpFuture' ? 'All' : 'FollowUpFuture')}
+                className={`text-center p-1.5 rounded-lg border transition-all cursor-pointer ${activeSummaryFilter === 'FollowUpFuture' ? 'bg-amber-100 border-amber-400 text-amber-800 shadow-inner' : 'bg-slate-50 border-slate-200 hover:bg-amber-50 text-slate-600'}`}
+              >
+                <div className="text-[10px] uppercase font-bold mb-1">Future</div>
+                <div className="font-black text-sm">{fuFutureCount}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-wrap gap-4 items-center">
         <input 
           type="text" 
           placeholder="Search by name or phone..." 
@@ -382,12 +481,7 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
           <option value=">10">Above 10 kW</option>
         </select>
 
-        <select value={followUpFilter} onChange={e => setFollowUpFilter(e.target.value)} className="px-3 py-2 border rounded-lg text-sm outline-none bg-amber-50 text-amber-800 font-bold">
-          <option value="All">All Follow-ups</option>
-          <option value="Today">Today Follow-up</option>
-          <option value="Tomorrow">Tomorrow Follow-up</option>
-          <option value="Future">Future Follow-ups</option>
-        </select>
+        
       </div>
 
       {loading ? (
@@ -411,9 +505,15 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
                 <div className="space-y-1.5 text-sm text-slate-600">
                   <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-slate-400"/> {lead.district || lead.city}, {lead.state}</div>
                   <div className="flex items-center gap-2"><PhoneCall className="w-4 h-4 text-slate-400"/> {lead.mobile}</div>
-                  <div className="flex items-center gap-2"><Zap className="w-4 h-4 text-slate-400"/> {lead.kw} kW ({lead.solarType})</div>
+                  <div className="flex items-center gap-2"><Zap className="w-4 h-4 text-slate-400"/> {lead.kw} kW ({lead.solarType === 'au-standard-family' ? 'Residential' : (dynamicProjectTypes?.find(pt => pt.value === lead.solarType)?.label || (lead.solarType === 'surya-ghar' ? 'PM Surya Ghar' : lead.solarType))})</div>
+                  </div>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setShowDetailsModal(lead); }}
+                    className="mt-4 w-full md:w-3/4 justify-center px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-black uppercase tracking-wider rounded-xl transition-colors border border-slate-200 flex items-center gap-2 shadow-sm"
+                  >
+                    <User className="w-4 h-4 text-blue-500"/> Show Details
+                  </button>
                 </div>
-              </div>
               
               {/* Col 2: Follow Up & Install */}
               <div className="flex-1 min-w-[250px] w-full lg:border-l lg:border-slate-100 lg:pl-6 flex flex-col justify-center">
@@ -564,22 +664,40 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
               
               {!otpSent ? (
                 <div className="space-y-3">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase">Customer Email</label>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase">
+                    {(country?.toLowerCase() === 'india' || country?.toLowerCase() === 'in') ? 'Customer Phone' : 'Customer Email'}
+                  </label>
                   <div className="relative">
-                    <Mail className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                    <input 
-                      autoFocus
-                      type="email" 
-                      value={customerEmail} 
-                      onChange={e => setCustomerEmail(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && sendOtp()}
-                      className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" 
-                      placeholder="customer@email.com" 
-                    />
+                    {(country?.toLowerCase() === 'india' || country?.toLowerCase() === 'in') ? (
+                      <PhoneCall className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                    ) : (
+                      <Mail className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                    )}
+                    {(country?.toLowerCase() === 'india' || country?.toLowerCase() === 'in') ? (
+                      <input 
+                        autoFocus
+                        type="tel" 
+                        value={customerPhone} 
+                        onChange={e => setCustomerPhone(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && sendOtp()}
+                        className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" 
+                        placeholder="Customer Mobile Number"
+                      />
+                    ) : (
+                      <input 
+                        autoFocus
+                        type="email" 
+                        value={customerEmail} 
+                        onChange={e => setCustomerEmail(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && sendOtp()}
+                        className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" 
+                        placeholder="customer@email.com"
+                      />
+                    )}
                   </div>
                   <button 
                     onClick={sendOtp} 
-                    disabled={isOtpLoading || !customerEmail} 
+                    disabled={isOtpLoading || ((country?.toLowerCase() === 'india' || country?.toLowerCase() === 'in') ? !customerPhone : !customerEmail)} 
                     className="w-full py-2.5 bg-blue-600 disabled:opacity-50 text-white font-bold rounded-lg"
                   >
                     {isOtpLoading ? 'Sending...' : 'Send OTP to Customer'}
@@ -588,7 +706,7 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
               ) : (
                 <div className="space-y-3">
                   <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-xs text-emerald-700 font-medium">
-                    ✅ OTP sent to <strong>{customerEmail}</strong>
+                    ✅ OTP sent to <strong>{(country?.toLowerCase() === 'india' || country?.toLowerCase() === 'in') ? customerPhone : customerEmail}</strong>
                   </div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase text-center">Enter 6-Digit OTP</label>
                   
@@ -724,6 +842,87 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
         </div>
       )}
 
-    </div>
+            {/* Customer Details Modal */}
+      {showDetailsModal && (
+          <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowDetailsModal(null)}>
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+              <div className="bg-slate-50 p-4 border-b border-slate-200 flex items-center justify-between sticky top-0 z-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
+                    <User className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-slate-900 leading-tight">Customer Details</h3>
+                    <p className="text-xs font-bold text-slate-500 mt-0.5">{showDetailsModal.name}</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowDetailsModal(null)} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition cursor-pointer">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="p-5 overflow-y-auto space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">Customer Name</p>
+                    <p className="font-black text-slate-800 text-sm mt-0.5 truncate">{showDetailsModal.name || showDetailsModal.customerName}</p>
+                  </div>
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">Mobile</p>
+                    <p className="font-black text-slate-800 text-sm mt-0.5">{showDetailsModal.mobile || showDetailsModal.customerMobile || 'N/A'}</p>
+                  </div>
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">Project Type</p>
+                    <p className="font-black text-slate-800 text-sm mt-0.5 truncate">{showDetailsModal.solarType === 'au-standard-family' ? 'Residential' : (dynamicProjectTypes?.find(pt => pt.value === showDetailsModal.solarType)?.label || (showDetailsModal.solarType === 'surya-ghar' ? 'PM Surya Ghar' : showDetailsModal.solarType)) || showDetailsModal.projectType || 'N/A'}</p>
+                  </div>
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 md:col-span-3">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">Email</p>
+                    <p className="font-black text-slate-800 text-sm mt-0.5 break-all">{showDetailsModal.email || showDetailsModal.customerEmail || 'N/A'}</p>
+                  </div>
+                </div>
+  
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                  <h4 className="font-bold text-slate-700 text-xs flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                    <MapPin className="w-4 h-4 text-blue-500"/> Location Details
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div><span className="text-slate-500 text-xs block mb-0.5">State</span> <span className="font-bold text-slate-800">{showDetailsModal.state || 'N/A'}</span></div>
+                    <div><span className="text-slate-500 text-xs block mb-0.5">District / Suburb</span> <span className="font-bold text-slate-800">{showDetailsModal.district || showDetailsModal.suburb || 'N/A'}</span></div>
+                    {showDetailsModal.address && showDetailsModal.address !== 'N/A' && <div className="col-span-2"><span className="text-slate-500 text-xs block mb-0.5">Full Address</span> <span className="font-bold text-slate-800">{showDetailsModal.address}</span></div>}
+                    <div><span className="text-slate-500 text-xs block mb-0.5">Pincode</span> <span className="font-bold text-slate-800">{showDetailsModal.pincode || showDetailsModal.postcode || 'N/A'}</span></div>
+                  </div>
+                </div>
+  
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                  <h4 className="font-bold text-slate-700 text-xs flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                    <Zap className="w-4 h-4 text-amber-500"/> Technical Specs & Utility
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                    <div><span className="text-slate-500 text-xs block mb-0.5">System Size</span> <span className="font-bold text-slate-800">{showDetailsModal.kw || showDetailsModal.systemSizeKW || "N/A"} kW</span></div>
+                    {showDetailsModal.propertyType && showDetailsModal.propertyType !== "N/A" && <div><span className="text-slate-500 text-xs block mb-0.5">Property Type</span> <span className="font-bold text-slate-800">{showDetailsModal.propertyType}</span></div>}
+                    {showDetailsModal.roofType && showDetailsModal.roofType !== "N/A" && <div><span className="text-slate-500 text-xs block mb-0.5">Roof Type</span> <span className="font-bold text-slate-800">{showDetailsModal.roofType}</span></div>}
+                    <div><span className="text-slate-500 text-xs block mb-0.5">{showDetailsModal.country === 'australia' || showDetailsModal.country === 'au' ? 'Quarterly Bill' : 'Monthly Bill'}</span> <span className="font-bold text-slate-800">{showDetailsModal.billAmount || showDetailsModal.monthlyBill ? (showDetailsModal.country === "australia" || showDetailsModal.country === "au" ? "$" : "\u20B9") + (showDetailsModal.billAmount || showDetailsModal.monthlyBill) : "N/A"}</span></div>
+                    {showDetailsModal.discom && showDetailsModal.discom !== "Not detected" && <div><span className="text-slate-500 text-xs block mb-0.5">Discom / Retailer</span> <span className="font-bold text-slate-800">{showDetailsModal.discom}</span></div>}
+                    {showDetailsModal.tariff && showDetailsModal.tariff !== "Not detected" && <div><span className="text-slate-500 text-xs block mb-0.5">Tariff</span> <span className="font-bold text-slate-800">{showDetailsModal.tariff}</span></div>}
+                    {showDetailsModal.meterCategory && showDetailsModal.meterCategory !== "Not detected" && <div><span className="text-slate-500 text-xs block mb-0.5">Meter Category</span> <span className="font-bold text-slate-800">{showDetailsModal.meterCategory}</span></div>}
+                    {showDetailsModal.subsidy > 0 && <div><span className="text-slate-500 text-xs block mb-0.5">{showDetailsModal.country === "australia" ? "Estimated STC Rebate" : "Estimated Subsidy"}</span> <span className="font-bold text-emerald-600">{(showDetailsModal.country === "australia" ? "$" : "\u20B9") + showDetailsModal.subsidy}</span></div>}
+                  </div>
+                  {(showDetailsModal.billUrl || showDetailsModal.billFileUrl) && (
+                    <div className="pt-2 border-t border-slate-200 mt-2">
+                       <a href={showDetailsModal.billUrl || showDetailsModal.billFileUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"><Zap className="w-3 h-3"/> View Uploaded Bill</a>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end shrink-0 rounded-b-2xl">
+                <button onClick={() => setShowDetailsModal(null)} className="px-6 py-2 rounded-xl text-sm font-bold text-white bg-slate-800 hover:bg-slate-900 transition shadow-sm cursor-pointer">
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+</div>
   );
 }

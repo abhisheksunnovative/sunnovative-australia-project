@@ -14,6 +14,8 @@ const leadSchema = new mongoose.Schema(
     city: { type: String, trim: true },
     pincode: { type: String, trim: true },
     address: { type: String, trim: true },
+    propertyType: { type: String, trim: true },
+    roofType: { type: String, trim: true },
 
     // Solar info
     solarType: {
@@ -84,5 +86,9 @@ leadSchema.index({ isActive: 1 });
 leadSchema.index({ solarType: 1, isActive: 1 });
 leadSchema.index({ status: 1 });
 leadSchema.index({ createdAt: -1 });
+leadSchema.index({ assignedBde: 1, createdAt: -1 });
+leadSchema.index({ country: 1 });
+leadSchema.index({ uploadSource: 1 });
 
 export default mongoose.model('Lead', leadSchema);
+
