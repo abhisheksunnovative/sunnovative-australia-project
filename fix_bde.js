@@ -1,0 +1,1 @@
+const fs = require('fs'); let text = fs.readFileSync('Website_Admin/src/components/BDEManagementScreen.jsx', 'utf-8'); text = text.replace(/assignedProjectTypes:\s*\[.*?residential.*?\]/g, 'assignedProjectTypes: []'); fs.writeFileSync('Website_Admin/src/components/BDEManagementScreen.jsx', text);

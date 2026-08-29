@@ -83,6 +83,15 @@ export default function BDELeadManagement({ bdeId, country, bdeType, filterTab =
       
       const data = await res.json();
       
+      let savedUrl = "";
+      try {
+        const uploadForm = new FormData();
+        uploadForm.append("file", file);
+        const uploadRes = await fetch(`${API_BASE}/api/upload-file`, { method: "POST", body: uploadForm });
+        const uploadData = await uploadRes.json();
+        if (uploadData.success) savedUrl = uploadData.fileUrl;
+      } catch (e) { console.warn("File upload failed", e); }
+      
       if (data.extracted) {
         const ex = data.extracted;
         setFormData(prev => {
@@ -108,7 +117,9 @@ export default function BDELeadManagement({ bdeId, country, bdeType, filterTab =
             discom: ex.discomId || ex.retailer || ex.dnsp || prev.discom,
             tariff: ex.tariffCode || prev.tariff,
             meterCategory: ex.meterCategory || prev.meterCategory,
-            country: isAU ? 'australia' : 'india'
+            country: isAU ? 'australia' : 'india',
+            billUrl: savedUrl || prev.billUrl,
+            billFileUrl: savedUrl || prev.billUrl
           };
         });
         if (data.confidence === "low") {
@@ -1083,6 +1094,7 @@ Customer has been notified in Customer Portal to select their preferred installe
                 </select>
               </div>
               <div><label className="text-xs text-gray-500 mb-1 block">Required kW</label><input type="number" className="w-full border p-2 rounded" value={formData.kw} onChange={e=>setFormData({...formData, kw: e.target.value})} /></div>
+              <div><label className="text-xs text-gray-500 mb-1 block">Monthly Bill Amount</label><input type="number" className="w-full border p-2 rounded" value={formData.billAmount} onChange={e=>setFormData({...formData, billAmount: e.target.value})} /></div>
               <div><label className="text-xs text-gray-500 mb-1 block">Consumer Number</label><input className="w-full border p-2 rounded" value={formData.consumerNumber} onChange={e=>setFormData({...formData, consumerNumber: e.target.value})} /></div>
               <div><label className="text-xs text-gray-500 mb-1 block">DISCOM</label><input className="w-full border p-2 rounded" value={formData.discom} onChange={e=>setFormData({...formData, discom: e.target.value})} /></div>
               <div><label className="text-xs text-gray-500 mb-1 block">Tariff Code</label><input className="w-full border p-2 rounded" value={formData.tariff} onChange={e=>setFormData({...formData, tariff: e.target.value})} /></div>

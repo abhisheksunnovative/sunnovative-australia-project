@@ -96,9 +96,9 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
         const res = await fetch(`${apiBase}/api/website-settings/${countryCode}/${ptKey}`);
         const data = await res.json();
         let settingsToUse = null;
-        if (data.success && data.data?.projectForm) {
+        if (data.success && data.data?.projectForm && data.data.projectForm.fields?.length > 0) {
           settingsToUse = data.data.projectForm;
-        } else if (propSettings?.projectForm) {
+        } else if (propSettings?.projectForm && propSettings.projectForm.fields?.length > 0) {
           settingsToUse = propSettings.projectForm;
         }
         
@@ -346,6 +346,8 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
 
         if (data.recommendedKw) setSelectedKw(data.recommendedKw);
 
+} // end of else block
+
         const units = data.monthlyUnitsUsed || ex.monthlyUnits || null;
         setOcrMonthlyUnits(units);
 
@@ -359,7 +361,6 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
             monthsOverdue: ex.monthsOverdue || 0,
           });
         }
-      }
     } catch (err) {
       console.error("scan error:", err.response?.data || err.message);
       setScanError(err.response?.data?.message || "Bill scan failed. Please try a clearer photo, or fill details manually.");
@@ -439,10 +440,10 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
     
     let uiRecommendedKw;
     if (isAU) {
-      uiRecommendedKw = selectedKw || Math.max(3, Math.min(currentMaxKw, Math.ceil(monthlyBill / 100)));
+      uiRecommendedKw = selectedKw || (eligibilityResult?.suggestedKW) || Math.max(3, Math.min(currentMaxKw, Math.ceil(monthlyBill / 100)));
     } else {
       const units = Math.round(monthlyBill / 7.2);
-      uiRecommendedKw = Math.max(1, Math.min(currentMaxKw, Math.ceil(units / 115)));
+      uiRecommendedKw = eligibilityResult?.suggestedKW || Math.max(1, Math.min(currentMaxKw, Math.ceil(units / 115)));
     }
 
     // Prefer user's explicit selection (customKw) over the UI recommended base
@@ -644,7 +645,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
   let sliderUnits, sliderKw, sliderSubsidy, sliderCost, sliderNet, sliderPaybackMonths;
 
   if (isAU) {
-    sliderKw = selectedKw || Math.max(3, Math.min(maxKwLimit, Math.ceil(monthlyBill / 100)));
+    sliderKw = selectedKw || (eligibilityResult?.suggestedKW) || Math.max(3, Math.min(maxKwLimit, Math.ceil(monthlyBill / 100)));
     sliderUnits = Math.round(sliderKw * 115);
     const stcCalc = calcStcForKw(sliderKw);
     sliderSubsidy = stcCalc.stcValue;
@@ -652,8 +653,9 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
     sliderNet = stcCalc.netCost;
     sliderPaybackMonths = Math.round(sliderNet / (monthlyBill * 0.85 / 3));
   } else {
-    sliderUnits = Math.round(monthlyBill / 7.2);
-    sliderKw = Math.max(1, Math.min(maxKwLimit, Math.ceil(sliderUnits / 115)));
+    const derivedUnits = Math.round(monthlyBill / 7.2);
+    sliderKw = eligibilityResult?.suggestedKW || Math.max(1, Math.min(maxKwLimit, Math.ceil(derivedUnits / 115)));
+    sliderUnits = Math.round(sliderKw * 115);
     sliderSubsidy = getIndiaSubsidy(sliderKw);
     sliderCost = getIndiaCost(sliderKw);
     sliderNet = Math.max(10000, sliderCost - sliderSubsidy);
@@ -936,7 +938,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">{isAU ? "$" : "₹"}</span>
                     <input type="number" required value={monthlyBill}
-                      onChange={(e) => setMonthlyBill(Number(e.target.value))}
+                      onChange={(e) => { setMonthlyBill(Number(e.target.value)); setEligibilityResult(null); setSelectedKw(null); }}
                       placeholder="e.g. 2150"
                       className="w-full pl-7 pr-3 py-1.5 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium" />
                   </div>

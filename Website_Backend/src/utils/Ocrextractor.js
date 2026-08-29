@@ -645,7 +645,7 @@ export const estimateSubsidy = (kw, meterCategory, detectedState, rules) => {
 
 const AU_RETAILERS = [
   { id: 'AGL',               pattern: /\bAGL\b|AGL\s*Energy/i },
-  { id: 'Origin Energy',     pattern: /Origin\s*Energy/i },
+  { id: 'Origin Energy',     pattern: /\bOrigin\b/i },
   { id: 'EnergyAustralia',   pattern: /Energy\s*Australia/i },
   { id: 'Synergy',           pattern: /\bSynergy\b/i },
   { id: 'ActewAGL',          pattern: /ActewAGL/i },
@@ -699,8 +699,13 @@ export const parseAuBillText = (text) => {
 
   // ── 2. Account / NMI Number ───────────────────────────────────────────────
   let accountNumber = null;
-  const acctMatch = t.match(/(?:Account\s*(?:Number|No\.?|#)?|NMI|Meter\s*No\.?)[\s:]*([A-Z0-9]{6,20})/i);
+  const acctMatch = t.match(/(?:Account\s+(?:Number|No\.?|#)|Account\s*:[\s\S]{0,10}?)\s*([A-Z0-9][A-Z0-9\- ]{4,18}[A-Z0-9])/i);
   if (acctMatch) accountNumber = acctMatch[1].trim();
+  if (accountNumber && (accountNumber.toLowerCase().includes("details") || accountNumber.toLowerCase().includes("diss"))) accountNumber = null;
+  
+  let nmiNumber = null;
+  const nmiMatch = t.match(/(?:NMI|National\s*Metering\s*Identifier)[\s\S]{0,40}?([0-9]{9,11}[X]*)/i);
+  if (nmiMatch) nmiNumber = nmiMatch[1].trim();
 
   // ── 3. Customer Name ──────────────────────────────────────────────────────
   let customerName = null;
@@ -804,7 +809,7 @@ export const parseAuBillText = (text) => {
 
   // ── 7. Daily average kWh (some bills show this directly) ─────────────────
   if (!dailyKwh) {
-    const dailyMatch = t.match(/(?:Daily\s*Average|Avg\.?\s*Daily\s*Usage|Average\s*daily\s*usage)[\s\S]{0,30}?([\d.]+)\s*(?:kWh\/day|kWh|units|kW\/day|kW)/i);
+    const dailyMatch = t.match(/(?:Daily\s*usage|Daily\s*Average|Avg\.?\s*Daily\s*Usage|Average\s*daily\s*usage)[\s\S]{0,60}?([\d.]+)\s*(?:kWh\/day|kWh|units|kW\/day|kW)/i);
     if (dailyMatch) dailyKwh = parseFloat(dailyMatch[1]);
   }
 
@@ -813,7 +818,7 @@ export const parseAuBillText = (text) => {
 
   // "Total Amount Due: $1,234.56" or "Amount Payable $456.78"
   const amountPatterns = [
-    /(?:Total\s*Amount\s*(?:Due|Payable|Outstanding)|Amount\s*(?:Due|Payable)|Balance\s*Due|Please\s*Pay)\s*[:\-]?\s*\$\s*([\d,]+(?:\.\d{2})?)/i,
+    /(?:Total\s*balance|Total\s*Amount\s*(?:Due|Payable|Outstanding)|Amount\s*(?:Due|Payable)|Balance\s*Due|Please\s*Pay)[\s\S]{0,20}?\$\s*([\d,]+(?:\.\d{2})?)/i,
     /(?:Total\s*(?:Current\s*)?Bill|Bill\s*Total)\s*[:\-]?\s*\$\s*([\d,]+(?:\.\d{2})?)/i,
     /\$\s*([\d,]+\.\d{2})\s*(?:is\s*due|payable|due\s*by)/i,
   ];
@@ -828,7 +833,7 @@ export const parseAuBillText = (text) => {
   // ── 9. Solar Export (Feed-in) ─────────────────────────────────────────────
   let solarExportKwh = null, solarExportCredit = null;
 
-  const exportKwhMatch = t.match(/(?:Solar\s*Export|Feed.?in\s*(?:Credit|Tariff)?|Exported\s*(?:Energy)?)\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*kWh/i);
+  const exportKwhMatch = t.match(/(?:Solar\s*Exports?|Feed.?in\s*(?:Credit|Tariff)?|Exported\s*(?:Energy)?)[\s\S]{0,80}?([\d,]+(?:\.\d+)?)\s*kWh/i);
   if (exportKwhMatch) solarExportKwh = parseFloat(exportKwhMatch[1].replace(/,/g, ''));
 
   const exportCreditMatch = t.match(/(?:Solar\s*Export\s*Credit|Feed.?in\s*Credit|FiT\s*Credit)\s*[:\-]?\s*-?\s*\$\s*([\d,]+(?:\.\d{2})?)/i);
@@ -836,13 +841,13 @@ export const parseAuBillText = (text) => {
 
   // ── 10. Tariff type ───────────────────────────────────────────────────────
   let tariffType = null;
-  if (/Time\s*of\s*Use|TOU/i.test(t)) tariffType = 'Time of Use (TOU)';
+  if (/Time\s*of\s*Use|TOU|Peak.*Shoulder|Shoulder.*Peak/is.test(t)) tariffType = 'Time of Use (TOU)';
   else if (/Single\s*Rate|Flat\s*Rate/i.test(t)) tariffType = 'Single Rate';
   else if (/Controlled\s*Load|Off.?Peak/i.test(t)) tariffType = 'Controlled Load';
 
   // ── 11. Meter type ────────────────────────────────────────────────────────
   let meterType = null;
-  if (/Smart\s*Meter|Interval\s*Meter/i.test(t)) meterType = 'Smart Meter';
+  if (/Smart\s*Meter|Interval/i.test(t)) meterType = 'Smart Meter';
   else if (/Basic\s*Meter|Accumulation\s*Meter/i.test(t)) meterType = 'Basic Meter';
 
   // ── 12. Estimated monthly equivalent ─────────────────────────────────────
@@ -865,6 +870,7 @@ export const parseAuBillText = (text) => {
     confidence,
     retailer,
     accountNumber,
+    nmiNumber,
     customerName,
     distributor,
     suburb,

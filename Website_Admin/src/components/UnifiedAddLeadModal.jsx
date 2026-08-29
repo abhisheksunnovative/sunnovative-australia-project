@@ -92,33 +92,30 @@ const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bd
     await handleScanBill(selectedFile);
   };
 
-  const calculateEligibility = (billAmt) => {
-    let kw = isAU ? 5 : 3;
-    let eligible = false;
-    
-    // Fallback logic
-    if (isAU) {
-       kw = Math.max(2, Math.ceil(billAmt / 150));
-       if (kw > 15) kw = 15;
-       eligible = billAmt > 0;
-    } else {
-       const estimatedUnits = Math.round(billAmt / 7.5);
-       kw = Math.max(1, Math.ceil(estimatedUnits / 120));
-       if (kw > 10) kw = 10;
-       eligible = billAmt >= 500;
-    }
+  const calculateEligibility = async (billAmt, apiKw, extractedData) => {
+    let kw = apiKw || (isAU ? 6.6 : 3);
+    let eligible = true;
 
-    // Override with Admin Rules if available
-    if (adminEligibility && adminEligibility.projectCategories?.length > 0) {
-      const resCat = adminEligibility.projectCategories.find(c => c.id === 'residential' || c.id === 'surya-ghar') || adminEligibility.projectCategories[0];
-      if (resCat) {
-        if (kw < resCat.minKW) kw = resCat.minKW;
-        if (kw > resCat.maxKW) kw = resCat.maxKW;
+    try {
+      const eligibilityRes = await fetch(`${API_BASE}/api/light-bill/check-eligibility`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-country': isAU ? 'australia' : 'india'
+        },
+        body: JSON.stringify({
+          billAmount: billAmt,
+          monthlyUnits: extractedData?.monthlyKwhEquivalent || extractedData?.monthlyUnits || 0,
+          state: formData.state || extractedData?.state || '',
+          meterCategory: formData.meterCategory || extractedData?.meterCategory || extractedData?.tariffDesc || ''
+        })
+      });
+      const eligibilityData = await eligibilityRes.json();
+      if (eligibilityData.success) {
+        kw = eligibilityData.suggestedKW;
       }
-      if (adminEligibility.meterCategories) {
-        const resMeter = adminEligibility.meterCategories.find(m => m.category?.toLowerCase().includes("residential"));
-        if (resMeter) eligible = billAmt >= resMeter.minMonthlyBill;
-      }
+    } catch (e) {
+      console.warn('Eligibility API failed in BDE form', e);
     }
     
     setRecommendedKw(kw);
@@ -142,7 +139,9 @@ const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bd
       // Upload file to get URL
       let savedUrl = "";
       try {
-        const uploadRes = await fetch(`${API_BASE}/api/upload-file`, { method: "POST", body: form });
+        const uploadForm = new FormData();
+        uploadForm.append("file", uploadedFile);
+        const uploadRes = await fetch(`${API_BASE}/api/upload-file`, { method: "POST", body: uploadForm });
         const uploadData = await uploadRes.json();
         if (uploadData.success) savedUrl = uploadData.fileUrl;
       } catch (e) { console.warn("File upload failed", e); }
@@ -158,7 +157,10 @@ const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bd
         district: extracted.suburb || extracted.district || extracted.city || prev.district,
         state: extracted.detectedState || extracted.state || prev.state,
         pincode: extracted.postcode || extracted.pincode || prev.pincode,
-        consumerNumber: extracted.accountNumber || extracted.consumerNumber || prev.consumerNumber,
+        consumerNumber: extracted.nmiNumber || extracted.consumerNumber || prev.consumerNumber,
+        accountNumber: extracted.accountNumber || prev.accountNumber,
+        dailyKwh: extracted.dailyKwh || prev.dailyKwh,
+        monthlyUnits: extracted.monthlyUnits || prev.monthlyUnits,
         discom: extracted.retailer || extracted.discomId || extracted.discom || prev.discom,
         meterCategory: extracted.meterType || extracted.meterCategory || prev.meterCategory,
         tariff: extracted.tariffType || extracted.tariffCode || extracted.tariffDesc || extracted.tariff || prev.tariff,
@@ -166,12 +168,12 @@ const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bd
         billUrl: savedUrl || prev.billUrl, billFileUrl: savedUrl || prev.billUrl
       }));
       setScanConfidence(data.data?.confidence || 90);
-      calculateEligibility(billAmt);
+      await calculateEligibility(billAmt, null, extracted);
       setStep(2); // Move to recommendations
     } catch (err) {
       setScanError(err.message);
       // Fallback: proceed to step 2 manually with defaults
-      calculateEligibility(isAU ? 300 : 1500);
+      await calculateEligibility(isAU ? 300 : 1500, null, null);
       setStep(2);
     } finally {
       setIsScanning(false);
@@ -400,9 +402,26 @@ const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bd
                       <label className="text-xs font-semibold text-gray-500 block mb-1">{isAU ? 'Retailer / DNSP' : 'Discom'}</label>
                       <input type="text" value={formData.discom} onChange={e => setFormData({...formData, discom: e.target.value})} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white" />
                     </div>
+                    {isAU && (
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 block mb-1">Account Number</label>
+                        <input type="text" value={formData.accountNumber || ''} onChange={e => setFormData({...formData, accountNumber: e.target.value})} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white" />
+                      </div>
+                    )}
                     <div>
                       <label className="text-xs font-semibold text-gray-500 block mb-1">{isAU ? 'NMI Number' : 'Consumer Number'}</label>
                       <input type="text" value={formData.consumerNumber} onChange={e => setFormData({...formData, consumerNumber: e.target.value})} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">{isAU ? 'Quarterly Bill ($)' : 'Average Bill (₹)'}</label>
+                      <input type="number" value={formData.billAmount || ''} onChange={e => setFormData({...formData, billAmount: e.target.value})} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">{isAU ? 'Daily Usage (kWh)' : 'Monthly Units'}</label>
+                      <input type="number" step="0.01" value={isAU ? (formData.dailyKwh || '') : (formData.monthlyUnits || '')} onChange={e => {
+                        if (isAU) setFormData({...formData, dailyKwh: e.target.value});
+                        else setFormData({...formData, monthlyUnits: e.target.value});
+                      }} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white" />
                     </div>
                     <div>
                       <label className="text-xs font-semibold text-gray-500 block mb-1">Tariff</label>

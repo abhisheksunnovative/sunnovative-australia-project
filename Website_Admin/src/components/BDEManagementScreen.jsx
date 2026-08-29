@@ -162,7 +162,7 @@ export function BDEManagementContent({ selectedCountryObj, onBack }) {
       assignedStates: selectedState && selectedState !== 'unassigned' ? selectedState : "", 
       assignedDistricts: selectedDistrict && selectedDistrict !== 'unassigned' ? selectedDistrict : "", 
       assignedRegions: "", assignedPincodes: "",
-      assignedProjectTypes: ["residential"], targetLeads: 0, targetConversions: 0,
+      assignedProjectTypes: [], targetLeads: 0, targetConversions: 0,
       bdeType: "Employee", commissionType: "Fixed", commissionAmount: 0, projectTypeCommissions: []
     });
   };

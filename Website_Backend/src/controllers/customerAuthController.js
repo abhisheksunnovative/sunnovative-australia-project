@@ -97,6 +97,7 @@ export const sendOtp = async (req, res) => {
       pinSet: customer.pinSet,
       otp: process.env.NODE_ENV !== 'production' ? otp : undefined, // Dev fallback
       message: `OTP ${identifier} par bheja gaya`,
+      dummyOtp: otp,
     });
   } catch (err) {
     console.error('sendOtp error:', err);

@@ -1485,7 +1485,7 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
         estimatedSubsidy: isAU && selectedCapacity ? selectedCapacity.estimatedSubsidy : total,
         totalProjectCost: pkg.installCost,
         state: selectedState,
-        location: { address: activeAddress, city: activeCity, pincode: form.pincode || customerLead?.postcode || "", state: selectedState },
+        location: { address: activeAddress, city: activeCity, district: activeCity, pincode: form.pincode || customerLead?.postcode || "", state: selectedState },
         customerMobile: customerLead?.mobile || customer?.mobile || "",
         preferredInstallDate: form.preferredInstallDate,
         latitude: geo.lat || null,

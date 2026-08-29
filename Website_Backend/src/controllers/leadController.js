@@ -1,3 +1,5 @@
+import { sendOTP } from '../utils/smsService.js';
+import { sendOtpEmail } from '../utils/sendOtpEmail.js';
 /**
  * leadController.js — Lead Generation Module
  * No User/auth dependency — admin panel is single-admin, no JWT required for these routes
@@ -391,16 +393,18 @@ export const updateLead = async (req, res) => {
       lead.history.push({ action: `Status updated to ${status}` });
     }
 
-    if (req.body.tokenPaid && !lead.convertedProjectId) {
+    if (req.body.tokenPaid) {
       const { ProjectOrder } = await import("../models/ProjectModel.js");
+      const EpcEnquiry = (await import("../models/EpcEnquiry.js")).default;
       let existingOrder = await ProjectOrder.findOne({ customerMobile: lead.mobile }).sort({ createdAt: -1 });
       
+      let targetOrderNumber = "";
       if (existingOrder) {
         lead.convertedProjectId = existingOrder._id;
         lead.history.push({ action: "Linked to existing ProjectOrder: " + existingOrder.orderNumber });
         existingOrder.leadId = lead._id;
+        targetOrderNumber = existingOrder.orderNumber;
         
-        // Auto-advance token step on simulate
         let targetStep = existingOrder.steps?.find(s => s.milestoneType === 'customer_payment' || s.title.toLowerCase().includes("pay") || s.title.toLowerCase().includes("token"));
         if (!targetStep && existingOrder.steps?.length > 0) {
           targetStep = existingOrder.steps.find(s => s.status === 'in-progress' || s.status === 'pending');
@@ -411,9 +415,9 @@ export const updateLead = async (req, res) => {
         }
         await existingOrder.save();
       } else {
-        const orderNumber = "ORD-" + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000);
+        targetOrderNumber = "ORD-" + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000);
         const newOrder = await ProjectOrder.create({
-          orderNumber,
+          orderNumber: targetOrderNumber,
           customerName: lead.name,
           customerMobile: lead.mobile,
           customerEmail: lead.email,
@@ -426,8 +430,57 @@ export const updateLead = async (req, res) => {
           assignedEPCId: lead.assignedEpc || null
         });
         lead.convertedProjectId = newOrder._id;
-        lead.history.push({ action: "Converted to ProjectOrder: " + orderNumber });
+        lead.history.push({ action: "Created ProjectOrder: " + targetOrderNumber });
+        existingOrder = newOrder;
       }
+      
+      // Ensure EpcEnquiry exists so EPC can claim it from Demand Pool
+      let enquiry = await EpcEnquiry.findOne({ orderNumber: targetOrderNumber });
+      if (!enquiry) {
+        enquiry = new EpcEnquiry({
+          customerName: lead.name,
+          customerMobile: lead.mobile,
+          customerEmail: lead.email || "",
+          enquiryType: 'ECommerce',
+          projectType: (function(){
+            const pTypeMap = {
+              "surya-ghar": "Surya Ghar Yojana",
+              "residential": "Residential Solar",
+              "commercial": "Commercial Solar",
+              "group": "Group Solar",
+              "au-small-home": "AU Small Home (6.6kW)",
+              "au-standard-family": "AU Standard Family (8-10kW)",
+              "au-large-home": "AU Large Home (10-13kW)",
+              "au-ev-owners": "AU EV Owners (13-20kW)",
+              "au-solar-battery": "AU Solar + Battery"
+            };
+            return pTypeMap[lead.solarType?.toLowerCase()] || "Residential Solar";
+          })(),
+          systemCapacityKw: parseFloat(lead.kw) || 1,
+          state: lead.state || "",
+          district: lead.district || lead.city || "",
+          city: lead.city || "",
+          address: lead.address || "",
+          preferredInstallDate: lead.preferredInstallDate,
+          tokenAmount: (parseFloat(lead.kw) || 1) * 2000,
+          tokenPaid: true,
+          tokenPaidAt: new Date(),
+          status: 'Open For EPC',
+          assignmentType: 'FirstComeFirstServe',
+          orderNumber: targetOrderNumber
+        });
+        await enquiry.save();
+      } else {
+        enquiry.tokenPaid = true;
+        enquiry.tokenPaidAt = new Date();
+        enquiry.status = 'Open For EPC';
+        await enquiry.save();
+      }
+      
+      // Try to auto convert if all 4 conditions are met
+      setTimeout(() => {
+         import('./leadController.js').then(m => m.attemptAutoConversion(lead)).catch(console.error);
+      }, 1000);
     }
     await lead.save();
     res.json({ success: true, data: lead });
@@ -649,7 +702,10 @@ export const convertLeadToProject = async (req, res) => {
     if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
     
     if (lead.convertedProjectId) {
-      return res.status(400).json({ success: false, message: 'Order has already been confirmed by Admin' });
+      lead.status = 'Converted';
+      lead.bdeMovedToOrderJourney = true;
+      await lead.save();
+      return res.status(200).json({ success: true, message: 'Lead auto-converted successfully', projectId: lead.convertedProjectId });
     }
 
     let projectType = lead.solarType || 'residential';
@@ -826,24 +882,7 @@ export const convertLeadToProject = async (req, res) => {
     lead.convertedProjectId = po._id;
     lead.bdeMovedToOrderJourney = true;
     lead.history.push({ action: 'Converted to Project', date: new Date() });
-    if (req.body?.tokenPaid && !lead.convertedProjectId) {
-      const orderNumber = "ORD-" + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000);
-      const newOrder = await ProjectOrder.create({
-        orderNumber,
-        customerName: lead.name,
-        customerMobile: lead.mobile,
-        customerEmail: lead.email,
-        country: lead.country,
-        state: lead.state,
-        district: lead.district,
-        projectType: lead.solarType || "surya-ghar",
-        status: "Project Under Evaluation",
-        assignedBde: lead.assignedBde,
-        assignedEPCId: lead.assignedEpc || null
-      });
-      lead.convertedProjectId = newOrder._id;
-      lead.history.push({ action: "Converted to ProjectOrder: " + orderNumber });
-    }
+    // Removed dead code block for duplicate ProjectOrder creation
     await lead.save();
 
     // Accrue Freelancer BDE earnings & update conversion stats
@@ -1029,17 +1068,42 @@ export const requestDateOtp = async (req, res) => {
   try {
     const lead = await Lead.findById(req.params.id);
     if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
-    const { email } = req.body;
-    if (!email && !lead.email) return res.status(400).json({ success: false, message: 'Customer email is required' });
+    const { email, phone } = req.body;
+    
     const targetEmail = email || lead.email;
+    const targetPhone = phone || lead.mobile;
+    
+    if (!targetEmail && !targetPhone) return res.status(400).json({ success: false, message: 'Customer email or phone is required' });
     
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    lead.email = targetEmail; 
+    if (phone) lead.mobile = targetPhone;
+    if (email) lead.email = targetEmail; 
+    
     lead.installDateOtp = otp;
     lead.installDateOtpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
     await lead.save();
-    console.log(`[OTP] Generated for ${targetEmail}: ${otp}`);
-    res.json({ success: true, message: 'OTP sent to customer email', dummyOtp: otp });
+    
+    const target = phone ? targetPhone : targetEmail;
+    console.log('\n======================================================');
+    console.log(`[BDE DATE SET OTP] Generated for ${target}: ${otp}`);
+    console.log('======================================================\n');
+    
+    // Send OTP live via bulksms / email
+    if (phone) {
+      try {
+        await sendOTP(targetPhone, otp);
+      } catch (smsErr) {
+        console.warn('[SMS GATEWAY WARNING] Live SMS failed, using console OTP:', smsErr.message);
+      }
+    } else if (targetEmail) {
+      try {
+        await sendOtpEmail(targetEmail, otp);
+      } catch (emErr) {
+        console.warn('[EMAIL GATEWAY WARNING] Live Email failed, using console OTP:', emErr.message);
+      }
+    }
+    
+    res.json({ success: true, message: `OTP sent to ${target}`, dummyOtp: otp });
   } catch (error) {
     console.error('[OTP] requestDateOtp error:', error.message);
     res.status(500).json({ success: false, message: error.message });

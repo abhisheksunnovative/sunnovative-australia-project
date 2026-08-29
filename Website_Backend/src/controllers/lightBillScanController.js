@@ -181,6 +181,7 @@ export const scanLightBill = async (req, res) => {
           distributor:      parsed.distributor,
           discom:           parsed.distributor, // alias for frontend
           accountNumber:    parsed.accountNumber,
+          nmiNumber:        parsed.nmiNumber,
           consumerName:     parsed.customerName,
           consumerNumber:   parsed.accountNumber, // alias for frontend compatibility
 
@@ -205,7 +206,7 @@ export const scanLightBill = async (req, res) => {
           // Bill amounts (AU bills are quarterly)
           quarterlyBillAmount:   parsed.quarterlyBillAmount,
           monthlyBillEquivalent: parsed.monthlyBillEquivalent,
-          billAmount:            parsed.monthlyBillEquivalent, // alias: monthly equiv for slider
+          billAmount:            parsed.country === 'australia' ? parsed.quarterlyBillAmount : parsed.monthlyBillEquivalent, // Use quarterly for AU, monthly for IN
 
           // Solar export
           solarExportKwh:    parsed.solarExportKwh,

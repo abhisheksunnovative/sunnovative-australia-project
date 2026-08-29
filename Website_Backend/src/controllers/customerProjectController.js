@@ -233,6 +233,8 @@ export const applyForProject = async (req, res) => {
         order.leadId = relatedLead._id;
         order.assignedBde = relatedLead.assignedBde;
         await order.save();
+        relatedLead.convertedProjectId = order._id;
+        await relatedLead.save();
       }
     } catch (e) {
       console.error('Error linking project to lead:', e);
@@ -356,7 +358,7 @@ export const applyForProject = async (req, res) => {
           if (epc) {
             enquiryData.epcPartner = epc._id.toString();
             enquiryData.assignedEPCName = epc.companyName;
-            enquiryData.status = 'EPC Accepted';
+            enquiryData.status = 'Open For EPC';
             
             // Advance step in ProjectOrder since EPC is assigned
             const epcStep = order.steps?.find(s => s.title.toLowerCase().includes("epc assign"));

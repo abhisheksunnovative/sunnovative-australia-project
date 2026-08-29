@@ -34,7 +34,7 @@ export default function BDEDemandPool({ bdeId }) {
       });
       const data = await res.json();
       if (data.success) {
-        alert("Lead claimed successfully! Check 'My Leads'.");
+        alert("Lead claimed successfully! Check 'My Prospects'.");
         fetchDemandPool();
       } else {
         alert(data.message || "Failed to claim lead");

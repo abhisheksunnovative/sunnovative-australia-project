@@ -136,7 +136,14 @@ export default function CustomerLogin({ onClose, onSuccess }) {
         setStep("pin-login"); // returning user with PIN → fast login
       } else {
         setIsNewUser(false); setHasPinSet(false);
-        setStep("otp"); setInfo(data.message);
+        const payloadOtp = isIndia ? { mobile } : { email };
+        const resOtp = await fetch(`${API}/api/customer/auth/send-otp`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-country": getCountryCode() },
+          body: JSON.stringify(payloadOtp),
+        });
+        const dataOtp = await resOtp.json();
+        setStep("otp"); setInfo(dataOtp.message || "OTP Sent");
       }
     } catch { err("Network error. Please check the backend."); }
     setLoading(false);
@@ -269,7 +276,7 @@ export default function CustomerLogin({ onClose, onSuccess }) {
     mobile: t.loginSubtitle,
     name: "Verify your name and OTP once, then set your PIN",
     "pin-login": `${!isIndia ? email : '+91 ' + mobile} - Login using PIN`,
-    otp: `OTP ${!isIndia ? email : '+91 ' + mobile} has been sent to`,
+    otp: `OTP has been sent to ${!isIndia ? email : '+91 ' + mobile}`,
     "set-pin": "Next time, you can log in directly using your PIN",
     done: "Opening Dashboard...",
   };

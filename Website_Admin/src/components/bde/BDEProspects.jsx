@@ -214,10 +214,10 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
       const res = await fetch(`${API_BASE}/api/leads/${lead._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tokenPaid: true, status: "Converted" })
+        body: JSON.stringify({ tokenPaid: true })
       });
       if (res.ok) {
-        alert("Token Payment Confirmed! Customer has been moved to Order Journey.");
+        alert("Token Payment Confirmed!");
         fetchLeads();
       }
     } catch (e) { console.error(e); }
@@ -259,7 +259,7 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
   console.log(`[BDEProspects] Total leads loaded: ${leads.length}, isFreelancer: ${isFreelancer}, bdeType: ${bdeType}`);
 
   const baseProspects = leads.filter(l => {
-    if (l.status === 'Converted' || l.convertedProjectId) return false;
+    if (l.status === 'Converted' || l.bdeMovedToOrderJourney) return false;
     
     const isManualLead = l.history?.some(h => h.action.includes("Manually created by BDE"));
     if (isFreelancer && !isManualLead) return false;
@@ -606,6 +606,7 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
                     )}
 
                     {/* Follow up date picker */}
+                    {((!isAU && !lead.tokenPaid) || (isAU && (!lead.preferredInstallDate || !lead.assignedEPCName || !lead.address))) && (
                     <div className="w-full bg-slate-50 p-2 rounded-lg border border-slate-200 flex flex-col gap-1 shadow-sm mt-2">
                       <div className="text-[9px] font-black text-slate-500 uppercase">
                         {isAU ? "Ask customer to pay initial payment" : "Ask customer to pay token"}
@@ -632,6 +633,7 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
                         />
                       </div>
                     </div>
+                    )}
                   </div>
                 )}
               </div>

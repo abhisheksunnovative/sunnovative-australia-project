@@ -658,10 +658,15 @@ export const getBDEProjects = async (req, res) => {
 
     const projects = await ProjectOrder.find(filter).sort({ createdAt: -1 }).lean();
     const Lead = (await import('../models/Lead.js')).default;
-    const projectLeads = await Lead.find({ convertedProjectId: { $in: projects.map(p => p._id) } }).lean();
+    const projectLeads = await Lead.find({ 
+      $or: [
+        { convertedProjectId: { $in: projects.map(p => p._id) } },
+        { _id: { $in: projects.map(p => p.leadId).filter(id => id) } }
+      ]
+    }).lean();
 
     const eligibleProjects = projects.filter(p => {
-      const lead = projectLeads.find(l => l.convertedProjectId?.toString() === p._id.toString());
+      const lead = projectLeads.find(l => l.convertedProjectId?.toString() === p._id.toString() || l._id.toString() === p.leadId?.toString());
       if (!lead) return true; // If no lead found, just show it
       
       const isAU = lead.country?.toLowerCase() === 'australia' || lead.country?.toLowerCase() === 'au';
