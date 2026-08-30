@@ -9,6 +9,7 @@
  *   consumer number, subsidy estimate (existing India pipeline unchanged)
  */
 
+import ProjectType from '../models/ProjectType.js';
 import EligibilitySettings from '../models/EligibilitySettings.js';
 import CountryWebsiteSettings from '../models/CountryWebsiteSettings.js';
 import fs from 'fs';
@@ -23,6 +24,7 @@ import {
   getAuStcZone,
 } from '../utils/Ocrextractor.js';
 import { calculateSTC } from '../utils/stcCalculator.js';
+import { parseAuBillWithGemini } from '../utils/geminiBillExtractor.js';
 import ProjectPricing from '../models/ProjectPricing.js';
 
 export const scanLightBill = async (req, res) => {
@@ -108,7 +110,29 @@ export const scanLightBill = async (req, res) => {
     // ─── AUSTRALIA BILL SCAN PIPELINE ────────────────────────────────────
     // ══════════════════════════════════════════════════════════════════════
     if (country === 'australia') {
-      const parsed = parseAuBillText(rawText);
+      let parsed;
+      try {
+        parsed = await parseAuBillWithGemini(req.file.buffer, req.file.mimetype);
+      } catch (geminiErr) {
+        console.warn('Gemini extraction failed, falling back to Tesseract+Regex:', geminiErr.message);
+        parsed = parseAuBillText(rawText);
+      }
+      
+      // Ensure missing API fields fallback nicely
+      if (!parsed.retailer || !parsed.quarterlyBillAmount) {
+         console.warn('Gemini returned empty required fields, supplementing with Regex fallback');
+         const regexParsed = parseAuBillText(rawText);
+         parsed.retailer = parsed.retailer || regexParsed.retailer;
+         parsed.quarterlyBillAmount = parsed.quarterlyBillAmount || regexParsed.quarterlyBillAmount;
+         parsed.accountNumber = parsed.accountNumber || regexParsed.accountNumber;
+         parsed.nmiNumber = parsed.nmiNumber || regexParsed.nmiNumber;
+         parsed.postcode = parsed.postcode || regexParsed.postcode;
+         parsed.state = parsed.state || regexParsed.state;
+         parsed.suburb = parsed.suburb || regexParsed.suburb;
+         parsed.dailyKwh = parsed.dailyKwh || regexParsed.dailyKwh;
+         parsed.quarterlyKwh = parsed.quarterlyKwh || regexParsed.quarterlyKwh;
+      }
+      
 
       // Fetch AU STC settings from CountryWebsiteSettings
       let deemingYears = 5;
@@ -127,18 +151,62 @@ export const scanLightBill = async (req, res) => {
       // AU average: 6.5 kWh/day per kW of solar at zone 3
       const zone = getAuStcZone(parsed.postcode || '2000');
       const zoneYieldPerKw = zone === 1 ? 7.5 : zone === 2 ? 7.0 : zone === 3 ? 6.5 : 5.8; // kWh/day/kW
-      let recommendedKw = 6.6; // default
+
+      // Find best project type based on meter category
+      let mappedProjectType = 'residential';
+      if (parsed.tariffType) {
+        const tariff = parsed.tariffType.toLowerCase();
+        if (tariff.includes('business') || tariff.includes('commercial')) mappedProjectType = 'commercial';
+        if (tariff.includes('farm') || tariff.includes('rural')) mappedProjectType = 'farm-rural';
+      }
+
+      // Fetch Live Project Types from DB
+      // Note: Use form's selected project type if provided
+      let formProjectType = req.body.selectedProjectType || mappedProjectType;
+      if (formProjectType === 'default') formProjectType = 'residential';
+      
+      let availableSizes = [3, 5, 6.6, 10, 13, 15, 20]; // Default fallback
+      let projectTypeFound = null;
+      try {
+        const pt = await ProjectType.findOne({ country: 'australia', projectType: formProjectType, isActive: true }).lean();
+        if (pt && pt.availableKw && pt.availableKw.length > 0) {
+          availableSizes = pt.availableKw.map(Number).sort((a,b) => a-b);
+          projectTypeFound = pt.projectTypeLabel || formProjectType;
+        }
+      } catch (err) {
+        console.warn('Failed to fetch ProjectType sizes', err.message);
+      }
+
+      let rawKw = 6.6;
+
       if (parsed.dailyKwh) {
-        // Recommend enough solar to cover 80% of daily usage
-        recommendedKw = Math.ceil((parsed.dailyKwh * 1.2) / zoneYieldPerKw);
-        recommendedKw = Math.max(1.5, Math.min(20, recommendedKw));
-        // Round to nearest standard size: 3, 5, 6.6, 10, 13, 15
-        const standardSizes = [3, 5, 6.6, 10, 13, 15, 20];
-        recommendedKw = standardSizes.find(s => s >= recommendedKw) || 6.6;
+        rawKw = (parsed.dailyKwh * 1.2) / zoneYieldPerKw;
       } else if (parsed.monthlyBillEquivalent) {
-        // Rough: $100/month → ~1kW in zone 3
-        recommendedKw = Math.ceil(parsed.monthlyBillEquivalent / 100);
-        recommendedKw = Math.max(1.5, Math.min(20, recommendedKw));
+        rawKw = parsed.monthlyBillEquivalent / 100;
+      }
+      
+      // PROJECT TYPE MISMATCH VALIDATION
+      // If raw requirement is way higher than the max size in this project type
+      let recommendedKw = 6.6;
+      if (availableSizes.length > 0 && rawKw > availableSizes[availableSizes.length - 1] * 1.5) {
+         return res.status(400).json({ message: `Your requirement (${Math.round(rawKw)} kW) does not match the "${projectTypeFound || formProjectType}" category. Please select the correct Project Type from the top menu (e.g. Commercial Solar) and try again.` });
+      }
+      
+      // Map to nearest available size
+      if (availableSizes.length > 0) {
+         let closest = availableSizes[0];
+         for (let size of availableSizes) {
+           if (rawKw <= size) {
+             closest = size;
+             break;
+           }
+         }
+         if (rawKw > availableSizes[availableSizes.length - 1]) {
+           closest = availableSizes[availableSizes.length - 1];
+         }
+         recommendedKw = closest;
+      } else {
+         recommendedKw = Math.ceil(rawKw);
       }
 
       // STC calculation
@@ -264,11 +332,54 @@ export const scanLightBill = async (req, res) => {
     }
 
     // ── 6. KW recommendation ───────────────────────────────────────────────
-    const { recommendedKw, monthlyUnitsUsed } = deriveRecommendedKw({
+    let { recommendedKw, monthlyUnitsUsed } = deriveRecommendedKw({
       monthlyUnits: parsed.monthlyUnits,
       billAmount: parsed.billAmount,
       kwRules,
     });
+
+    let mappedProjectType = 'residential';
+    if (parsed.meterCategory) {
+      const mc = parsed.meterCategory.toLowerCase();
+      if (mc.includes('commercial') || mc.includes('business')) mappedProjectType = 'commercial';
+      if (mc.includes('farm') || mc.includes('rural')) mappedProjectType = 'farm-rural';
+    }
+
+    let formProjectType = req.body.selectedProjectType || mappedProjectType;
+    if (formProjectType === 'default') formProjectType = 'residential';
+    
+    let availableSizes = [];
+    let projectTypeFound = null;
+    try {
+      const pt = await ProjectType.findOne({ country: 'india', projectType: formProjectType, isActive: true }).lean();
+      if (pt && pt.availableKw && pt.availableKw.length > 0) {
+        availableSizes = pt.availableKw.map(Number).sort((a,b) => a-b);
+        projectTypeFound = pt.projectTypeLabel || formProjectType;
+      }
+    } catch (err) {
+      console.warn('Failed to fetch ProjectType sizes (India)', err.message);
+    }
+
+    // PROJECT TYPE MISMATCH VALIDATION
+    if (availableSizes.length > 0 && recommendedKw > availableSizes[availableSizes.length - 1] * 1.5) {
+       return res.status(400).json({
+           message: `Your requirement (${Math.round(recommendedKw)} kW) does not match the "${projectTypeFound || formProjectType}" category. Please select the correct Project Type from the top menu (e.g. Commercial Solar) and try again.`
+       });
+    }
+
+    if (availableSizes.length > 0) {
+       let closest = availableSizes[0];
+       for (let size of availableSizes) {
+         if (recommendedKw <= size) {
+           closest = size;
+           break;
+         }
+       }
+       if (recommendedKw > availableSizes[availableSizes.length - 1]) {
+         closest = availableSizes[availableSizes.length - 1];
+       }
+       recommendedKw = closest;
+    }
 
     // ── 7. Subsidy estimate ────────────────────────────────────────────────
     const { subsidyAmount, note } = recommendedKw

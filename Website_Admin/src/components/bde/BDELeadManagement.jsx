@@ -32,6 +32,7 @@ export default function BDELeadManagement({ bdeId, country, bdeType, filterTab =
   }, [bdeId, API_BASE]);
   const [leads, setLeads] = useState([]);
   const [showDetailsModal, setShowDetailsModal] = useState(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState("date-desc");
   const [projectTypeFilter, setProjectTypeFilter] = useState("All");
@@ -47,7 +48,7 @@ export default function BDELeadManagement({ bdeId, country, bdeType, filterTab =
   const [selectedEpcIdsForCustomer, setSelectedEpcIdsForCustomer] = useState([]);
   const [isSendingRecommendations, setIsSendingRecommendations] = useState(false);
 
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [currentLead, setCurrentLead] = useState(null);
   const [formData, setFormData] = useState({
@@ -166,20 +167,7 @@ export default function BDELeadManagement({ bdeId, country, bdeType, filterTab =
     setLoading(false);
   };
 
-  const handleOpenAdd = () => {
-    setCurrentLead(null);
-    setFormData({
-      name: '', mobile: '', email: '', district: '', 
-      state: isAU ? 'New South Wales' : 'Gujarat', 
-      pincode: '', kw: '', billAmount: '', 
-      solarType: isAU ? 'au-standard-family' : 'surya-ghar', 
-      notes: '', consumerNumber: '', discom: '', tariff: '', meterCategory: '',
-      country: isAU ? 'australia' : 'india'
-    });
-    setUploadedFile(null);
-    setScanError("");
-    setIsAddModalOpen(true);
-  };
+  
 
   const handleOpenEdit = (lead) => {
     setCurrentLead(lead);
@@ -568,7 +556,7 @@ Customer has been notified in Customer Portal to select their preferred installe
   // For eligibility tab: exclude leads already qualified (they move to My Prospects)
   // For other tabs: exclude installDateBooked leads (those are shown in prospects)
   const baseLeads = leads.filter(l => {
-    if (l.status === 'Converted' || l.status === 'Not Interested' || l.status === 'Lost' || l.convertedProjectId) return false;
+    if (l.status === 'Converted' || l.status === 'Not Interested' || l.status === 'Lost' || l.status === 'RAW' || l.convertedProjectId) return false;
     if (filterTab === 'eligibility' && l.isEligibleForInstallation) return false; // Already qualified → in My Prospects
     return true;
   });
@@ -748,14 +736,8 @@ Customer has been notified in Customer Portal to select their preferred installe
             </button>
           )}
         </div>
-        {isFreelancer && (
-          <button 
-            onClick={handleOpenAdd}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
-          >
-            <Plus className="w-4 h-4" /> Add Lead
-          </button>
-        )}
+        <button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition shadow-sm"><Plus className="w-4 h-4" /> Add Lead</button>
+        
       </div>
 
       
@@ -851,11 +833,7 @@ Customer has been notified in Customer Portal to select their preferred installe
                     <div className="text-xs bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-lg border border-emerald-200 inline-flex items-center gap-1.5 font-bold shadow-sm w-fit">
                       <Calendar className="w-4 h-4 text-emerald-600"/> Install: {new Date(lead.preferredInstallDate).toLocaleDateString("en-IN")}
                     </div>
-                  ) : (
-                    <div className="text-xs bg-amber-50 text-amber-800 px-3 py-1.5 rounded-lg border border-amber-200 inline-flex items-center gap-1.5 font-bold w-fit shadow-sm">
-                      <Calendar className="w-4 h-4 text-amber-500"/> Install: Not Selected
-                    </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
 
@@ -864,7 +842,7 @@ Customer has been notified in Customer Portal to select their preferred installe
                 <div className="text-sm font-black text-slate-800 capitalize mb-2 text-lg">
                   {lead.solarType || "Residential"} • {lead.kw || "6.6"} kW
                 </div>
-                <div className="text-sm text-slate-600 font-semibold flex items-center gap-2 mb-3">
+                <div className="hidden">
                   <span className="text-slate-400">Est. Bill:</span>
                   <span className="bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">${lead.billAmount || 0} {isAU ? 'AUD' : 'INR'}</span>
                 </div>
@@ -874,35 +852,18 @@ Customer has been notified in Customer Portal to select their preferred installe
               </div>
               {/* Col 4: Actions */}
               <div className="flex-1 min-w-[200px] lg:border-l lg:border-slate-100 lg:pl-6 flex flex-col items-end gap-3 justify-center">
-                <div className="w-full bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex flex-col gap-2 shadow-sm mb-1">
-                  <div className="flex justify-between items-center">
-                    <div className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1">
-                      <Calendar className="w-3 h-3"/> Follow-up Date
-                    </div>
-                    <input 
-                      type="date" 
-                      className="bg-transparent border-none p-0 text-xs font-bold text-blue-700 cursor-pointer focus:ring-0"
-                      value={lead.nextFollowUp ? lead.nextFollowUp.split("T")[0] : ""}
-                      onChange={(e) => updateLeadStatus(lead._id, lead.status, e.target.value)}
-                    />
-                  </div>
-                </div>
+                {/* Follow Up Removed */}
 
-                <button 
-                  onClick={() => setViewingDetailLead(lead)} 
-                  className="w-full justify-center px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-black uppercase tracking-wider rounded-xl transition-colors border border-slate-200 flex items-center gap-2 shadow-sm"
-                >
-                  <ShieldCheck className="w-4 h-4 text-blue-500"/> Lead Details
-                </button>
+                
 
                 {isFreelancer && filterTab === 'eligibility' ? (
-                  <div className="w-full flex flex-col gap-2 mt-auto">
+                  <div className="w-full flex flex-col gap-2 my-auto">
                     {!lead.billAmount ? (
                       <>
-                        <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 p-2 rounded-lg font-bold text-center w-full shadow-sm">
+                        <p className="text-[10px] text-slate-600 bg-slate-50 border border-slate-200 p-2 rounded-lg font-bold text-center w-full shadow-sm">
                           Note: Upload the customer's bill to auto-qualify and move to My Prospects.
                         </p>
-                        <button onClick={() => handleOpenUploadBill(lead)} className="w-full justify-center flex items-center gap-2 text-white text-sm font-bold px-4 py-3 bg-amber-500 hover:bg-amber-600 rounded-xl shadow-md transition-all hover:-translate-y-0.5">
+                        <button onClick={() => handleOpenUploadBill(lead)} className="w-full justify-center flex items-center gap-2 text-white text-sm font-bold px-4 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md transition-all hover:-translate-y-0.5">
                           <Zap className="w-4 h-4" /> Upload Bill
                         </button>
                       </>
@@ -913,7 +874,7 @@ Customer has been notified in Customer Portal to select their preferred installe
                     )}
                   </div>
                 ) : (
-                  <div className="w-full flex flex-col gap-2 mt-auto">
+                  <div className="w-full flex flex-col gap-2 my-auto">
                     { (lead.hasLoggedIn || lead.preferredInstallDate) ? (
                         <button onClick={() => {
                           if (!lead.nextFollowUp) {
@@ -1035,7 +996,7 @@ Customer has been notified in Customer Portal to select their preferred installe
                 </button>
                 <button 
                   onClick={handleLockFinalDate} 
-                  className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black shadow-md flex items-center gap-2 transition"
+                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-md flex items-center gap-2 transition"
                 >
                   <Calendar className="w-4 h-4" /> Lock & Confirm Installation Date
                 </button>
@@ -1046,16 +1007,7 @@ Customer has been notified in Customer Portal to select their preferred installe
       )}
 
       {/* Add/Edit Modal (Simplified) */}
-      {isAddModalOpen && (
-        <UnifiedAddLeadModal 
-          isBDE={true} 
-          bdeId={bdeId}
-          userCountry={country}
-          existingLead={currentLead}
-          onClose={() => { setIsAddModalOpen(false); setCurrentLead(null); }} 
-          onSuccess={() => { setIsAddModalOpen(false); setCurrentLead(null); fetchLeads(); }} 
-        />
-      )}
+      
       {isEditModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden">
@@ -1477,6 +1429,18 @@ Customer has been notified in Customer Portal to select their preferred installe
             </div>
           </div>
         )}
-</div>
+
+      {/* Add/Edit Modal (Simplified) */}
+      {isAddModalOpen && (
+        <UnifiedAddLeadModal 
+          isBDE={true} 
+          bdeId={bdeId}
+          userCountry={country}
+          existingLead={currentLead}
+          mode="single"
+          onClose={() => { setIsAddModalOpen(false); fetchLeads(); }} 
+        />
+      )}
+    </div>
   );
 }

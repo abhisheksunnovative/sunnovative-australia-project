@@ -31,18 +31,26 @@ export default function BDELayout({ children, currentTab, onTabChange, onLogout,
              const isTargetSource = isFreelance ? isManual : !isManual;
              
              if (!isTargetSource) return;
-             if (l.status === 'Converted' || l.status === 'Not Interested' || l.status === 'Lost' || l.convertedProjectId) return;
+             if (l.status === 'Converted' || l.status === 'Not Interested' || l.status === 'Lost' || l.bdeMovedToOrderJourney) return;
              
+             if (l.status === "RAW") {
+                 if (isFreelance) {
+                   leadsCount++;
+                   return;
+                 }
+             }
+             
+             // A lead that is moved to Order Journey leaves Prospects
+             const isInOrderJourney = l.bdeMovedToOrderJourney;
+
              if (isFreelance) {
-               // Freelancer: eligible leads go to My Prospects, non-eligible go to Customer Eligibility
-               if (l.isEligibleForInstallation) {
-                 prospectsCount++;
+               if (l.isEligibleForInstallation || l.installDateBooked) {
+                 if (!isInOrderJourney) prospectsCount++;
                } else {
                  eligibilityCount++;
                }
              } else {
-               // Full-time: all their leads are prospects (claimed from Demand Pool)
-               prospectsCount++;
+               if (!isInOrderJourney) prospectsCount++;
              }
         });
       }
@@ -50,7 +58,7 @@ export default function BDELayout({ children, currentTab, onTabChange, onLogout,
         const p = await projRes.json();
         projCount = p.data?.length || p.projects?.length || 0;
       }
-      setTabCounts({ eligibility: eligibilityCount, leads: leadsCount, prospects: prospectsCount, projects: projCount });
+      setTabCounts({ eligibility: eligibilityCount, myleads: leadsCount, prospects: prospectsCount, projects: projCount });
     } catch (e) {
       console.warn("Failed to load BDE tab counts", e);
     }
@@ -83,6 +91,7 @@ export default function BDELayout({ children, currentTab, onTabChange, onLogout,
 
   const navItems = [
     { id: "bde-aust", name: "Dashboard", icon: <LayoutDashboard className="w-5 h-5 text-emerald-400" /> },
+    ...(isFreelancer ? [{ id: "bde-my-leads", name: "My Leads", icon: <Users className="w-5 h-5" />, count: tabCounts.myleads || 0 }] : []),
     ...(isFreelancer ? [{ id: "bde-customer-eligibility", name: "Customer Eligibility List", icon: <Users className="w-5 h-5" />, count: tabCounts.eligibility || 0 }] : []),
     { id: "bde-prospects", name: "My Prospects", icon: <CheckSquare className="w-5 h-5" />, count: tabCounts.prospects || 0 },
     { id: "bde-projects", name: "Customer Order Journey", icon: <ClipboardList className="w-5 h-5" />, count: tabCounts.projects || 0 },

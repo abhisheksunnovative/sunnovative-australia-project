@@ -131,7 +131,7 @@ export const applyForProject = async (req, res) => {
     const minDays = journeySettings?.globalSettings?.minBookingDays || 5;
 
     // Handle CUSTOMER_SELECT
-    const { EpcPartner } = await import('../models/EpcPartner.js');
+    const { default: EpcPartner } = await import('../models/EpcPartner.js');
     if (currentJourney?.epcSelectionType === 'CUSTOMER_SELECT' && !payload.selectedEpcId) {
       let epcs = await EpcPartner.find({
         isVerified: true,

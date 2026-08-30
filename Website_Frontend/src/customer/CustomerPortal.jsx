@@ -1224,7 +1224,9 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
   const fetchEpcCalendar = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${API}/api/leads/${customerLead._id}/epc-calendar`, {
+      const leadId = customerLead?._id || 'public';
+      const query = form.city ? `?district=${encodeURIComponent(form.city)}` : '';
+      const res = await fetch(`${API}/api/leads/${leadId}/epc-calendar${query}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -1248,6 +1250,12 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
       if (selectedSlot) {
         payload.epcCalendarSlotId = selectedSlot.entries?.[0]?._id; // just pass one for now if multiple, or properly handle
         payload.date = selectedSlot.date;
+      }
+      if (!customerLead || !customerLead._id) {
+        setForm(p => ({ ...p, preferredInstallDate: payload.date }));
+        setIsCalendarOpen(false);
+        setIsSelectLoading(false);
+        return;
       }
       const token = localStorage.getItem("token");
       const res = await fetch(`${API}/api/leads/${customerLead._id}/select-install-date`, {
@@ -1659,7 +1667,7 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                   <div>
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Applicant's Name *</label>
-                    <input type="text" value={form.applicantName} onChange={e => setForm(p => ({ ...p, applicantName: e.target.value }))}
+                    <input type="text" value={form.applicantName || ""} onChange={e => setForm(p => ({ ...p, applicantName: e.target.value }))}
                       placeholder="Full Name"
                       className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-yellow-400/50" />
                   </div>
@@ -1787,7 +1795,7 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
               <div className="mb-4">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Consumer Number *</label>
                 <div className="flex gap-2">
-                  <input type="text" value={consumerNumber} onChange={e => setConsumerNumber(e.target.value)}
+                  <input type="text" value={consumerNumber || ""} onChange={e => setConsumerNumber(e.target.value)}
                     placeholder="e.g. 1234567890"
                     className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-yellow-400/50" />
                   <button type="button" onClick={handleCheckEligibility} className="px-5 py-2.5 bg-[#28377f] text-white rounded-xl font-bold text-xs whitespace-nowrap hover:bg-slate-800 transition">

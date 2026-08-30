@@ -74,6 +74,7 @@ const getSectionTitles = (country = '') => {
   return {
     projectCategories:  "Project Categories",
     meterCategories:    "Meter Category Eligibility",
+    latestBillRules:    "Latest Bill Rule",
     billStatusRules:    "Bill Status Rules",
     kwDerivationRules:  "KW Derivation Rules",
     subsidyCriteria:    "Subsidy Criteria",

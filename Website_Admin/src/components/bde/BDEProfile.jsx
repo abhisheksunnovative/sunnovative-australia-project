@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, Key, Save, AlertCircle, FileText, CheckCircle, ExternalLink, UploadCloud, Clock } from 'lucide-react';
+import { User, Mail, Phone, Key, MapPin, Save, AlertCircle, FileText, CheckCircle, ExternalLink, UploadCloud, Clock } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
@@ -114,6 +114,42 @@ export default function BDEProfile({ bdeId }) {
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold uppercase">
               <CheckCircle className="w-3.5 h-3.5" /> Active
             </span>
+          </div>
+        </div>
+      </div>
+
+            {/* Assignment Details */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-slate-50 px-5 py-4 border-b border-slate-200">
+          <h2 className="font-black text-slate-800 flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-indigo-500" /> My Assignment Details
+          </h2>
+          <p className="text-xs text-slate-500 mt-1">Regions, Project Types, and parameters assigned by the Admin.</p>
+        </div>
+        <div className="p-5 grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+            <p className="text-[10px] font-bold text-slate-400 uppercase">Assigned Countries</p>
+            <p className="font-black text-slate-800 text-sm mt-0.5">{bde.assignedCountries?.join(", ") || 'All'}</p>
+          </div>
+          <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+            <p className="text-[10px] font-bold text-slate-400 uppercase">Assigned States</p>
+            <p className="font-black text-slate-800 text-sm mt-0.5">{bde.assignedStates?.join(", ") || 'All'}</p>
+          </div>
+          <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+            <p className="text-[10px] font-bold text-slate-400 uppercase">Assigned Regions / Territories</p>
+            <p className="font-black text-slate-800 text-sm mt-0.5">{bde.assignedRegions?.join(", ") || 'All'}</p>
+          </div>
+          <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+            <p className="text-[10px] font-bold text-slate-400 uppercase">Assigned Districts</p>
+            <p className="font-black text-slate-800 text-sm mt-0.5">{bde.assignedDistricts?.join(", ") || 'All'}</p>
+          </div>
+          <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+            <p className="text-[10px] font-bold text-slate-400 uppercase">Assigned Pincodes</p>
+            <p className="font-black text-slate-800 text-sm mt-0.5 truncate">{bde.assignedPincodes?.join(", ") || 'All'}</p>
+          </div>
+          <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+            <p className="text-[10px] font-bold text-slate-400 uppercase">Assigned Project Types</p>
+            <p className="font-black text-slate-800 text-sm mt-0.5">{bde.assignedProjectTypes?.map(pt => pt.replace(/-/g, ' ').toUpperCase()).join(", ") || 'All'}</p>
           </div>
         </div>
       </div>

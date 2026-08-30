@@ -136,6 +136,28 @@ export const acceptEnquiry = async (req, res) => {
       }
     }
 
+    
+    // SAME DATE CHECK (Only 1 install per day for EPC)
+    if (enquiryCheck.preferredInstallDate) {
+      const eDate = new Date(enquiryCheck.preferredInstallDate);
+      const startOfDay = new Date(eDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(eDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      
+      const existingOnSameDate = await EpcEnquiry.findOne({
+         epcPartner: epcId,
+         status: { $in: ['EPC Accepted', 'Processing Acceptance'] },
+         preferredInstallDate: { $gte: startOfDay, $lte: endOfDay }
+      });
+      
+      if (existingOnSameDate) {
+         return res.status(403).json({ 
+            message: 'You already have an order scheduled on this installation date! Please ask to change the date before accepting.' 
+         });
+      }
+    }
+
     // 2. Atomic Lock for FCFS — Only one EPC can transition it from 'Open For EPC' to 'Processing Acceptance'
     const lockedEnquiry = await EpcEnquiry.findOneAndUpdate(
       { _id: enquiryId, status: { $in: acceptableStatuses } },
@@ -211,7 +233,7 @@ export const acceptEnquiry = async (req, res) => {
             }
           );
           
-          const updatedLead = await LeadModel.findOne({ mobile: lockedEnquiry.customerMobile });
+          const updatedLead = await LeadModel.findOne(leadMatch);
           if (updatedLead) {
              const { attemptAutoConversion } = await import('./leadController.js');
              await attemptAutoConversion(updatedLead);
@@ -342,5 +364,28 @@ export const convertToOrder = async (req, res) => {
   } catch (err) {
     console.error('convertToOrder error:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+export const rejectEnquiry = async (req, res) => {
+  try {
+    const epcId = req.epc._id;
+    const enquiryId = req.params.id;
+    const enquiry = await EpcEnquiry.findById(enquiryId);
+    
+    if (!enquiry) return res.status(404).json({ message: 'Enquiry not found' });
+    
+    // Add EPC ID to rejectedBy array if not already present
+    if (!enquiry.rejectedBy) {
+      enquiry.rejectedBy = [];
+    }
+    if (!enquiry.rejectedBy.includes(epcId)) {
+      enquiry.rejectedBy.push(epcId);
+      await enquiry.save();
+    }
+    
+    res.json({ success: true, message: 'Enquiry rejected successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };

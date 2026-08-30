@@ -109,6 +109,7 @@ export const checkBillEligibility = async (req, res) => {
       solarEligible,  // ← v4 new: from ocrExtractor resolveCat
 
       overrideKw,     // Optional: custom kW requested by user
+      billDate, // from OCR
 
     } = req.body;
 

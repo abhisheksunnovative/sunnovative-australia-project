@@ -4,6 +4,7 @@ import {
   ArrowLeft, Building, User, MapPin, Shield, Zap, BarChart3, ChevronDown, ChevronUp, Loader2
 } from "lucide-react";
 import HorizontalJourneyTracker from "../HorizontalJourneyTracker";
+import { useAdminSettings } from "../../hooks/useAdminSettings";
 
 export default function BDEProjectTracking({ bdeId }) {
   const [projects, setProjects] = useState([]);
@@ -20,6 +21,23 @@ export default function BDEProjectTracking({ bdeId }) {
   const [bdeEvidenceNote, setBdeEvidenceNote] = useState("");
   const [expandedStepIndex, setExpandedStepIndex] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(null);
+  const [bdeDetails, setBdeDetails] = useState(null);
+  const { projectTypes: dynamicProjectTypes } = useAdminSettings(bdeDetails?.country || filterCountry || "australia");
+
+  useEffect(() => {
+    const fetchBde = async () => {
+      try {
+        const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
+        const res = await fetch(`${API_BASE}/api/bde/${bdeId}`);
+        const data = await res.json();
+        if (data.success) {
+           setBdeDetails(data.bde);
+           if (!filterCountry && data.bde.country) setFilterCountry(data.bde.country);
+        }
+      } catch (e) {}
+    };
+    if (bdeId) fetchBde();
+  }, [bdeId]);
 
   // Drill-down UI State
   const [drillLevel, setDrillLevel] = useState(0);
@@ -68,9 +86,9 @@ export default function BDEProjectTracking({ bdeId }) {
   const currentOptions = React.useMemo(() => {
     let filtered = projects;
 
-    if (drillLevel > 0) filtered = filtered.filter(p => (p.projectTypeLabel || p.projectType || 'Unknown') === drillPath.projectType);
-    if (drillLevel > 1) filtered = filtered.filter(p => (p.state || 'Unknown') === drillPath.state);
-    if (drillLevel > 2) filtered = filtered.filter(p => (p.district || 'Unknown') === drillPath.district);
+    if (drillLevel > 0) filtered = filtered.filter(p => (p.projectType || 'Unknown').toLowerCase() === (drillPath.projectType || '').toLowerCase());
+    if (drillLevel > 1) filtered = filtered.filter(p => (p.state || p.location?.state || 'Unknown') === drillPath.state);
+    if (drillLevel > 2) filtered = filtered.filter(p => (p.district || p.location?.district || p.suburb || p.location?.suburb || p.city || p.location?.city || 'Unknown') === drillPath.district);
     
     // Status Filter (Level 3 -> 4)
     if (drillLevel > 3) {
@@ -98,17 +116,40 @@ export default function BDEProjectTracking({ bdeId }) {
     }
 
     if (drillLevel === 0) {
+      // Create cards only for assigned project types
+      const allowedTypes = (bdeDetails?.assignedProjectTypes || []).map(t => t.toLowerCase());
       const types = {};
-      filtered.forEach(p => {
-        const pt = p.projectTypeLabel || p.projectType || 'Unknown';
-        types[pt] = (types[pt] || 0) + 1;
+      
+      // Get all dynamic types that match assigned ones
+      const validTypes = dynamicProjectTypes.filter(dt => {
+        if (!bdeDetails) return true; // if not loaded, show all
+        if (allowedTypes.length === 0) return true; // if none assigned, show all as fallback
+        const normalizedValue = dt.value.toLowerCase().replace(/[^a-z0-9]/g, '');
+        return allowedTypes.some(at => {
+          const normAt = at.toLowerCase().replace(/[^a-z0-9]/g, '');
+          return normAt.includes(normalizedValue) || normalizedValue.includes(normAt);
+        });
       });
-      return Object.entries(types).map(([k, v]) => ({ label: k, count: v, value: k }));
+      
+      validTypes.forEach(vt => {
+         types[vt.label] = { value: vt.value, count: 0 };
+      });
+      
+      filtered.forEach(p => {
+        const ptValue = (p.projectType || 'Unknown').toLowerCase();
+        // find matching label
+        const matched = validTypes.find(vt => vt.value.toLowerCase() === ptValue);
+        if (matched) {
+           types[matched.label].count += 1;
+        }
+      });
+      
+      return Object.entries(types).map(([k, v]) => ({ label: k, count: v.count, value: v.value }));
     }
     if (drillLevel === 1) {
       const states = {};
       filtered.forEach(p => {
-        const st = p.state || 'Unknown';
+        const st = p.state || p.location?.state || 'Unknown';
         states[st] = (states[st] || 0) + 1;
       });
       return Object.entries(states).map(([k, v]) => ({ label: k, count: v, value: k }));
@@ -116,7 +157,7 @@ export default function BDEProjectTracking({ bdeId }) {
     if (drillLevel === 2) {
       const dists = {};
       filtered.forEach(p => {
-        const dt = p.district || 'Unknown';
+        const dt = p.district || p.location?.district || p.suburb || p.location?.suburb || p.city || p.location?.city || 'Unknown';
         dists[dt] = (dists[dt] || 0) + 1;
       });
       return Object.entries(dists).map(([k, v]) => ({ label: k, count: v, value: k }));

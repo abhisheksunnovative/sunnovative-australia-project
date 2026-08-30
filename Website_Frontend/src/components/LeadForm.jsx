@@ -59,7 +59,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
   const [email, setEmail] = useState("");
   const [city, setCity] = useState("Rajkot");
   const [customerState, setCustomerState] = useState("Gujarat");
-  const [monthlyBill, setMonthlyBill] = useState(2500);
+  const [monthlyBill, setMonthlyBill] = useState(getCountryCode() === "AU" ? 300 : 2500);
   const [postcode, setPostcode] = useState("");
   const [retailer, setRetailer] = useState("AGL");
   const [ownsProperty, setOwnsProperty] = useState(true);
@@ -236,7 +236,8 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
   };
 
   // Task 2: Call the real eligibility engine (CustomerEligibilityScreen rules)
-  const handleCheckEligibility = async ({ meterCategory, billAmount, monthlyUnits, dueAmount, billStatus, monthsOverdue, overrideKw = 0 }) => {
+  const handleCheckEligibility = async ({ meterCategory, billAmount, monthlyUnits, dueAmount, billStatus, monthsOverdue,
+        billDate, overrideKw = 0 }) => {
     setIsCheckingEligibility(true);
     setEligibilityError("");
     setEligibilityResult(null);
@@ -287,6 +288,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
     try {
       const formData = new FormData();
       formData.append("billFile", file);
+      formData.append("selectedProjectType", selectedProjectType || "");
 
       const { data } = await billScanApi.post("/api/light-bill/scan", formData, {
         headers: { "x-country": getCountryCode() }
@@ -318,8 +320,10 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
           const matchedState = auStates.find(s => s.toLowerCase() === ex.state.toLowerCase());
           if (matchedState) setCustomerState(matchedState);
         }
-        if (ex.monthlyBillEquivalent) {
-          setMonthlyBill(ex.monthlyBillEquivalent); // monthly equiv of quarterly bill
+        if (isAU && ex.quarterlyBillAmount) {
+          setMonthlyBill(ex.quarterlyBillAmount);
+        } else if (ex.monthlyBillEquivalent) {
+          setMonthlyBill(ex.monthlyBillEquivalent);
         }
         if (ex.quarterlyKwh) setScannedQuarterlyKwh(ex.quarterlyKwh);
         if (ex.billingPeriodFrom && ex.billingPeriodTo) {
@@ -359,6 +363,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
             dueAmount: ex.dueAmount || 0,
             billStatus: ex.billStatus,
             monthsOverdue: ex.monthsOverdue || 0,
+            billDate: ex.billIssueDate || ex.billingPeriodTo || null,
           });
         }
     } catch (err) {
@@ -573,7 +578,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
     setEmail("");
     setCity("Rajkot");
     setCustomerState("Gujarat");
-    setMonthlyBill(2500);
+    setMonthlyBill(isAU ? 300 : 2500);
     setFetchedData(null);
     setUploadedFile(null);
     setScanConfidence(null);
@@ -934,7 +939,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Or Enter Average Bill Manually</label>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">{isAU ? "Or Enter Quarterly Bill Manually" : "Or Enter Average Bill Manually"}</label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">{isAU ? "$" : "₹"}</span>
                     <input type="number" required value={monthlyBill}
@@ -942,7 +947,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
                       placeholder="e.g. 2150"
                       className="w-full pl-7 pr-3 py-1.5 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium" />
                   </div>
-                  <p className="text-[9px] text-slate-400 italic mt-0.5">Used for calculating system size.</p>
+                  <p className="text-[10px] text-slate-500 font-medium italic mt-1">{isAU ? `Average Monthly Bill: ${Math.round(monthlyBill / 3)}` : `Used for calculating system size.`}</p>
                 </div>
               </div>
             </div>

@@ -38,8 +38,8 @@ const calcStcForKw = (kw, postcode) => {
   return { zone, multiplier, deemingYears, stcPrice, stcs, stcValue, installCost, netCost };
 };
 
-const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bdeId = null, isBDE = false, isFreelancer = false, userCountry = "India", existingLead = null }) => {
-  const [activeTab, setActiveTab] = useState("scan"); 
+const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bdeId = null, isBDE = false, isFreelancer = false, userCountry = "India", existingLead = null, mode = "both" }) => {
+  const [activeTab, setActiveTab] = useState(mode === "bulk" ? "bulk" : "scan"); 
   const isAU = userCountry.toLowerCase() === "australia" || userCountry.toLowerCase() === "au";
   const { projectTypes } = useAdminSettings(userCountry);
 
@@ -66,7 +66,7 @@ const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bd
 
   // -- Bulk Upload Tab State --
   const [bulkFile, setBulkFile] = useState(null);
-  const [bulkSolarType, setBulkSolarType] = useState(projectTypes?.[0]?.value || "residential");
+  
   const [isBulkLoading, setIsBulkLoading] = useState(false);
   const [bulkResult, setBulkResult] = useState(null);
   const [bulkError, setBulkError] = useState("");
@@ -210,7 +210,7 @@ const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bd
         if (formData.isEligibleForInstallation) {
           alert("Lead is eligible! Moving this lead directly to My Prospects.");
         }
-        onSuccess(true, formData.isEligibleForInstallation); // notify parent it's eligible
+        if (onSuccess) { onSuccess(true, formData.isEligibleForInstallation); } else if (onClose) { onClose(); } // notify parent it's eligible
       } else {
         throw new Error(data.message || "Failed to add lead");
       }
@@ -227,7 +227,7 @@ const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bd
     try {
       const form = new FormData();
       form.append("file", bulkFile);
-      form.append("solarType", bulkSolarType);
+      
       form.append("country", isAU ? "Australia" : "India");
       form.append("uploadSource", isBDE ? "bde_manual" : "admin_manual");
       if (isBDE && bdeId) form.append("bdeId", bdeId);
@@ -236,7 +236,7 @@ const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bd
       const data = await res.json();
       if (data.success) {
         setBulkResult(data);
-        setTimeout(() => onSuccess(false), 2000);
+        setTimeout(() => { if (onSuccess) { onSuccess(false); } else if (onClose) { onClose(); } }, 2000);
       } else {
         setBulkError(data.message || "Upload failed");
       }
@@ -258,7 +258,7 @@ const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bd
         </div>
 
         {/* Tabs */}
-        {!existingLead ? (
+        {!existingLead && mode === "both" ? (
           <div className="flex px-5 pt-3 border-b border-gray-100 gap-4">
             <button 
               onClick={() => { setActiveTab("scan"); setStep(1); }}
@@ -514,21 +514,16 @@ const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bd
             <div className="space-y-6">
               {!bulkResult ? (
                 <>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 block mb-1">Solar Type</label>
-                    <select value={bulkSolarType} onChange={e => setBulkSolarType(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50">
-                      {projectTypes?.map(pt => <option key={pt.value} value={pt.value}>{pt.label}</option>)}
-                    </select>
-                  </div>
+                  
                   <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50" onClick={() => bulkFileInputRef.current?.click()}>
                     <input type="file" ref={bulkFileInputRef} onChange={(e) => setBulkFile(e.target.files[0])} className="hidden" accept=".csv,.xlsx" />
                     <Upload className="w-10 h-10 text-gray-400 mx-auto mb-3" />
-                    <p className="text-sm font-bold text-gray-700">{bulkFile ? bulkFile.name : "Click to upload CSV file"}</p>
+                    <p className="text-sm font-bold text-gray-700">{bulkFile ? bulkFile.name : "Click to upload CSV or Excel (.xlsx) file"}</p>
                   </div>
                   {bulkError && <div className="p-3 bg-red-50 text-red-600 text-sm font-bold rounded-lg">{bulkError}</div>}
                   <div className="pt-4 border-t border-gray-100 flex justify-end gap-3">
                     <button onClick={onClose} className="px-4 py-2 text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl">Cancel</button>
-                    <button onClick={handleBulkUpload} disabled={isBulkLoading || !bulkFile} className="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl">
+                    <button onClick={handleBulkUpload} disabled={isBulkLoading || !bulkFile} className="px-5 py-2 text-sm font-bold text-white bg-sky-500 hover:bg-sky-600 rounded-xl shadow-sm">
                       {isBulkLoading ? "Uploading..." : "Upload File"}
                     </button>
                   </div>

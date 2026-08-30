@@ -230,6 +230,7 @@ export const getLeadStats = async (req, res) => {
     ]);
 
     res.json({
+      
       success: true,
       data: {
         total,
@@ -612,6 +613,7 @@ export const uploadLeads = async (req, res) => {
         notes: row.notes || undefined,
         uploadSource: req.body.bdeId ? 'bde_manual' : 'admin_manual',
         assignedBde: req.body.bdeId ? req.body.bdeId : undefined,
+        status: req.body.bdeId ? 'RAW' : 'New',
         history: [{ action: 'Manually created by BDE (Bulk Upload)' }],
       });
     }
@@ -622,6 +624,7 @@ export const uploadLeads = async (req, res) => {
     let insertedCount = 0;
     try {
       console.log("Attempting to insert:", leads.length, "leads");
+      console.log("First lead:", leads[0]);
       const inserted = await Lead.insertMany(leads, { ordered: false });
       console.log("Successfully inserted:", inserted.length);
       insertedCount = inserted.length;
@@ -1023,10 +1026,12 @@ export const fixPayments = async (req, res) => {
 
 export const getEpcCalendarForLead = async (req, res) => {
   try {
-    const lead = await Lead.findById(req.params.id);
-    if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
-
-    const district = lead.district || lead.city;
+    let district = req.query.district || req.query.city;
+    if (req.params.id !== 'public') {
+      const lead = await Lead.findById(req.params.id);
+      if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
+      district = lead.district || lead.city || district;
+    }
     const startDate = new Date();
     startDate.setHours(0,0,0,0);
     const endDate = new Date();
@@ -1149,20 +1154,25 @@ export const attemptAutoConversion = async (lead) => {
 
     if (hasDate && hasEPC && hasApplyForm && hasToken && lead.status !== 'Converted') {
       console.log(`Auto-converting lead ${lead._id}...`);
-      // We assume convertLeadToProject is already exported in the file
-      // Wait, we need to call the logic. To avoid circular deps or mockReq mess:
-      // I'll emit an event or fetch the endpoint internally.
-      const fetchFn = global.fetch;
-      const baseUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4005';
-      fetchFn(`${baseUrl}/api/leads/${lead._id}/convert`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      }).then(r => r.json()).then(data => console.log("Auto Convert Response:", data)).catch(e => console.error("Auto Convert Error:", e));
+      if (lead.convertedProjectId) {
+         lead.status = 'Converted';
+         lead.bdeMovedToOrderJourney = true;
+         await lead.save();
+         console.log(`Lead ${lead._id} directly updated to Converted.`);
+      } else {
+         const fetchFn = global.fetch;
+         const baseUrl = process.env.VITE_API_BASE_URL || 'http://localhost:4005';
+         fetchFn(`${baseUrl}/api/leads/${lead._id}/convert`, {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' }
+         }).then(r => r.json()).then(data => console.log("Auto Convert Response:", data)).catch(e => console.error("Auto Convert Error:", e));
+      }
     }
   } catch (err) {
     console.error("Auto conversion error:", err);
   }
 };
+
 
 export const selectInstallDate = async (req, res) => {
   try {

@@ -46,6 +46,7 @@ import UnifiedCountrySettings from "./components/UnifiedCountrySettings";
 // ── BDE Portal ─────────────────────────────────────────────────────────────
 import BDELayout from "./components/bde/BDELayout";
 import BDEDashboard from "./components/bde/BDEDashboard";
+import BDEMyLeads from './components/bde/BDEMyLeads';
 import BDELeadManagement from "./components/bde/BDELeadManagement";
 import BDEDemandPool from "./components/bde/BDEDemandPool";
 import BDEProjectTracking from "./components/bde/BDEProjectTracking";
@@ -559,6 +560,8 @@ export default function App() {
         );
       case "bde-profile":
         return <BDEProfile bdeId={userId} onTabChange={setCurrentTab} />;
+      case "bde-my-leads":
+        return <BDEMyLeads bdeId={userId} country={userCountry} bdeType={bdeType} onTabChange={setCurrentTab} />;
       case "bde-customer-eligibility":
         return <BDELeadManagement bdeId={userId} country={userCountry} bdeType={bdeType} filterTab="eligibility" onTabChange={setCurrentTab} />;
       case "bde-leads":

@@ -81,6 +81,10 @@ const eligibilitySettingsSchema = new mongoose.Schema(
         blockIfExceeds: { type: Boolean, default: false },
         showWarningIfExceeds: { type: Boolean, default: true },
       },
+      latestBillRules: {
+        enabled: { type: Boolean, default: true },
+        maxBillAgeMonths: { type: Number, default: 3 },
+      },
       stateSubsidies: { type: [stateSubsidySchema], default: [] },
       centralSubsidyTiers: { type: [centralSubsidyTierSchema], default: [] },
     },

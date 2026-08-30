@@ -362,10 +362,14 @@ export const parseBillText = (rawText) => {
   ];
   for (const p of namePatterns) {
     const m = text.match(p);
-    if (m) { consumerName = m[1].replace(/\n/g, ' ').trim(); break; }
+    if (m) { consumerName = m[1].replace(/\n/g, ' ').trim().replace(/([a-z])([A-Z])/g, '$1 $2'); break; }
   }
 
   // ── Tariff Code & Meter Category ──────────────────────────────────────────
+  let pincode = null;
+  const pinMatch = text.match(/\b([1-9][0-9]{5})\b/);
+  if (pinMatch) pincode = pinMatch[1];
+
   let meterCategory = detectMeterCategory(text);
   let tariffCode = extractTariffCode(text);
 
@@ -572,6 +576,7 @@ export const parseBillText = (rawText) => {
     monthsOverdue,
     confidence,
     rawTextPreview: text.slice(0, 400),
+    pincode: pincode,
   };
 };
 
@@ -699,7 +704,7 @@ export const parseAuBillText = (text) => {
 
   // ── 2. Account / NMI Number ───────────────────────────────────────────────
   let accountNumber = null;
-  const acctMatch = t.match(/(?:Account\s+(?:Number|No\.?|#)|Account\s*:[\s\S]{0,10}?)\s*([A-Z0-9][A-Z0-9\- ]{4,18}[A-Z0-9])/i);
+  const acctMatch = t.match(/(?:Account\s+(?:Number|No\.?|#)|Account\s*:[\s\S]{0,10}?)[\s:]*([A-Z0-9][A-Z0-9\- ]{4,18}[A-Z0-9])/i);
   if (acctMatch) accountNumber = acctMatch[1].trim();
   if (accountNumber && (accountNumber.toLowerCase().includes("details") || accountNumber.toLowerCase().includes("diss"))) accountNumber = null;
   
@@ -729,12 +734,20 @@ export const parseAuBillText = (text) => {
   let suburb = null, state = null, postcode = null;
 
   // Australian postcode: 4 digits, 2000-9999 or 0800-0999
-  const postcodeMatch = t.match(/\b(0[89]\d{2}|[2-9]\d{3})\b/);
-  if (postcodeMatch) postcode = postcodeMatch[1];
-
   // State code (NSW, VIC, QLD, WA, SA, TAS, ACT, NT)
   const stateMatch = t.match(/\b(NSW|VIC|QLD|WA|SA|TAS|ACT|NT)\b/);
   if (stateMatch) state = AU_STATE_MAP[stateMatch[1]] || stateMatch[1];
+
+  // Phase 2 Fix: Context-aware Postcode match (to avoid years like 2026)
+  const postcodeStateMatch = t.match(/\b(NSW|VIC|QLD|WA|SA|TAS|ACT|NT)\s+(\d{4})\b/);
+  if (postcodeStateMatch) {
+    postcode = postcodeStateMatch[2];
+  } else {
+    // Fallback: look near "Address" or "Supply"
+    const postcodeAddressMatch = t.match(/(?:Address|Supply|Site)[\s\S]{0,150}?\b(0[89]\d{2}|[2-9]\d{3})\b/i);
+    if (postcodeAddressMatch) postcode = postcodeAddressMatch[1];
+  }
+
 
   // Postcode to State Fallback (if state not explicitly written)
   if (!state && postcode) {
@@ -818,7 +831,7 @@ export const parseAuBillText = (text) => {
 
   // "Total Amount Due: $1,234.56" or "Amount Payable $456.78"
   const amountPatterns = [
-    /(?:Total\s*balance|Total\s*Amount\s*(?:Due|Payable|Outstanding)|Amount\s*(?:Due|Payable)|Balance\s*Due|Please\s*Pay)[\s\S]{0,20}?\$\s*([\d,]+(?:\.\d{2})?)/i,
+    /(?:Total\s*balance|Total\s*Amount\s*(?:Due|Payable|Outstanding)|Amount\s*(?:Due|Payable)|Balance\s*Due|Please\s*Pay)[\s\S]{0,150}?\$\s*([\d,]+(?:\.\d{2})?)/i,
     /(?:Total\s*(?:Current\s*)?Bill|Bill\s*Total)\s*[:\-]?\s*\$\s*([\d,]+(?:\.\d{2})?)/i,
     /\$\s*([\d,]+\.\d{2})\s*(?:is\s*due|payable|due\s*by)/i,
   ];

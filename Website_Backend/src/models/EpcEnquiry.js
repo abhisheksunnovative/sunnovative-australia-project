@@ -43,6 +43,7 @@ const epcEnquirySchema = new mongoose.Schema({
   acceptedAt:    { type: Date },
   acceptanceFee: { type: Number, default: 0 },
   customerSelectionDeadline: { type: Date },
+  rejectedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'EpcPartner' }],
   customerSelectedAt:        { type: Date },
   convertedToOrder: { type: mongoose.Schema.Types.ObjectId, ref: 'EpcOrder' },
   convertedAt:      { type: Date },

@@ -98,6 +98,19 @@ const EpcMyEnquiries = () => {
 
   useEffect(() => { load(); }, [selectedType, filterType, filterCountry, filterState, filterDist, filterStatus]);
 
+  
+  const handleReject = async (enqId) => {
+    if (!window.confirm('Are you sure you want to reject and hide this enquiry?')) return;
+    try {
+      await epcApi.put(`/api/epc/enquiries/${enqId}/reject`);
+      setMsg('Enquiry rejected and hidden.');
+      setMsgType('success');
+      load();
+    } catch (error) {
+      alert(error.response?.data?.message || 'Failed to reject');
+    }
+  };
+
   const handleAccept = async (enq) => {
     if (!window.confirm(`Accept this project? This will deduct ${enq.systemCapacityKw || 1} kW points from your wallet.`)) return;
     setAccepting(enq._id);
@@ -108,7 +121,12 @@ const EpcMyEnquiries = () => {
       window.dispatchEvent(new Event('walletUpdated'));
       load();
     } catch (error) {
-      setMsg(error.response?.data?.message || 'Failed to accept');
+      const errMsg = error.response?.data?.message || 'Failed to accept';
+      if (errMsg.includes('already have an order scheduled') || errMsg.includes('claimed by another EPC')) {
+        alert(errMsg); // Pop-up as requested by user
+      } else {
+        setMsg(errMsg);
+      }
       setMsgType('error');
     } finally {
       setAccepting(null);
@@ -395,14 +413,17 @@ const EpcMyEnquiries = () => {
 
                     {/* Action Button */}
                     <div className="flex-shrink-0 flex flex-col gap-2">
-                      {isNew && !enq.isOrderMode && (
-                        <button onClick={() => handleAccept(enq)} disabled={accepting === enq._id}
+                      {isNew && !enq.isOrderMode && (<div className="flex gap-2"><button onClick={() => handleAccept(enq)} disabled={accepting === enq._id}
                           className="bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 disabled:opacity-50 text-white text-xs font-black px-5 py-2.5 rounded-xl transition-all shadow-md shadow-blue-200 hover:shadow-blue-300 hover:scale-105 active:scale-95">
+
                           {accepting === enq._id ? (
                             <span className="flex items-center gap-1.5"><span className="animate-spin">⏳</span> Accepting...</span>
                           ) : '✔ Accept Lead'}
                         </button>
-                      )}
+                        <button onClick={() => handleReject(enq._id)} className="px-4 py-1.5 text-sm font-semibold rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">
+                          ✖ Reject
+</button></div>
+)}
                       
                       {enq.isOrderMode && (
                         <button onClick={() => handleAcceptOrder(enq._id)} disabled={accepting === enq._id}

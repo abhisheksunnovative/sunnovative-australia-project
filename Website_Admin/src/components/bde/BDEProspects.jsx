@@ -259,7 +259,7 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
   console.log(`[BDEProspects] Total leads loaded: ${leads.length}, isFreelancer: ${isFreelancer}, bdeType: ${bdeType}`);
 
   const baseProspects = leads.filter(l => {
-    if (l.status === 'Converted' || l.bdeMovedToOrderJourney) return false;
+    if (l.status === 'Converted' || l.status === 'Not Interested' || l.status === 'Lost' || l.bdeMovedToOrderJourney) return false; // removed l.convertedProjectId so it stays until fully converted
     
     const isManualLead = l.history?.some(h => h.action.includes("Manually created by BDE"));
     if (isFreelancer && !isManualLead) return false;
@@ -284,6 +284,11 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
   const filteredLeads = baseProspects.filter(l => {
     // Summary Card Filters
     if (activeSummaryFilter === 'DatePending' && l.preferredInstallDate) return false;
+    if (activeSummaryFilter === 'Overdue') {
+      if (l.preferredInstallDate) return false;
+      const days = (Date.now() - new Date(l.createdAt || l.updatedAt).getTime()) / (1000 * 3600 * 24);
+      if (days < 5) return false;
+    }
     if (activeSummaryFilter === 'EPCPending' && l.assignedEPCName) return false;
     
     if (activeSummaryFilter === 'FollowUpToday' || activeSummaryFilter === 'FollowUpTomorrow' || activeSummaryFilter === 'FollowUpFuture') {
@@ -330,6 +335,7 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
   
   const datePendingCount = baseProspects.filter(l => !l.preferredInstallDate).length;
   const epcPendingCount = baseProspects.filter(l => !l.assignedEPCName).length;
+  const overdueCount = baseProspects.filter(l => !l.preferredInstallDate && ((Date.now() - new Date(l.createdAt || l.updatedAt).getTime()) / (1000 * 3600 * 24)) >= 5).length;
   
   const todayStr = new Date().toDateString();
   const tomorrowObj = new Date(); tomorrowObj.setDate(tomorrowObj.getDate() + 1);
@@ -383,7 +389,21 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
 
       
         {/* Top Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          
+          <div 
+            onClick={() => setActiveSummaryFilter(activeSummaryFilter === 'Overdue' ? 'All' : 'Overdue')}
+            className={`p-4 rounded-xl border-2 transition-all cursor-pointer shadow-sm flex flex-col justify-between ${activeSummaryFilter === 'Overdue' ? 'bg-rose-50 border-rose-500 ring-4 ring-rose-100' : 'bg-white border-slate-200 hover:border-rose-400'}`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2 text-rose-700 font-bold">
+                <Clock className="w-5 h-5"/> Overdue (Date)
+              </div>
+              <span className={`text-xl font-black ${activeSummaryFilter === 'Overdue' ? 'text-rose-800' : 'text-slate-800'}`}>{overdueCount}</span>
+            </div>
+            <p className="text-[10px] text-slate-500 font-semibold uppercase">5+ Days Pending</p>
+          </div>
+
           <div 
             onClick={() => setActiveSummaryFilter(activeSummaryFilter === 'DatePending' ? 'All' : 'DatePending')}
             className={`p-4 rounded-xl border-2 transition-all cursor-pointer shadow-sm flex flex-col justify-between ${activeSummaryFilter === 'DatePending' ? 'bg-rose-50 border-rose-400 ring-4 ring-rose-100' : 'bg-white border-slate-200 hover:border-rose-300'}`}
@@ -515,29 +535,45 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
                   </button>
                 </div>
               
-              {/* Col 2: Follow Up & Install */}
+                            {/* Col 2: Follow Up & Install */}
               <div className="flex-1 min-w-[250px] w-full lg:border-l lg:border-slate-100 lg:pl-6 flex flex-col justify-center">
-                  {lead.preferredInstallDate ? (
-                    <div className="flex items-center gap-2 text-emerald-700 font-bold bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 w-fit mb-4">
-                      <Calendar className="w-4 h-4"/> Install Date: {new Date(lead.preferredInstallDate).toLocaleDateString()}
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 text-slate-500 font-bold bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 w-fit mb-4">
-                      <Calendar className="w-4 h-4"/> Install Date: Not Selected
+                  
+                  {/* Overdue Badge */}
+                  {!lead.preferredInstallDate && Math.floor((Date.now() - new Date(lead.createdAt || lead.updatedAt).getTime()) / (1000 * 3600 * 24)) >= 5 && (
+                    <div className="text-[10px] text-rose-700 font-bold bg-rose-50 px-2 py-1.5 rounded-lg border border-rose-200 w-fit mb-3 flex items-center gap-1.5 shadow-sm">
+                      <Clock className="w-3.5 h-3.5"/> Overdue for Install Date (&gt;{Math.floor((Date.now() - new Date(lead.createdAt || lead.updatedAt).getTime()) / (1000 * 3600 * 24))} days)
                     </div>
                   )}
 
-                  {lead.assignedEPCName ? (
-                    <p className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-1 rounded w-fit mb-2">
-                      EPC: {lead.assignedEPCName}
-                    </p>
-                  ) : (
-                    <p className="text-xs font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-1 rounded w-fit mb-2">
-                      Waiting for EPC assignment
-                    </p>
+                  {/* Follow up date picker moved from Col 3 */}
+                  {((!isAU && !lead.tokenPaid) || (isAU && (!lead.preferredInstallDate || !lead.assignedEPCName || !lead.address))) && (
+                  <div className="w-full bg-gradient-to-br from-slate-50 to-slate-100 p-3.5 rounded-xl border border-slate-200 flex flex-col gap-2 shadow-sm max-w-[250px] relative overflow-hidden group hover:border-blue-200 transition-colors">
+                    <div className="text-[10px] font-black text-slate-500 uppercase">
+                      {isAU ? "Ask customer to pay initial payment" : "Ask customer to pay token"}
+                    </div>
+                    <div className="flex justify-between items-center mt-1">
+                      <div className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5"/> Follow-up Date
+                      </div>
+                      <input 
+                        type="date" 
+                        className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-[11px] font-bold text-blue-700 cursor-pointer focus:ring-2 focus:ring-blue-100 transition-all outline-none shadow-sm"
+                        value={lead.nextFollowUp ? lead.nextFollowUp.split("T")[0] : ""}
+                        onChange={async (e) => {
+                          try {
+                            const token = localStorage.getItem('token');
+                            const res = await fetch(`${API_BASE}/api/bde/leads/${lead._id}`, {
+                              method: "PUT",
+                              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                              body: JSON.stringify({ status: lead.status, nextFollowUp: e.target.value })
+                            });
+                            if (res.ok) { fetchLeads(); }
+                          } catch (err) {}
+                        }}
+                      />
+                    </div>
+                  </div>
                   )}
-
-                  {lead.nextFollowUp && <p className="text-xs text-amber-600 mt-2 font-semibold flex items-center gap-1"><Clock className="w-3.5 h-3.5"/> Scheduled: {new Date(lead.nextFollowUp).toDateString()}</p>}
               </div>
 
               {/* Col 3: Auto-Conversion Status & Follow-Up */}
@@ -559,7 +595,7 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
                     <div className={`p-2 rounded border text-xs font-semibold flex items-center justify-between ${lead.preferredInstallDate ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'}`}>
                       <span className="flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5"/> 
-                        {lead.preferredInstallDate ? 'Date Selected' : '1. Date Pending'}
+                        {lead.preferredInstallDate ? `1. Install Date: ${new Date(lead.preferredInstallDate).toLocaleDateString('en-IN')}` : '1. Installation Date'}
                       </span>
                       {!lead.preferredInstallDate && (
                         <button onClick={() => handleRequestOtp(lead)} className="text-[9px] bg-white px-2 py-1 border border-rose-200 rounded shadow-sm text-rose-600 hover:bg-rose-50 cursor-pointer">Select Date</button>
@@ -570,7 +606,7 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
                     <div className={`p-2 rounded border text-xs font-semibold flex items-center justify-between ${lead.assignedEPCName ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'}`}>
                       <span className="flex items-center gap-1.5">
                         <ShieldCheck className="w-3.5 h-3.5"/> 
-                        {lead.assignedEPCName ? 'EPC Assigned' : '2. EPC Pending'}
+                        {lead.assignedEPCName ? `2. EPC: ${lead.assignedEPCName}` : '2. EPC Selected'}
                       </span>
                     </div>
 
@@ -578,7 +614,7 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
                     <div className={`p-2 rounded border text-xs font-semibold flex items-center justify-between ${lead.address ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'}`}>
                       <span className="flex items-center gap-1.5">
                         <ClipboardList className="w-3.5 h-3.5"/> 
-                        {lead.address ? 'Apply Form Done' : '3. Apply Form Pending'}
+                        {lead.address ? '3. Customer Login Done' : '3. Customer Login'}
                       </span>
                     </div>
 
@@ -587,7 +623,7 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
                       <div className={`p-2 rounded border text-xs font-semibold flex items-center justify-between ${lead.tokenPaid ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'}`}>
                         <span className="flex items-center gap-1.5">
                           <DollarSign className="w-3.5 h-3.5"/> 
-                          {lead.tokenPaid ? 'Token Paid' : '4. Token Pending'}
+                          {lead.tokenPaid ? '4. Token Paid (Done)' : '4. Token Paid'}
                         </span>
                         {!lead.tokenPaid && (
                           <button onClick={() => handleSimulatePayment(lead)} className="text-[9px] bg-white px-2 py-1 border border-rose-200 rounded shadow-sm text-rose-600 hover:bg-rose-50">Simulate</button>
@@ -605,35 +641,6 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
                       </p>
                     )}
 
-                    {/* Follow up date picker */}
-                    {((!isAU && !lead.tokenPaid) || (isAU && (!lead.preferredInstallDate || !lead.assignedEPCName || !lead.address))) && (
-                    <div className="w-full bg-slate-50 p-2 rounded-lg border border-slate-200 flex flex-col gap-1 shadow-sm mt-2">
-                      <div className="text-[9px] font-black text-slate-500 uppercase">
-                        {isAU ? "Ask customer to pay initial payment" : "Ask customer to pay token"}
-                      </div>
-                      <div className="flex justify-between items-center mt-1">
-                        <div className="text-[10px] font-bold text-slate-700 flex items-center gap-1">
-                          <Clock className="w-3 h-3"/> Follow-up Date
-                        </div>
-                        <input 
-                          type="date" 
-                          className="bg-transparent border border-slate-300 rounded px-1 text-[10px] font-bold text-blue-700 cursor-pointer focus:ring-0"
-                          value={lead.nextFollowUp ? lead.nextFollowUp.split("T")[0] : ""}
-                          onChange={async (e) => {
-                            try {
-                              const token = localStorage.getItem('token');
-                              const res = await fetch(`${API_BASE}/api/bde/leads/${lead._id}`, {
-                                method: "PUT",
-                                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                                body: JSON.stringify({ status: lead.status, nextFollowUp: e.target.value })
-                              });
-                              if (res.ok) { fetchLeads(); }
-                            } catch (err) {}
-                          }}
-                        />
-                      </div>
-                    </div>
-                    )}
                   </div>
                 )}
               </div>
