@@ -233,7 +233,7 @@ export const acceptEnquiry = async (req, res) => {
             }
           );
           
-          const updatedLead = await LeadModel.findOne(leadMatch);
+          const updatedLead = await LeadModel.findOne({ mobile: lockedEnquiry.customerMobile });
           if (updatedLead) {
              const { attemptAutoConversion } = await import('./leadController.js');
              await attemptAutoConversion(updatedLead);
@@ -294,13 +294,28 @@ export const confirmInstallDate = async (req, res) => {
     enquiry.status = 'Date Confirmed';
     enquiry.preferredInstallDate = new Date(scheduledInstallDate);
 
-    // Sync to Project Order
+    let docUrl = null;
+    if (req.file) {
+      docUrl = '/uploads/' + req.file.filename;
+      enquiry.kycDocumentUrl = docUrl;
+    }
+
+    // Sync to Project Order and Lead
     try {
         const { ProjectOrder } = await import('../models/ProjectModel.js');
+        const Lead = (await import('../models/Lead.js')).default;
+        
+        let updateObj = { scheduledInstallDate: new Date(scheduledInstallDate) };
+        if (docUrl) updateObj.epcKycDocumentUrl = docUrl;
+
         await ProjectOrder.updateOne(
             { orderNumber: enquiry.orderNumber },
-            { scheduledInstallDate: new Date(scheduledInstallDate) }
+            updateObj
         );
+        
+        if (docUrl) {
+            await Lead.updateOne({ mobile: enquiry.customerMobile }, { epcKycDocumentUrl: docUrl });
+        }
     } catch(e) { console.error('Sync project date error', e); }
 
     await enquiry.save();

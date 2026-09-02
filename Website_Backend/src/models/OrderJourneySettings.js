@@ -73,6 +73,8 @@ const ProjectJourneySchema = new mongoose.Schema({
     enabled: { type: Boolean, default: false },
     amount: { type: Number, default: 0 }
   },
+  myProspectsOverdueDays: { type: Number, default: 3 },
+  myProspectsOverdueFilterEnabled: { type: Boolean, default: true },
   epcSelectionType: {
     type: String,
     enum: ["FCFS", "CUSTOMER_SELECT"],

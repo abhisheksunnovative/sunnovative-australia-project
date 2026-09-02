@@ -1149,10 +1149,7 @@ export const attemptAutoConversion = async (lead) => {
     
     const hasDate = lead.isInstallDateFixed || lead.preferredInstallDate;
     const hasEPC = lead.assignedEpc || lead.assignedEPCName;
-    const hasApplyForm = lead.address && lead.state && lead.pincode;
-    const hasToken = isAU ? true : lead.tokenPaid;
-
-    if (hasDate && hasEPC && hasApplyForm && hasToken && lead.status !== 'Converted') {
+    if (hasDate && hasEPC && lead.status !== 'Converted') {
       console.log(`Auto-converting lead ${lead._id}...`);
       if (lead.convertedProjectId) {
          lead.status = 'Converted';

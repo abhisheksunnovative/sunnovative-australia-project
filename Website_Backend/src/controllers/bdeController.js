@@ -643,10 +643,10 @@ export const getBDEProjects = async (req, res) => {
     const { country, state, district, projectType, search, status } = req.query;
 
     let filter = { assignedBde: bdeId };
-    if (country) filter.country = country;
-    if (state) filter.state = state;
-    if (district) filter.district = district;
-    if (projectType) filter.projectType = projectType;
+    if (country) filter.country = new RegExp('^' + country + '$', 'i');
+    if (state) filter.state = new RegExp('^' + state + '$', 'i');
+    if (district) filter.district = new RegExp('^' + district + '$', 'i');
+    if (projectType) filter.projectType = new RegExp('^' + projectType + '$', 'i');
     if (status) filter.status = status;
     if (search) {
       filter.$or = [
@@ -896,7 +896,7 @@ export const scheduleAndQualifyLead = async (req, res) => {
       const { default: Notification } = await import('../models/Notification.js');
       // To EPCs / Admin (Broadcasted)
       await Notification.create({
-        role: 'EPC', // Assuming EPCs can see these
+        role: EpcPartner, // Assuming EPCs can see these
         title: 'New Installation Date Fixed',
         message: `Lead ${lead.name} has finalized installation date for ${new Date(scheduledDate).toLocaleDateString()}.`,
         leadId: lead._id

@@ -7,7 +7,7 @@ const runDemandSupplyAnalysis = async () => {
   try {
     console.log('[Cron Job] Running 4-hourly Demand & Supply Analysis...');
     
-    const settings = await DemandSupplySettings.getSingleton();
+    const settings = await DemandSupplySettings.findOne() || await DemandSupplySettings.create({});
     const globalAnalytics = await calculateAnalytics({}, settings);
 
     for (const row of globalAnalytics) {
