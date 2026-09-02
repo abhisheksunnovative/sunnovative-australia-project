@@ -50,15 +50,16 @@ export default function BDEManagementScreen() {
               <span className="font-bold text-slate-700 group-hover:text-[#28377f]">{country.name}</span>
             </div>
           ))}
-          {countries.length === 0 && (
-            <p className="text-slate-500 col-span-full">No active countries found. Please configure them in Country Settings.</p>
-          )}
         </div>
       </div>
     );
   }
 
-  return <BDEManagementContent selectedCountryObj={selectedCountryObj} onBack={() => setSelectedCountryFilterObj(null)} />;
+  return (
+    <div className="flex flex-col min-h-screen bg-slate-50 font-sans">
+      <BDEManagementContent selectedCountryObj={selectedCountryObj} onBack={() => setSelectedCountryFilterObj(null)} />
+    </div>
+  );
 }
 
 export function BDEManagementContent({ selectedCountryObj, onBack }) {
@@ -91,21 +92,35 @@ export function BDEManagementContent({ selectedCountryObj, onBack }) {
 
   useEffect(() => {
     const fetchProjTypes = async () => {
-      if (!selectedCountry) return;
-      try {
-        const res = await fetch(`${API_BASE}/api/project-types?country=${selectedCountry}`);
-        const result = await res.json();
-        if (result.success && result.data) {
-          setProjectTypeOptions(result.data.map(pt => pt.projectType));
-        } else {
-          setProjectTypeOptions([]);
-        }
-      } catch(err) {
-        setProjectTypeOptions([]);
+      const countriesList = (formData.assignedCountries || selectedCountry || "")
+           .split(",")
+           .map(c => c.trim().toLowerCase())
+           .filter(Boolean);
+      if (countriesList.length === 0 && selectedCountry) countriesList.push(selectedCountry);
+      
+      let allTypes = [];
+      const apiBase = import.meta.env.VITE_API_URL || "http://localhost:4005";
+      for (const c of new Set(countriesList)) {
+          try {
+            const res = await fetch(`${apiBase}/api/project-types?country=${c}`);
+            const result = await res.json();
+            if (result.success && result.data) {
+              allTypes.push(...result.data.map(pt => pt.projectType));
+            }
+          } catch(err) { console.error(err); }
       }
+      setProjectTypeOptions([...new Set(allTypes)]);
     };
-    fetchProjTypes();
-  }, [selectedCountry]);
+    
+    if (isEditing) {
+       fetchProjTypes();
+    } else {
+       const apiBase = import.meta.env.VITE_API_URL || "http://localhost:4005";
+       fetch(`${apiBase}/api/project-types?country=${selectedCountry}`).then(r=>r.json()).then(result => {
+           if (result.success && result.data) setProjectTypeOptions(result.data.map(pt => pt.projectType));
+       }).catch(()=>{});
+    }
+  }, [formData.assignedCountries, selectedCountry, isEditing]);
   const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
   // Dynamic Geography Hook
@@ -307,10 +322,6 @@ export function BDEManagementContent({ selectedCountryObj, onBack }) {
 
     // Determine district categories to show: Database districts + any distinct strings from the old BDEs
     let allDistrictNames = new Set(availableDistricts);
-    stateBDEs.forEach(b => {
-       const dists = b.assignedDistricts || [];
-       dists.forEach(d => allDistrictNames.add(d));
-    });
 
     const distsToRender = [...Array.from(allDistrictNames), 'unassigned'].filter(d => d.toLowerCase().includes(searchQuery.toLowerCase()));
 
@@ -520,6 +531,8 @@ export function BDEManagementContent({ selectedCountryObj, onBack }) {
 
   return (
     <div className="p-6 text-slate-800 max-w-7xl mx-auto font-sans">
+
+
       <div className="mb-8 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-black tracking-tight text-blue-800 flex items-center gap-3">
@@ -529,7 +542,7 @@ export function BDEManagementContent({ selectedCountryObj, onBack }) {
         </div>
       </div>
 
-      {/* Global Actions */}
+            {/* Global Actions */}
       <div className="flex justify-end items-center gap-3 mb-6">
         <input
           type="text"
@@ -787,19 +800,14 @@ export function BDEManagementContent({ selectedCountryObj, onBack }) {
                 )}
 
                 <div className="pt-4 border-t border-slate-100">
-                  <h3 className="font-bold text-blue-600 mb-3 flex items-center gap-2"><MapPin className="w-4 h-4"/> Territories (Auto-assigned)</h3>
-                  <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-200 mb-4">
-                    <span className="font-semibold text-slate-800 capitalize">{selectedCountry || "India"}</span>
-                    <span>→</span>
-                    <span className="font-semibold text-slate-800 capitalize">
-                      {formData.assignedStates}
-                    </span>
-                    <span>→</span>
-                    <span className="font-semibold text-slate-800 capitalize">
-                      {formData.assignedDistricts}
-                    </span>
+                  <h3 className="font-bold text-blue-600 mb-3 flex items-center gap-2"><MapPin className="w-4 h-4"/> Assigned Territories</h3>
+                  <div className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-200 mb-3 space-y-1">
+                    <p><span className="font-bold">Countries:</span> <span className="capitalize">{formData.assignedCountries}</span></p>
+                    <p><span className="font-bold">States:</span> <span className="capitalize">{formData.assignedStates}</span></p>
+                    <p><span className="font-bold">Districts:</span> <span className="capitalize">{formData.assignedDistricts}</span></p>
                   </div>
-                  <div>
+                  <TerritoryAdder formData={formData} setFormData={setFormData} useGeography={useGeography} />
+                  <div className="mt-4">
                     <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Region / City (Comma separated)</label>
                     <input type="text" value={formData.assignedRegions} onChange={e => setFormData({...formData, assignedRegions: e.target.value})} placeholder="e.g. Navrangpura, Bopal" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-slate-800 focus:outline-none focus:border-blue-500" />
                   </div>
@@ -857,6 +865,72 @@ export function BDEManagementContent({ selectedCountryObj, onBack }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Injected by AI for multi-country assignment
+function TerritoryAdder({ formData, setFormData, useGeography }) {
+  const [selCountry, setSelCountry] = React.useState('');
+  const [selState, setSelState] = React.useState('');
+  const [selDistrict, setSelDistrict] = React.useState('');
+  const [allCountries, setAllCountries] = React.useState([]);
+
+  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
+
+  React.useEffect(() => {
+    fetch(API_BASE + '/api/countries').then(res => res.json()).then(data => {
+       if (data.success && data.data) setAllCountries(data.data.filter(c => c.isActive));
+       else if (Array.isArray(data)) setAllCountries(data.filter(c => c.isActive));
+    }).catch(console.error);
+  }, []);
+
+  const { states, districts } = useGeography(selCountry, selState);
+
+  const addTerritory = (e) => {
+    e.preventDefault();
+    if (!selCountry) return;
+    
+    const safeStr = (v) => v || '';
+    
+    let cArr = safeStr(formData.assignedCountries).split(',').map(s=>s.trim()).filter(Boolean);
+    if (!cArr.includes(selCountry)) cArr.push(selCountry);
+    
+    let sArr = safeStr(formData.assignedStates).split(',').map(s=>s.trim()).filter(Boolean);
+    if (selState && !sArr.includes(selState)) sArr.push(selState);
+    
+    let dArr = safeStr(formData.assignedDistricts).split(',').map(s=>s.trim()).filter(Boolean);
+    if (selDistrict && !dArr.includes(selDistrict)) dArr.push(selDistrict);
+    
+    setFormData({
+      ...formData,
+      assignedCountries: cArr.join(', '),
+      assignedStates: sArr.join(', '),
+      assignedDistricts: dArr.join(', ')
+    });
+    setSelCountry('');
+    setSelState('');
+    setSelDistrict('');
+  };
+
+  return (
+    <div className="bg-white border border-blue-200 rounded-lg p-4 mt-3 shadow-sm">
+       <h4 className="font-bold text-blue-700 text-xs mb-2">Assign Additional Territories</h4>
+       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+         <select value={selCountry} onChange={(e) => { setSelCountry(e.target.value); setSelState(''); setSelDistrict(''); }} className="text-xs p-2 border border-slate-200 rounded bg-slate-50 focus:bg-white focus:outline-none">
+           <option value="">Select Country...</option>
+           {allCountries.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+         </select>
+         <select value={selState} onChange={(e) => { setSelState(e.target.value); setSelDistrict(''); }} className="text-xs p-2 border border-slate-200 rounded bg-slate-50 focus:bg-white focus:outline-none" disabled={!selCountry}>
+           <option value="">Select State...</option>
+           {states.map(s => <option key={s} value={s}>{s}</option>)}
+         </select>
+         <select value={selDistrict} onChange={(e) => setSelDistrict(e.target.value)} className="text-xs p-2 border border-slate-200 rounded bg-slate-50 focus:bg-white focus:outline-none" disabled={!selState}>
+           <option value="">Select District...</option>
+           {districts.map(d => <option key={d} value={d}>{d}</option>)}
+         </select>
+       </div>
+       <button onClick={addTerritory} className="bg-blue-600 text-white font-bold text-[10px] uppercase tracking-wider px-4 py-2 rounded-lg hover:bg-blue-700 transition-all">+ Add to Profile</button>
     </div>
   );
 }

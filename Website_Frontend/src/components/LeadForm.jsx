@@ -696,7 +696,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
       billFile: [null, null], // handled separately
     };
     const mapped = stateKeyMap[field.key];
-    const value = mapped ? mapped[0] : (dynamicValues[field.key] || "");
+    const value = (mapped ? mapped[0] : dynamicValues[field.key]) ?? "";
     const onChange = mapped ? mapped[1] : (v) => setDynamicValues(prev => ({ ...prev, [field.key]: v }));
 
     // Skip billFile — handled by the drag-drop area below

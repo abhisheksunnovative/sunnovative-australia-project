@@ -28,6 +28,7 @@ import { useAdminSettings } from "../hooks/useAdminSettings";
 
 const availableCountries = Object.keys(COUNTRY_DATA);
 
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 export default function TrustBadgeEpcScreen ({
   partners = [],
   projects = [],
@@ -82,7 +83,7 @@ export default function TrustBadgeEpcScreen ({
         limit: 1000,
       }).toString();
 
-      const response = await fetch(`http://localhost:4005/api/admin/epc?${query}`);
+      const response = await fetch(`${API_BASE}/api/admin/epc?${query}`);
       if (response.ok) {
         const result = await response.json();
         // Support both old array response and new paginated { data, pagination } response
@@ -293,7 +294,7 @@ export default function TrustBadgeEpcScreen ({
     }
 
     try {
-      const response = await fetch(`http://localhost:4005/api/admin/epc/${partner.id}/status`, {
+      const response = await fetch(`${API_BASE}/api/admin/epc/${partner.id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isActive: true, deactivationReason: "" })
@@ -310,7 +311,7 @@ export default function TrustBadgeEpcScreen ({
   const submitDeactivation = async () => {
     if (!deactivateModal.partner) return;
     try {
-      const response = await fetch(`http://localhost:4005/api/admin/epc/${deactivateModal.partner.id}/status`, {
+      const response = await fetch(`${API_BASE}/api/admin/epc/${deactivateModal.partner.id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isActive: false, deactivationReason: deactivateModal.reason })
@@ -328,7 +329,7 @@ export default function TrustBadgeEpcScreen ({
 
   const handleUpdateKyc = async (partner, kycStatus) => {
     try {
-      const response = await fetch(`http://localhost:4005/api/admin/epc/${partner.id}/kyc`, {
+      const response = await fetch(`${API_BASE}/api/admin/epc/${partner.id}/kyc`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: kycStatus })
@@ -349,7 +350,7 @@ export default function TrustBadgeEpcScreen ({
       setSelectedPartner({ ...partner, hasTrustBadge: newStatus });
       setDbPartners(prev => prev.map(p => p.id === partner.id ? { ...p, hasTrustBadge: newStatus } : p));
 
-      await fetch(`http://localhost:4005/api/admin/epc/${partner.id}/trust-badge`, {
+      await fetch(`${API_BASE}/api/admin/epc/${partner.id}/trust-badge`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus ? 'Approved' : 'None', validityMonths: 12 })
@@ -724,7 +725,7 @@ export default function TrustBadgeEpcScreen ({
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      experience: parseInt(e.target.value) || 0,
+                      experience: (e.target.value === '' ? '' : parseInt(e.target.value)) || 0,
                     })
                   }
                   className="w-full text-xs bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-3.5 focus:bg-white focus:outline-hidden"
@@ -743,7 +744,7 @@ export default function TrustBadgeEpcScreen ({
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      minKW: parseInt(e.target.value) || 0,
+                      minKW: (e.target.value === '' ? '' : parseInt(e.target.value)) || 0,
                     })
                   }
                   className="w-full text-xs bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-3.5 focus:bg-white focus:outline-hidden"
@@ -762,7 +763,7 @@ export default function TrustBadgeEpcScreen ({
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      maxKW: parseInt(e.target.value) || 0,
+                      maxKW: (e.target.value === '' ? '' : parseInt(e.target.value)) || 0,
                     })
                   }
                   className="w-full text-xs bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-3.5 focus:bg-white focus:outline-hidden"
@@ -781,7 +782,7 @@ export default function TrustBadgeEpcScreen ({
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      installersCount: parseInt(e.target.value) || 0,
+                      installersCount: (e.target.value === '' ? '' : parseInt(e.target.value)) || 0,
                     })
                   }
                   className="w-full text-xs bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-3.5 focus:bg-white focus:outline-hidden"
@@ -1305,35 +1306,38 @@ export default function TrustBadgeEpcScreen ({
                     {selectedPartner.trustBadge?.status !== 'Approved' && (
                       <button
                         onClick={async () => {
-                          await fetch(`http://localhost:4005/api/admin/epc/${selectedPartner.id}/trust-badge`, {
+                          await fetch(`${API_BASE}/api/admin/epc/${selectedPartner.id}/trust-badge`, {
                             method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'Approved' })
                           });
-                          fetchPartners(); setDrawerOpen(false);
+                          setSelectedPartner({ ...selectedPartner, trustBadge: { ...selectedPartner.trustBadge, status: 'Approved' } });
+                          fetchPartners();
                         }}
                         className="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-xl text-xs font-black cursor-pointer transition-colors"
-                      >âœ“ Approve Trust Badge</button>
+                      >✓ Approve Trust Badge</button>
                     )}
                     {selectedPartner.trustBadge?.status === 'Approved' && (
                       <button
                         onClick={async () => {
-                          await fetch(`http://localhost:4005/api/admin/epc/${selectedPartner.id}/trust-badge`, {
+                          await fetch(`${API_BASE}/api/admin/epc/${selectedPartner.id}/trust-badge`, {
                             method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'None' })
                           });
-                          fetchPartners(); setDrawerOpen(false);
+                          setSelectedPartner({ ...selectedPartner, trustBadge: { ...selectedPartner.trustBadge, status: 'None' } });
+                          fetchPartners();
                         }}
                         className="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-xl text-xs font-black cursor-pointer transition-colors"
-                      >âŠ˜ Revoke Badge</button>
+                      >⊘ Revoke Badge</button>
                     )}
                     {selectedPartner.trustBadge?.status === 'Pending' && (
                       <button
                         onClick={async () => {
-                          await fetch(`http://localhost:4005/api/admin/epc/${selectedPartner.id}/trust-badge`, {
+                          await fetch(`${API_BASE}/api/admin/epc/${selectedPartner.id}/trust-badge`, {
                             method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'Rejected' })
                           });
-                          fetchPartners(); setDrawerOpen(false);
+                          setSelectedPartner({ ...selectedPartner, trustBadge: { ...selectedPartner.trustBadge, status: 'Rejected' } });
+                          fetchPartners();
                         }}
                         className="flex-1 bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-xl text-xs font-black cursor-pointer transition-colors"
-                      >âœ• Reject Application</button>
+                      >✕ Reject Application</button>
                     )}
                   </div>
                 </div>

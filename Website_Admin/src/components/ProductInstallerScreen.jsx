@@ -338,7 +338,7 @@ export const ProductInstallerScreen = ({
                       onChange={(e) =>
                         setProdForm({
                           ...prodForm,
-                          price: parseInt(e.target.value) || 0,
+                          price: (e.target.value === '' ? '' : parseInt(e.target.value)) || 0,
                         })
                       }
                       className="w-full text-xs bg-gray-50 border border-gray-100"
@@ -357,7 +357,7 @@ export const ProductInstallerScreen = ({
                       onChange={(e) =>
                         setProdForm({
                           ...prodForm,
-                          stockQuantity: parseInt(e.target.value) || 0,
+                          stockQuantity: (e.target.value === '' ? '' : parseInt(e.target.value)) || 0,
                         })
                       }
                       className="w-full text-xs bg-gray-50 border border-gray-100"
@@ -659,7 +659,7 @@ export const ProductInstallerScreen = ({
                       onChange={(e) =>
                         setInstForm({
                           ...instForm,
-                          experienceYears: parseInt(e.target.value) || 1,
+                          experienceYears: (e.target.value === '' ? '' : parseInt(e.target.value)) || 1,
                         })
                       }
                       className="w-full text-xs bg-gray-50 border border-gray-100"

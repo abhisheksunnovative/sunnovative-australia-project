@@ -184,7 +184,7 @@ export const WorkflowSettingsScreen = ({
                     type="number"
                     min={0}
                     value={minDays}
-                    onChange={(e) => setMinDays(parseInt(e.target.value) || 0)}
+                    onChange={(e) => setMinDays((e.target.value === '' ? '' : parseInt(e.target.value)) || 0)}
                     className="w-full text-xs bg-gray-50 border border-gray-150 p-2"
                   />
                 </div>
@@ -197,7 +197,7 @@ export const WorkflowSettingsScreen = ({
                     type="number"
                     min={0}
                     value={maxDays}
-                    onChange={(e) => setMaxDays(parseInt(e.target.value) || 0)}
+                    onChange={(e) => setMaxDays((e.target.value === '' ? '' : parseInt(e.target.value)) || 0)}
                     className="w-full text-xs bg-gray-50 border border-gray-150 p-2"
                   />
                 </div>
@@ -211,7 +211,7 @@ export const WorkflowSettingsScreen = ({
                     min={1}
                     value={rangeDays}
                     onChange={(e) =>
-                      setRangeDays(parseInt(e.target.value) || 1)
+                      setRangeDays((e.target.value === '' ? '' : parseInt(e.target.value)) || 1)
                     }
                     className="w-full text-xs bg-gray-50 border border-gray-150 p-2"
                   />
@@ -420,7 +420,7 @@ export const WorkflowSettingsScreen = ({
                   <input
                     type="number"
                     value={minKW}
-                    onChange={(e) => setMinKW(parseInt(e.target.value) || 1)}
+                    onChange={(e) => setMinKW((e.target.value === '' ? '' : parseInt(e.target.value)) || 1)}
                     className="w-full text-xs bg-gray-50 border p-2"
                   />
                 </div>
@@ -432,7 +432,7 @@ export const WorkflowSettingsScreen = ({
                   <input
                     type="number"
                     value={maxKW}
-                    onChange={(e) => setMaxKW(parseInt(e.target.value) || 500)}
+                    onChange={(e) => setMaxKW((e.target.value === '' ? '' : parseInt(e.target.value)) || 500)}
                     className="w-full text-xs bg-gray-50 border p-2"
                   />
                 </div>
@@ -614,7 +614,7 @@ export const WorkflowSettingsScreen = ({
                     min={0}
                     value={extraProjects}
                     onChange={(e) =>
-                      setExtraProjects(parseInt(e.target.value) || 0)
+                      setExtraProjects((e.target.value === '' ? '' : parseInt(e.target.value)) || 0)
                     }
                     className="w-full text-xs bg-gray-50 border p-2"
                   />

@@ -3,10 +3,7 @@ import { useEpcAuth } from '../../../context/EpcAuthContext';
 import { useCountry } from '../../../context/CountryContext';
 import epcApi from '../../../api/epcApi';
 
-const PROJECT_TYPES = [
-  'Surya Ghar Yojana', 'Group Solar', 'Village Solar Campaign',
-  'Commercial Solar', 'Residential Solar',
-];
+
 
 const ENQUIRY_TYPES = [
   {
@@ -46,7 +43,7 @@ const statusConfig = {
 
 const EpcMyEnquiries = () => {
   const { epc, logout }                 = useEpcAuth();
-  const { getStates, locationsLoading } = useCountry();
+  const { getCountries, getStates, getDistricts, locationsLoading } = useCountry();
   const [enquiries, setEnquiries]       = useState([]);
   const [loading, setLoading]           = useState(true);
   const [accepting, setAccepting]       = useState(null);
@@ -61,6 +58,7 @@ const EpcMyEnquiries = () => {
   const [filterState, setFilterState]     = useState('');
   const [filterDist, setFilterDist]     = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [projectTypes, setProjectTypes] = useState([]);
 
   const load = async () => {
     setLoading(true);
@@ -97,6 +95,22 @@ const EpcMyEnquiries = () => {
   };
 
   useEffect(() => { load(); }, [selectedType, filterType, filterCountry, filterState, filterDist, filterStatus]);
+
+  useEffect(() => {
+    const fetchProjectTypes = async () => {
+      try {
+        const res = await epcApi.get('/api/project-types');
+        if (res.data?.success) {
+          setProjectTypes(res.data.data.map(pt => pt.name));
+        } else if (Array.isArray(res.data)) {
+          setProjectTypes(res.data.map(pt => pt.name));
+        }
+      } catch (err) {
+        console.error('Failed to load project types', err);
+      }
+    };
+    fetchProjectTypes();
+  }, []);
 
   
   const handleReject = async (enqId) => {
@@ -137,7 +151,13 @@ const EpcMyEnquiries = () => {
   const handleConfirmDate = async (id) => {
     if (!installDate) return alert('Please select a proposed installation date.');
     try {
-      await epcApi.put(`/api/epc/enquiries/${id}/confirm-date`, { scheduledInstallDate: installDate });
+      const formData = new FormData();
+      formData.append('scheduledInstallDate', installDate);
+      if (kycFile) formData.append('kycFile', kycFile);
+      
+      await epcApi.put(`/api/epc/enquiries/${id}/confirm-date`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
       setMsg(`📅 Date confirmed. Waiting for customer approval.`);
       setMsgType('success');
       load();
@@ -243,16 +263,20 @@ const EpcMyEnquiries = () => {
             <label className="block text-gray-400 text-xs mb-1 font-medium">Project Type</label>
             <select value={filterType} onChange={e => setFilterType(e.target.value)} className={inputCls}>
               <option value="">All Types</option>
-              {PROJECT_TYPES.map(p => <option key={p} value={p}>{p}</option>)}
+              {projectTypes.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-gray-400 text-xs mb-1 font-medium">Country</label>
             <select value={filterCountry} onChange={e => setFilterCountry(e.target.value)} className={inputCls}>
               <option value="">All Countries</option>
-              <option value="India">🇮🇳 India</option>
-              <option value="Australia">🇦🇺 Australia</option>
-              <option value="New Zealand">🇳🇿 New Zealand</option>
+              {getCountries ? getCountries().map(c => <option key={c} value={c}>{c}</option>) : (
+                <>
+                  <option value="India">🇮🇳 India</option>
+                  <option value="Australia">🇦🇺 Australia</option>
+                  <option value="New Zealand">🇳🇿 New Zealand</option>
+                </>
+              )}
             </select>
           </div>
           <div>
@@ -271,7 +295,7 @@ const EpcMyEnquiries = () => {
             <label className="block text-gray-400 text-xs mb-1 font-medium">District</label>
             <select value={filterDist} onChange={e => setFilterDist(e.target.value)} className={inputCls}>
               <option value="">All Districts</option>
-              {(epc?.activeDistricts || []).map(d => <option key={d} value={d}>{d}</option>)}
+              {getDistricts(filterCountry || epc?.country, filterState || "").map(d => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
           <div>
@@ -382,6 +406,7 @@ const EpcMyEnquiries = () => {
                                 <div>
                                   <label className="block text-gray-500 text-xs mb-1 font-medium">Customer KYC (PDF/JPG)</label>
                                   <input type="file" accept=".pdf,.jpg,.jpeg,.png"
+                                    onChange={e => setKycFile(e.target.files[0])}
                                     className="block w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 bg-white border border-gray-200 rounded-xl p-1" />
                                 </div>
                               </div>
@@ -390,7 +415,7 @@ const EpcMyEnquiries = () => {
                                   className="flex-1 bg-emerald-600 text-white text-xs px-4 py-2.5 rounded-xl hover:bg-emerald-700 font-bold transition-colors">
                                   ✔ Confirm & Submit
                                 </button>
-                                <button onClick={() => { setConfirmingDateFor(null); setInstallDate(''); }}
+                                <button onClick={() => { setConfirmingDateFor(null); setInstallDate(''); setKycFile(null); }}
                                   className="px-4 py-2.5 text-gray-500 text-xs rounded-xl hover:bg-gray-100 border border-gray-200 font-medium transition-colors">
                                   Cancel
                                 </button>

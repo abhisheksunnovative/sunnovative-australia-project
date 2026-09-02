@@ -43,7 +43,7 @@ import EpcRatesForBrandsTab from "./components/EpcRatesForBrandsTab";
 
 import UnifiedCountrySettings from "./components/UnifiedCountrySettings";
 
-// ── BDE Portal ─────────────────────────────────────────────────────────────
+// â”€â”€ BDE Portal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 import BDELayout from "./components/bde/BDELayout";
 import BDEDashboard from "./components/bde/BDEDashboard";
 import BDEMyLeads from './components/bde/BDEMyLeads';
@@ -501,7 +501,7 @@ export default function App() {
       case "subsidy-management":
         return <CountrySubsidyManagementScreen />;
 
-      // ── Order Journey Settings ──────────────────────────────────
+      // â”€â”€ Order Journey Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       
 
          case "epc-wallet-settings":
@@ -550,7 +550,7 @@ export default function App() {
       case "demand-supply":
         return <DemandSupplyScreen />;
 
-      // ── BDE Overrides ───────────────────────────────────────
+      // â”€â”€ BDE Overrides â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       case "bde-dashboard":
       case "bde-aust":
         return userCountry?.toLowerCase() === "australia" ? (
@@ -595,6 +595,8 @@ export default function App() {
         bdeName={adminEmail} // For now, passing email as name
         bdeId={userId}
         bdeType={bdeType}
+        userCountry={userCountry}
+        onCountryChange={(c) => { setUserCountry(c); localStorage.setItem('sunnovative_user_country', c); }}
       >
         <div className="animate-fade-in-up duration-300">
           {renderTabContent()}

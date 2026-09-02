@@ -359,15 +359,15 @@ const EpcSystemSettingsScreen = ({ selectedCountryCode }) => {
                     <div className="grid md:grid-cols-3 gap-6">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Max Allowable Overdue Projects</label>
-                        <input type="number" value={currentRule.overdueSettings?.limit || 0} onChange={e => updateCurrentRule('overdueSettings', 'limit', Number(e.target.value))} className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" />
+                        <input type="number" value={currentRule.overdueSettings?.limit ?? ''} onChange={e => updateCurrentRule('overdueSettings', 'limit', (e.target.value === '' ? '' : Number(e.target.value)))} className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Warning Threshold</label>
-                        <input type="number" value={currentRule.overdueSettings?.warningThresholds || 0} onChange={e => updateCurrentRule('overdueSettings', 'warningThresholds', Number(e.target.value))} className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" />
+                        <input type="number" value={currentRule.overdueSettings?.warningThresholds ?? ''} onChange={e => updateCurrentRule('overdueSettings', 'warningThresholds', (e.target.value === '' ? '' : Number(e.target.value)))} className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Rating Required</label>
-                        <input type="number" step="0.1" value={currentRule.overdueSettings?.minimumRatingRequired || 0} onChange={e => updateCurrentRule('overdueSettings', 'minimumRatingRequired', Number(e.target.value))} className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" />
+                        <input type="number" step="0.1" value={currentRule.overdueSettings?.minimumRatingRequired ?? ''} onChange={e => updateCurrentRule('overdueSettings', 'minimumRatingRequired', (e.target.value === '' ? '' : Number(e.target.value)))} className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" />
                       </div>
                     </div>
                   </div>
@@ -392,19 +392,19 @@ const EpcSystemSettingsScreen = ({ selectedCountryCode }) => {
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Max FCFS Leads Limit</label>
-                        <input type="number" value={currentRule.trustBadgeSettings?.maxLeadsLimit || 0} onChange={e => updateCurrentRule('trustBadgeSettings', 'maxLeadsLimit', Number(e.target.value))} className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" />
+                        <input type="number" value={currentRule.trustBadgeSettings?.maxLeadsLimit ?? ''} onChange={e => updateCurrentRule('trustBadgeSettings', 'maxLeadsLimit', (e.target.value === '' ? '' : Number(e.target.value)))} className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Rate Per Lead (Payment Gateway)</label>
-                        <input type="number" value={currentRule.trustBadgeSettings?.ratePerLead || 0} onChange={e => updateCurrentRule('trustBadgeSettings', 'ratePerLead', Number(e.target.value))} className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" />
+                        <input type="number" value={currentRule.trustBadgeSettings?.ratePerLead ?? ''} onChange={e => updateCurrentRule('trustBadgeSettings', 'ratePerLead', (e.target.value === '' ? '' : Number(e.target.value)))} className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Max Customer Select Views</label>
-                        <input type="number" value={currentRule.trustBadgeSettings?.maxProfileViewsLimit || 0} onChange={e => updateCurrentRule('trustBadgeSettings', 'maxProfileViewsLimit', Number(e.target.value))} className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" />
+                        <input type="number" value={currentRule.trustBadgeSettings?.maxProfileViewsLimit ?? ''} onChange={e => updateCurrentRule('trustBadgeSettings', 'maxProfileViewsLimit', (e.target.value === '' ? '' : Number(e.target.value)))} className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Priority Lead Delay (Minutes)</label>
-                        <input type="number" value={currentRule.trustBadgeSettings?.priorityLeadAllocationMinutes || 0} onChange={e => updateCurrentRule('trustBadgeSettings', 'priorityLeadAllocationMinutes', Number(e.target.value))} className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" />
+                        <input type="number" value={currentRule.trustBadgeSettings?.priorityLeadAllocationMinutes ?? ''} onChange={e => updateCurrentRule('trustBadgeSettings', 'priorityLeadAllocationMinutes', (e.target.value === '' ? '' : Number(e.target.value)))} className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition" />
                       </div>
                     </div>
 
@@ -430,7 +430,7 @@ const EpcSystemSettingsScreen = ({ selectedCountryCode }) => {
                         <div className="grid md:grid-cols-2 gap-6">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Total EPC Cards to Show to Customer</label>
-                            <input type="number" value={currentRule.customerSelectEpcSettings?.totalEpcCards || 5} onChange={e => updateCurrentRule('customerSelectEpcSettings', 'totalEpcCards', Number(e.target.value))} className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500 outline-none transition" />
+                            <input type="number" value={currentRule.customerSelectEpcSettings?.totalEpcCards || 5} onChange={e => updateCurrentRule('customerSelectEpcSettings', 'totalEpcCards', (e.target.value === '' ? '' : Number(e.target.value)))} className="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500 outline-none transition" />
                           </div>
                         </div>
 

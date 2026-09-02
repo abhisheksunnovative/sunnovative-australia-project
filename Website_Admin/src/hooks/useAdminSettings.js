@@ -21,6 +21,8 @@ export const useAdminSettings = (country) => {
 
     // Normalize: accept code (AU) or name (australia)
     const normalizedCountry = CODE_TO_NAME[country] || country.toLowerCase();
+    
+    let isActive = true;
 
     const fetchSettings = async () => {
       setLoading(true);
@@ -49,23 +51,26 @@ export const useAdminSettings = (country) => {
                 .join(' ');
               return {
                 value: pt.projectType,
-                label: pt.projectTypeLabel || fallbackLabel
+                label: pt.projectTypeLabel || fallbackLabel,
+                steps: pt.steps || []
               };
             });
-          setProjectTypes(formatted);
+          if (isActive) setProjectTypes(formatted);
         } else {
-          setProjectTypes([]);
+          if (isActive) setProjectTypes([]);
         }
       } catch (err) {
         console.error("Error fetching admin settings:", err);
-        setError(err.message);
-        setProjectTypes([]);
+        if (isActive) setError(err.message);
+        if (isActive) setProjectTypes([]);
       } finally {
-        setLoading(false);
+        if (isActive) setLoading(false);
       }
     };
 
     fetchSettings();
+    
+    return () => { isActive = false; };
   }, [country]);
 
   return { projectTypes, loading, error };

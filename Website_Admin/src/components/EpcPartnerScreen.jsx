@@ -720,7 +720,7 @@ export const EpcPartnerScreen = ({
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      experience: parseInt(e.target.value) || 0,
+                      experience: (e.target.value === '' ? '' : parseInt(e.target.value)) || 0,
                     })
                   }
                   className="w-full text-xs bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-3.5 focus:bg-white focus:outline-hidden"
@@ -739,7 +739,7 @@ export const EpcPartnerScreen = ({
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      minKW: parseInt(e.target.value) || 0,
+                      minKW: (e.target.value === '' ? '' : parseInt(e.target.value)) || 0,
                     })
                   }
                   className="w-full text-xs bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-3.5 focus:bg-white focus:outline-hidden"
@@ -758,7 +758,7 @@ export const EpcPartnerScreen = ({
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      maxKW: parseInt(e.target.value) || 0,
+                      maxKW: (e.target.value === '' ? '' : parseInt(e.target.value)) || 0,
                     })
                   }
                   className="w-full text-xs bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-3.5 focus:bg-white focus:outline-hidden"
@@ -777,7 +777,7 @@ export const EpcPartnerScreen = ({
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      installersCount: parseInt(e.target.value) || 0,
+                      installersCount: (e.target.value === '' ? '' : parseInt(e.target.value)) || 0,
                     })
                   }
                   className="w-full text-xs bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-3.5 focus:bg-white focus:outline-hidden"

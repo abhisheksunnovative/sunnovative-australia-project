@@ -742,8 +742,11 @@ const JourneyCard = ({ journey, journeyIndex, onUpdateJourney, onRemoveJourney, 
                       <input
                         type="number"
                         className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400/40"
-                        value={journey.signupToken?.amount || 0}
-                        onChange={(e) => onUpdateJourney(journeyIndex, "signupToken", { ...journey.signupToken, amount: Number(e.target.value) })}
+                        value={journey.signupToken?.amount !== undefined ? journey.signupToken.amount : 0}
+                        onChange={(e) => {
+                          const val = e.target.value === "" ? "" : Number(e.target.value);
+                          onUpdateJourney(journeyIndex, "signupToken", { ...journey.signupToken, amount: val });
+                        }}
                       />
                     </div>
                   )}
@@ -754,6 +757,42 @@ const JourneyCard = ({ journey, journeyIndex, onUpdateJourney, onRemoveJourney, 
                       : '⭕ Token disabled — Customer signups are free (No token).'}
                   </p>
                 </div>
+
+                {/* My Prospects Configuration */}
+                <div className="mt-4">
+                  <label className="text-xs font-semibold text-slate-500 uppercase block mb-2">My Prospects Configuration</label>
+                  <div className="bg-white p-3 border border-slate-200 rounded-xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-slate-700">Enable Days Filter</p>
+                        <p className="text-[10px] text-slate-400">Show the pending days filter dropdown to BDEs</p>
+                      </div>
+                      <button
+                        onClick={() => onUpdateJourney(journeyIndex, "myProspectsOverdueFilterEnabled", journey.myProspectsOverdueFilterEnabled === false ? true : false)}
+                        className={`relative w-9 h-5 rounded-full transition-colors ${journey.myProspectsOverdueFilterEnabled !== false ? 'bg-yellow-400' : 'bg-slate-200'}`}
+                      >
+                        <span className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${journey.myProspectsOverdueFilterEnabled !== false ? 'translate-x-4' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Number of Days (For Filter)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400/40"
+                        value={journey.myProspectsOverdueDays !== undefined ? journey.myProspectsOverdueDays : 3}
+                        onChange={(e) => {
+                          const val = e.target.value === "" ? "" : Number(e.target.value);
+                          onUpdateJourney(journeyIndex, "myProspectsOverdueDays", val);
+                        }}
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
+                      This sets the maximum days in the BDE portal pending days filter dropdown. Leads pending beyond this will be grouped as max.
+                    </p>
+                  </div>
+                </div>
+
               </div>
 
               <div>

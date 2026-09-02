@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { LayoutDashboard, Users, Map, LogOut, Sun, ClipboardList, AlertTriangle, Bell, Trash2, CheckSquare, Square, Check, User } from "lucide-react";
 
-export default function BDELayout({ children, currentTab, onTabChange, onLogout, bdeName, bdeId, bdeType }) {
+export default function BDELayout({ children, currentTab, onTabChange, onLogout, bdeName, bdeId, bdeType, userCountry, onCountryChange }) {
   const [notifications, setNotifications] = useState([]);
   const [selectedNotifIds, setSelectedNotifIds] = useState([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [tabCounts, setTabCounts] = useState({ leads: 0, projects: 0, prospects: 0 });
+  const [bdeData, setBdeData] = useState(null);
+  const [allCountries, setAllCountries] = useState([]);
   const notifRef = useRef(null);
 
   const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
@@ -80,6 +82,14 @@ export default function BDELayout({ children, currentTab, onTabChange, onLogout,
   useEffect(() => {
     loadNotifications();
     loadCounts();
+    if(bdeId) {
+      fetch(`${API_BASE}/api/bde/${bdeId}`).then(r=>r.json()).then(d=>{
+        if(d.success) setBdeData(d.data);
+      }).catch(e=>console.log(e));
+    }
+    fetch(`${API_BASE}/api/countries`).then(r=>r.json()).then(d=>{
+      if(d.success) setAllCountries(d.data);
+    }).catch(e=>console.log(e));
     const int = setInterval(() => {
       loadNotifications();
       loadCounts();

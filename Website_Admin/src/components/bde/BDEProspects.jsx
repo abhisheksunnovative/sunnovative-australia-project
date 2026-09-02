@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { MapPin, PhoneCall, Calendar, ArrowRight, CheckCircle, Clock, Zap, DollarSign, ClipboardList, ShieldCheck, Mail, KeyRound, X , User } from "lucide-react";
+import { Globe, ArrowLeft, MapPin, PhoneCall, Calendar, ArrowRight, CheckCircle, Clock, Zap, DollarSign, ClipboardList, ShieldCheck, Mail, KeyRound, X , User } from "lucide-react";
 import { useAdminSettings } from "../../hooks/useAdminSettings";
 
-export default function BDEProspects({ bdeId, country, bdeType }) {
+function BDEProspectsContent({ bdeId, country, bdeType, onBack, multiCountry }) {
   const isFreelancer = bdeType?.toLowerCase().includes("freelance");
   const [leads, setLeads] = useState([]);
   const [showDetailsModal, setShowDetailsModal] = useState(null);
@@ -10,6 +10,7 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
   const [projectTypeFilter, setProjectTypeFilter] = useState("All");
   const [kwFilter, setKwFilter] = useState("All");
   const [followUpFilter, setFollowUpFilter] = useState("All");
+  const [pendingDaysFilter, setPendingDaysFilter] = useState("All");
   const [activeSummaryFilter, setActiveSummaryFilter] = useState('All'); // 'All', 'DatePending', 'EPCPending', 'FollowUpToday', 'FollowUpTomorrow', 'FollowUpFuture' 
   const { projectTypes: dynamicProjectTypes } = useAdminSettings(country);
   const [loading, setLoading] = useState(true);
@@ -73,15 +74,24 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
   const getFirstDayOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay();
 
   const sendOtp = async () => {
-    if (!customerEmail) return alert("Email required");
+    const isIndia = country?.toLowerCase() === 'india' || country?.toLowerCase() === 'in';
+    
+    if (isIndia) {
+      if (!customerPhone) return alert("Phone number required for OTP");
+    } else {
+      if (!customerEmail) return alert("Email required");
+    }
+    
     setIsOtpLoading(true);
-    console.log(`[OTP-UI] Sending OTP for lead: ${otpModalLead?._id}, email: ${customerEmail}`);
+    console.log(`[OTP-UI] Sending OTP for lead: ${otpModalLead?._id}, target: ${isIndia ? customerPhone : customerEmail}`);
     try {
       const token = localStorage.getItem('token');
+      const payload = isIndia ? { phone: customerPhone } : { email: customerEmail };
+      
       const res = await fetch(`${API_BASE}/api/leads/${otpModalLead._id}/request-date-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ email: customerEmail })
+        body: JSON.stringify(payload)
       });
       console.log(`[OTP-UI] Send OTP response status: ${res.status}`);
       const data = await res.json();
@@ -180,6 +190,24 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
   
   const isAU = country?.toLowerCase() === 'australia' || country?.toLowerCase() === 'au';
 
+  
+  const [overdueDaysThreshold, setOverdueDaysThreshold] = useState(3);
+  const [overdueFilterEnabled, setOverdueFilterEnabled] = useState(true);
+  
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/order-journey-settings?country=${country || 'india'}`);
+      const data = await res.json();
+      if (data && data.journeys && data.journeys.length > 0) {
+        // Try to get setting from the first journey, default to 3
+        const days = data.journeys[0].myProspectsOverdueDays;
+        if (days !== undefined) setOverdueDaysThreshold(days);
+      }
+    } catch(err) {
+      console.error("Failed to fetch order journey settings:", err);
+    }
+  };
+
   const fetchLeads = async () => {
     setLoading(true);
     try {
@@ -259,6 +287,10 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
   console.log(`[BDEProspects] Total leads loaded: ${leads.length}, isFreelancer: ${isFreelancer}, bdeType: ${bdeType}`);
 
   const baseProspects = leads.filter(l => {
+    const leadCountry = (l.country || "australia").toLowerCase();
+    const targetCountry = (country || "").toLowerCase();
+    if (targetCountry && leadCountry !== targetCountry) return false;
+
     if (l.status === 'Converted' || l.status === 'Not Interested' || l.status === 'Lost' || l.bdeMovedToOrderJourney) return false; // removed l.convertedProjectId so it stays until fully converted
     
     const isManualLead = l.history?.some(h => h.action.includes("Manually created by BDE"));
@@ -283,26 +315,13 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
 
   const filteredLeads = baseProspects.filter(l => {
     // Summary Card Filters
-    if (activeSummaryFilter === 'DatePending' && l.preferredInstallDate) return false;
-    if (activeSummaryFilter === 'Overdue') {
-      if (l.preferredInstallDate) return false;
-      const days = (Date.now() - new Date(l.createdAt || l.updatedAt).getTime()) / (1000 * 3600 * 24);
-      if (days < 5) return false;
-    }
-    if (activeSummaryFilter === 'EPCPending' && l.assignedEPCName) return false;
     
-    if (activeSummaryFilter === 'FollowUpToday' || activeSummaryFilter === 'FollowUpTomorrow' || activeSummaryFilter === 'FollowUpFuture') {
-      if (!l.nextFollowUp) return false;
-      const today = new Date();
-      const fu = new Date(l.nextFollowUp);
-      const isToday = fu.toDateString() === today.toDateString();
-      const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-      const isTomorrow = fu.toDateString() === tomorrow.toDateString();
-      
-      if (activeSummaryFilter === 'FollowUpToday' && !isToday) return false;
-      if (activeSummaryFilter === 'FollowUpTomorrow' && !isTomorrow) return false;
-      if (activeSummaryFilter === 'FollowUpFuture' && (isToday || isTomorrow || fu < today)) return false;
-    }
+    
+    if (activeSummaryFilter === 'DatePending' && l.preferredInstallDate) return false;
+        if (activeSummaryFilter === 'EPCPending' && (!l.preferredInstallDate || l.assignedEPCName)) return false;
+    
+    
+    
     if (projectTypeFilter !== "All" && (l.solarType || l.projectType || "").toLowerCase() !== projectTypeFilter.toLowerCase()) return false;
     
     if (kwFilter !== "All") {
@@ -325,6 +344,18 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
       if (followUpFilter === "Future" && (isToday || isTomorrow || fu < today)) return false;
     }
 
+    
+    if (pendingDaysFilter !== "All") {
+      if (l.preferredInstallDate) return false;
+      const days = Math.floor((Date.now() - new Date(l.createdAt || l.updatedAt).getTime()) / (1000 * 3600 * 24));
+      if (pendingDaysFilter.endsWith("+")) {
+        const threshold = parseInt(pendingDaysFilter.replace("+", ""));
+        if (days < threshold) return false;
+      } else {
+        if (days !== parseInt(pendingDaysFilter)) return false;
+      }
+    }
+
     if (searchQuery) {
       return (l.name || "").toLowerCase().includes(searchQuery.toLowerCase()) || 
              (l.mobile || "").includes(searchQuery);
@@ -334,8 +365,8 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
 
   
   const datePendingCount = baseProspects.filter(l => !l.preferredInstallDate).length;
-  const epcPendingCount = baseProspects.filter(l => !l.assignedEPCName).length;
-  const overdueCount = baseProspects.filter(l => !l.preferredInstallDate && ((Date.now() - new Date(l.createdAt || l.updatedAt).getTime()) / (1000 * 3600 * 24)) >= 5).length;
+    const overdueCount = baseProspects.filter(l => !l.preferredInstallDate && ((Date.now() - new Date(l.createdAt || l.updatedAt).getTime()) / (1000 * 3600 * 24)) > overdueDaysThreshold).length;
+    const epcPendingCount = baseProspects.filter(l => l.preferredInstallDate && !l.assignedEPCName).length;
   
   const todayStr = new Date().toDateString();
   const tomorrowObj = new Date(); tomorrowObj.setDate(tomorrowObj.getDate() + 1);
@@ -388,79 +419,47 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
       </div>
 
       
-        {/* Top Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          
-          <div 
-            onClick={() => setActiveSummaryFilter(activeSummaryFilter === 'Overdue' ? 'All' : 'Overdue')}
-            className={`p-4 rounded-xl border-2 transition-all cursor-pointer shadow-sm flex flex-col justify-between ${activeSummaryFilter === 'Overdue' ? 'bg-rose-50 border-rose-500 ring-4 ring-rose-100' : 'bg-white border-slate-200 hover:border-rose-400'}`}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2 text-rose-700 font-bold">
-                <Clock className="w-5 h-5"/> Overdue (Date)
+        {/* Top Summary Cards (Sticky Filters) */}
+        <div className="sticky top-0 z-20 bg-slate-50 p-2 shadow-sm rounded-xl mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            {/* 1. Install Date Pending */}
+            <div 
+              onClick={() => setActiveSummaryFilter(activeSummaryFilter === 'DatePending' ? 'All' : 'DatePending')}
+              className={`p-4 rounded-xl border-2 transition-all cursor-pointer shadow-sm flex flex-col justify-between ${activeSummaryFilter === 'DatePending' ? 'bg-indigo-50 border-indigo-400 ring-4 ring-indigo-100' : 'bg-white border-slate-200 hover:border-indigo-300'}`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-indigo-600 font-bold">
+                  <Calendar className="w-5 h-5"/> Install Date Pending
+                </div>
+                <div className="flex items-center gap-2">
+                  {overdueCount > 0 && <span className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded-full font-black animate-pulse">{overdueCount} Overdue</span>}
+                  <span className={`text-xl font-black ${activeSummaryFilter === 'DatePending' ? 'text-indigo-700' : 'text-slate-800'}`}>{datePendingCount}</span>
+                </div>
               </div>
-              <span className={`text-xl font-black ${activeSummaryFilter === 'Overdue' ? 'text-rose-800' : 'text-slate-800'}`}>{overdueCount}</span>
+              <p className="text-[10px] text-slate-500 font-semibold uppercase">Needs Installation Date</p>
             </div>
-            <p className="text-[10px] text-slate-500 font-semibold uppercase">5+ Days Pending</p>
-          </div>
 
-          <div 
-            onClick={() => setActiveSummaryFilter(activeSummaryFilter === 'DatePending' ? 'All' : 'DatePending')}
-            className={`p-4 rounded-xl border-2 transition-all cursor-pointer shadow-sm flex flex-col justify-between ${activeSummaryFilter === 'DatePending' ? 'bg-rose-50 border-rose-400 ring-4 ring-rose-100' : 'bg-white border-slate-200 hover:border-rose-300'}`}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2 text-rose-600 font-bold">
-                <Calendar className="w-5 h-5"/> Installation Date Pending
-              </div>
-              <span className={`text-xl font-black ${activeSummaryFilter === 'DatePending' ? 'text-rose-700' : 'text-slate-800'}`}>{datePendingCount}</span>
-            </div>
-            <p className="text-[10px] text-slate-500 font-semibold uppercase">Needs Installation Date</p>
-          </div>
 
-          <div 
-            onClick={() => setActiveSummaryFilter(activeSummaryFilter === 'EPCPending' ? 'All' : 'EPCPending')}
-            className={`p-4 rounded-xl border-2 transition-all cursor-pointer shadow-sm flex flex-col justify-between ${activeSummaryFilter === 'EPCPending' ? 'bg-blue-50 border-blue-400 ring-4 ring-blue-100' : 'bg-white border-slate-200 hover:border-blue-300'}`}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2 text-blue-600 font-bold">
-                <MapPin className="w-5 h-5"/> EPC Assignment Pending
-              </div>
-              <span className={`text-xl font-black ${activeSummaryFilter === 'EPCPending' ? 'text-blue-700' : 'text-slate-800'}`}>{epcPendingCount}</span>
-            </div>
-            <p className="text-[10px] text-slate-500 font-semibold uppercase">Awaiting EPC Partner</p>
-          </div>
 
-          <div className="p-4 rounded-xl border-2 border-slate-200 bg-white shadow-sm flex flex-col justify-between">
-            <div className="flex items-center gap-2 text-amber-600 font-bold mb-3">
-              <PhoneCall className="w-5 h-5"/> Follow-up Dates
+            {/* 3. EPC Pending */}
+            <div 
+              onClick={() => setActiveSummaryFilter(activeSummaryFilter === 'EPCPending' ? 'All' : 'EPCPending')}
+              className={`p-4 rounded-xl border-2 transition-all cursor-pointer shadow-sm flex flex-col justify-between ${activeSummaryFilter === 'EPCPending' ? 'bg-blue-50 border-blue-400 ring-4 ring-blue-100' : 'bg-white border-slate-200 hover:border-blue-300'}`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-blue-600 font-bold">
+                  <MapPin className="w-5 h-5"/> EPC Pending
+                </div>
+                <span className={`text-xl font-black ${activeSummaryFilter === 'EPCPending' ? 'text-blue-700' : 'text-slate-800'}`}>{epcPendingCount}</span>
+              </div>
+              <p className="text-[10px] text-slate-500 font-semibold uppercase">Awaiting EPC Partner</p>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <div 
-                onClick={() => setActiveSummaryFilter(activeSummaryFilter === 'FollowUpToday' ? 'All' : 'FollowUpToday')}
-                className={`text-center p-1.5 rounded-lg border transition-all cursor-pointer ${activeSummaryFilter === 'FollowUpToday' ? 'bg-amber-100 border-amber-400 text-amber-800 shadow-inner' : 'bg-slate-50 border-slate-200 hover:bg-amber-50 text-slate-600'}`}
-              >
-                <div className="text-[10px] uppercase font-bold mb-1">Today</div>
-                <div className="font-black text-sm">{fuTodayCount}</div>
-              </div>
-              <div 
-                onClick={() => setActiveSummaryFilter(activeSummaryFilter === 'FollowUpTomorrow' ? 'All' : 'FollowUpTomorrow')}
-                className={`text-center p-1.5 rounded-lg border transition-all cursor-pointer ${activeSummaryFilter === 'FollowUpTomorrow' ? 'bg-amber-100 border-amber-400 text-amber-800 shadow-inner' : 'bg-slate-50 border-slate-200 hover:bg-amber-50 text-slate-600'}`}
-              >
-                <div className="text-[10px] uppercase font-bold mb-1">Tmrw</div>
-                <div className="font-black text-sm">{fuTomorrowCount}</div>
-              </div>
-              <div 
-                onClick={() => setActiveSummaryFilter(activeSummaryFilter === 'FollowUpFuture' ? 'All' : 'FollowUpFuture')}
-                className={`text-center p-1.5 rounded-lg border transition-all cursor-pointer ${activeSummaryFilter === 'FollowUpFuture' ? 'bg-amber-100 border-amber-400 text-amber-800 shadow-inner' : 'bg-slate-50 border-slate-200 hover:bg-amber-50 text-slate-600'}`}
-              >
-                <div className="text-[10px] uppercase font-bold mb-1">Future</div>
-                <div className="font-black text-sm">{fuFutureCount}</div>
-              </div>
-            </div>
+            
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-wrap gap-4 items-center">
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-wrap gap-4 items-center relative z-10">
         <input 
           type="text" 
           placeholder="Search by name or phone..." 
@@ -468,6 +467,31 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
         />
+        
+        {/* Pending Days Filter */}
+        <select 
+          className="px-3 py-2 border rounded-lg text-sm outline-none focus:border-blue-500 font-medium text-slate-600"
+          value={pendingDaysFilter}
+          onChange={(e) => setPendingDaysFilter(e.target.value)}
+        >
+          <option value="All">All Pending Days</option>
+          {Array.from({ length: overdueDaysThreshold }).map((_, i) => (
+            <option key={i+1} value={i+1}>{i+1} Day{i+1 > 1 ? 's' : ''} Pending</option>
+          ))}
+          <option value={`${overdueDaysThreshold}+`}>{`${overdueDaysThreshold}+`} Days Pending</option>
+        </select>
+        
+        {/* Follow Up Filter */}
+        <select 
+          className="px-3 py-2 border rounded-lg text-sm outline-none focus:border-blue-500 font-medium text-slate-600"
+          value={followUpFilter}
+          onChange={(e) => setFollowUpFilter(e.target.value)}
+        >
+          <option value="All">All Follow-ups</option>
+          <option value="Today">Follow-up Today</option>
+          <option value="Tomorrow">Follow-up Tomorrow</option>
+          <option value="Future">Follow-up Future</option>
+        </select>
         
         {/* Project Type Filter Cards */}
       <div className="w-full flex gap-3 overflow-x-auto pb-2 mb-2 scrollbar-hide">
@@ -494,12 +518,7 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
         })}
       </div>
 
-        <select value={kwFilter} onChange={e => setKwFilter(e.target.value)} className="px-3 py-2 border rounded-lg text-sm outline-none bg-slate-50">
-          <option value="All">All kW Sizes</option>
-          <option value="<5">Under 5 kW</option>
-          <option value="5-10">5 - 10 kW</option>
-          <option value=">10">Above 10 kW</option>
-        </select>
+        
 
         
       </div>
@@ -525,122 +544,84 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
                 <div className="space-y-1.5 text-sm text-slate-600">
                   <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-slate-400"/> {lead.district || lead.city}, {lead.state}</div>
                   <div className="flex items-center gap-2"><PhoneCall className="w-4 h-4 text-slate-400"/> {lead.mobile}</div>
-                  <div className="flex items-center gap-2"><Zap className="w-4 h-4 text-slate-400"/> {lead.kw} kW ({lead.solarType === 'au-standard-family' ? 'Residential' : (dynamicProjectTypes?.find(pt => pt.value === lead.solarType)?.label || (lead.solarType === 'surya-ghar' ? 'PM Surya Ghar' : lead.solarType))})</div>
-                  </div>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); setShowDetailsModal(lead); }}
-                    className="mt-4 w-full md:w-3/4 justify-center px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-black uppercase tracking-wider rounded-xl transition-colors border border-slate-200 flex items-center gap-2 shadow-sm"
-                  >
-                    <User className="w-4 h-4 text-blue-500"/> Show Details
-                  </button>
                 </div>
-              
-                            {/* Col 2: Follow Up & Install */}
-              <div className="flex-1 min-w-[250px] w-full lg:border-l lg:border-slate-100 lg:pl-6 flex flex-col justify-center">
+              </div>
+
+              {/* Col 2: Project Specs & Follow-up (Middle) */}
+              <div className="flex-1 min-w-[250px] w-full lg:border-l lg:border-slate-100 lg:pl-6 flex flex-col justify-center items-center gap-3">
                   
                   {/* Overdue Badge */}
-                  {!lead.preferredInstallDate && Math.floor((Date.now() - new Date(lead.createdAt || lead.updatedAt).getTime()) / (1000 * 3600 * 24)) >= 5 && (
-                    <div className="text-[10px] text-rose-700 font-bold bg-rose-50 px-2 py-1.5 rounded-lg border border-rose-200 w-fit mb-3 flex items-center gap-1.5 shadow-sm">
+                  {!lead.preferredInstallDate && Math.floor((Date.now() - new Date(lead.createdAt || lead.updatedAt).getTime()) / (1000 * 3600 * 24)) >= overdueDaysThreshold && (
+                    <div className="text-[10px] text-rose-700 font-bold bg-rose-50 px-2 py-1.5 rounded-lg border border-rose-200 w-fit flex items-center gap-1.5 shadow-sm">
                       <Clock className="w-3.5 h-3.5"/> Overdue for Install Date (&gt;{Math.floor((Date.now() - new Date(lead.createdAt || lead.updatedAt).getTime()) / (1000 * 3600 * 24))} days)
                     </div>
                   )}
 
-                  {/* Follow up date picker moved from Col 3 */}
-                  {((!isAU && !lead.tokenPaid) || (isAU && (!lead.preferredInstallDate || !lead.assignedEPCName || !lead.address))) && (
-                  <div className="w-full bg-gradient-to-br from-slate-50 to-slate-100 p-3.5 rounded-xl border border-slate-200 flex flex-col gap-2 shadow-sm max-w-[250px] relative overflow-hidden group hover:border-blue-200 transition-colors">
-                    <div className="text-[10px] font-black text-slate-500 uppercase">
-                      {isAU ? "Ask customer to pay initial payment" : "Ask customer to pay token"}
-                    </div>
-                    <div className="flex justify-between items-center mt-1">
-                      <div className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5"/> Follow-up Date
+                  {lead.status !== 'Converted' && (
+                    <div className="flex flex-col items-center justify-center w-full gap-2 mt-2">
+                      <div className="text-center">
+                        <p className="text-[9px] text-slate-400 uppercase font-black tracking-wider mb-0.5">Project Specs</p>
+                        <h4 className="text-base font-black text-indigo-700">{dynamicProjectTypes?.find(pt => pt.value === lead.solarType)?.label || lead.solarType || 'Standard'}</h4>
+                        <div className="inline-block mt-1 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 shadow-sm">
+                          <span className="font-bold text-slate-800 text-sm">{lead.kw || lead.systemSizeKW || "N/A"} kW</span>
+                          <span className="text-[10px] text-slate-500 font-medium ml-1">System</span>
+                        </div>
                       </div>
-                      <input 
-                        type="date" 
-                        className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-[11px] font-bold text-blue-700 cursor-pointer focus:ring-2 focus:ring-blue-100 transition-all outline-none shadow-sm"
-                        value={lead.nextFollowUp ? lead.nextFollowUp.split("T")[0] : ""}
-                        onChange={async (e) => {
-                          try {
-                            const token = localStorage.getItem('token');
-                            const res = await fetch(`${API_BASE}/api/bde/leads/${lead._id}`, {
-                              method: "PUT",
-                              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                              body: JSON.stringify({ status: lead.status, nextFollowUp: e.target.value })
-                            });
-                            if (res.ok) { fetchLeads(); }
-                          } catch (err) {}
-                        }}
-                      />
+
+                      {/* Follow up date picker (Inline clean design) */}
+                      {((!isAU && !lead.tokenPaid) || (isAU && (!lead.preferredInstallDate || !lead.assignedEPCName || !lead.address))) && (
+                        <div className="flex items-center gap-2 mt-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 shadow-sm">
+                          <Clock className="w-3.5 h-3.5 text-slate-400"/>
+                          <span className="text-[10px] font-bold text-slate-500 uppercase">Follow-up:</span>
+                          <input 
+                            type="date" 
+                            className="bg-transparent text-[11px] font-bold text-blue-700 cursor-pointer outline-none w-[110px]"
+                            value={lead.nextFollowUp ? lead.nextFollowUp.split("T")[0] : ""}
+                            onChange={async (e) => {
+                              try {
+                                const token = localStorage.getItem('token');
+                                const res = await fetch(`${API_BASE}/api/bde/leads/${lead._id}`, {
+                                  method: "PUT",
+                                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                                  body: JSON.stringify({ status: lead.status, nextFollowUp: e.target.value })
+                                });
+                                if (res.ok) { fetchLeads(); }
+                              } catch (err) {}
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
-                  </div>
                   )}
               </div>
 
-              {/* Col 3: Auto-Conversion Status & Follow-Up */}
-              <div className="flex-1 min-w-[300px] w-full lg:border-l lg:border-slate-100 lg:pl-6 flex flex-col justify-center gap-2">
-                <div className="hidden lg:block absolute top-4 right-4">
-                  <span className="bg-amber-100 text-amber-700 text-[10px] px-2 py-1 rounded-full font-bold">PROSPECT</span>
-                </div>
+              {/* Col 3: Action Buttons (Right) */}
+              <div className="flex-1 min-w-[220px] w-full lg:border-l lg:border-slate-100 lg:pl-6 flex flex-col justify-center items-center gap-3 relative">
+                
                 
                 {lead.status === 'Converted' ? (
-                  <div className="text-center p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                  <div className="text-center p-3 bg-emerald-50 border border-emerald-200 rounded-lg w-full mt-6">
                     <p className="text-sm font-bold text-emerald-700 uppercase">Converted to Order</p>
                     <p className="text-xs text-emerald-600 mt-1">Moved to Customer Order Journey</p>
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-2 w-full mt-4 lg:mt-0">
-                    <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Conversion Requirements</p>
-                    
-                    {/* Condition 1: Installation Date */}
-                    <div className={`p-2 rounded border text-xs font-semibold flex items-center justify-between ${lead.preferredInstallDate ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'}`}>
-                      <span className="flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5"/> 
-                        {lead.preferredInstallDate ? `1. Install Date: ${new Date(lead.preferredInstallDate).toLocaleDateString('en-IN')}` : '1. Installation Date'}
-                      </span>
-                      {!lead.preferredInstallDate && (
-                        <button onClick={() => handleRequestOtp(lead)} className="text-[9px] bg-white px-2 py-1 border border-rose-200 rounded shadow-sm text-rose-600 hover:bg-rose-50 cursor-pointer">Select Date</button>
-                      )}
-                    </div>
-                    
-                    {/* Condition 2: EPC Assigned */}
-                    <div className={`p-2 rounded border text-xs font-semibold flex items-center justify-between ${lead.assignedEPCName ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'}`}>
-                      <span className="flex items-center gap-1.5">
-                        <ShieldCheck className="w-3.5 h-3.5"/> 
-                        {lead.assignedEPCName ? `2. EPC: ${lead.assignedEPCName}` : '2. EPC Selected'}
-                      </span>
-                    </div>
+                  <div className="flex flex-col justify-center w-full max-w-[200px] gap-3 mt-4">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setShowDetailsModal(lead); }}
+                      className="w-full justify-center px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-black uppercase tracking-wider rounded-xl transition-colors border border-slate-200 flex items-center gap-2 shadow-sm"
+                    >
+                      <User className="w-4 h-4 text-blue-500"/> Show Details
+                    </button>
 
-                    {/* Condition 3: Apply Form Completed */}
-                    <div className={`p-2 rounded border text-xs font-semibold flex items-center justify-between ${lead.address ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'}`}>
-                      <span className="flex items-center gap-1.5">
-                        <ClipboardList className="w-3.5 h-3.5"/> 
-                        {lead.address ? '3. Customer Login Done' : '3. Customer Login'}
-                      </span>
-                    </div>
-
-                    {/* Condition 4: Token Paid (if applicable) */}
-                    {!isAU && (
-                      <div className={`p-2 rounded border text-xs font-semibold flex items-center justify-between ${lead.tokenPaid ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'}`}>
-                        <span className="flex items-center gap-1.5">
-                          <DollarSign className="w-3.5 h-3.5"/> 
-                          {lead.tokenPaid ? '4. Token Paid (Done)' : '4. Token Paid'}
-                        </span>
-                        {!lead.tokenPaid && (
-                          <button onClick={() => handleSimulatePayment(lead)} className="text-[9px] bg-white px-2 py-1 border border-rose-200 rounded shadow-sm text-rose-600 hover:bg-rose-50">Simulate</button>
-                        )}
+                    {!lead.preferredInstallDate ? (
+                      <button onClick={() => handleRequestOtp(lead)} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-2 px-3 rounded-xl transition-colors shadow-sm cursor-pointer flex items-center justify-center gap-1.5">
+                        <Calendar className="w-4 h-4"/> Select Install Date
+                      </button>
+                    ) : (
+                      <div className="text-center w-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-[11px] py-2 px-3 rounded-xl">
+                        Install Date: {new Date(lead.preferredInstallDate).toLocaleDateString('en-IN')}
                       </div>
                     )}
-
-                    {!lead.preferredInstallDate || !lead.assignedEPCName || !lead.address || (!isAU && !lead.tokenPaid) ? (
-                      <p className="text-[10px] text-rose-500 font-medium text-center mt-1 leading-tight">
-                        * Note: Above pending condition(s) must be fulfilled to auto-convert to Order Journey.
-                      </p>
-                    ) : (
-                      <p className="text-[10px] text-emerald-600 font-bold text-center mt-1 animate-pulse">
-                        All conditions met! Converting...
-                      </p>
-                    )}
-
                   </div>
                 )}
               </div>
@@ -933,5 +914,64 @@ export default function BDEProspects({ bdeId, country, bdeType }) {
           </div>
         )}
 </div>
+  );
+}
+
+export default function BDEProspects({ bdeId, country, bdeType }) {
+  const [bdeCountries, setBdeCountries] = React.useState([]);
+  const [selectedCountry, setSelectedCountry] = React.useState(null);
+  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
+
+  React.useEffect(() => {
+    if (!bdeId) return;
+    fetch(`${API_BASE}/api/bde/${bdeId}`).then(r=>r.json()).then(d => {
+        if (d.success) {
+           let data = d.data || d.bde;
+           if (data) {
+             let arr = data.assignedCountries || [];
+             if (typeof arr === 'string') arr = arr.split(',').map(s=>s.trim()).filter(Boolean);
+             let finalArr = arr.map(c => c.toLowerCase());
+             if (finalArr.length === 0) finalArr = ["australia"]; // fallback
+             setBdeCountries(finalArr);
+             if (finalArr.length === 1) setSelectedCountry(finalArr[0].toLowerCase());
+           }
+        }
+    }).catch(console.error);
+  }, [bdeId]);
+
+  if (bdeCountries.length === 0) return <div className="p-8 text-center text-slate-500 font-medium">Loading BDE Profile...</div>;
+
+  if (bdeCountries.length > 1 && !selectedCountry) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto font-sans">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">My Prospects</h1>
+          <p className="text-slate-500">Select a country to view your prospects.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {bdeCountries.map(c => (
+            <div 
+              key={c}
+              onClick={() => setSelectedCountry(c)}
+              className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-600 cursor-pointer transition-all flex flex-col items-center justify-center gap-3 group"
+            >
+              <Globe className="w-10 h-10 text-slate-400 group-hover:scale-110 transition-transform duration-300" />
+              <span className="font-bold text-slate-700 capitalize group-hover:text-blue-700">{c}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {bdeCountries.length > 1 && (
+        <button onClick={() => setSelectedCountry(null)} className="flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-800 transition mb-4 ml-6 mt-4">
+          <ArrowLeft className="w-4 h-4" /> Back to Countries
+        </button>
+      )}
+      <BDEProspectsContent bdeId={bdeId} country={selectedCountry || country} bdeType={bdeType} multiCountry={bdeCountries.length > 1} onBack={() => setSelectedCountry(null)} />
+    </div>
   );
 }

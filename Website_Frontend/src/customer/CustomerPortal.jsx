@@ -2623,12 +2623,95 @@ export default function CustomerPortal({ onClose }) {
                           </div>
 
                           {/* Action Button to Detail */}
-                          <button 
-                            onClick={() => { setTab("projects"); setProjectView("detail"); setSelectedProjectId(p._id); }}
-                            className="w-full py-2 bg-yellow-400 hover:bg-amber-400 text-yellow-950 font-black text-xs rounded-xl transition flex items-center justify-center gap-1 shadow-sm cursor-pointer"
-                          >
-                            Track Installation Journey <ArrowRight className="w-3.5 h-3.5" />
-                          </button>
+                          {(() => {
+                            const needsToken = (p.paymentStatus === 'pending' || (!p.isTokenPaid && customer?.country?.toLowerCase() === 'india'));
+                            const registrationDocStep = p.steps?.find(s => s.title.toLowerCase().includes('regsitraion docuement') || s.title.toLowerCase().includes('registration document'));
+                            const isDocUploaded = registrationDocStep ? registrationDocStep.status === 'completed' : !!p.epcKycDocumentUrl;
+                            const isEpcAssigned = !!(p.assignedEpc || p.assignedEPCName || p.epcDetails);
+
+                            if (!isEpcAssigned) {
+                                return (
+                                    <div className="w-full py-2 bg-amber-50 border border-amber-200 text-amber-600 font-bold text-xs rounded-xl text-center px-2 cursor-not-allowed flex items-center justify-center gap-2">
+                                        <Clock className="w-3.5 h-3.5" />
+                                        Waiting for EPC to accept your order
+                                    </div>
+                                );
+                            }
+
+                            if (needsToken && !isDocUploaded) {
+                                return (
+                                    <div className="w-full py-2 bg-slate-100 border border-slate-200 text-slate-500 font-bold text-xs rounded-xl text-center px-2 cursor-not-allowed flex items-center justify-center gap-2">
+                                        <Clock className="w-3.5 h-3.5" />
+                                        EPC is processing your registration document. Please wait.
+                                    </div>
+                                );
+                            }
+
+                            if (needsToken && isDocUploaded) {
+                                return (
+                                    <button 
+                                      onClick={async () => {
+                                          try {
+                                            if (p.razorpayOrderId) {
+                                                const options = {
+                                                    key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_YourKeyIdHere',
+                                                    amount: 400100, // 4001 INR
+                                                    currency: 'INR',
+                                                    name: 'Sunnovative',
+                                                    description: 'Token Payment',
+                                                    order_id: p.razorpayOrderId,
+                                                    handler: async (resp) => {
+                                                        const tokenStr = localStorage.getItem("token") || sessionStorage.getItem("token");
+                                                        const payRes = await fetch(`${API}/api/customer/projects/${p._id}/pay-token`, {
+                                                            method: "POST",
+                                                            headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenStr}` }
+                                                        });
+                                                        const payData = await payRes.json();
+                                                        if (payData.success) {
+                                                            alert("Token Payment Successful! Journey unlocked.");
+                                                            fetchProjects();
+                                                        } else {
+                                                            alert("Payment failed: " + payData.message);
+                                                        }
+                                                    }
+                                                };
+                                                const rzp = new window.Razorpay(options);
+                                                rzp.open();
+                                            } else {
+                                                // Fallback if no RZP order was created upfront
+                                                const tokenStr = localStorage.getItem("token") || sessionStorage.getItem("token");
+                                                const payRes = await fetch(`${API}/api/customer/projects/${p._id}/pay-token`, {
+                                                  method: "POST",
+                                                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenStr}` }
+                                                });
+                                                const payData = await payRes.json();
+                                                if (payData.success) {
+                                                  alert("Token Payment Successful! Journey unlocked.");
+                                                  fetchProjects();
+                                                } else {
+                                                  alert("Payment failed: " + payData.message);
+                                                }
+                                            }
+                                          } catch(err) {
+                                            alert("Payment error");
+                                          }
+                                      }}
+                                      className="w-full py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                                    >
+                                      Proceed to Pay Token (₹4001) <ArrowRight className="w-3.5 h-3.5" />
+                                    </button>
+                                );
+                            }
+
+                            return (
+                                <button 
+                                  onClick={() => { setTab("projects"); setProjectView("detail"); setSelectedProjectId(p._id); }}
+                                  className="w-full py-2 bg-yellow-400 hover:bg-amber-400 text-yellow-950 font-black text-xs rounded-xl transition flex items-center justify-center gap-1 shadow-sm cursor-pointer"
+                                >
+                                  Track Installation Journey <ArrowRight className="w-3.5 h-3.5" />
+                                </button>
+                            );
+                          })()}
                         </div>
                       );
                     })}
@@ -3161,7 +3244,27 @@ export default function CustomerPortal({ onClose }) {
                   <Building className="w-10 h-10 mx-auto mb-2 text-slate-200" />
                   <p className="text-sm font-bold text-slate-500">No active project found</p>
                 </div>
-              ) : activeProjectDetail.assignedEPCName ? (
+              ) : (activeProjectDetail.assignedEPCName || activeProjectDetail.assignedEpc) ? (
+                (() => {
+                  const needsToken = (activeProjectDetail.paymentStatus === 'pending' || (!activeProjectDetail.isTokenPaid && customer?.country?.toLowerCase() === 'india'));
+                  const registrationDocStep = activeProjectDetail.steps?.find(s => s.title.toLowerCase().includes('regsitraion docuement') || s.title.toLowerCase().includes('registration document'));
+                  const isDocUploaded = registrationDocStep ? registrationDocStep.status === 'completed' : !!activeProjectDetail.epcKycDocumentUrl;
+                  
+                  if (needsToken && (!activeProjectDetail.isTokenPaid && activeProjectDetail.paymentStatus !== 'paid')) {
+                      return (
+                          <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
+                            <Clock className="w-10 h-10 mx-auto mb-2 text-amber-300" />
+                            <p className="text-sm font-bold text-slate-600">Pending Actions Required</p>
+                            <p className="text-xs text-slate-500 mt-1">
+                              {!isDocUploaded 
+                                ? "Waiting for EPC to upload registration document." 
+                                : "Please complete your token payment from the Dashboard to unlock installer details."}
+                            </p>
+                          </div>
+                      );
+                  }
+                  
+                  return (
                 <div className="bg-white border border-slate-200 rounded-2xl p-5">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Your Solar Installation Partner</p>
                   <div className="flex items-center gap-4">
@@ -3276,6 +3379,8 @@ export default function CustomerPortal({ onClose }) {
                     );
                   })()}
                 </div>
+                );
+              })()
               ) : (
                 <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center">
                   <Clock className="w-8 h-8 text-slate-355 mx-auto mb-2 animate-pulse" />
@@ -3301,7 +3406,27 @@ export default function CustomerPortal({ onClose }) {
                   <Building className="w-10 h-10 mx-auto mb-2 text-slate-200" />
                   <p className="text-sm font-bold text-slate-500">No active project found</p>
                 </div>
-              ) : activeProjectDetail.assignedEPCName ? (
+              ) : (activeProjectDetail.assignedEPCName || activeProjectDetail.assignedEpc) ? (
+                (() => {
+                  const needsToken = (activeProjectDetail.paymentStatus === 'pending' || (!activeProjectDetail.isTokenPaid && customer?.country?.toLowerCase() === 'india'));
+                  const registrationDocStep = activeProjectDetail.steps?.find(s => s.title.toLowerCase().includes('regsitraion docuement') || s.title.toLowerCase().includes('registration document'));
+                  const isDocUploaded = registrationDocStep ? registrationDocStep.status === 'completed' : !!activeProjectDetail.epcKycDocumentUrl;
+                  
+                  if (needsToken && (!activeProjectDetail.isTokenPaid && activeProjectDetail.paymentStatus !== 'paid')) {
+                      return (
+                          <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
+                            <Clock className="w-10 h-10 mx-auto mb-2 text-amber-300" />
+                            <p className="text-sm font-bold text-slate-600">Pending Actions Required</p>
+                            <p className="text-xs text-slate-500 mt-1">
+                              {!isDocUploaded 
+                                ? "Waiting for EPC to upload registration document." 
+                                : "Please complete your token payment from the Dashboard to unlock installer details."}
+                            </p>
+                          </div>
+                      );
+                  }
+                  
+                  return (
                 <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
                   <div className="flex items-center gap-4 border-b border-slate-100 pb-4 mb-4">
                     <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-yellow-100 to-amber-100 flex items-center justify-center text-yellow-700 font-black text-xl border border-yellow-200 shrink-0">
@@ -3542,6 +3667,8 @@ export default function CustomerPortal({ onClose }) {
                     );
                   })()}
                 </div>
+                );
+              })()
               ) : (
                 <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center">
                   <Clock className="w-8 h-8 text-slate-350 mx-auto mb-2 animate-pulse" />

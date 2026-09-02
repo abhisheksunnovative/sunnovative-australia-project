@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { MapPin, PhoneCall, Calendar, ArrowRight, UserCheck, CheckCircle, Edit2, Plus, X, ShieldCheck, XCircle, Clock, Zap , User } from "lucide-react";
+import { MapPin, PhoneCall, Calendar, ArrowRight, UserCheck, CheckCircle, Edit2, Plus, X, ShieldCheck, XCircle, Clock, Zap , User , Globe, ArrowLeft} from "lucide-react";
 import UnifiedAddLeadModal from "../UnifiedAddLeadModal";
 import { useAdminSettings } from "../../hooks/useAdminSettings";
 
@@ -18,7 +18,7 @@ const STATUS_RANK = {
   "Lost": 0
 };
 
-export default function BDELeadManagement({ bdeId, country, bdeType, filterTab = "self-leads" }) {
+function BDELeadManagementContent({ bdeId, country, bdeType, filterTab, multiCountry, onBack }) {
   const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
   const [isFreelancer, setIsFreelancer] = useState(bdeType?.toLowerCase().includes("freelance") || false);
   useEffect(() => {
@@ -484,8 +484,8 @@ Customer has been notified in Customer Portal to select their preferred installe
               : isRawSelected
               ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-300 shadow-md cursor-pointer'
               : allSlotsBlocked
-              ? 'bg-rose-50/70 border-rose-200 cursor-pointer hover:bg-rose-100/70'
-              : 'bg-emerald-50/40 border-emerald-200/80 cursor-pointer hover:bg-emerald-100/60'
+              ? 'bg-red-50 border-red-300 cursor-pointer hover:bg-red-100'
+              : 'bg-emerald-50 border-emerald-300 cursor-pointer hover:bg-emerald-100'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -501,7 +501,7 @@ Customer has been notified in Customer Portal to select their preferred installe
             {isPastDate ? (
               <span className="text-[9px] font-bold text-slate-400 italic">Past Date</span>
             ) : allSlotsBlocked ? (
-              <div className="text-[10px] font-bold px-1.5 py-1 rounded bg-rose-100 text-rose-700 border border-rose-200 text-center">
+              <div className="text-[10px] font-bold px-1.5 py-1 rounded bg-red-500 text-white border border-red-600 shadow-sm text-center">
                 🔴 Fully Booked
               </div>
             ) : daySlots.length > 0 ? (
@@ -556,6 +556,10 @@ Customer has been notified in Customer Portal to select their preferred installe
   // For eligibility tab: exclude leads already qualified (they move to My Prospects)
   // For other tabs: exclude installDateBooked leads (those are shown in prospects)
   const baseLeads = leads.filter(l => {
+    const leadCountry = (l.country || "australia").toLowerCase();
+    const targetCountry = (country || "").toLowerCase();
+    if (targetCountry && leadCountry !== targetCountry) return false;
+
     if (l.status === 'Converted' || l.status === 'Not Interested' || l.status === 'Lost' || l.status === 'RAW' || l.convertedProjectId) return false;
     if (filterTab === 'eligibility' && l.isEligibleForInstallation) return false; // Already qualified → in My Prospects
     return true;
@@ -1441,6 +1445,66 @@ Customer has been notified in Customer Portal to select their preferred installe
           onClose={() => { setIsAddModalOpen(false); fetchLeads(); }} 
         />
       )}
+    </div>
+  );
+}
+export default function BDELeadManagement({ bdeId, country, bdeType, filterTab = "self-leads" }) {
+  const [bdeCountries, setBdeCountries] = React.useState([]);
+  const [selectedCountry, setSelectedCountry] = React.useState(null);
+  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
+
+  React.useEffect(() => {
+    if (!bdeId) return;
+    fetch(`${API_BASE}/api/bde/${bdeId}`).then(r=>r.json()).then(d => {
+        if (d.success) {
+           let data = d.data || d.bde;
+           if (data) {
+             let arr = data.assignedCountries || [];
+             if (typeof arr === 'string') arr = arr.split(',').map(s=>s.trim()).filter(Boolean);
+             let finalArr = arr.map(c => c.toLowerCase());
+             if (finalArr.length === 0) finalArr = ["australia"]; // fallback
+             setBdeCountries(finalArr);
+             if (finalArr.length === 1) setSelectedCountry(finalArr[0].toLowerCase());
+           }
+        }
+    }).catch(console.error);
+  }, [bdeId]);
+
+  if (bdeCountries.length === 0) return <div className="p-8 text-center text-slate-500 font-medium">Loading BDE Profile...</div>;
+
+  if (bdeCountries.length > 1 && !selectedCountry) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto font-sans">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">
+            {filterTab === "eligibility" ? "Customer Eligibility" : "Lead Management"}
+          </h1>
+          <p className="text-slate-500">Select a country to view and manage leads.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {bdeCountries.map(c => (
+            <div 
+              key={c}
+              onClick={() => setSelectedCountry(c)}
+              className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-600 cursor-pointer transition-all flex flex-col items-center justify-center gap-3 group"
+            >
+              <Globe className="w-10 h-10 text-slate-400 group-hover:scale-110 transition-transform duration-300" />
+              <span className="font-bold text-slate-700 capitalize group-hover:text-blue-700">{c}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {bdeCountries.length > 1 && (
+        <button onClick={() => setSelectedCountry(null)} className="flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-800 transition mb-4 ml-6 mt-4">
+          <ArrowLeft className="w-4 h-4" /> Back to Countries
+        </button>
+      )}
+      <BDELeadManagementContent bdeId={bdeId} country={selectedCountry || country} bdeType={bdeType} filterTab={filterTab} multiCountry={bdeCountries.length > 1} onBack={() => setSelectedCountry(null)} />
     </div>
   );
 }

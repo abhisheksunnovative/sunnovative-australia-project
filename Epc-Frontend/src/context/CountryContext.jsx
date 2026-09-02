@@ -84,11 +84,12 @@ export function CountryProvider({ children, countryProp = "IN" }) {
   };
 
   const getDistricts = (countryName, stateName) => {
-    if (!countryName || !stateName) return [];
-    return allDistricts.filter(
-      d => d.country?.toLowerCase() === countryName.toLowerCase() &&
-           d.state?.toLowerCase() === stateName.toLowerCase()
-    ).map(d => d.district);
+    if (!countryName) return [];
+    let filtered = allDistricts.filter(d => d.country?.toLowerCase() === countryName.toLowerCase());
+    if (stateName) {
+      filtered = filtered.filter(d => d.state?.toLowerCase() === stateName.toLowerCase());
+    }
+    return [...new Set(filtered.map(d => d.district))];
   };
 
   return (

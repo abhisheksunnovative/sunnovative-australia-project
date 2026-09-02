@@ -207,7 +207,7 @@ export const QualificationScreen = ({
                   min={0}
                   value={minExperienceYears}
                   onChange={(e) =>
-                    setMinExperienceYears(parseInt(e.target.value) || 0)
+                    setMinExperienceYears((e.target.value === '' ? '' : parseInt(e.target.value)) || 0)
                   }
                   className="w-full text-xs bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-3.5 focus:bg-white focus:outline-hidden"
                 />
@@ -224,7 +224,7 @@ export const QualificationScreen = ({
                   min={1}
                   value={minInstallersRequired}
                   onChange={(e) =>
-                    setMinInstallersRequired(parseInt(e.target.value) || 1)
+                    setMinInstallersRequired((e.target.value === '' ? '' : parseInt(e.target.value)) || 1)
                   }
                   className="w-full text-xs bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-3.5 focus:bg-white focus:outline-hidden"
                 />
@@ -241,7 +241,7 @@ export const QualificationScreen = ({
                   min={1}
                   value={maxProjectsPerMonth}
                   onChange={(e) =>
-                    setMaxProjectsPerMonth(parseInt(e.target.value) || 1)
+                    setMaxProjectsPerMonth((e.target.value === '' ? '' : parseInt(e.target.value)) || 1)
                   }
                   className="w-full text-xs bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-3.5 focus:bg-white focus:outline-hidden"
                 />
@@ -277,7 +277,7 @@ export const QualificationScreen = ({
                     type="number"
                     required
                     value={minKW}
-                    onChange={(e) => setMinKW(parseInt(e.target.value) || 0)}
+                    onChange={(e) => setMinKW((e.target.value === '' ? '' : parseInt(e.target.value)) || 0)}
                     className="w-full text-xs bg-white border border-gray-150 rounded-lg p-2 font-mono"
                   />
                 </div>
@@ -289,7 +289,7 @@ export const QualificationScreen = ({
                     type="number"
                     required
                     value={maxKW}
-                    onChange={(e) => setMaxKW(parseInt(e.target.value) || 0)}
+                    onChange={(e) => setMaxKW((e.target.value === '' ? '' : parseInt(e.target.value)) || 0)}
                     className="w-full text-xs bg-white border border-gray-150 rounded-lg p-2 font-mono"
                   />
                 </div>

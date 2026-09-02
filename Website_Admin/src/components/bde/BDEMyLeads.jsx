@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { User, Mail, Phone, ArrowRight, UploadCloud, Search, Calendar, Filter } from "lucide-react";
+import { User, Mail, Phone, ArrowRight, UploadCloud, Search, Calendar, Filter , Globe, ArrowLeft} from "lucide-react";
 import { useAdminSettings } from "../../hooks/useAdminSettings";
 import UnifiedAddLeadModal from "../UnifiedAddLeadModal";
 import { Plus } from "lucide-react";
 
-export default function BDEMyLeads({ bdeId, country, bdeType, onTabChange }) {
+function BDEMyLeadsContent({ bdeId, country, bdeType, onTabChange, multiCountry, onBack }) {
   const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,7 +23,11 @@ export default function BDEMyLeads({ bdeId, country, bdeType, onTabChange }) {
       const data = await res.json();
       if (data.success) {
         // Only show RAW leads manually created by freelancer
-        let rawLeads = (data.leads || []).filter(l => l.status === "RAW" && l.history?.some(h => h.action.includes("Manually created")));
+        let rawLeads = (data.leads || []).filter(l => { const leadC = (l.country || "australia").toLowerCase(); const tgt = (country || "").toLowerCase(); if(tgt && leadC !== tgt) return false; return l.status === "RAW" && l.history?.some(h => h.action.includes("Manually created")); });
+    const leadCountry = (l.country || "australia").toLowerCase();
+    const targetCountry = (country || "").toLowerCase();
+    if (targetCountry && leadCountry !== targetCountry) return false;
+
         
         // Sort by days
         rawLeads = rawLeads.sort((a, b) => {
@@ -146,6 +150,64 @@ export default function BDEMyLeads({ bdeId, country, bdeType, onTabChange }) {
           onClose={() => { setIsAddModalOpen(false); fetchLeads(); }} 
         />
       )}
+    </div>
+  );
+}
+export default function BDEMyLeads({ bdeId, country, bdeType, onTabChange }) {
+  const [bdeCountries, setBdeCountries] = React.useState([]);
+  const [selectedCountry, setSelectedCountry] = React.useState(null);
+  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
+
+  React.useEffect(() => {
+    if (!bdeId) return;
+    fetch(`${API_BASE}/api/bde/${bdeId}`).then(r=>r.json()).then(d => {
+        if (d.success) {
+           let data = d.data || d.bde;
+           if (data) {
+             let arr = data.assignedCountries || [];
+             if (typeof arr === 'string') arr = arr.split(',').map(s=>s.trim()).filter(Boolean);
+             let finalArr = arr.map(c => c.toLowerCase());
+             if (finalArr.length === 0) finalArr = ["australia"]; // fallback
+             setBdeCountries(finalArr);
+             if (finalArr.length === 1) setSelectedCountry(finalArr[0].toLowerCase());
+           }
+        }
+    }).catch(console.error);
+  }, [bdeId]);
+
+  if (bdeCountries.length === 0) return <div className="p-8 text-center text-slate-500 font-medium">Loading BDE Profile...</div>;
+
+  if (bdeCountries.length > 1 && !selectedCountry) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto font-sans">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">My Leads</h1>
+          <p className="text-slate-500">Select a country to view and manage your leads.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {bdeCountries.map(c => (
+            <div 
+              key={c}
+              onClick={() => setSelectedCountry(c)}
+              className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-600 cursor-pointer transition-all flex flex-col items-center justify-center gap-3 group"
+            >
+              <Globe className="w-10 h-10 text-slate-400 group-hover:scale-110 transition-transform duration-300" />
+              <span className="font-bold text-slate-700 capitalize group-hover:text-blue-700">{c}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {bdeCountries.length > 1 && (
+        <button onClick={() => setSelectedCountry(null)} className="flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-800 transition mb-4 ml-6 mt-4">
+          <ArrowLeft className="w-4 h-4" /> Back to Countries
+        </button>
+      )}
+      <BDEMyLeadsContent bdeId={bdeId} country={selectedCountry || country} bdeType={bdeType} multiCountry={bdeCountries.length > 1} onTabChange={onTabChange} onBack={() => setSelectedCountry(null)} />
     </div>
   );
 }
