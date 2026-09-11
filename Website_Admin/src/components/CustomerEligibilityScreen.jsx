@@ -387,7 +387,7 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
       {show("billToKwRanges") && (
         <SectionCard title="Bill Amount → KW Auto-Suggest Rules" icon={<SlidersHorizontal className="w-5 h-5" />} badge={`${settings.eligibilityRules?.billToKwRanges?.length || 0} Ranges`}>
           <div className="space-y-3 pt-4">
-            <p className="text-xs text-slate-500">User ka monthly bill jis range mein aata hai, ussi hisaab se auto-suggest kW milega. Ye ranges admin set karta hai.</p>
+            <p className="text-xs text-slate-500">The auto-suggested kW is determined by the user's monthly bill range. These ranges are configured by the admin.</p>
             <div className="grid grid-cols-4 gap-2 px-2 py-1 bg-slate-50 rounded-lg">
               <span className="text-[11px] font-bold text-slate-400 uppercase">Min Bill (₹)</span>
               <span className="text-[11px] font-bold text-slate-400 uppercase">Max Bill (₹)</span>
@@ -427,8 +427,8 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
         <SectionCard title="State-wise Subsidy — Live View" icon={<MapPin className="w-5 h-5" />} badge={`${settings?.eligibilityRules?.stateSubsidies?.length || 0} States`}>
           <div className="space-y-3 pt-4">
             <p className="text-xs text-slate-500">
-              Har state ka 1kW, 2kW, 3kW ke liye total subsidy (Central + State) dikh raha hai.
-              Central subsidy formula-based hai: ₹30,000/kW upto 2kW, ₹18,000 3rd kW, max ₹78,000.
+              Displays the total subsidy (Central + State) for 1kW, 2kW, and 3kW per state.
+              Central subsidy is formula-based: ₹30,000/kW upto 2kW, ₹18,000 3rd kW, max ₹78,000.
             </p>
 
             {/* Legend */}
@@ -499,7 +499,7 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
           <div className="space-y-4 pt-4">
             <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs flex items-center justify-between text-blue-800">
               <span className="font-bold">⚡ AUTO-SYNC CONNECTED:</span>
-              <span className="text-[11px]">Ye list seedha <strong>Project Configuration</strong> se live fetch ho rahi hai ({selectedCountry.toUpperCase()}). Naye categories wahi add/edit karein.</span>
+              <span className="text-[11px]">This list is fetched live from <strong>Project Configuration</strong> ({selectedCountry.toUpperCase()}). Add or edit new categories there.</span>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -532,7 +532,7 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
               
               {(!settings.projectCategories || settings.projectCategories.length === 0) && (
                 <div className="col-span-full p-4 border border-dashed border-slate-300 rounded-xl text-center">
-                  <p className="text-slate-500 text-sm">Koi Project Category nahi mili.</p>
+                  <p className="text-slate-500 text-sm">No Project Categories found.</p>
                   <a href="#project-configuration" className="text-blue-600 text-xs font-semibold hover:underline mt-1 block">Project Configuration tab me jake add karein.</a>
                 </div>
               )}
@@ -615,7 +615,7 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
             <Field label="Units Per KW Per Month" value={settings.eligibilityRules?.kwDerivationRules?.unitsPerKW} onChange={(v) => updatePath(["eligibilityRules", "kwDerivationRules", "unitsPerKW"], v)} type="number" hint="1 KW panel ≈ 90 units/month" />
             <Field label="Safety Buffer Multiplier" value={settings.eligibilityRules?.kwDerivationRules?.safetyBuffer} onChange={(v) => updatePath(["eligibilityRules", "kwDerivationRules", "safetyBuffer"], v)} type="number" hint="1.1 = 10% extra capacity buffer" />
             <Field label="Round Up To Nearest (KW)" value={settings.eligibilityRules?.kwDerivationRules?.roundUpToNext} onChange={(v) => updatePath(["eligibilityRules", "kwDerivationRules", "roundUpToNext"], v)} type="number" hint="0.5 = round to nearest 0.5 KW" />
-            <Field label="Max Auto-Suggest KW" value={settings.eligibilityRules?.kwDerivationRules?.maxAutoSuggestKW} onChange={(v) => updatePath(["eligibilityRules", "kwDerivationRules", "maxAutoSuggestKW"], v)} type="number" hint="System se zyada suggest nahi karega" />
+            <Field label="Max Auto-Suggest KW" value={settings.eligibilityRules?.kwDerivationRules?.maxAutoSuggestKW} onChange={(v) => updatePath(["eligibilityRules", "kwDerivationRules", "maxAutoSuggestKW"], v)} type="number" hint="System will not suggest beyond this limit" />
           </div>
         </SectionCard>
       )}
@@ -628,7 +628,7 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
               <p className="font-bold mb-1">⚡ MANAGED IN SUBSIDY SETTINGS</p>
               <p className="text-xs">
                 {selectedCountry.toUpperCase()} ke liye Subsidy aur STC Rebate ke rules ab <strong>Country Subsidy Management</strong> tab se auto-fetch ho rahe hain. 
-                Yahan par manual editing disable kar di gayi hai taaki system me koi data conflict na ho.
+                Manual editing is disabled here to prevent data conflicts in the system.
               </p>
               <a 
                 href="#subsidy-management"
@@ -661,8 +661,8 @@ export const CustomerEligibilityContent = ({ section = null, selectedCountryObj,
                 hint="Isse zyada due ho toh action lena" 
               />
             </div>
-            <Toggle label="Block Application if Exceeds" checked={settings.eligibilityRules?.dueAmountThreshold?.blockIfExceeds} onChange={(v) => updatePath(["eligibilityRules", "dueAmountThreshold", "blockIfExceeds"], v)} desc="Hard block — application submit nahi hogi" />
-            <Toggle label="Show Warning if Exceeds" checked={settings.eligibilityRules?.dueAmountThreshold?.showWarningIfExceeds} onChange={(v) => updatePath(["eligibilityRules", "dueAmountThreshold", "showWarningIfExceeds"], v)} desc="Soft warning — apply kar sakta hai phir bhi" />
+            <Toggle label="Block Application if Exceeds" checked={settings.eligibilityRules?.dueAmountThreshold?.blockIfExceeds} onChange={(v) => updatePath(["eligibilityRules", "dueAmountThreshold", "blockIfExceeds"], v)} desc="Hard block — prevents application submission" />
+            <Toggle label="Show Warning if Exceeds" checked={settings.eligibilityRules?.dueAmountThreshold?.showWarningIfExceeds} onChange={(v) => updatePath(["eligibilityRules", "dueAmountThreshold", "showWarningIfExceeds"], v)} desc="Soft warning — allows application submission with a warning" />
           </div>
         </SectionCard>
       )}

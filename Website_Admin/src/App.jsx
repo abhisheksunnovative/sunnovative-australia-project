@@ -35,6 +35,7 @@ import { DiscomManagementScreen } from "./components/DiscomManagementScreen";
 import BrandManagementScreen from "./components/BrandManagementScreen";
 import ProductsScreen from "./components/ProductsScreen";
 import ProjectsScreen from "./components/ProjectsScreen";
+import BillTemplateManagementScreen from "./components/BillTemplateManagementScreen";
 import CountryWebsiteScreen from "./components/country/CountryWebsiteScreen";
 import StcManagementDashboard from "./components/country/StcManagementDashboard";
 
@@ -261,6 +262,9 @@ export default function App() {
   // VIEW OUTLET ROUTING ENGINE
   const renderTabContent = () => {
     switch (currentTab) {
+      case "bill-templates":
+        return <BillTemplateManagementScreen />;
+        
       case "country-settings":
         return <UnifiedCountrySettings />;
 

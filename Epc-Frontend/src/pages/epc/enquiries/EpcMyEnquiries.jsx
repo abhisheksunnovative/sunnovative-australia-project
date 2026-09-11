@@ -263,14 +263,14 @@ const EpcMyEnquiries = () => {
             <label className="block text-gray-400 text-xs mb-1 font-medium">Project Type</label>
             <select value={filterType} onChange={e => setFilterType(e.target.value)} className={inputCls}>
               <option value="">All Types</option>
-              {projectTypes.map(p => <option key={p} value={p}>{p}</option>)}
+              {projectTypes.map((p, idx) => <option key={p + idx} value={p}>{p}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-gray-400 text-xs mb-1 font-medium">Country</label>
             <select value={filterCountry} onChange={e => setFilterCountry(e.target.value)} className={inputCls}>
               <option value="">All Countries</option>
-              {getCountries ? getCountries().map(c => <option key={c} value={c}>{c}</option>) : (
+              {getCountries ? getCountries().map((c, idx) => <option key={c + idx} value={c}>{c}</option>) : (
                 <>
                   <option value="India">🇮🇳 India</option>
                   <option value="Australia">🇦🇺 Australia</option>
@@ -288,14 +288,14 @@ const EpcMyEnquiries = () => {
               disabled={locationsLoading}
             >
               <option value="">All</option>
-              {getStates(epc?.country).map(s => <option key={s} value={s}>{s}</option>)}
+              {getStates(epc?.country).map((s, idx) => <option key={s + idx} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-gray-400 text-xs mb-1 font-medium">District</label>
             <select value={filterDist} onChange={e => setFilterDist(e.target.value)} className={inputCls}>
               <option value="">All Districts</option>
-              {getDistricts(filterCountry || epc?.country, filterState || "").map(d => <option key={d} value={d}>{d}</option>)}
+              {getDistricts(filterCountry || epc?.country, filterState || "").map((d, idx) => <option key={d + idx} value={d}>{d}</option>)}
             </select>
           </div>
           <div>

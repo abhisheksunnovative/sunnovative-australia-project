@@ -60,7 +60,7 @@ const CreateLeadModal = ({ onClose, onSuccess, solarTypes, filterCountry }) => {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const handleSubmit = async () => {
-    if (!form.name.trim()) { setError("Name required hai"); return; }
+    if (!form.name.trim()) { setError("Name is required"); return; }
     if (!form.mobile.trim() || form.mobile.length !== 10) { setError("Valid 10-digit mobile number do"); return; }
     setLoading(true); setError("");
     try {
@@ -71,7 +71,7 @@ const CreateLeadModal = ({ onClose, onSuccess, solarTypes, filterCountry }) => {
       });
       const data = await res.json();
       if (data.success) { onSuccess(); onClose(); }
-      else setError(data.message || "Lead create nahi hua");
+      else setError(data.message || "Failed to create lead");
     } catch { setError("Network error"); }
     finally { setLoading(false); }
   };
@@ -255,7 +255,7 @@ const UploadModal = ({ onClose, onSuccess }) => {
   const [error, setError] = useState("");
 
   const handleUpload = async () => {
-    if (!file) { setError("File select karo"); return; }
+    if (!file) { setError("Please select a file"); return; }
     setLoading(true); setError("");
     try {
       const form = new FormData();
@@ -474,7 +474,7 @@ const LeadScreen = ({ uploadSource = 'website', injectedFilters = null, hideInje
       if (statsRes.success && statsRes.data) {
         setStats(statsRes.data);
       }
-    } catch (e) { console.error(e); showToast("error", "Leads load nahi hue"); }
+    } catch (e) { console.error(e); showToast("error", "Failed to load leads"); }
     finally { setLoading(false); }
   }, [search, statusFilter, typeFilter, filterCountry, filterState, filterDistrict, assignedBde, cardFilter, uploadSource]);
 
@@ -679,7 +679,7 @@ const LeadScreen = ({ uploadSource = 'website', injectedFilters = null, hideInje
       ) : leads.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-48 gap-3 text-slate-400">
           <Users className="w-10 h-10 opacity-30" />
-          <p className="text-sm font-medium">Koi lead nahi mila</p>
+          <p className="text-sm font-medium">No leads found</p>
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">

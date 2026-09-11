@@ -92,3 +92,15 @@ export const deleteBrand = async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to delete brand" });
   }
 };
+export const uploadLogo = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+    const fileUrl = `/uploads/${req.file.filename}`;
+    res.status(200).json({ success: true, url: fileUrl, message: 'Logo uploaded successfully' });
+  } catch (error) {
+    console.error('Error uploading logo:', error);
+    res.status(500).json({ success: false, message: 'Failed to upload logo' });
+  }
+};

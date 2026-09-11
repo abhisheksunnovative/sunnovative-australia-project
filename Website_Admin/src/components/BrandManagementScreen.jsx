@@ -153,6 +153,31 @@ const BrandManagementScreen = () => {
     setIsBrandModalOpen(true);
   };
 
+  
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('logo', file);
+    try {
+      const res = await fetch('/api/brands/upload-logo', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success) {
+        setBrandForm(prev => ({ ...prev, logoUrl: data.url }));
+        alert('Logo uploaded successfully');
+      } else {
+        alert(data.message || 'Failed to upload logo');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error uploading logo');
+    }
+  };
+
+
   const handleBrandSave = async (e) => {
     e.preventDefault();
     try {
@@ -435,7 +460,7 @@ const BrandManagementScreen = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Logo URL</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Logo (URL or File Upload)</label>
                 <input
                   type="url"
                   value={brandForm.logoUrl}
@@ -489,3 +514,6 @@ const BrandManagementScreen = () => {
 };
 
 export default BrandManagementScreen;
+
+
+

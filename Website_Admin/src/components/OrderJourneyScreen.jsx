@@ -189,7 +189,7 @@ const StepCard = ({ step, index, totalSteps, onUpdate, onRemove, onMoveUp, onMov
           <div className="bg-white p-3 border border-slate-200 rounded-xl space-y-2">
             <div className="flex justify-between items-center">
               <label className="text-xs font-black text-slate-700 uppercase tracking-wider">
-                ⚡ Allowed Executor Roles (Kaun Kaun Step Execute Kar Sakta Hai)
+                ⚡ Allowed Executor Roles 
               </label>
               <span className="text-[10px] text-slate-400 font-bold">Multiple Select Allowed</span>
             </div>
@@ -199,10 +199,10 @@ const StepCard = ({ step, index, totalSteps, onUpdate, onRemove, onMoveUp, onMov
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1">
               {[
-                { role: "customer", label: "👤 Customer", desc: "Customer portal se execute kar sakta hai" },
-                { role: "epc-partner", label: "⚡ EPC Partner", desc: "EPC Installer execute kar sakta hai" },
+                { role: "customer", label: "👤 Customer", desc: "Can be executed from the customer portal" },
+                { role: "epc-partner", label: "⚡ EPC Partner", desc: "Can be executed by the EPC Installer" },
                 { role: "company", label: "🏢 Admin / Company", desc: "EmergeSun Admin approval/execution" },
-                { role: "bde", label: "💼 BDE Executive", desc: "BDE customer ke behalf par execute kar sakta hai" }
+                { role: "bde", label: "💼 BDE Executive", desc: "Can be executed by BDE on behalf of the customer" }
               ].map(({ role, label, desc }) => {
                 const currentRoles = step.allowedRoles && step.allowedRoles.length > 0 
                   ? step.allowedRoles 
@@ -1181,7 +1181,7 @@ export const OrderJourneyScreen = ({ selectedCountry: propCountry, readOnly = fa
   if (!settings) return (
     <div className="flex flex-col items-center justify-center h-96 gap-4 text-red-500">
       <AlertCircle className="w-8 h-8" />
-      <p className="text-sm font-medium">Could not load settings. Backend check karo.</p>
+      <p className="text-sm font-medium">Could not load settings. Please check the backend.</p>
       <button onClick={fetchSettings} className="text-xs px-4 py-2 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition">Retry</button>
     </div>
   );
@@ -1342,7 +1342,7 @@ export const OrderJourneyScreen = ({ selectedCountry: propCountry, readOnly = fa
             label="Auto Progress on Completion"
             checked={settings.globalSettings?.autoProgressOnCompletion}
             onChange={(v) => setSettings(prev => { const next = clone(prev); next.globalSettings.autoProgressOnCompletion = v; return next; })}
-            desc="Step complete hone pe auto next step pe move karo"
+            desc="Automatically move to the next step upon completion"
           />
           <Toggle
             label="Require Evidence at Each Step"

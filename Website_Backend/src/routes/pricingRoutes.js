@@ -1,9 +1,10 @@
-﻿import express from "express";
-import { getCapacities, getPricings, createPricing, updatePricing, deletePricing, resolvePricing } from "../controllers/pricingController.js";
+import express from "express";
+import { getCapacities, getPricings, createPricing, updatePricing, deletePricing, resolvePricing, getAvailableKws } from "../controllers/pricingController.js";
 
 const router = express.Router();
 
 router.get("/capacities", getCapacities);
+router.get("/available-kws", getAvailableKws);
 router.get("/", getPricings);
 router.post("/", createPricing);
 router.put("/:id", updatePricing);

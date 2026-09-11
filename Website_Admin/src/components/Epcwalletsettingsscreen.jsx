@@ -1,6 +1,6 @@
 /**
  * EpcWalletSettingsScreen — Admin panel tab
- * Boss yahan se configure karta hai:
+ * Admin configurations:
  *  - Price per KW credit
  *  - Free trial KW limit per EPC partner
  *  - Recharge packages (name, KW, price, discount)
@@ -167,7 +167,7 @@ export const EpcWalletSettingsScreen = () => {
           </div>
           <div>
             <h1 className="text-lg font-bold text-slate-800">EPC Wallet Settings</h1>
-            <p className="text-xs text-slate-500">KW credit pricing, free trial, aur recharge packages configure karo</p>
+            <p className="text-xs text-slate-500">Configure kW credit pricing, free trials, and recharge packages</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -184,7 +184,7 @@ export const EpcWalletSettingsScreen = () => {
       {usingFallback && (
         <div className="flex items-start gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
           <Info className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>Backend connect nahi hua — default settings dikh rahi hain. Save karne pe store ho jayega.</span>
+          <span>Backend not connected — displaying default settings. Will be stored upon saving.</span>
         </div>
       )}
 
@@ -249,7 +249,7 @@ export const EpcWalletSettingsScreen = () => {
             value={settings?.minRechargeKW}
             onChange={(v) => update('minRechargeKW', v)}
             type="number"
-            hint="EPC isse kam KW purchase nahi kar sakta"
+            hint="EPC cannot purchase less than this kW amount"
           />
           <Field
             label="Maximum Recharge (KW)"
@@ -270,7 +270,7 @@ export const EpcWalletSettingsScreen = () => {
           label="Auto Refill Enabled"
           checked={settings?.autoRefillEnabled}
           onChange={(v) => update('autoRefillEnabled', v)}
-          desc="Jab balance low ho tab automatically minimum pack purchase karo (payment gateway integration needed)"
+          desc="Automatically purchase minimum pack when balance is low (payment gateway integration needed)"
         />
       </div>
 
@@ -416,7 +416,7 @@ export const EpcWalletSettingsScreen = () => {
         </div>
         <p className="text-[11px] text-slate-400 mt-3 flex items-center gap-1">
           <Info className="w-3 h-3" />
-          Project types change karne ke liye backend mein PROJECT_TYPES array update karo (models/EpcWallet.js).
+          Update the PROJECT_TYPES array in the backend to change project types (models/EpcWallet.js).
         </p>
       </div>
 

@@ -1,22 +1,36 @@
 import React from "react";
 import {
-  ClipboardList, ClipboardCheck, Ruler, Hammer,
-  Zap, FileText, Users, TrendingUp, CheckCircle, Sun,
-  ArrowRight
+  FileText, Sun, CalendarCheck, Hammer,
+  ClipboardList, CheckCircle, Zap, Ruler, Users, TrendingUp,
+  Receipt
 } from "lucide-react";
 
-const ICON_POOL = [
-  <ClipboardList className="w-6 h-6 text-solar-sky" />,
-  <ClipboardCheck className="w-6 h-6 text-solar-yellow-dark" />,
-  <Ruler className="w-6 h-6 text-[#10B981]" />,
-  <Hammer className="w-6 h-6 text-indigo-600" />,
-  <CheckCircle className="w-6 h-6 text-purple-600" />,
-  <Zap className="w-6 h-6 text-orange-500" />,
-  <FileText className="w-6 h-6 text-teal-500" />,
-  <Users className="w-6 h-6 text-rose-500" />,
-  <TrendingUp className="w-6 h-6 text-amber-500" />,
-  <Sun className="w-6 h-6 text-yellow-500" />,
-];
+const getIconForStep = (title) => {
+  const t = title.toLowerCase();
+  if (t.includes("bill") || t.includes("electricity")) {
+    return <img src="/assets/journey/bill.jpg" alt="Electricity Bill" className="w-full h-full object-cover rounded-3xl" />;
+  }
+  if (t.includes("capacity") || t.includes("size") || t.includes("recommend")) {
+    return <img src="/assets/journey/capacity.jpg" alt="Solar Capacity" className="w-full h-full object-cover rounded-3xl" />;
+  }
+  if (t.includes("eligibility") || t.includes("subsidy")) {
+    return <img src="/assets/journey/subsidy.jpg" alt="Subsidy Eligibility" className="w-full h-full object-cover rounded-3xl" />;
+  }
+  if (t.includes("property") || t.includes("occupancy")) {
+    return <img src="/assets/journey/property.jpg" alt="Property Details" className="w-full h-full object-cover rounded-3xl" />;
+  }
+  if (t.includes("verify") || t.includes("document") || t.includes("approve")) {
+    return <img src="/assets/journey/verify.jpg" alt="Verify Documents" className="w-full h-full object-cover rounded-3xl" />;
+  }
+  if (t.includes("date") || t.includes("schedule") || t.includes("calendar") || t.includes("slot")) {
+    return <img src="/assets/journey/calendar.jpg" alt="Installation Date" className="w-full h-full object-cover rounded-3xl" />;
+  }
+  if (t.includes("install") || t.includes("construct") || t.includes("commission")) {
+    return <img src="/assets/journey/house.jpg" alt="Solar Installation" className="w-full h-full object-cover rounded-3xl" />;
+  }
+  // Default fallback
+  return <img src="/assets/journey/capacity.jpg" alt="Solar Step" className="w-full h-full object-cover rounded-3xl" />;
+};
 
 export default function OrderJourneySteps({ journeySettings, selectedPt, settings }) {
   // ── Derive steps from Order Journey ─────────────────────────────────────────
@@ -34,7 +48,7 @@ export default function OrderJourneySteps({ journeySettings, selectedPt, setting
           .slice(0, 6)
           .map((step, idx) => ({
             step: `Step ${idx + 1}`,
-            icon: ICON_POOL[idx % ICON_POOL.length],
+            icon: getIconForStep(step.title),
             title: step.title,
             description: step.description,
             badge: step.sla || "Varies"
@@ -88,7 +102,7 @@ export default function OrderJourneySteps({ journeySettings, selectedPt, setting
               </div>
 
               {/* Icon Container */}
-              <div className="w-16 h-16 rounded-2xl bg-white/80 shadow-md border border-white/40 flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-105 group-hover:rotate-3 relative">
+              <div className="w-24 h-24 rounded-3xl bg-white shadow-lg border border-slate-100 flex items-center justify-center mb-6 transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-1 relative">
                 {item.icon}
 
                 {/* Micro timing tag */}

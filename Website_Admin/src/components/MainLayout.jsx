@@ -82,6 +82,11 @@ export const MainLayout = ({
   const allMenuItems = [
     { name: "Overview", id: "dashboard", icon: <LayoutDashboard className="w-5 h-5" /> },
     {
+      name: "Bill Templates (OCR)",
+      id: "bill-templates",
+      icon: <FileCheck className="w-5 h-5" />,
+    },
+    {
       name: "Platform Analytics",
       id: "platform-analytics",
       icon: <Activity className="w-5 h-5" />,

@@ -33,7 +33,8 @@ Schema:
   "solarExportKwh": "number (feed-in or exported solar in kWh, if any)",
   "solarExportCredit": "number (feed-in or exported solar credit amount, if any)",
   "tariffType": "string (e.g. Time of Use (TOU), Single Rate, Controlled Load, etc. Peak/Off-Peak implies TOU)",
-  "meterType": "string (e.g. Smart Meter, Interval Meter, Basic Meter)"
+  "meterType": "string (e.g. Smart Meter, Interval Meter, Basic Meter)",
+  "customerType": "string (e.g. Residential or Commercial/Business)"
 }
 `;
 
@@ -98,6 +99,7 @@ Schema:
     solarExportKwh: parsed.solarExportKwh,
     solarExportCredit: parsed.solarExportCredit,
     tariffType: parsed.tariffType,
-    meterType: parsed.meterType
+    meterType: parsed.meterType,
+    customerType: parsed.customerType
   };
 };

@@ -4,6 +4,12 @@ import dotenv from "dotenv";
 import { connectDB } from "./src/config/db.js";
 import { scheduleDemandSupplyJob } from "./src/jobs/demandSupplyJob.js";
 import { scheduleOverdueTrackerJob } from "./src/jobs/overdueTrackerJob.js";
+//-----new scaong module import 
+import { scanLightBillV2 } from './src/controllers/lightBillScanControllerV2.js';
+import { getExtractionStatus } from './src/controllers/extractionControllerV2.js';
+
+//worker thread for light bill scanning
+import { startOcrWorker } from './src/jobs/ocrWorker.js';
 
 // ── Website Settings Routes ───────────────────────────────────────────────────
 import websiteSettingsRoutes from "./src/routes/websiteSettingsRoutes.js";
@@ -128,6 +134,17 @@ app.post("/api/upload-file", (req, res) => {
     res.json({ success: true, fileUrl });
   });
 });
+
+
+
+//new scannig routes 
+//______light bill api V2 (New Async Scanner) -------//
+app.post("/api/v2/light-bill/scan", upload.single("billFile"), scanLightBillV2);
+app.get("/api/v2/light-bill/result/:id", getExtractionStatus);
+
+// Admin Panel Bill Templates CRUD API
+import billTemplateRoutes from "./src/routes/billTemplateRoutes.js";
+app.use("/api/v2/bill-templates", billTemplateRoutes);
 
 // ══════════════════════════════════════════════════════════════════════════
 // WEBSITE / ADMIN SETTINGS ROUTES
@@ -260,6 +277,11 @@ app.listen(port, () => {
   // Start background jobs
   scheduleDemandSupplyJob();
   scheduleOverdueTrackerJob();
+
+  
+  // Start naya V2 OCR Background Worker
+  startOcrWorker();
+  console.log("✅ OCR Background Worker is listening for bills...");
 });// trigger nodemon
 
 // Force restart 5

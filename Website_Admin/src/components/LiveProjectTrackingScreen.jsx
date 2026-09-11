@@ -556,7 +556,7 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
       const data = await res.json();
       if (data.success) setOrder(data.data);
     } catch {
-      showToast("error", "Order load nahi hua");
+      showToast("error", "Failed to load order");
     } finally {
       if (!background) setLoading(false);
     }
@@ -637,7 +637,7 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
         await fetchOrder();
         onRefreshList?.();
       } else {
-        showToast("error", data.message || "Step complete nahi hua");
+        showToast("error", data.message || "Failed to complete step");
       }
     } catch {
       showToast("error", "Network error");
@@ -659,7 +659,7 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
     return (
       <div className="flex flex-col items-center justify-center h-96 gap-3 text-red-400">
         <AlertCircle className="w-8 h-8" />
-        <p className="text-sm font-medium">Order load nahi hua</p>
+        <p className="text-sm font-medium">Failed to load order</p>
         <button onClick={onBack} className="text-xs px-4 py-2 bg-slate-100 rounded-xl hover:bg-slate-200">Back to List</button>
       </div>
     );
@@ -895,7 +895,7 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
           <div className="flex-1 text-xs text-amber-700">
             <span className="font-bold">Pending: </span>{order.pendingActionAlert}
             <span className="ml-1 text-amber-500">
-              ({ASSIGNED_TO_CONFIG[order.pendingActionFor]?.label || "Company"} ko karna hai)
+              ({ASSIGNED_TO_CONFIG[order.pendingActionFor]?.label || "Company"} action required)
             </span>
           </div>
         </div>
@@ -1156,7 +1156,7 @@ export const LiveProjectTrackingScreen = () => {
       ) : orders.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 gap-3 text-slate-400">
           <GitBranch className="w-10 h-10 opacity-30" />
-          <p className="text-sm font-medium">Koi project order nahi mila</p>
+          <p className="text-sm font-medium">No project orders found</p>
           <p className="text-xs">Naya lead aate hi yahan dikhega</p>
         </div>
       ) : (

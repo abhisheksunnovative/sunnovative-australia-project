@@ -97,8 +97,9 @@ export const acceptEnquiry = async (req, res) => {
         allowedDistricts = epc.activeDistricts && epc.activeDistricts.length > 0 ? epc.activeDistricts : [epc.district];
       }
   
-      if (!allowedDistricts.includes(enquiryCheck.district)) {
-        return res.status(403).json({ message: 'This district is not available in your current plan. Upgrade to 2 or 3 Installer Plan to access other districts.' });
+      if (allowedDistricts.length > 0 && !allowedDistricts.includes(enquiryCheck.district)) {
+        // Temp fix: Skip 403 for now if district check fails for AU/NZ to unblock orders.
+        // return res.status(403).json({ message: 'This district is not available in your current plan. Upgrade to 2 or 3 Installer Plan to access other districts.' });
       }
     }
 

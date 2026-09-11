@@ -247,7 +247,7 @@ export const scanLightBill = async (req, res) => {
           // Identity
           retailer:         parsed.retailer,
           distributor:      parsed.distributor,
-          discom:           parsed.distributor, // alias for frontend
+          discom:           parsed.retailer, // alias for frontend
           accountNumber:    parsed.accountNumber,
           nmiNumber:        parsed.nmiNumber,
           consumerName:     parsed.customerName,

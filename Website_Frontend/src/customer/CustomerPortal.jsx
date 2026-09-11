@@ -3381,6 +3381,63 @@ export default function CustomerPortal({ onClose }) {
                 </div>
                 );
               })()
+              ) : activeProjectDetail.recommendedEpcs?.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 mb-4">
+                    <p className="text-sm font-bold text-yellow-900">Your BDE has recommended these installers for you. Please select one to proceed.</p>
+                  </div>
+                  {activeProjectDetail.recommendedEpcs.map((epc, i) => (
+                    <div key={i} className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-yellow-400 transition cursor-pointer relative shadow-sm">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-100 to-amber-100 flex items-center justify-center font-black text-yellow-700 text-lg shrink-0 border border-yellow-200">
+                          <Building className="w-6 h-6 text-yellow-700" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-black text-slate-800 text-lg">{epc.companyName}</h4>
+                            {epc.rating && <span className="text-xs font-black text-yellow-600 bg-yellow-50 px-2 py-1 rounded-lg border border-yellow-100">★ {epc.rating}</span>}
+                          </div>
+                          <p className="text-xs text-slate-500 mt-0.5">Contact: {epc.contactPerson || "Installer Representative"}</p>
+                          
+                          {epc.projectPrice ? (
+                            <p className="text-sm font-black text-emerald-600 mt-2">
+                              Price: {country === 'australia' || country === "AU" ? `$${epc.projectPrice.toLocaleString()} AUD` : `₹${epc.projectPrice.toLocaleString()}`}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-slate-400 italic mt-2">Pricing: Contact for Quote</p>
+                          )}
+                          
+                          <button 
+                            onClick={async () => {
+                              if(window.confirm(`Are you sure you want to select ${epc.companyName} as your installer?`)) {
+                                try {
+                                  const res = await authFetch(`/api/customer/projects/${activeProjectDetail._id}/select-epc`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ epcId: epc.epcId || epc._id })
+                                  });
+                                  const d = await res.json();
+                                  if (d.success) {
+                                    alert(`Successfully accepted ${epc.companyName}!`);
+                                    fetchActiveProjectDetail(activeProjectDetail._id);
+                                    fetchProjects();
+                                  } else {
+                                    alert(d.message || "Failed to accept EPC");
+                                  }
+                                } catch (e) {
+                                  alert("Error connecting to server");
+                                }
+                              }
+                            }}
+                            className="mt-4 w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2.5 rounded-xl transition-all"
+                          >
+                            Accept Installer
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center">
                   <Clock className="w-8 h-8 text-slate-355 mx-auto mb-2 animate-pulse" />

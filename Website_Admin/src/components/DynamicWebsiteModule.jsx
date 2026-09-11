@@ -182,7 +182,7 @@ export default function DynamicWebsiteModule() {
             <div className="flex justify-between items-center mb-4">
               <div>
                 <h2 className="text-lg font-bold">Project Types, Journey Flowchart &amp; Overrides</h2>
-                <p className="text-xs text-slate-500 mt-1">Har project type ke liye hero header, FAQs, footer, aur customer journey flowchart customizable hai.</p>
+                <p className="text-xs text-slate-500 mt-1">The hero header, FAQs, footer, and customer journey flowchart are customizable for each project type.</p>
               </div>
 
               {/* Dropdown: Add only from OrderJourney-defined slugs */}
@@ -238,7 +238,7 @@ export default function DynamicWebsiteModule() {
                       <div className="flex items-center gap-2 mb-3 p-2 bg-red-100 rounded-lg border border-red-200">
                         <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
                         <span className="text-xs font-semibold text-red-700">
-                          ⚠️ Slug "<code>{pt.type}</code>" Order Journey se match nahi ho raha!
+                          ⚠️ Slug "<code>{pt.type}</code>" does not match the Order Journey!
                         </span>
                       </div>
                     )}

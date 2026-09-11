@@ -601,11 +601,11 @@ export const getAvailableEpcs = async (req, res) => {
         // Find EPCs who have submitted rates for these brands in ProjectPricing
         const { default: ProjectPricing } = await import('../models/ProjectPricing.js');
         const pricingDocs = await ProjectPricing.find({
-          dynamicBrands: {
-            $elemMatch: {
-              brandIds: { $in: brandIds }
-            }
-          }
+          $or: [
+            { dynamicBrands: { $elemMatch: { brandIds: { $in: brandIds } } } },
+            { solarPanel: { $in: brandIds } },
+            { inverter: { $in: brandIds } }
+          ]
         });
         
         const epcIdsWithRates = pricingDocs.map(p => p.epcId).filter(id => id);
@@ -798,11 +798,11 @@ export const getAvailableEpcs = async (req, res) => {
 
     if (kw && projectType) {
       const { default: ProjectPricing } = await import('../models/ProjectPricing.js');
-      const searchPattern = '^' + projectType.replace('-solar', '') + '(-solar)?$';
+      const baseType = projectType.toLowerCase().replace(' solar', '').replace('-solar', '').replace(' ', '(-| )?');
       const pricingDocs = await ProjectPricing.find({
         epcId: { $in: finalEpcsObj.map(e => e._id) },
         systemSizeKW: Number(kw),
-        projectType: new RegExp(searchPattern, 'i')
+        projectType: new RegExp(baseType, 'i')
       }).lean();
 
       const brandIdStrings = brandIds.map(id => id.toString());

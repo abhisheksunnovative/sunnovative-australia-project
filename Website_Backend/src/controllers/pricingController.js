@@ -221,3 +221,22 @@ export const resolvePricing = async (req, res) => {
     res.status(500).json({ success: false });
   }
 };
+export const getAvailableKws = async (req, res) => {
+  try {
+    const filter = {};
+    if (req.query.country) {
+        let codes = [req.query.country.toLowerCase()];
+        if(codes[0] === 'australia') codes.push('au');
+        if(codes[0] === 'india') codes.push('in');
+        filter.country = { $in: codes };
+    }
+    if (req.query.projectType) filter.projectType = { $regex: new RegExp('^' + req.query.projectType + '$', 'i') };
+    
+    const pricings = await ProjectPricing.find(filter).select('systemSizeKW');
+    const kws = [...new Set(pricings.map(p => p.systemSizeKW))].sort((a, b) => a - b);
+    res.json({ success: true, data: kws });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
