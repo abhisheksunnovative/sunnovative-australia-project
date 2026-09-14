@@ -15,14 +15,16 @@ export default defineConfig({
         short_name: 'Emergesun EPC',
         description: 'Emergesun Solar Installer & EPC Web App',
         theme_color: '#ffffff',
+        background_color: '#ffffff',
+        display: 'standalone',
         icons: [
           {
-            src: 'logo.png', // Fallback
+            src: 'icon-192.png',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: 'logo.png', // Fallback
+            src: 'icon-512.png',
             sizes: '512x512',
             type: 'image/png'
           }

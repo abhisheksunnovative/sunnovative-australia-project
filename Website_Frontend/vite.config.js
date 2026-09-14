@@ -16,14 +16,16 @@ export default defineConfig(() => {
           short_name: 'Emergesun',
           description: 'Emergesun Customer Portal Web App',
           theme_color: '#ffffff',
+          background_color: '#ffffff',
+          display: 'standalone',
           icons: [
             {
-              src: 'logo.png', // Fallback, you may need a 192x192 icon
+              src: 'icon-192.png',
               sizes: '192x192',
               type: 'image/png'
             },
             {
-              src: 'logo.png', // Fallback, you may need a 512x512 icon
+              src: 'icon-512.png',
               sizes: '512x512',
               type: 'image/png'
             }
