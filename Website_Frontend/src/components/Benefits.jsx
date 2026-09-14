@@ -18,11 +18,11 @@ export default function Benefits({ onScrollToForm, projectTypes, selectedPt, set
   const { country } = useCountry();
   const isAU = country === "AU";
   const defaultIcons = [
-    <Landmark className="w-8 h-8 text-amber-600" />,
-    <PiggyBank className="w-8 h-8 text-sky-600" />,
-    <Award className="w-8 h-8 text-emerald-600" />,
-    <FileText className="w-8 h-8 text-indigo-600" />,
-    <Cable className="w-8 h-8 text-rose-600" />
+    <Landmark className="w-8 h-8 text-solar-yellow" />,
+    <PiggyBank className="w-8 h-8 text-solar-navy" />,
+    <Award className="w-8 h-8 text-solar-green" />,
+    <FileText className="w-8 h-8 text-solar-navy" />,
+    <Cable className="w-8 h-8 text-solar-yellow" />
   ];
 
   const rawItems = settings?.benefits?.items || [];
@@ -36,7 +36,7 @@ export default function Benefits({ onScrollToForm, projectTypes, selectedPt, set
       }))
     : [
         {
-          icon: <Landmark className="w-8 h-8 text-amber-600" />,
+          icon: <Landmark className="w-8 h-8 text-solar-yellow" />,
           title: "Government Subsidy Support",
           guarantee: "Up to ₹78,000 Direct Return",
           subtitle:
@@ -44,7 +44,7 @@ export default function Benefits({ onScrollToForm, projectTypes, selectedPt, set
           badge: "Rajkot Authorized Geda vendor"
         },
         {
-          icon: <PiggyBank className="w-8 h-8 text-sky-600" />,
+          icon: <PiggyBank className="w-8 h-8 text-solar-navy" />,
           title: "Zero Electricity Bill Savings",
           guarantee: "Save up to 90% Every Month",
           subtitle:
@@ -52,7 +52,7 @@ export default function Benefits({ onScrollToForm, projectTypes, selectedPt, set
           badge: "Rajkot Authorized Geda vendor"
         },
         {
-          icon: <Award className="w-8 h-8 text-emerald-600" />,
+          icon: <Award className="w-8 h-8 text-solar-green" />,
           title: "End-to-End Installation",
           guarantee: "Tier-1 Components & Warranty",
           subtitle:
@@ -60,7 +60,7 @@ export default function Benefits({ onScrollToForm, projectTypes, selectedPt, set
           badge: "Rajkot Authorized Geda vendor"
         },
         {
-          icon: <FileText className="w-8 h-8 text-indigo-600" />,
+          icon: <FileText className="w-8 h-8 text-solar-navy" />,
           title: "Hassle-Free Liaisoning",
           guarantee: "Zero Red Tape or Document Stress",
           subtitle:
@@ -68,7 +68,7 @@ export default function Benefits({ onScrollToForm, projectTypes, selectedPt, set
           badge: "Rajkot Authorized Geda vendor"
         },
         {
-          icon: <Cable className="w-8 h-8 text-rose-600" />,
+          icon: <Cable className="w-8 h-8 text-solar-yellow" />,
           title: "Bi-directional Net-Metering",
           guarantee: "Turn Sun into Guaranteed Earnings",
           subtitle:

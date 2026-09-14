@@ -17,11 +17,11 @@ export default function TrustSection({ settings }) {
   const { country } = useCountry();
   const isAU = country === "AU";
   const defaultIcons = [
-    <ShieldCheck className="w-5 h-5 text-solar-sky" />,
-    <Snowflake className="w-5 h-5 text-blue-500" />,
-    <Settings className="w-5 h-5 text-teal-600" />,
-    <Gauge className="w-5 h-5 text-amber-600" />,
-    <PhoneCall className="w-5 h-5 text-solar-green" />,
+    <ShieldCheck className="w-5 h-5 text-solar-navy" />,
+    <Snowflake className="w-5 h-5 text-solar-yellow" />,
+    <Settings className="w-5 h-5 text-solar-navy" />,
+    <Gauge className="w-5 h-5 text-solar-yellow" />,
+    <PhoneCall className="w-5 h-5 text-solar-navy" />,
   ];
 
   const rawPoints = settings?.trust?.points || [];
@@ -35,27 +35,27 @@ export default function TrustSection({ settings }) {
         {
           title: "Empaneled Solar Contractor",
           desc: "Proud GEDA (Gujarat Energy Development Agency) authorized empanelled solar installer. Certified to load subsidy directly on the National Portal.",
-          icon: <ShieldCheck className="w-5 h-5 text-solar-sky" />,
+          icon: <ShieldCheck className="w-5 h-5 text-solar-navy" />,
         },
         {
           title: "Residential Solar Pioneers",
           desc: "Authorized partner in Rajkot for residential solar panels, supporting zero-overhead setups for single-family homes, complexes, and high-rise apartments.",
-          icon: <Snowflake className="w-5 h-5 text-blue-500" />,
+          icon: <Snowflake className="w-5 h-5 text-solar-yellow" />,
         },
         {
           title: "Commercial & Industrial Solar",
           desc: "Custom high-load commercial arrays with 40% accelerated depreciation tax benefits, bringing down corporate, hospital, and factory energy bills significantly.",
-          icon: <Settings className="w-5 h-5 text-teal-600" />,
+          icon: <Settings className="w-5 h-5 text-solar-navy" />,
         },
         {
           title: "Tier-1 Certified Components",
           desc: "We exclusively deploy ALMM-approved, ultra-high-efficiency Mono Perc and Bifacial panels (wafer-thin panels capturing sunlight from both sides) with a 25-year performance warranty.",
-          icon: <Gauge className="w-5 h-5 text-amber-600" />,
+          icon: <Gauge className="w-5 h-5 text-solar-yellow" />,
         },
         {
           title: "Timely Local Maintenance",
           desc: "Based in Rajkot (Kalawad Road). Our mobile response team promises site checkups and cleanup services within 24 hours of call logged.",
-          icon: <PhoneCall className="w-5 h-5 text-solar-green" />,
+          icon: <PhoneCall className="w-5 h-5 text-solar-navy" />,
         },
       ];
 
@@ -93,9 +93,7 @@ export default function TrustSection({ settings }) {
               {trustPoints.map((item, index) => (
                 <div
                   key={index}
-                  className={`p-5 rounded-2xl glass-panel transition-all duration-300 ${
-                    index === 3 ? "md:col-span-2" : ""
-                  }`}
+                  className={`p-5 rounded-2xl glass-panel transition-all duration-300 flex flex-col items-start`}
                 >
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100">
@@ -151,7 +149,7 @@ export default function TrustSection({ settings }) {
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent z-10"></div>
 
               <div className="absolute bottom-4 left-4 z-25">
-                <span className="text-[10px] uppercase tracking-wider font-extrabold text-solar-sky bg-slate-950/60 px-2.5 py-0.5 rounded-md">
+                <span className="text-[10px] uppercase tracking-wider font-extrabold text-solar-navy bg-slate-950/60 px-2.5 py-0.5 rounded-md">
                   Commercial & Industrial
                 </span>
                 <p className="font-display font-bold text-sm text-white mt-1">

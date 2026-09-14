@@ -7,6 +7,7 @@ import {
 
 const getIconForStep = (title) => {
   const t = title.toLowerCase();
+  
   if (t.includes("bill") || t.includes("electricity")) {
     return <img src="/assets/journey/bill.jpg" alt="Electricity Bill" className="w-full h-full object-cover rounded-3xl" />;
   }
@@ -28,7 +29,7 @@ const getIconForStep = (title) => {
   if (t.includes("install") || t.includes("construct") || t.includes("commission")) {
     return <img src="/assets/journey/house.jpg" alt="Solar Installation" className="w-full h-full object-cover rounded-3xl" />;
   }
-  // Default fallback
+  
   return <img src="/assets/journey/capacity.jpg" alt="Solar Step" className="w-full h-full object-cover rounded-3xl" />;
 };
 

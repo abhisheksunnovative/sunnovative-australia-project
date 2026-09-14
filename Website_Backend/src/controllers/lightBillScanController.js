@@ -114,7 +114,7 @@ export const scanLightBill = async (req, res) => {
       try {
         parsed = await parseAuBillWithGemini(req.file.buffer, req.file.mimetype);
       } catch (geminiErr) {
-        console.warn('Gemini extraction failed, falling back to Tesseract+Regex:', geminiErr.message);
+        console.warn('[Gemini] Extraction failed, falling back to Tesseract+Regex:', geminiErr.message);
         parsed = parseAuBillText(rawText);
       }
       

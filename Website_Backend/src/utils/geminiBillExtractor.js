@@ -2,15 +2,17 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export const parseAuBillWithGemini = async (fileBuffer, mimeType) => {
   if (!process.env.GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY is missing');
+    throw new Error('GEMINI_API_KEY is missing in .env');
   }
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   // Using gemini-3.6-flash as it's fast, multimodal and supports JSON schema
-  const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash', generationConfig: { responseMimeType: 'application/json' } });
+  const model = genAI.getGenerativeModel({ 
+    model: 'gemini-3.6-flash', 
+    generationConfig: { responseMimeType: 'application/json' } 
+  });
 
-  const prompt = `
-You are an expert Australian electricity bill parser. Extract the following details from the attached bill image/PDF.
+  const prompt = `You are an expert Australian electricity bill parser. Extract the following details from the attached bill image/PDF.
 Respond ONLY with a valid JSON object matching the schema below. Do not include markdown formatting like \`\`\`json.
 If a field is not found or cannot be determined, set its value to null.
 
@@ -35,8 +37,7 @@ Schema:
   "tariffType": "string (e.g. Time of Use (TOU), Single Rate, Controlled Load, etc. Peak/Off-Peak implies TOU)",
   "meterType": "string (e.g. Smart Meter, Interval Meter, Basic Meter)",
   "customerType": "string (e.g. Residential or Commercial/Business)"
-}
-`;
+}`;
 
   const imageParts = [
     {
@@ -47,22 +48,26 @@ Schema:
     },
   ];
 
-  
   let result;
   let retries = 3;
   while (retries > 0) {
     try {
+      console.log(`[Gemini Bill Extractor] Sending bill to Gemini...`);
       result = await model.generateContent([prompt, ...imageParts]);
       break; // Success
     } catch (err) {
-      if (err.message.includes('503') && retries > 1) {
-        console.log('Gemini 503 error, retrying in 2 seconds...');
+      if (err.message.includes('503') || err.message.includes('fetch')) {
+        console.warn(`[Gemini] Connection error, retrying in 2 seconds... (${retries - 1} left)`);
         await new Promise(resolve => setTimeout(resolve, 2000));
         retries--;
       } else {
         throw err;
       }
     }
+  }
+
+  if (!result) {
+    throw new Error('Gemini failed to return a response after retries.');
   }
 
   const responseText = result.response.text();
@@ -73,13 +78,20 @@ Schema:
   if (jsonString.startsWith('```')) jsonString = jsonString.slice(3);
   if (jsonString.endsWith('```')) jsonString = jsonString.slice(0, -3);
   
+  // Brace extraction safeguard
+  const firstBrace = jsonString.indexOf('{');
+  const lastBrace = jsonString.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1) {
+    jsonString = jsonString.slice(firstBrace, lastBrace + 1);
+  }
+
   const parsed = JSON.parse(jsonString.trim());
   
   // Validate and map to the format expected by the controller
   return {
     country: 'australia',
-    confidence: 'high', // Gemini extraction is generally high confidence
-    isGemini: true, // Flag to indicate AI extraction
+    confidence: 'high', 
+    isGemini: true,
     retailer: parsed.retailer,
     accountNumber: parsed.accountNumber,
     nmiNumber: parsed.nmiNumber,
