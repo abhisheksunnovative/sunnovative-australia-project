@@ -222,7 +222,7 @@ const EpcLayout = () => {
           className="px-4 md:px-6 py-3 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
             <button 
-              className="md:hidden p-2 -ml-2 rounded-lg hover:bg-slate-100 transition-colors"
+              className="hidden md:hidden p-2 -ml-2 rounded-lg hover:bg-slate-100 transition-colors"
               onClick={() => setMobileOpen(true)}
               style={{ color: 'var(--text-primary)' }}
             >
@@ -402,13 +402,43 @@ const EpcLayout = () => {
         </header>
 
         {/* Main */}
-        <main className="flex-1 overflow-y-auto p-6" style={{ backgroundColor: 'var(--bg-app)' }}>
+        <main className="flex-1 overflow-y-auto p-6 pb-24 md:pb-6" style={{ backgroundColor: 'var(--bg-app)' }}>
           <div className="max-w-7xl mx-auto">
             <Outlet context={{ darkMode, wallet, refreshWallet: loadWallet }} />
           </div>
         </main>
 
       </div>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around items-center pb-[env(safe-area-inset-bottom,0px)] z-[60] shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+        {[
+          { path: countryPrefix ? `/${countryPrefix.toLowerCase()}/epc/dashboard` : '/epc/dashboard', label: 'Dashboard', icon: <svg className="w-5 h-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg> },
+          { path: countryPrefix ? `/${countryPrefix.toLowerCase()}/epc/enquiries` : '/epc/enquiries', label: 'Enquiries', icon: <svg className="w-5 h-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> },
+          { path: countryPrefix ? `/${countryPrefix.toLowerCase()}/epc/orders` : '/epc/orders', label: 'Orders', icon: <svg className="w-5 h-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg> },
+          { path: countryPrefix ? `/${countryPrefix.toLowerCase()}/epc/projects` : '/epc/projects', label: 'Projects', icon: <svg className="w-5 h-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg> }
+        ].map(item => {
+          const isActive = window.location.pathname === item.path;
+          return (
+            <button 
+              key={item.label}
+              onClick={() => navigate(item.path)} 
+              className={`flex flex-col items-center p-2 flex-1 transition ${isActive ? "text-blue-600 scale-105" : "text-slate-400 hover:text-slate-600"}`}
+            >
+              {item.icon}
+              <span className="text-[9px] font-bold">{item.label}</span>
+            </button>
+          );
+        })}
+        <button 
+          onClick={() => setMobileOpen(true)} 
+          className="flex flex-col items-center p-2 flex-1 transition text-slate-400 hover:text-slate-600"
+        >
+          <Menu className="w-5 h-5 mb-0.5" />
+          <span className="text-[9px] font-bold">Menu</span>
+        </button>
+      </div>
+
     </div>
   );
 };

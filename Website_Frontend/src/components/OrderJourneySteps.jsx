@@ -36,27 +36,57 @@ const getIconForStep = (title) => {
 export default function OrderJourneySteps({ journeySettings, selectedPt, settings }) {
   // ── Derive steps from Order Journey ─────────────────────────────────────────
   const journeySteps = (() => {
+    let matchedSteps = [];
     if (journeySettings?.journeys?.length > 0) {
-      // Find the journey that matches the selected project type
       const ptKey = (selectedPt || journeySettings.journeys[0]?.projectType || "").toLowerCase();
       const matched = journeySettings.journeys.find(
         pt => (pt.projectType || "").toLowerCase() === ptKey || (pt.type || "").toLowerCase() === ptKey
       ) || journeySettings.journeys[0];
-
-      if (matched?.steps?.length > 0) {
-        return matched.steps
-          .filter(s => s.enabled !== false && s.visibleToCustomer !== false)
-          .slice(0, 6)
-          .map((step, idx) => ({
-            step: `Step ${idx + 1}`,
-            icon: getIconForStep(step.title),
-            title: step.title,
-            description: step.description,
-            badge: step.sla || "Varies"
-          }));
-      }
+      matchedSteps = matched?.steps || [];
     }
-    return null;
+
+    const getIndex = (keywords, defaultIndex) => {
+      const idx = matchedSteps.findIndex(s => s.enabled !== false && keywords.some(k => (s.title||"").toLowerCase().includes(k)));
+      return idx !== -1 ? idx : (defaultIndex * 100);
+    };
+
+    const cards = [
+      {
+        icon: getIconForStep("bill"),
+        title: "Scan your electricity bill",
+        description: "Upload your latest electricity bill to let our AI analyze your consumption instantly.",
+        badge: "Varies",
+        idx: getIndex(["bill", "electricity", "upload"], 1)
+      },
+      {
+        icon: getIconForStep("capacity"),
+        title: "Get solar capacity",
+        description: "Receive an accurate recommended solar system size based on your actual energy usage.",
+        badge: "Varies",
+        idx: getIndex(["capacity", "size", "recommend", "proposal", "survey"], 2)
+      },
+      {
+        icon: getIconForStep("date"),
+        title: "Select installation date",
+        description: "Choose a convenient date for your solar project installation.",
+        badge: "Varies",
+        idx: getIndex(["date", "schedule", "calendar", "slot"], 3)
+      },
+      {
+        icon: getIconForStep("install"),
+        title: "Get solar installed",
+        description: "Our certified professionals will install your system and get it up and running.",
+        badge: "Varies",
+        idx: getIndex(["install", "construct", "commission", "solar installed"], 4)
+      }
+    ];
+
+    cards.sort((a, b) => a.idx - b.idx);
+
+    return cards.map((c, i) => ({
+      ...c,
+      step: `Step ${i + 1}`
+    }));
   })();
 
   if (!journeySteps || journeySteps.length === 0) return null;

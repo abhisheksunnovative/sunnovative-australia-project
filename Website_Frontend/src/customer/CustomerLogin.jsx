@@ -287,8 +287,8 @@ export default function CustomerLogin({ onClose, onSuccess }) {
 
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6 overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-full">
         {/* Header */}
         <div className="bg-gradient-to-br from-solar-navy to-slate-800 p-6 text-white relative">
           {canGoBack && (
@@ -325,7 +325,7 @@ export default function CustomerLogin({ onClose, onSuccess }) {
         </div>
 
         {/* Body */}
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4 overflow-y-auto">
           {error && <div className="text-xs text-red-600 font-medium bg-red-50 border border-red-100 rounded-xl px-3 py-2">{error}</div>}
           {info && <div className="text-xs text-blue-600 font-medium bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">{info}</div>}
 

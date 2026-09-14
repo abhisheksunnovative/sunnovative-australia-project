@@ -113,6 +113,10 @@ const DISCOM_LIST = [
   { id: 'PuVVNL',pattern: /PuVVNL|PUVVNL|PURVANCHAL\s*VIDYUT|POORVANCHAL\s*VIDYUT/i,     state: 'Uttar Pradesh' },
   { id: 'UPPCL', pattern: /UPPCL|uppcl\.org/i,                                              state: 'Uttar Pradesh' },
   { id: 'BESCOM',pattern: /BESCOM|BANGALORE\s*ELECTRICITY/i,                                state: 'Karnataka'     },
+  { id: 'MESCOM',pattern: /MESCOM|MANGALORE\s*ELECTRICITY/i,                                state: 'Karnataka'     },
+  { id: 'CHESCOM',pattern: /CHESCOM|CHAMUNDESHWARI\s*ELECTRICITY/i,                         state: 'Karnataka'     },
+  { id: 'HESCOM',pattern: /HESCOM|HUBLI\s*ELECTRICITY/i,                                    state: 'Karnataka'     },
+  { id: 'GESCOM',pattern: /GESCOM|GULBARGA\s*ELECTRICITY/i,                                 state: 'Karnataka'     },
   { id: 'TNEB',  pattern: /TNEB|TANGEDCO/i,                                                 state: 'Tamil Nadu'    },
   { id: 'BSES',  pattern: /BSES|TATA\s*POWER\s*DELHI/i,                                    state: 'Delhi'         },
   { id: 'WBSEDCL',pattern:/WBSEDCL/i,                                                       state: 'West Bengal'   },
@@ -121,8 +125,12 @@ const DISCOM_LIST = [
   { id: 'AVVNL', pattern: /AVVNL|AJMER\s*VIDYUT/i,                                         state: 'Rajasthan'     },
   { id: 'JVVNL', pattern: /JVVNL|JAIPUR\s*VIDYUT/i,                                        state: 'Rajasthan'     },
   { id: 'CSPDCL',pattern: /CSPDCL/i,                                                        state: 'Chhattisgarh'  },
-  { id: 'TSSPDCL',pattern:/TSSPDCL|TSNPDCL/i,                                              state: 'Telangana'     },
-  { id: 'APSPDCL',pattern:/APSPDCL|APEPDCL/i,                                              state: 'Andhra Pradesh'},
+  { id: 'TSSPDCL',pattern:/TSSPDCL/i,                                                      state: 'Telangana'     },
+  { id: 'TSNPDCL',pattern:/TSNPDCL/i,                                                      state: 'Telangana'     },
+  { id: 'APSPDCL',pattern:/APSPDCL/i,                                                      state: 'Andhra Pradesh'},
+  { id: 'APEPDCL',pattern:/APEPDCL/i,                                                      state: 'Andhra Pradesh'},
+  { id: 'APCPDCL',pattern:/APCPDCL/i,                                                      state: 'Andhra Pradesh'},
+  { id: 'KSEB',  pattern:/KSEB|KERALA\s*STATE\s*ELECTRICITY/i,                              state: 'Kerala'        },
 ];
 
 const detectDiscom = (text) => {
@@ -303,11 +311,11 @@ const mapCategoryToTariff = (category, discomId) => {
     if (category === 'Residential (LT-1)') return 'LT-1';
     if (category === 'Commercial (LT-2)') return 'LT-2';
   }
-  if (['BESCOM'].includes(discomId)) {
+  if (['BESCOM', 'MESCOM', 'CHESCOM', 'HESCOM', 'GESCOM'].includes(discomId)) {
     if (category === 'Residential (LT-1)') return 'LT-2A';
     if (category === 'Commercial (LT-2)') return 'LT-3';
   }
-  if (['TNEB'].includes(discomId)) {
+  if (['TNEB', 'TANGEDCO'].includes(discomId)) {
     if (category === 'Residential (LT-1)') return 'Tariff IA';
     if (category === 'Commercial (LT-2)') return 'Tariff IIA';
   }
@@ -315,7 +323,7 @@ const mapCategoryToTariff = (category, discomId) => {
     if (category === 'Residential (LT-1)') return 'Domestic';
     if (category === 'Commercial (LT-2)') return 'Non-Domestic';
   }
-  if (['TSSPDCL', 'APSPDCL'].includes(discomId)) {
+  if (['TSSPDCL', 'TSNPDCL', 'APSPDCL', 'APEPDCL', 'APCPDCL'].includes(discomId)) {
     if (category === 'Residential (LT-1)') return 'Category-I';
     if (category === 'Commercial (LT-2)') return 'Category-II';
   }

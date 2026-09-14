@@ -2381,7 +2381,7 @@ export default function CustomerPortal({ onClose }) {
   );
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col md:flex-row">
+    <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col md:flex-row pb-[60px] md:pb-0">
       <ToastContainer />
       
       {/* 🌟 PERSISTENT RATING MODAL 🌟 */}
@@ -2408,20 +2408,29 @@ export default function CustomerPortal({ onClose }) {
         </div>
       )}
       
-      {/* Sidebar */}
-      <div className="md:w-64 bg-[#28377f] shrink-0 flex flex-col md:h-full overflow-y-auto hide-scrollbar">
+      {/* Sidebar / Mobile Top Header */}
+      <div className="md:w-64 bg-[#28377f] shrink-0 flex flex-col md:h-full z-20 shadow-md md:shadow-none">
         
-        {/* Brand */}
-        <div className="px-4 py-4 flex items-center justify-between md:justify-center">
+        {/* Brand & Mobile Actions */}
+        <div className="px-4 py-3 md:py-4 flex items-center justify-between md:justify-center relative border-b border-white/10 md:border-none">
           <button onClick={onClose} className="p-2 -ml-2 rounded-xl hover:bg-white/10 transition text-white/70 hover:text-white md:hidden">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <img src="/logo-white.png" alt="EmergeSun" className="w-28 h-auto object-contain" />
-          <div className="w-9 md:hidden"></div> {/* Spacer for centering on mobile */}
+          
+          <img src="/logo-white.png" alt="EmergeSun" className="h-8 md:w-28 md:h-auto object-contain md:mx-auto" />
+          
+          <div className="flex items-center gap-1 md:hidden">
+            <button onClick={() => { setTab("notifications"); setProjectView("list"); }} className="relative p-2 text-white/70 hover:text-white">
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-rose-500 rounded-full"></span>
+              )}
+            </button>
+          </div>
         </div>
 
-        {/* Dynamic Sidebar Nav */}
-        <div className="flex-1 py-4 md:py-6 overflow-x-auto overflow-y-hidden md:overflow-y-auto md:overflow-x-hidden px-3 sm:px-4 flex md:flex-col gap-2 sm:gap-3 hide-scrollbar">
+        {/* Dynamic Sidebar Nav (Desktop Only) */}
+        <div className="hidden md:flex flex-1 py-4 overflow-y-auto px-4 flex-col gap-2 hide-scrollbar">
           
           {/* Dashboard Home Tab */}
           <button onClick={() => { setTab("home"); setProjectView("list"); }}
@@ -3972,6 +3981,36 @@ export default function CustomerPortal({ onClose }) {
           onSuccess={handleApplySuccess}
         />
       )}
+
+      {/* Mobile Bottom Navigation Bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around items-center pb-[env(safe-area-inset-bottom,0px)] z-[60] shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+        <button onClick={() => { setTab("home"); setProjectView("list"); }} className={`flex flex-col items-center p-2 flex-1 transition ${tab === "home" ? "text-yellow-600 scale-105" : "text-slate-400 hover:text-slate-600"}`}>
+          <LayoutDashboard className={`w-5 h-5 mb-0.5 ${tab === "home" ? "fill-yellow-50" : ""}`} />
+          <span className="text-[9px] font-bold">Home</span>
+        </button>
+        
+        <button onClick={() => { setTab("projects"); setProjectView("list"); }} className={`flex flex-col items-center p-2 flex-1 transition ${tab === "projects" ? "text-yellow-600 scale-105" : "text-slate-400 hover:text-slate-600"}`}>
+          <FolderOpen className={`w-5 h-5 mb-0.5 ${tab === "projects" ? "fill-yellow-50" : ""}`} />
+          <span className="text-[9px] font-bold">Projects</span>
+        </button>
+        
+        <button onClick={() => { setTab("new-project"); setProjectView("list"); }} className="relative flex flex-col items-center p-1 -mt-4 flex-1">
+          <div className="w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center shadow-lg border-4 border-slate-50 text-yellow-950 hover:bg-amber-400 transition transform hover:scale-105">
+            <Plus className="w-6 h-6" />
+          </div>
+          <span className={`text-[9px] font-bold mt-1 ${tab === "new-project" ? "text-yellow-600" : "text-slate-500"}`}>Apply</span>
+        </button>
+        
+        <button onClick={() => { setTab("epc"); }} className={`flex flex-col items-center p-2 flex-1 transition ${tab === "epc" ? "text-yellow-600 scale-105" : "text-slate-400 hover:text-slate-600"}`}>
+          <Building className={`w-5 h-5 mb-0.5 ${tab === "epc" ? "fill-yellow-50" : ""}`} />
+          <span className="text-[9px] font-bold">Installers</span>
+        </button>
+        
+        <button onClick={() => { setTab("profile"); }} className={`flex flex-col items-center p-2 flex-1 transition ${tab === "profile" ? "text-yellow-600 scale-105" : "text-slate-400 hover:text-slate-600"}`}>
+          <User className={`w-5 h-5 mb-0.5 ${tab === "profile" ? "fill-yellow-50" : ""}`} />
+          <span className="text-[9px] font-bold">Profile</span>
+        </button>
+      </div>
     </div>
   );
 }
