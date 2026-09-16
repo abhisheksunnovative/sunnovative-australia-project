@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Download, Share, PlusSquare } from "lucide-react";
 
-export default function InstallAppButton({ className, textClassName }) {
+export default function InstallAppButton({ className, textClassName, appType = 'customer', label = 'Install App' }) {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
@@ -31,6 +31,10 @@ export default function InstallAppButton({ className, textClassName }) {
   const [toastMsg, setToastMsg] = useState('');
 
   const handleInstallClick = async () => {
+    // Save the route to redirect to when opened in standalone mode
+    const startRoute = appType === 'customer' ? '/customer/login' : '/epc/login';
+    localStorage.setItem('pwa_start_route', startRoute);
+
     if (isIOS) {
       setShowIOSPrompt(true);
       return;
@@ -58,7 +62,7 @@ export default function InstallAppButton({ className, textClassName }) {
         className={className !== undefined ? className : "hidden sm:inline-flex items-center justify-center px-4 py-2.5 text-sm font-bold rounded-xl bg-slate-100 hover:bg-slate-200 text-solar-navy transition-all cursor-pointer shadow-sm gap-1.5"}
       >
         <Download className="w-4 h-4" />
-        <span className={textClassName !== undefined ? textClassName : "hidden md:inline"}>Install App</span>
+        <span className={textClassName !== undefined ? textClassName : "hidden md:inline"}>{label}</span>
       </button>
 
       {toastMsg && (

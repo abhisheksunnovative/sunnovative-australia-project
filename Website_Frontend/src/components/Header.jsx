@@ -232,9 +232,10 @@ export default function Header({
             {isCustomerLoggedIn ? (customerName?.split(" ")[0] || "My Account") : "Customer Login"}
           </button>
 
-          <InstallAppButton />
+          <InstallAppButton appType="customer" label="Customer App" />
+          <InstallAppButton appType="epc" label="Installer App" className="hidden sm:inline-flex items-center justify-center px-4 py-2.5 text-sm font-bold rounded-xl bg-orange-100 hover:bg-orange-200 text-orange-800 transition-all cursor-pointer shadow-sm gap-1.5" />
 
-          {/* EPC Installer Button */}
+          {/* EPC Installer Login Link */}
           <a
             href={import.meta.env.VITE_EPC_PORTAL_URL || 'http://localhost:5173'}
             target="_blank"
@@ -349,9 +350,17 @@ export default function Header({
             {isCustomerLoggedIn ? `My Account (${customerName?.split(" ")[0]})` : "Customer Login"}
           </button>
 
-          {/* Install App Button (Mobile) */}
+          {/* Install App Buttons (Mobile) */}
           <InstallAppButton 
+            appType="customer"
+            label="Install Customer App"
             className="w-full py-3 px-4 text-center rounded-xl font-bold bg-blue-50 border border-blue-100 hover:bg-blue-100 text-blue-700 text-xs uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-2"
+            textClassName="inline"
+          />
+          <InstallAppButton 
+            appType="epc"
+            label="Install Installer App"
+            className="w-full py-3 px-4 text-center rounded-xl font-bold bg-orange-50 border border-orange-100 hover:bg-orange-100 text-orange-700 text-xs uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-2"
             textClassName="inline"
           />
 

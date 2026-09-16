@@ -7,7 +7,7 @@ import React, { useState, useEffect, Suspense, lazy } from "react";
 import { Sun, Sparkles, Zap } from "lucide-react";
 import { CustomerAuthProvider, useCustomerAuth } from "./customer/CustomerAuthContext";
 import { CountryProvider } from "./context/CountryContext";
-import { BrowserRouter, Routes, Route, useParams, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useParams, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useCountry } from "./context/CountryContext";
 import { useWebsiteSettings } from "./hooks/useWebsiteSettings";
 
@@ -36,12 +36,30 @@ const HowItWorksPage = lazy(() => import("./pages/HowItWorksPage"));
 function AppInner() {
   const { customer, loading, token } = useCustomerAuth();
   const { country } = useCountry();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [selectedPt, setSelectedPt] = useState(null);
   const settings = useWebsiteSettings(selectedPt);
   const isAU = country === "AU";
   const [viewMode, setViewMode] = useState("home"); // home | blog | account
   const [showCustomerLogin, setShowCustomerLogin] = useState(false);
   const [journeySettings, setJourneySettings] = useState(null);
+
+  useEffect(() => {
+    // Detect standalone PWA mode
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    
+    // Auto redirect if opened from Home Screen and user is at root
+    if (isStandalone && location.pathname === '/') {
+      const startRoute = localStorage.getItem('pwa_start_route');
+      if (startRoute && startRoute === '/epc/login') {
+        window.location.href = import.meta.env.VITE_EPC_PORTAL_URL || 'http://localhost:5173';
+        return;
+      } else if (startRoute && startRoute === '/customer/login') {
+        setShowCustomerLogin(true);
+      }
+    }
+  }, [location.pathname]);
   
   useEffect(() => {
     // Fetch journey settings to know available project types for this country

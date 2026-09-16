@@ -178,7 +178,7 @@ const EpcMyEnquiries = () => {
       await epcApi.put(`/api/epc/orders/${orderId}/stage`, { stage: 'Registration Started' });
       setMsg(`✅ Order accepted! Moved to Orders tab.`);
       setMsgType('success');
-      load();
+      setEnquiries(prev => prev.filter(e => e._id !== orderId));
     } catch (error) {
       setMsg(error.response?.data?.message || 'Failed to accept order');
       setMsgType('error');

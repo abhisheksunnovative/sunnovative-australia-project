@@ -109,4 +109,8 @@ epcOrderSchema.pre('validate', async function () {
   }
 });
 
+epcOrderSchema.index({ epcId: 1, status: 1 });
+epcOrderSchema.index({ customerId: 1 });
+epcOrderSchema.index({ createdAt: -1 });
+
 export default mongoose.model('EpcOrder', epcOrderSchema);

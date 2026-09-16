@@ -79,9 +79,9 @@ const EpcOrders = () => {
     setStageLoading(true);
     try {
       const { data } = await epcApi.put(`/api/epc/orders/${orderId}/stage`, { stage: nextStage });
-      setMsg(`✅ Stage updated to: ${nextStage}`);
+      setMsg(`🚀 Stage updated to: ${nextStage}`);
       setSelected(data.order);
-      load();
+      setOrders(prev => prev.map(o => o._id === orderId ? { ...o, stage: nextStage } : o));
     } catch (err) {
       setMsg(err.response?.data?.message || 'Failed to update stage');
     } finally {

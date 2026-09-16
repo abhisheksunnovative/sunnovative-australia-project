@@ -98,4 +98,6 @@ EpcPartnerSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
+EpcPartnerSchema.index({ state: 1, country: 1 });
+
 export default mongoose.model('EpcPartner', EpcPartnerSchema);
