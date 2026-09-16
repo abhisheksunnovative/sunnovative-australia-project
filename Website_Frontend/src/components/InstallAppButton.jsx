@@ -28,6 +28,8 @@ export default function InstallAppButton({ className, textClassName }) {
     return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
   }, []);
 
+  const [toastMsg, setToastMsg] = useState('');
+
   const handleInstallClick = async () => {
     if (isIOS) {
       setShowIOSPrompt(true);
@@ -40,13 +42,14 @@ export default function InstallAppButton({ className, textClassName }) {
         setDeferredPrompt(null);
         setIsStandalone(true);
       }
+    } else {
+      setToastMsg("App is already installed on your device!");
+      setTimeout(() => setToastMsg(''), 3000);
     }
   };
 
-  // The user explicitly asked to hide it if installed.
-  // If it's not iOS and there's no deferred prompt, the browser either doesn't support it, 
-  // or it's already installed. In both cases, hide the button.
-  if (isStandalone || (!isIOS && !deferredPrompt)) return null;
+  // Only hide if we are currently running IN standalone mode
+  if (isStandalone) return null;
 
   return (
     <>
@@ -57,6 +60,12 @@ export default function InstallAppButton({ className, textClassName }) {
         <Download className="w-4 h-4" />
         <span className={textClassName !== undefined ? textClassName : "hidden md:inline"}>Install App</span>
       </button>
+
+      {toastMsg && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-xl text-sm z-[100] shadow-lg animate-fade-in-up">
+          {toastMsg}
+        </div>
+      )}
 
       {showIOSPrompt && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
