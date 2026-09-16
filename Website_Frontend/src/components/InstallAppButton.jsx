@@ -7,8 +7,12 @@ export default function InstallAppButton({ className, textClassName, appType = '
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [showIOSPrompt, setShowIOSPrompt] = useState(false);
+  const [isMobileOrTablet, setIsMobileOrTablet] = useState(true);
 
   useEffect(() => {
+    const ua = window.navigator.userAgent;
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+    setIsMobileOrTablet(isMobile);
     // Check if already installed
     if (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true) {
       setIsStandalone(true);
@@ -52,8 +56,8 @@ export default function InstallAppButton({ className, textClassName, appType = '
     }
   };
 
-  // Only hide if we are currently running IN standalone mode
-  if (isStandalone) return null;
+  // Only hide if we are currently running IN standalone mode or if it's a desktop device
+  if (isStandalone || !isMobileOrTablet) return null;
 
   return (
     <>
