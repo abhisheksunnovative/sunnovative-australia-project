@@ -12,7 +12,6 @@ export default function InstallAppButton({ className, textClassName }) {
     // Check if already installed
     if (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true) {
       setIsStandalone(true);
-      return;
     }
 
     const ua = window.navigator.userAgent;
@@ -39,10 +38,16 @@ export default function InstallAppButton({ className, textClassName }) {
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === "accepted") {
         setDeferredPrompt(null);
+        setIsStandalone(true);
       }
+    } else {
+      alert("App installation is either not supported on this browser, or it is already installed. Try checking your browser menu for 'Install app' or 'Add to Home Screen'.");
     }
   };
 
+  // Do not return null to avoid breaking layout if they test on a weird device,
+  // but we can conditionally hide via Tailwind if we want, OR just rely on the user saying "hide it".
+  // The user explicitly asked to hide it if installed.
   if (isStandalone) return null;
 
   return (
@@ -59,7 +64,7 @@ export default function InstallAppButton({ className, textClassName }) {
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 text-center relative">
             <button onClick={() => setShowIOSPrompt(false)} className="absolute top-4 right-4 text-slate-400">
-              ?
+              X
             </button>
             <h3 className="text-xl font-bold text-slate-800 mb-2">Install on iOS</h3>
             <p className="text-slate-600 mb-6 text-sm">
