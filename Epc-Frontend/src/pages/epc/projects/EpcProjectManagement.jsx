@@ -71,20 +71,20 @@ const EpcProjectManagement = () => {
       </div>
 
       {/* ── STAGE SUMMARY CARDS ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 sticky top-0 z-20 bg-slate-50/90 backdrop-blur-md pt-2 pb-2 -mx-2 px-2 sm:mx-0 sm:px-0">
         {stageSummaryCards.map(s => {
           const isActive = filterStatus === s.key;
           return (
             <button key={s.key}
               onClick={() => setFilterStatus(isActive ? '' : s.key)}
-              className={`rounded-2xl p-4 text-center border-2 transition-all hover:-translate-y-0.5 duration-200 ${
+              className={`rounded-2xl p-2 sm:p-4 text-center border-2 transition-all hover:-translate-y-0.5 duration-200 ${
                 isActive
                   ? `bg-gradient-to-br ${s.grad} text-white border-transparent shadow-lg`
                   : `bg-white border-gray-100 hover:border-blue-300 hover:shadow-md ${s.light}`
               }`}>
-              <div className="text-2xl mb-2">{s.icon}</div>
-              <p className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${isActive ? 'text-white/80' : 'text-gray-400'}`}>{s.label}</p>
-              <p className={`text-2xl font-black ${isActive ? 'text-white' : 'text-gray-800'}`}>{statusSummary[s.key] || 0}</p>
+              <div className="text-xl sm:text-2xl mb-1 sm:mb-2">{s.icon}</div>
+              <p className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mb-0.5 sm:mb-1 truncate ${isActive ? 'text-white/90' : 'text-gray-500'}`}>{s.label}</p>
+              <p className={`text-lg sm:text-2xl font-black ${isActive ? 'text-white' : 'text-gray-800'}`}>{statusSummary[s.key] || 0}</p>
             </button>
           );
         })}

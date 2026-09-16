@@ -132,11 +132,11 @@ const EpcOrders = () => {
         </div>
       </div>
 
-      {/* ── STATUS PILL TABS ── */}
-      <div className="flex gap-2 flex-wrap">
+      {/* ── STATUS TABS ── */}
+      <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar sticky top-0 z-20 bg-slate-50/90 backdrop-blur-md pt-2 -mx-2 px-2 sm:mx-0 sm:px-0">
         {statusTabs.map(t => (
           <button key={t.key} onClick={() => setFilterStatus(t.key)}
-            className={`text-xs px-4 py-2 rounded-xl font-bold border transition-all ${
+            className={`text-xs px-4 py-2 rounded-xl font-bold border transition-all whitespace-nowrap ${
               filterStatus === t.key
                 ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-100'
                 : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300 hover:text-blue-600'

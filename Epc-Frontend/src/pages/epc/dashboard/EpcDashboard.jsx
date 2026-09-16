@@ -115,25 +115,25 @@ const EpcDashboard = () => {
 
       {/* ── PAGE HEADER ── */}
       <div className="page-header">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
           <div>
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Dashboard</p>
-            <h2 className="text-white text-2xl font-black tracking-tight">
+            <p className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-widest mb-0.5 sm:mb-1">Dashboard</p>
+            <h2 className="text-white text-xl sm:text-2xl font-black tracking-tight leading-tight">
               Welcome, {epc?.companyName} 👋
             </h2>
-            <p className="text-slate-400 text-sm mt-1">
+            <p className="text-slate-400 text-xs sm:text-sm mt-1">
               <span className="text-blue-400 font-bold">{epc?.plan} Plan</span>
               <span className="mx-2 text-slate-600">|</span>
               {epc?.activeDistricts?.join(', ') || 'No districts assigned'}
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 px-4 py-2 rounded-xl">
-              <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+          <div className="flex items-center gap-3 w-full sm:w-auto mt-1 sm:mt-0">
+            <div className="flex items-center justify-center gap-2 bg-white/10 backdrop-blur border border-white/20 px-4 py-1.5 sm:py-2 rounded-xl w-full sm:w-auto">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
               </svg>
-              <span className="text-yellow-300 text-lg font-black">{epc?.rating?.toFixed(1) || '0.0'}</span>
-              <span className="text-slate-400 text-xs">/ 5.0</span>
+              <span className="text-yellow-300 text-base sm:text-lg font-black">{epc?.rating?.toFixed(1) || '0.0'}</span>
+              <span className="text-slate-400 text-[10px] sm:text-xs">/ 5.0</span>
             </div>
           </div>
         </div>
@@ -156,19 +156,19 @@ const EpcDashboard = () => {
 
       {/* New Leads Notification Alert */}
       {unacceptedLeadsCount > 0 && (
-        <div className="bg-gradient-to-r from-orange-500 to-amber-600 border border-orange-600 p-5 rounded-2xl shadow-lg mb-6 flex items-start justify-between gap-4 text-white animate-pulse-slow">
-          <div className="flex items-start gap-4">
+        <div className="bg-gradient-to-r from-orange-500 to-amber-600 border border-orange-600 p-4 sm:p-5 rounded-2xl shadow-lg mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-white animate-pulse-slow">
+          <div className="flex items-start gap-3 sm:gap-4">
             <span className="text-2xl mt-0.5">🔔</span>
             <div>
-              <h3 className="font-black text-lg">New Leads Waiting!</h3>
-              <p className="text-orange-50 text-sm mt-1 font-medium">
+              <h3 className="font-black text-base sm:text-lg">New Leads Waiting!</h3>
+              <p className="text-orange-50 text-xs sm:text-sm mt-1 font-medium leading-relaxed">
                 You have {unacceptedLeadsCount} new solar enquiries waiting to be accepted. Go to My Enquiries to claim them before they expire!
               </p>
             </div>
           </div>
           <button 
             onClick={() => navigate('/epc/enquiries')}
-            className="px-4 py-2 bg-white text-orange-950 font-black text-xs rounded-xl shadow-md hover:bg-orange-50 hover:scale-105 active:scale-95 transition-all shrink-0"
+            className="w-full sm:w-auto px-4 py-2 bg-white text-orange-950 font-black text-xs rounded-xl shadow-md hover:bg-orange-50 hover:scale-105 active:scale-95 transition-all shrink-0"
           >
             View Enquiries
           </button>

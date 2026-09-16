@@ -230,18 +230,18 @@ const EpcMyEnquiries = () => {
       )}
 
       {/* ── ENQUIRY TYPE CARDS ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 sticky top-0 z-20 bg-slate-50/90 backdrop-blur-md pt-2 pb-2 -mx-2 px-2 sm:mx-0 sm:px-0">
         {ENQUIRY_TYPES.map(type => {
           const isActive = selectedType === type.key;
           return (
             <button key={type.key}
               onClick={() => setSelectedType(isActive ? '' : type.key)}
-              className={`rounded-2xl p-5 border-2 text-left transition-all duration-300 hover:-translate-y-0.5 ${isActive ? type.activeCls : type.inactiveCls}`}>
-              <div className="text-3xl mb-3">{type.icon}</div>
-              <p className={`text-sm font-black mb-0.5 ${isActive ? 'text-white' : 'text-gray-800'}`}>{type.label}</p>
-              <p className={`text-xs mb-3 ${isActive ? 'text-white/70' : 'text-gray-500'}`}>{type.desc}</p>
-              <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-current/10 text-current'}`}>
-                {typeCounts[type.key]} leads
+              className={`rounded-xl sm:rounded-2xl p-2 sm:p-5 border-2 text-center sm:text-left transition-all duration-300 hover:-translate-y-0.5 ${isActive ? type.activeCls : type.inactiveCls}`}>
+              <div className="text-xl sm:text-3xl mb-1 sm:mb-3">{type.icon}</div>
+              <p className={`text-[10px] sm:text-sm font-black mb-0.5 truncate ${isActive ? 'text-white' : 'text-gray-800'}`}>{type.label}</p>
+              <p className={`hidden sm:block text-xs mb-3 ${isActive ? 'text-white/70' : 'text-gray-500'}`}>{type.desc}</p>
+              <span className={`text-[9px] sm:text-xs font-bold px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-current/10 text-current'}`}>
+                {typeCounts[type.key]}
               </span>
             </button>
           );

@@ -204,13 +204,13 @@ const EpcWallet = () => {
 
       {/* PAGE HEADER */}
       <div className="page-header">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
           <div>
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Finance</p>
-            <h2 className="text-white text-2xl font-black tracking-tight">KW Credit Wallet</h2>
-            <p className="text-slate-400 text-sm mt-1">Manage your project-wise solar installation credits</p>
+            <p className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-widest mb-1">Finance</p>
+            <h2 className="text-white text-xl sm:text-2xl font-black tracking-tight">KW Credit Wallet</h2>
+            <p className="text-slate-400 text-xs sm:text-sm mt-0.5 sm:mt-1">Manage your project-wise solar installation credits</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row w-full sm:w-auto items-stretch sm:items-center gap-2 mt-2 sm:mt-0">
             {wallet?.activeDistricts?.length > 1 && (
               <button onClick={() => {
                 setTransferKw('');
@@ -219,12 +219,12 @@ const EpcWallet = () => {
                 if (currentProjectTypes.length > 0) setTransferType(currentProjectTypes[0]);
                 setShowTransfer(true);
               }}
-                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur border border-white/20 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-all">
+                className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur border border-white/20 text-white text-sm font-bold px-4 py-2 sm:py-2.5 rounded-xl transition-all">
                 Transfer KW
               </button>
             )}
             <button onClick={openPurchaseModal}
-              className="flex items-center gap-2 bg-white text-gray-800 hover:bg-gray-50 text-sm font-black px-5 py-2.5 rounded-xl transition-all shadow-sm">
+              className="flex items-center justify-center gap-2 bg-white text-gray-800 hover:bg-gray-50 text-sm font-black px-5 py-2 sm:py-2.5 rounded-xl transition-all shadow-sm">
               + Buy Credits
             </button>
           </div>

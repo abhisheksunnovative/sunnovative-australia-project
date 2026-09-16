@@ -162,9 +162,15 @@ thead tr {
 .page-header {
   background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   border-radius: 1rem;
-  padding: 1.5rem;
+  padding: 1.25rem 1rem;
   color: white;
   margin-bottom: 0;
+}
+
+@media (min-width: 640px) {
+  .page-header {
+    padding: 1.5rem;
+  }
 }
 .status-pill {
   display: inline-flex;
@@ -180,7 +186,7 @@ thead tr {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 1rem;
-  padding: 1rem 1.25rem;
+  padding: 0.75rem 1rem;
 }
 .card-row {
   background: var(--bg-card);

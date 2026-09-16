@@ -59,6 +59,18 @@ export default function Header({
 
   const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
 
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileMenuOpen]);
+
   const navItems = (settings.websiteContent && settings.websiteContent.navItems && settings.websiteContent.navItems.length > 0) 
     ? settings.websiteContent.navItems 
     : [
