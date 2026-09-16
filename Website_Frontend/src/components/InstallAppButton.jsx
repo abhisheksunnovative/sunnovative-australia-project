@@ -40,15 +40,13 @@ export default function InstallAppButton({ className, textClassName }) {
         setDeferredPrompt(null);
         setIsStandalone(true);
       }
-    } else {
-      alert("App installation is either not supported on this browser, or it is already installed. Try checking your browser menu for 'Install app' or 'Add to Home Screen'.");
     }
   };
 
-  // Do not return null to avoid breaking layout if they test on a weird device,
-  // but we can conditionally hide via Tailwind if we want, OR just rely on the user saying "hide it".
   // The user explicitly asked to hide it if installed.
-  if (isStandalone) return null;
+  // If it's not iOS and there's no deferred prompt, the browser either doesn't support it, 
+  // or it's already installed. In both cases, hide the button.
+  if (isStandalone || (!isIOS && !deferredPrompt)) return null;
 
   return (
     <>
