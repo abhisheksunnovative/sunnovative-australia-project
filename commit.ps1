@@ -1,5 +1,5 @@
 
-git add Website_Backend/src/controllers/billTemplateController.js
-git commit -m "Fix Gemini model name for bill parsing"
+git add Website_Frontend/src/components/InstallAppButton.jsx
+git commit -m "Show PWA install button unconditionally and use toast instead of alert"
 git push origin main
 
