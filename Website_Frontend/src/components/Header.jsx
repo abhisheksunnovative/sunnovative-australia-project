@@ -7,6 +7,7 @@ import React, { useState, useEffect } from "react";
 import { Sun, Menu, X, PhoneCall, ShieldCheck, Zap, User, ChevronDown } from "lucide-react";
 import { useWebsiteSettings } from "../hooks/useWebsiteSettings";
 import { useCountry } from "../context/CountryContext";
+import InstallAppButton from "./InstallAppButton";
 
 export default function Header({
   onOpenEpcModal = () => {},
@@ -219,6 +220,8 @@ export default function Header({
             {isCustomerLoggedIn ? (customerName?.split(" ")[0] || "My Account") : "Customer Login"}
           </button>
 
+          <InstallAppButton />
+
           {/* EPC Installer Button */}
           <a
             href={import.meta.env.VITE_EPC_PORTAL_URL || 'http://localhost:5173'}
@@ -333,6 +336,13 @@ export default function Header({
             <User className="w-3.5 h-3.5" />
             {isCustomerLoggedIn ? `My Account (${customerName?.split(" ")[0]})` : "Customer Login"}
           </button>
+
+          {/* Install App Button (Mobile) */}
+          <InstallAppButton 
+            className="w-full py-3 px-4 text-center rounded-xl font-bold bg-blue-50 border border-blue-100 hover:bg-blue-100 text-blue-700 text-xs uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-2"
+            textClassName="inline"
+          />
+
           <a
             href={import.meta.env.VITE_EPC_PORTAL_URL || 'http://localhost:3001'}
             target="_blank"

@@ -99,6 +99,22 @@ export const CountryProvider = ({ children, countryProp }) => {
     }
   }, [countryProp]);
 
+  // Geo-IP detection on first visit
+  React.useEffect(() => {
+    if (!localStorage.getItem("sn_country")) {
+      fetch("https://get.geojs.io/v1/ip/country.json")
+        .then(res => res.json())
+        .then(data => {
+          const cCode = data.country; // e.g., "IN", "AU", "NZ"
+          if (["IN", "AU", "NZ"].includes(cCode)) {
+            setCountry(cCode);
+            localStorage.setItem("sn_country", cCode);
+          }
+        })
+        .catch(err => console.error("GeoIP Error:", err));
+    }
+  }, []);
+
   const t = TRANSLATIONS[country] || TRANSLATIONS.IN;
   const changeCountry = (c) => { 
     setCountry(c); 

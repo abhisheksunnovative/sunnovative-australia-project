@@ -3,7 +3,10 @@ import District from "../models/District.js";
 export const getStates = async (req, res) => {
   try {
     const { country } = req.query;
-    const filter = country ? { country: country.toLowerCase() } : {};
+    const filter = { isActive: true };
+    if (country) {
+      filter.country = country.toLowerCase();
+    }
     const states = await District.distinct('state', filter);
     res.status(200).json({ success: true, data: states });
   } catch (error) {

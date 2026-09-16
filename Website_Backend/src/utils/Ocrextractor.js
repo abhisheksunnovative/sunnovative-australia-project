@@ -31,13 +31,31 @@ import pdfParse from 'pdf-parse-fork';
 import { pdf as pdfToImages } from 'pdf-to-img';
 import { getStateSubsidyData } from './stateSubsidyData.js';
 
+let globalScheduler = null;
+
+const getScheduler = async () => {
+  if (!globalScheduler) {
+    globalScheduler = Tesseract.createScheduler();
+    // Create 2 workers for basic concurrency
+    for (let i = 0; i < 2; i++) {
+      const worker = await Tesseract.createWorker('eng+hin');
+      globalScheduler.addWorker(worker);
+    }
+  }
+  return globalScheduler;
+};
+
 // ── OCR — Image bills ────────────────────────────────────────────────────────
 // Uses eng+hin so both English and Hindi bills parse correctly
 export const runOcr = async (imageBuffer) => {
-  const { data } = await Tesseract.recognize(imageBuffer, 'eng+hin', {
-    logger: () => {}, // suppress progress logs
-  });
-  return data.text;
+  try {
+    const scheduler = await getScheduler();
+    const { data } = await scheduler.addJob('recognize', imageBuffer);
+    return data.text;
+  } catch (err) {
+    console.error('[OCR Error]', err);
+    return '';
+  }
 };
 
 // ── PDF bills — direct text extraction ──────────────────────────────────────
@@ -131,6 +149,8 @@ const DISCOM_LIST = [
   { id: 'APEPDCL',pattern:/APEPDCL/i,                                                      state: 'Andhra Pradesh'},
   { id: 'APCPDCL',pattern:/APCPDCL/i,                                                      state: 'Andhra Pradesh'},
   { id: 'KSEB',  pattern:/KSEB|KERALA\s*STATE\s*ELECTRICITY/i,                              state: 'Kerala'        },
+  { id: 'Tata Power', pattern: /TATA\s*POWER(?!.*DELHI)/i,                                  state: 'Maharashtra'   },
+  { id: 'Adani Electricity', pattern: /ADANI\s*ELECTRICITY|ADANI\s*ELEC/i,                  state: 'Maharashtra'   },
 ];
 
 const detectDiscom = (text) => {
@@ -183,11 +203,11 @@ const TARIFF_TO_CATEGORY = [
   // ── Generic text keywords (last resort fallback) ──────────────────────────
   // v5: Use \b word boundaries on English keywords to avoid partial matches
   { pattern: /\bdomestic\b|Category-I/i,                               category: 'Residential (LT-1)' },
-  { pattern: /\bresidential\b|Tariff IA|LT-2A|LT-1|RGH/i,                 category: 'Residential (LT-1)' },
+  { pattern: /\bresidential\b|Tariff IA|LT-2A|LT-(?:1|I)\b|RGH/i,                 category: 'Residential (LT-1)' },
   { pattern: /घरेलू/,                                            category: 'Residential (LT-1)' },
-  { pattern: /\bcommercial\b|Non-Domestic|Category-II/i,                  category: 'Commercial (LT-2)'  },
+  { pattern: /\bcommercial\b|Non-Domestic|Category-II|LT-(?:2|II)\b/i,                  category: 'Commercial (LT-2)'  },
   { pattern: /व्यावसायिक|व्यापारिक/,                              category: 'Commercial (LT-2)'  },
-  { pattern: /\bindustrial\b|LT-3/i,                                  category: 'Industrial (LT-3)'  },
+  { pattern: /\bindustrial\b|LT-(?:3|III)\b/i,                                  category: 'Industrial (LT-3)'  },
   { pattern: /उद्योग|औद्योगिक/,                                  category: 'Industrial (LT-3)'  },
   { pattern: /\bagricultur/i,                                    category: 'Agricultural (LT-5)'},
   { pattern: /कृषि/,                                             category: 'Agricultural (LT-5)'},
@@ -343,13 +363,13 @@ export const parseBillText = (rawText) => {
 
   // ── DISCOM & State ─────────────────────────────────────────────────────────
   const discom = detectDiscom(text);
-  const detectedState = discom.state;
+  let detectedState = discom.state;
   const discomId = discom.id;
 
   // ── Consumer Number ────────────────────────────────────────────────────────
   let consumerNumber = null;
   const cnPatterns = [
-    /(?:consumer\s*(?:no|number|code|#|id)|account\s*(?:no|number)|C\/h\s*No|खाता\s*(?:सं|संo|संख्या)|उपभोक्ता\s*(?:सं|संख्या|क्रमांक))[.:\s]*([0-9]{7,15})/i,
+    /(?:consumer\s*(?:no|number|code|#|id)|account\s*(?:no|number)|ca\s*no|C\/h\s*No|खाता\s*(?:सं|संo|संख्या)|उपभोक्ता\s*(?:सं|संख्या|क्रमांक))[.:\s]*([0-9]{7,15})/i,
     /\b(0[0-9]{9,11})\b/,
     /\b([0-9]{10,12})\b/,
   ];
@@ -361,8 +381,8 @@ export const parseBillText = (rawText) => {
   // ── Consumer Name ──────────────────────────────────────────────────────────
   let consumerName = null;
   const namePatterns = [
-    /(?<!SDO\s*)(?:consumer\s*name|name\s*of\s*consumer|Name)[\s:\-2]*([A-Z][A-Za-z\s.]{2,40})(?=\s+(?:address|s\/o|w\/o|d\/o|mobile|meter|bill|consumer|tariff|GST|\n))/i,
-    /(?<!SDO\s*)(?:नाम|Name|NAME|जाया)[\s:\-2]*(?:Name|NAME)?[\s:\-2]*\n?([A-Z][A-Z\s.]{2,40}?)\s*(?=[A-Z][a-z]|Division|Div|पिता|Husband|Address|\n)/,
+    /(?<!SDO\s*)(?:consumer\s*name|name\s*of\s*consumer|Name)[\s:\-2]*([A-Z][A-Za-z\s.\/-]{2,40})(?=\s+(?:address|s\/o|w\/o|d\/o|mobile|meter|bill|consumer|tariff|GST|\n|-))/i,
+    /(?<!SDO\s*)(?:नाम|Name|NAME|जाया)[\s:\-2]*(?:Name|NAME)?[\s:\-2]*\n?([A-Z][A-Z\s.\/-]{2,40}?)\s*(?=[A-Z][a-z]|Division|Div|पिता|Husband|Address|\n|-)/,
     /(?:नाम|उपभोक्ता\s*का\s*नाम)[\s:\-2]*(.{3,40}?)(?=\s+(?:पता|मोबाइल|मीटर|बिल|\n))/,
     /(?:CONSUMER\s*(?:NO|CODE|NAME)[^a-z\n]{0,30}\n\s*)([A-Z][A-Z\s.]{3,40})\n/,
     /SDO\s*Name.*?\n([A-Z][A-Za-z\s.]{3,40})\n/i,
@@ -515,7 +535,7 @@ export const parseBillText = (rawText) => {
     // Labeled: "District: Varanasi" or "जिला: वाराणसी"
     /(?:district|जिला|जनपद)\s*[:\-]?\s*([A-Za-z]{3,25})/i,
     // Major Indian city names (known cities list)
-    /\b(VARANASI|LUCKNOW|KANPUR|ALLAHABAD|PRAYAGRAJ|AGRA|MEERUT|GHAZIABAD|NOIDA|GORAKHPUR|BAREILLY|ALIGARH|MORADABAD|MATHURA|JHANSI|AYODHYA|JAIPUR|JODHPUR|UDAIPUR|KOTA|AJMER|BIKANER|AHMEDABAD|RAJKOT|SURAT|VADODARA|JUNAGADH|BHAVNAGAR|GANDHINAGAR|ANAND|MORBI|BHARUCH|NAVSARI|VALSAD|AMRELI|PORBANDAR|MUMBAI|PUNE|NAGPUR|NASHIK|THANE|AURANGABAD|SOLAPUR|KOLHAPUR|BANGALORE|BENGALURU|MYSORE|HUBLI|MANGALORE|CHENNAI|COIMBATORE|MADURAI|SALEM|TIRUCHIRAPPALLI|HYDERABAD|SECUNDERABAD|WARANGAL|KOLKATA|HOWRAH|BHOPAL|INDORE|GWALIOR|JABALPUR|DEHRADUN|HARIDWAR|RISHIKESH|PATNA|RANCHI|JAMSHEDPUR|BHUBANESWAR|CUTTACK|GUWAHATI|SHIMLA|CHANDIGARH|AMRITSAR|LUDHIANA|JALANDHAR|PANAJI|RAIPUR|BILASPUR)\b/i,
+    /\b(VARANASI|LUCKNOW|KANPUR|ALLAHABAD|PRAYAGRAJ|AGRA|MEERUT|GHAZIABAD|NOIDA|GORAKHPUR|BAREILLY|ALIGARH|MORADABAD|MATHURA|JHANSI|AYODHYA|JAIPUR|JODHPUR|UDAIPUR|KOTA|AJMER|BIKANER|AHMEDABAD|RAJKOT|SURAT|VADODARA|JUNAGADH|BHAVNAGAR|GANDHINAGAR|ANAND|MORBI|BHARUCH|NAVSARI|VALSAD|AMRELI|PORBANDAR|MUMBAI|PUNE|NAGPUR|NASHIK|THANE|AURANGABAD|SOLAPUR|KOLHAPUR|BANGALORE|BENGALURU|MYSORE|HUBLI|MANGALORE|CHENNAI|COIMBATORE|MADURAI|SALEM|TIRUCHIRAPPALLI|HYDERABAD|SECUNDERABAD|WARANGAL|KOLKATA|HOWRAH|BHOPAL|INDORE|GWALIOR|JABALPUR|DEHRADUN|HARIDWAR|RISHIKESH|PATNA|RANCHI|JAMSHEDPUR|BHUBANESWAR|CUTTACK|GUWAHATI|SHIMLA|CHANDIGARH|AMRITSAR|LUDHIANA|JALANDHAR|PANAJI|RAIPUR|BILASPUR|DELHI|NEW DELHI)\b/i,
     // City name before PIN code (6 digits)
     /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+\d{6}\b/,
   ];
@@ -524,6 +544,32 @@ export const parseBillText = (rawText) => {
     if (m) {
       const d = m[1].trim();
       if (d.length >= 3 && d.length <= 25) { district = d; break; }
+    }
+  }
+
+  // Fallback for detectedState using known districts
+  if (!detectedState && district) {
+    const dUpper = district.toUpperCase();
+    const cityStateMap = {
+      'DELHI': 'Delhi', 'NEW DELHI': 'Delhi',
+      'VARANASI': 'Uttar Pradesh', 'LUCKNOW': 'Uttar Pradesh', 'KANPUR': 'Uttar Pradesh', 'ALLAHABAD': 'Uttar Pradesh', 'PRAYAGRAJ': 'Uttar Pradesh', 'AGRA': 'Uttar Pradesh', 'MEERUT': 'Uttar Pradesh', 'GHAZIABAD': 'Uttar Pradesh', 'NOIDA': 'Uttar Pradesh', 'GORAKHPUR': 'Uttar Pradesh', 'BAREILLY': 'Uttar Pradesh', 'ALIGARH': 'Uttar Pradesh', 'MORADABAD': 'Uttar Pradesh', 'MATHURA': 'Uttar Pradesh', 'JHANSI': 'Uttar Pradesh', 'AYODHYA': 'Uttar Pradesh',
+      'JAIPUR': 'Rajasthan', 'JODHPUR': 'Rajasthan', 'UDAIPUR': 'Rajasthan', 'KOTA': 'Rajasthan', 'AJMER': 'Rajasthan', 'BIKANER': 'Rajasthan',
+      'AHMEDABAD': 'Gujarat', 'RAJKOT': 'Gujarat', 'SURAT': 'Gujarat', 'VADODARA': 'Gujarat', 'JUNAGADH': 'Gujarat', 'BHAVNAGAR': 'Gujarat', 'GANDHINAGAR': 'Gujarat', 'ANAND': 'Gujarat', 'MORBI': 'Gujarat', 'BHARUCH': 'Gujarat', 'NAVSARI': 'Gujarat', 'VALSAD': 'Gujarat', 'AMRELI': 'Gujarat', 'PORBANDAR': 'Gujarat',
+      'MUMBAI': 'Maharashtra', 'PUNE': 'Maharashtra', 'NAGPUR': 'Maharashtra', 'NASHIK': 'Maharashtra', 'THANE': 'Maharashtra', 'AURANGABAD': 'Maharashtra', 'SOLAPUR': 'Maharashtra', 'KOLHAPUR': 'Maharashtra',
+      'BANGALORE': 'Karnataka', 'BENGALURU': 'Karnataka', 'MYSORE': 'Karnataka', 'HUBLI': 'Karnataka', 'MANGALORE': 'Karnataka',
+      'CHENNAI': 'Tamil Nadu', 'COIMBATORE': 'Tamil Nadu', 'MADURAI': 'Tamil Nadu', 'SALEM': 'Tamil Nadu', 'TIRUCHIRAPPALLI': 'Tamil Nadu',
+      'HYDERABAD': 'Telangana', 'SECUNDERABAD': 'Telangana', 'WARANGAL': 'Telangana',
+      'KOLKATA': 'West Bengal', 'HOWRAH': 'West Bengal',
+      'BHOPAL': 'Madhya Pradesh', 'INDORE': 'Madhya Pradesh', 'GWALIOR': 'Madhya Pradesh', 'JABALPUR': 'Madhya Pradesh',
+      'DEHRADUN': 'Uttarakhand', 'HARIDWAR': 'Uttarakhand', 'RISHIKESH': 'Uttarakhand',
+      'PATNA': 'Bihar', 'RANCHI': 'Jharkhand', 'JAMSHEDPUR': 'Jharkhand',
+      'BHUBANESWAR': 'Odisha', 'CUTTACK': 'Odisha',
+      'GUWAHATI': 'Assam', 'SHIMLA': 'Himachal Pradesh', 'CHANDIGARH': 'Chandigarh',
+      'AMRITSAR': 'Punjab', 'LUDHIANA': 'Punjab', 'JALANDHAR': 'Punjab',
+      'PANAJI': 'Goa', 'RAIPUR': 'Chhattisgarh', 'BILASPUR': 'Chhattisgarh'
+    };
+    if (cityStateMap[dUpper]) {
+      detectedState = cityStateMap[dUpper];
     }
   }
 

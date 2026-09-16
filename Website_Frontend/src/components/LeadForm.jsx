@@ -304,6 +304,12 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
     setScannedRetailer(null);
     setScannedBillingPeriod(null);
     setScannedQuarterlyKwh(null);
+    setFullName("");
+    setConsumerNumber("");
+    setCity("");
+    setMeterCategory(null);
+    setDiscom(null);
+    setTariffDesc(null);
     setIsScanning(true);
 
     try {

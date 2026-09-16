@@ -17,6 +17,7 @@ import { useCountry } from "../context/CountryContext";
 import { generateDynamicEligibility } from "../data/mockConsumers";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import InstallAppButton from "../components/InstallAppButton";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
@@ -2420,6 +2421,10 @@ export default function CustomerPortal({ onClose }) {
           <img src="/logo-white.png" alt="EmergeSun" className="h-8 md:w-28 md:h-auto object-contain md:mx-auto" />
           
           <div className="flex items-center gap-1 md:hidden">
+            <InstallAppButton 
+              className="p-2 text-white/70 hover:text-white flex items-center justify-center rounded-xl"
+              textClassName="hidden" 
+            />
             <button onClick={() => { setTab("notifications"); setProjectView("list"); }} className="relative p-2 text-white/70 hover:text-white">
               <Bell className="w-5 h-5" />
               {unreadCount > 0 && (
@@ -2526,7 +2531,11 @@ export default function CustomerPortal({ onClose }) {
           </button>
         </div>
 
-        <div className="p-4 hidden md:block">
+        <div className="p-4 hidden md:block space-y-2">
+          <InstallAppButton 
+            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-bold text-sm bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition"
+            textClassName="inline"
+          />
           <button onClick={() => { logout(); onClose?.(); }} className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-bold text-sm text-slate-400 hover:bg-white/5 hover:text-white transition">
             <LogOut className="w-4 h-4" /> Sign Out
           </button>

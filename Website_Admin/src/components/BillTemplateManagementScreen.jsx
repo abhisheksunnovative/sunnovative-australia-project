@@ -24,6 +24,7 @@ export default function BillTemplateManagementScreen() {
     setIsScanning(true);
     const fd = new FormData();
     fd.append('billFile', file);
+    e.target.value = ''; // Reset file input so same file can be selected again
 
     try {
       const res = await fetch(`${API_URL}/api/v2/bill-templates/auto-generate`, {
@@ -36,13 +37,11 @@ export default function BillTemplateManagementScreen() {
           ...prev,
           OCR_aliases_json: JSON.stringify(data.data, null, 2)
         }));
-        alert("✅ Aliases auto-extracted successfully!");
       } else {
-        alert(data.message || "Failed to scan bill");
+        console.error(data.message || "Failed to scan bill");
       }
     } catch (err) {
-      console.error(err);
-      alert("Error scanning bill");
+      console.error("Error scanning bill", err);
     } finally {
       setIsScanning(false);
     }
