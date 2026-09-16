@@ -18,7 +18,6 @@ export default function InstallAppButton({ className, textClassName, appType = '
       setIsStandalone(true);
     }
 
-    const ua = window.navigator.userAgent;
     const isIosDevice = /iphone|ipad|ipod/.test(ua.toLowerCase());
     setIsIOS(isIosDevice);
 
