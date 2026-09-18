@@ -68,14 +68,17 @@ export default function CustomerLogin({ onClose, onSuccess }) {
   const { login } = useCustomerAuth();
   const { t, country, setCountry } = useCountry();
 
-  const [liveCountries, setLiveCountries] = useState([]);
+  const cachedCountries = JSON.parse(localStorage.getItem('sn_countries') || 'null');
+  const [liveCountries, setLiveCountries] = useState(cachedCountries || []);
 
   useEffect(() => {
     fetch(`${API}/api/countries`)
       .then(res => res.json())
       .then(data => {
-        if (data.success && data.data) {
-          setLiveCountries(data.data.filter(c => c.isActive !== false));
+        if (data.success && data.data && data.data.length > 0) {
+          const active = data.data.filter(c => c.isActive !== false);
+          setLiveCountries(active);
+          localStorage.setItem('sn_countries', JSON.stringify(active));
         }
       })
       .catch(console.error);
@@ -143,7 +146,7 @@ export default function CustomerLogin({ onClose, onSuccess }) {
           body: JSON.stringify(payloadOtp),
         });
         const dataOtp = await resOtp.json();
-        setStep("otp"); setInfo(dataOtp.message || "OTP Sent");
+        setStep("otp"); setInfo((dataOtp.message || "OTP Sent") + (dataOtp.dummyOtp ? " (OTP: " + dataOtp.dummyOtp + ")" : ""));
       }
     } catch { err("Network error. Please check the backend."); }
     setLoading(false);
@@ -163,7 +166,7 @@ export default function CustomerLogin({ onClose, onSuccess }) {
       });
       const data = await res.json();
       if (!res.ok) return err(data.message || "An error occurred");
-      setInfo(data.message);
+      setInfo(data.message + (data.dummyOtp ? " (OTP: " + data.dummyOtp + ")" : ""));
       setStep("otp");
     } catch { err("Network error"); }
     setLoading(false);
@@ -205,7 +208,7 @@ export default function CustomerLogin({ onClose, onSuccess }) {
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-      setInfo("OTP sent - verify to set a new PIN");
+      setInfo("OTP sent - verify to set a new PIN" + (data.dummyOtp ? " (OTP: " + data.dummyOtp + ")" : ""));
       setStep("otp");
     } catch { err("Error"); }
     setLoading(false);
@@ -337,11 +340,12 @@ export default function CustomerLogin({ onClose, onSuccess }) {
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Select Your Country</label>
                 <div className="mb-3">
                   <select
-                    value={country}
+                    value={country === "IN" ? "india" : country === "AU" ? "australia" : country === "NZ" ? "newzealand" : (country ? country.toLowerCase() : "")}
                     onChange={(e) => { 
-                      const selected = liveCountries.find(c => c.code === e.target.value || c.name === e.target.value);
+                      const val = e.target.value.toLowerCase();
+                      const selected = liveCountries.find(c => (c.code && c.code.toLowerCase() === val) || (c.name && c.name.toLowerCase() === val));
                       if (selected) {
-                        setCountry(selected.code || selected.name);
+                        setCountry(selected.code ? selected.code.toUpperCase() : selected.name.toUpperCase());
                         setMobile(""); 
                         setEmail(""); 
                         clear();
@@ -351,7 +355,7 @@ export default function CustomerLogin({ onClose, onSuccess }) {
                   >
                     {liveCountries.length > 0 ? (
                       liveCountries.map(c => (
-                        <option key={c._id} value={c.code || c.name}>
+                        <option key={c._id} value={c.code ? c.code.toLowerCase() : c.name.toLowerCase()}>
                           {c.flagEmoji} {c.name}
                         </option>
                       ))

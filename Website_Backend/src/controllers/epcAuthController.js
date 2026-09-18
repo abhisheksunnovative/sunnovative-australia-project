@@ -305,8 +305,8 @@ export const setPin = async (req, res) => {
     const epc = await EpcPartner.findById(req.epc._id);
     if (!epc) return res.status(404).json({ message: 'EPC not found' });
 
-    epc.loginPin = await bcrypt.hash(pin.toString(), await bcrypt.genSalt(10));
-    await epc.save();
+    const hashed = await bcrypt.hash(pin.toString(), await bcrypt.genSalt(10));
+    await EpcPartner.updateOne({ _id: epc._id }, { loginPin: hashed });
 
     const finalToken = generateToken(epc._id);
 
@@ -370,7 +370,7 @@ export const resetPinVerify = async (req, res) => {
 
     const epc    = await EpcPartner.findById(record.epcId);
     epc.loginPin = await bcrypt.hash(newPin.toString(), await bcrypt.genSalt(10));
-    await epc.save();
+    await EpcPartner.updateOne({ _id: epc._id }, { loginPin: hashed });
 
     res.json({ message: 'PIN reset successfully. Login with new PIN.' });
   } catch (err) {
@@ -546,7 +546,7 @@ export const applyTrustBadge = async (req, res) => {
       epc.qualifiedProjectTypes = req.body.qualifiedProjectTypes;
     }
 
-    await epc.save();
+    await EpcPartner.updateOne({ _id: epc._id }, { loginPin: hashed });
 
     // Fire notification for Admin
     try {
@@ -573,7 +573,7 @@ export const updateEpcProfile = async (req, res) => {
     if (!epc) return res.status(404).json({ message: 'EPC not found' });
     ['companyName','ownerName','mobile','state','city','pincode','address']
       .forEach(f => { if (req.body[f] !== undefined) epc[f] = req.body[f]; });
-    const updated = await epc.save();
+    const updated = await EpcPartner.updateOne({ _id: epc._id }, { loginPin: hashed });
     res.json({ _id: updated._id, companyName: updated.companyName, email: updated.email });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -667,7 +667,7 @@ export const verifyTrustBadgePayment = async (req, res) => {
     epc.trustBadge.status = 'Approved';
     epc.trustBadge.purchasedLeads = (epc.trustBadge.purchasedLeads || 0) + Number(numLeads);
     epc.trustBadge.appliedAt = new Date();
-    await epc.save();
+    await EpcPartner.updateOne({ _id: epc._id }, { loginPin: hashed });
 
     res.json({ success: true, message: 'Payment successful, Trust Badge updated!', purchasedLeads: epc.trustBadge.purchasedLeads });
   } catch (err) {

@@ -82,13 +82,12 @@ export const sendOtp = async (req, res) => {
     console.log('======================================================\n');
 
     if (isIndia) {
-      try {
-        await sendOTP(identifier, otp);
-      } catch (smsErr) {
+      // Run SMS sending in background to speed up response time
+      sendOTP(identifier, otp).catch(smsErr => {
         console.warn('[SMS GATEWAY WARNING] Live SMS failed, using console OTP:', smsErr.message);
-      }
+      });
     } else {
-      await sendOtpEmail(identifier, otp);
+      sendOtpEmail(identifier, otp).catch(err => console.error('[EMAIL ERROR]', err));
     }
 
     return res.json({

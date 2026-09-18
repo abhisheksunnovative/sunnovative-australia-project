@@ -22,21 +22,21 @@ const DEFAULTS = {
     phone: "+61 400 000 000",
     hubLabel: "Call Australia Hub",
     topBannerText:
-      "SAA Accredited Solar Retailer | Get up to $2,400 STC Upfront Discount",
+      "Accredited Solar Retailer | Get your Upfront Solar Discount",
   },
   hero: {
-    badge: "Australia Solar Rebate Program",
+    badge: "Solar Rebate Program",
     headingLine1: "Go Solar and",
-    headingHighlight: "Slash Your Quarterly Bill!",
+    headingHighlight: "Slash Your Electricity Bill!",
     subtext:
-      "Save on your energy bills, claim your STC upfront discount, and get high-quality solar installed by SAA accredited experts. Lock in your solar investment today.",
+      "Save on your energy bills, claim your upfront discount, and get high-quality solar installed by accredited experts. Lock in your solar investment today.",
     ctaPrimary: "Free Solar Quote",
-    ctaSecondary: "Check STC Eligibility",
-    socialProofText: "Australian Homeowners: Save up to $2,400 with STCs!",
+    ctaSecondary: "Check Eligibility",
+    socialProofText: "Homeowners: Save big with Solar Subsidies!",
   },
   stats: [
-    { value: "1500+", label: "Australian Homes Solarized" },
-    { value: "$2.5M+", label: "STC Rebates Claimed" },
+    { value: "1500+", label: "Homes Solarized" },
+    { value: "$2.5M+", label: "Rebates Claimed" },
     { value: "10 MW", label: "Clean Capacity Installed" },
   ],
   benefits: {

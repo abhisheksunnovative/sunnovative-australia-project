@@ -1,0 +1,1 @@
+import mongoose from 'mongoose'; mongoose.connect('mongodb+srv://structasoftadmin_db_user:w6EuikcNSYs20hlY@sunnovative-erp.ui24irh.mongodb.net/?appName=SUNNOVATIVE-ERP').then(() => { console.log('Connected SRV'); process.exit(0); }).catch(e => { console.error(e); process.exit(1); });

@@ -48,6 +48,7 @@ const EpcMyEnquiries = () => {
   const [loading, setLoading]           = useState(true);
   const [accepting, setAccepting]       = useState(null);
   const [confirmingDateFor, setConfirmingDateFor] = useState(null);
+  const [kycFile, setKycFile] = useState(null);
   const [installDate, setInstallDate]   = useState('');
   const [msg, setMsg]                   = useState('');
   const [msgType, setMsgType]           = useState('info');
@@ -101,9 +102,9 @@ const EpcMyEnquiries = () => {
       try {
         const res = await epcApi.get('/api/project-types');
         if (res.data?.success) {
-          setProjectTypes(res.data.data.map(pt => pt.name));
+          setProjectTypes(res.data.data.map(pt => pt.projectTypeLabel || pt.projectType || pt.name || (typeof pt === 'string' ? pt : 'Unknown')));
         } else if (Array.isArray(res.data)) {
-          setProjectTypes(res.data.map(pt => pt.name));
+          setProjectTypes(res.data.map(pt => pt.projectTypeLabel || pt.projectType || pt.name || (typeof pt === 'string' ? pt : 'Unknown')));
         }
       } catch (err) {
         console.error('Failed to load project types', err);

@@ -891,6 +891,49 @@ export const scheduleAndQualifyLead = async (req, res) => {
     });
     await lead.save();
 
+    // Also create EpcEnquiry so EPCs can see it in their Demand Pool
+    let enquiry = await EpcEnquiry.findOne({ customerMobile: lead.mobile });
+    if (!enquiry) {
+      const pTypeMap = {
+        "surya-ghar": "Surya Ghar Yojana",
+        "residential": "Residential Solar",
+        "commercial": "Commercial Solar",
+        "group": "Group Solar",
+        "au-small-home": "AU Small Home (6.6kW)",
+        "au-standard-family": "AU Standard Family (8-10kW)",
+        "au-large-home": "AU Large Home (10-13kW)",
+        "au-ev-owners": "AU EV Owners (13-20kW)",
+        "au-solar-battery": "AU Solar + Battery"
+      };
+      
+      const mappedType = pTypeMap[lead.solarType?.toLowerCase()] || "Residential Solar";
+      const kw = parseFloat(lead.kw) || 1;
+      
+      enquiry = new EpcEnquiry({
+        customerName: lead.name,
+        customerMobile: lead.mobile,
+        customerEmail: lead.email || "",
+        enquiryType: 'ECommerce',
+        projectType: mappedType,
+        systemCapacityKw: kw,
+        state: lead.state || "",
+        district: lead.district || lead.city || "",
+        city: lead.city || lead.district || "",
+        address: lead.address || "",
+        rooftopPhoto: lead.rooftopPhoto || "",
+        preferredInstallDate: lead.preferredInstallDate,
+        status: 'Open For EPC',
+        assignmentType: 'FirstComeFirstServe'
+      });
+      await enquiry.save();
+    } else if (scheduledDate) {
+      // If it exists but date changed
+      enquiry.preferredInstallDate = new Date(scheduledDate);
+      enquiry.status = 'Open For EPC';
+      await enquiry.save();
+    }
+
+
     // Trigger Notification for Customer and EPC
     try {
       const { default: Notification } = await import('../models/Notification.js');
@@ -1048,3 +1091,28 @@ export const markLeadEligible = async (req, res) => {
   }
 };
 
+
+
+export const getBDECounts = async (req, res) => {
+  try {
+    const { bdeId } = req.params;
+    
+    const [leadsCount, prospectsCount, customersCount] = await Promise.all([
+      Lead.countDocuments({ assignedBde: bdeId, installDateBooked: { $ne: true } }),
+      Lead.countDocuments({ assignedBde: bdeId, installDateBooked: true, convertedProjectId: { $exists: false } }),
+      Lead.countDocuments({ assignedBde: bdeId, convertedProjectId: { $exists: true } })
+    ]);
+    
+    res.json({
+      success: true,
+      data: {
+        leads: leadsCount,
+        prospects: prospectsCount,
+        customers: customersCount
+      }
+    });
+  } catch (err) {
+    console.error('getBDECounts error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};

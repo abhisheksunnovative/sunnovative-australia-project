@@ -1,6 +1,6 @@
 import express from "express";
 import multer from "multer";
-import {
+import { getBDECounts, 
   createBDE, getAllBDEs, getBDEById, updateBDE, deleteBDE,
   bdeLogin, getBDEDashboard, getBDELeads, getDemandPool, assignLeadToBDE, updateBDELead,
   createBDELead, getBDEProjects, getBDEOverdueProjects, uploadBDEProjectDoc, updateBDELeadDetails,
@@ -40,6 +40,7 @@ router.get("/:bdeId/epc-calendar", getEpcCalendarForBde);
 
 // BDE Portal Feature Routes
 router.get("/:bdeId/dashboard", getBDEDashboard);
+router.get("/:bdeId/counts", getBDECounts);
 router.get("/:bdeId/leads", getBDELeads);
 router.post("/:bdeId/leads", createBDELead);
 router.get("/:bdeId/projects", getBDEProjects);

@@ -57,12 +57,12 @@ export default function BDEManagementScreen() {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 font-sans">
-      <BDEManagementContent selectedCountryObj={selectedCountryObj} onBack={() => setSelectedCountryFilterObj(null)} />
+      <BDEManagementContent selectedCountryObj={selectedCountryObj} onBack={() => setSelectedCountryFilterObj(null)} countries={countries} />
     </div>
   );
 }
 
-export function BDEManagementContent({ selectedCountryObj, onBack }) {
+export function BDEManagementContent({ selectedCountryObj, onBack, countries = [] }) {
   const selectedCountry = selectedCountryObj.code;
   const selectedCountryName = selectedCountryObj.name;
 
@@ -806,7 +806,7 @@ export function BDEManagementContent({ selectedCountryObj, onBack }) {
                     <p><span className="font-bold">States:</span> <span className="capitalize">{formData.assignedStates}</span></p>
                     <p><span className="font-bold">Districts:</span> <span className="capitalize">{formData.assignedDistricts}</span></p>
                   </div>
-                  <TerritoryAdder formData={formData} setFormData={setFormData} useGeography={useGeography} />
+                  <TerritoryAdder formData={formData} setFormData={setFormData} useGeography={useGeography} allCountries={countries} />
                   <div className="mt-4">
                     <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Region / City (Comma separated)</label>
                     <input type="text" value={formData.assignedRegions} onChange={e => setFormData({...formData, assignedRegions: e.target.value})} placeholder="e.g. Navrangpura, Bopal" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-slate-800 focus:outline-none focus:border-blue-500" />
@@ -870,20 +870,10 @@ export function BDEManagementContent({ selectedCountryObj, onBack }) {
 }
 
 // Injected by AI for multi-country assignment
-function TerritoryAdder({ formData, setFormData, useGeography }) {
+function TerritoryAdder({ formData, setFormData, useGeography, allCountries = [] }) {
   const [selCountry, setSelCountry] = React.useState('');
   const [selState, setSelState] = React.useState('');
   const [selDistrict, setSelDistrict] = React.useState('');
-  const [allCountries, setAllCountries] = React.useState([]);
-
-  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
-
-  React.useEffect(() => {
-    fetch(API_BASE + '/api/countries').then(res => res.json()).then(data => {
-       if (data.success && data.data) setAllCountries(data.data.filter(c => c.isActive));
-       else if (Array.isArray(data)) setAllCountries(data.filter(c => c.isActive));
-    }).catch(console.error);
-  }, []);
 
   const { states, districts } = useGeography(selCountry, selState);
 

@@ -115,10 +115,19 @@ export const CountryProvider = ({ children, countryProp }) => {
     }
   }, []);
 
-  const t = TRANSLATIONS[country] || TRANSLATIONS.IN;
+  const getTranslationKey = (c) => {
+    if (!c) return 'IN';
+    const upperC = c.toUpperCase();
+    if (upperC === 'AU' || upperC === 'AUSTRALIA') return 'AU';
+    if (upperC === 'NZ' || upperC === 'NEWZEALAND' || upperC === 'NEW ZEALAND') return 'NZ';
+    return 'IN';
+  };
+  const t = TRANSLATIONS[getTranslationKey(country)] || TRANSLATIONS.IN;
   const changeCountry = (c) => { 
-    setCountry(c); 
-    localStorage.setItem("sn_country", c); 
+    const mapped = getTranslationKey(c);
+    setCountry(mapped); 
+    localStorage.setItem("sn_country", mapped); 
+
     // Usually handled by router, but this is a fallback
   };
   return (

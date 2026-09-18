@@ -1,0 +1,112 @@
+const mongoose = require('mongoose');
+require('dotenv').config();
+
+const discomData = [
+  { state: "Andhra Pradesh", name: "APEPDCL - Andhra Pradesh Eastern Power Distribution Company Ltd" },
+  { state: "Andhra Pradesh", name: "APCPDCL - Andhra Pradesh Central Power Distribution Corporation Ltd" },
+  { state: "Andhra Pradesh", name: "APSPDCL - Andhra Pradesh Southern Power Distribution Company Ltd" },
+  { state: "Arunachal Pradesh", name: "DoP Arunachal - Department of Power, Government of Arunachal Pradesh" },
+  { state: "Assam", name: "APDCL - Assam Power Distribution Company Ltd" },
+  { state: "Bihar", name: "NBPDCL - North Bihar Power Distribution Company Ltd" },
+  { state: "Bihar", name: "SBPDCL - South Bihar Power Distribution Company Ltd" },
+  { state: "Chhattisgarh", name: "CSPDCL - Chhattisgarh State Power Distribution Company Ltd" },
+  { state: "Goa", name: "Goa ED - Electricity Department, Government of Goa" },
+  { state: "Gujarat", name: "DGVCL - Dakshin Gujarat Vij Company Ltd" },
+  { state: "Gujarat", name: "MGVCL - Madhya Gujarat Vij Company Ltd" },
+  { state: "Gujarat", name: "PGVCL - Paschim Gujarat Vij Company Ltd" },
+  { state: "Gujarat", name: "UGVCL - Uttar Gujarat Vij Company Ltd" },
+  { state: "Gujarat", name: "TPL - Torrent Power Ltd" },
+  { state: "Haryana", name: "DHBVN - Dakshin Haryana Bijli Vitran Nigam Ltd" },
+  { state: "Haryana", name: "UHBVN - Uttar Haryana Bijli Vitran Nigam Ltd" },
+  { state: "Himachal Pradesh", name: "HPSEBL - Himachal Pradesh State Electricity Board Ltd" },
+  { state: "Jharkhand", name: "JBVNL - Jharkhand Bijli Vitran Nigam Ltd" },
+  { state: "Jharkhand", name: "TSUISL - Tata Steel Utilities and Infrastructure Services Ltd" },
+  { state: "Jharkhand", name: "DVC - Damodar Valley Corporation" },
+  { state: "Karnataka", name: "BESCOM - Bangalore Electricity Supply Company Ltd" },
+  { state: "Karnataka", name: "CESC Mysuru - Chamundeshwari Electricity Supply Corporation Ltd" },
+  { state: "Karnataka", name: "GESCOM - Gulbarga Electricity Supply Company Ltd" },
+  { state: "Karnataka", name: "HESCOM - Hubli Electricity Supply Company Ltd" },
+  { state: "Karnataka", name: "MESCOM - Mangalore Electricity Supply Company Ltd" },
+  { state: "Karnataka", name: "HRECS - Hukkeri Rural Electric Co-operative Society Ltd" },
+  { state: "Kerala", name: "KSEBL - Kerala State Electricity Board Ltd" },
+  { state: "Kerala", name: "TCED - Thrissur Corporation Electricity Department" },
+  { state: "Madhya Pradesh", name: "MPMKVVCL - Madhya Pradesh Madhya Kshetra Vidyut Vitaran Company Ltd" },
+  { state: "Madhya Pradesh", name: "MPPKVVCL - Madhya Pradesh Paschim Kshetra Vidyut Vitaran Company Ltd" },
+  { state: "Madhya Pradesh", name: "MPPoKVVCL - Madhya Pradesh Poorv Kshetra Vidyut Vitaran Company Ltd" },
+  { state: "Maharashtra", name: "MSEDCL - Maharashtra State Electricity Distribution Company Ltd" },
+  { state: "Maharashtra", name: "BEST - Brihanmumbai Electric Supply and Transport Undertaking" },
+  { state: "Maharashtra", name: "AEML - Adani Electricity Mumbai Ltd" },
+  { state: "Maharashtra", name: "TPC-D - Tata Power Company Ltd" },
+  { state: "Manipur", name: "MSPDCL - Manipur State Power Distribution Company Ltd" },
+  { state: "Meghalaya", name: "MePDCL - Meghalaya Power Distribution Corporation Ltd" },
+  { state: "Mizoram", name: "P&E Mizoram - Power and Electricity Department, Government of Mizoram" },
+  { state: "Nagaland", name: "DoP Nagaland - Department of Power, Government of Nagaland" },
+  { state: "Odisha", name: "TPCODL - TP Central Odisha Distribution Ltd" },
+  { state: "Odisha", name: "TPNODL - TP Northern Odisha Distribution Ltd" },
+  { state: "Odisha", name: "TPSODL - TP Southern Odisha Distribution Ltd" },
+  { state: "Odisha", name: "TPWODL - TP Western Odisha Distribution Ltd" },
+  { state: "Punjab", name: "PSPCL - Punjab State Power Corporation Ltd" },
+  { state: "Rajasthan", name: "JVVNL - Jaipur Vidyut Vitran Nigam Ltd" },
+  { state: "Rajasthan", name: "AVVNL - Ajmer Vidyut Vitran Nigam Ltd" },
+  { state: "Rajasthan", name: "JDVVNL - Jodhpur Vidyut Vitran Nigam Ltd" },
+  { state: "Sikkim", name: "E&P Sikkim - Energy and Power Department, Government of Sikkim" },
+  { state: "Tamil Nadu", name: "TNPDCL - Tamil Nadu Power Distribution Corporation Ltd" },
+  { state: "Telangana", name: "TGSPDCL - Telangana Southern Power Distribution Company Ltd" },
+  { state: "Telangana", name: "TGNPDCL - Telangana Northern Power Distribution Company Ltd" },
+  { state: "Tripura", name: "TSECL - Tripura State Electricity Corporation Ltd" },
+  { state: "Uttar Pradesh", name: "DVVNL - Dakshinanchal Vidyut Vitran Nigam Ltd" },
+  { state: "Uttar Pradesh", name: "MVVNL - Madhyanchal Vidyut Vitran Nigam Ltd" },
+  { state: "Uttar Pradesh", name: "PVVNL - Paschimanchal Vidyut Vitran Nigam Ltd" },
+  { state: "Uttar Pradesh", name: "PuVVNL - Purvanchal Vidyut Vitran Nigam Ltd" },
+  { state: "Uttar Pradesh", name: "KESCO - Kanpur Electricity Supply Company Ltd" },
+  { state: "Uttar Pradesh", name: "NPCL - Noida Power Company Ltd" },
+  { state: "Uttarakhand", name: "UPCL - Uttarakhand Power Corporation Ltd" },
+  { state: "West Bengal", name: "WBSEDCL - West Bengal State Electricity Distribution Company Ltd" },
+  { state: "West Bengal", name: "CESC - CESC Ltd" },
+  { state: "West Bengal", name: "IPCL - India Power Corporation Ltd" },
+  { state: "West Bengal", name: "DVC - Damodar Valley Corporation" },
+  { state: "Andaman and Nicobar Islands", name: "A&N ED - Electricity Department, Andaman and Nicobar Administration" },
+  { state: "Chandigarh", name: "CPDL - Chandigarh Power Distribution Ltd" },
+  { state: "Dadra and Nagar Haveli and Daman and Diu", name: "DNHDDPDCL - DNH and DD Power Distribution Corporation Ltd" },
+  { state: "Delhi", name: "BRPL - BSES Rajdhani Power Ltd" },
+  { state: "Delhi", name: "BYPL - BSES Yamuna Power Ltd" },
+  { state: "Delhi", name: "TPDDL - Tata Power Delhi Distribution Ltd" },
+  { state: "Delhi", name: "NDMC - New Delhi Municipal Council" },
+  { state: "Jammu and Kashmir", name: "JPDCL - Jammu Power Distribution Corporation Ltd" },
+  { state: "Jammu and Kashmir", name: "KPDCL - Kashmir Power Distribution Corporation Ltd" },
+  { state: "Ladakh", name: "PDD Ladakh - Power Development Department, Administration of Ladakh" },
+  { state: "Lakshadweep", name: "Lakshadweep ED - Electricity Department, Lakshadweep Administration" },
+  { state: "Puducherry", name: "PED - Electricity Department, Government of Puducherry" }
+];
+
+async function run() {
+  await mongoose.connect(process.env.MONGODB_URL);
+  const Discom = require('./src/models/DiscomModel.js').Discom;
+  const District = require('./src/models/District.js').default;
+  
+  for (const item of discomData) {
+    // Find districts for this state
+    const districts = await District.find({ country: "India", state: item.state });
+    const districtNames = districts.map(d => d.district);
+    
+    // Check if discom already exists
+    const existing = await Discom.findOne({ name: { $regex: new RegExp('^' + item.name.split(' - ')[0], 'i') }, state: item.state });
+    if (!existing) {
+      await Discom.create({
+        country: "India",
+        state: item.state,
+        name: item.name,
+        districts: districtNames.length > 0 ? districtNames : ["All Districts"],
+        isActive: true
+      });
+      console.log(`Added ${item.name}`);
+    } else {
+      console.log(`Skipped ${item.name} (already exists)`);
+    }
+  }
+  
+  console.log("Seeding complete.");
+  process.exit(0);
+}
+
+run();

@@ -33,6 +33,8 @@ export const getMyEnquiries = async (req, res) => {
       nullEpcCondition.createdAt = { $lte: delayTime };
     }
 
+    filter.rejectedBy = { $ne: req.epc._id };
+
     filter.$or = [
       { epcPartner: req.epc._id },
       nullEpcCondition

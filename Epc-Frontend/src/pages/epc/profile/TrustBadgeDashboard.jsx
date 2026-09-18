@@ -32,7 +32,7 @@ const TrustBadgeDashboard = () => {
   const isAustralia = country === 'australia';
   // Determine routing logic based on country (or analytics if available)
   const routingType = 'Customer Select'; // As per user request, Australia is also Customer Select First
-  const statesList = epc?.activeDistricts || [];
+  const statesList = epc?.activeDistricts && epc.activeDistricts.length > 0 ? epc.activeDistricts : (epc?.state ? [epc.state] : []);
 
   useEffect(() => {
     fetchFreshProfile();

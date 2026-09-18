@@ -5,55 +5,54 @@
 
 import React, { useState, useEffect } from "react";
 import { MainLayout } from "./components/MainLayout";
-import { DashboardScreen } from "./components/DashboardScreen";
-import { EpcPartnerScreen } from "./components/EpcPartnerScreen";
-import TrustBadgeEpcScreen from "./components/TrustBadgeEpcScreen";
-import { EpcBulkUploadScreen } from "./components/EpcBulkUploadScreen";
-import { KycScreen } from "./components/KycScreen";
-import { QualificationScreen } from "./components/QualificationScreen";
-import { SubscriptionScreen } from "./components/SubscriptionScreen";
-import { ProjectScreen } from "./components/ProjectScreen";
-import { ProductInstallerScreen } from "./components/ProductInstallerScreen";
-import { WorkflowSettingsScreen } from "./components/WorkflowSettingsScreen";
-import { SaaSAdminSettingsScreen } from "./components/SaaSAdminSettingsScreen";
-import WebsiteSettingsScreen from "./components/WebsiteSettingsScreen";
-import { CustomerEligibilityScreen } from "./components/CustomerEligibilityScreen";
-import { CountrySubsidyManagementScreen } from "./components/CountrySubsidyManagementScreen";
-import { OrderJourneyScreen } from "./components/OrderJourneyScreen";
-import { LiveProjectTrackingScreen } from "./components/LiveProjectTrackingScreen";
 import { LoginScreen } from "./components/LoginScreen";
-import { EpcWalletSettingsScreen } from "./components/Epcwalletsettingsscreen";
-import EpcSystemSettingsScreen from "./components/EpcSystemSettingsScreen";
-import BlogManagementScreen from "./components/BlogManagementScreen";
-import BDEManagementScreen from "./components/BDEManagementScreen";
-import BDEOnboardingScreen from "./components/BDEOnboardingScreen";
-import PlatformAnalyticsScreen from "./components/PlatformAnalyticsScreen";
-import { EpcRewardsScreen } from "./components/EpcRewardsScreen";
-import LeadScreenNew from "./components/LeadScreenNew";
-import { DemandSupplyScreen } from "./components/DemandSupplyScreen";
-import { DiscomManagementScreen } from "./components/DiscomManagementScreen";
-import BrandManagementScreen from "./components/BrandManagementScreen";
-import ProductsScreen from "./components/ProductsScreen";
-import ProjectsScreen from "./components/ProjectsScreen";
-import BillTemplateManagementScreen from "./components/BillTemplateManagementScreen";
-import CountryWebsiteScreen from "./components/country/CountryWebsiteScreen";
-import StcManagementDashboard from "./components/country/StcManagementDashboard";
+import BDELayout from "./components/bde/BDELayout";
 
-import PaymentSettingsTab from "./components/country/PaymentSettingsTab";
-import EpcRatesForBrandsTab from "./components/EpcRatesForBrandsTab";
-
-import UnifiedCountrySettings from "./components/UnifiedCountrySettings";
+const DashboardScreen = React.lazy(() => import('./components/DashboardScreen').then(module => ({ default: module.DashboardScreen })));
+const EpcPartnerScreen = React.lazy(() => import('./components/EpcPartnerScreen').then(module => ({ default: module.EpcPartnerScreen })));
+const TrustBadgeEpcScreen = React.lazy(() => import('./components/TrustBadgeEpcScreen'));
+const EpcBulkUploadScreen = React.lazy(() => import('./components/EpcBulkUploadScreen').then(module => ({ default: module.EpcBulkUploadScreen })));
+const KycScreen = React.lazy(() => import('./components/KycScreen').then(module => ({ default: module.KycScreen })));
+const QualificationScreen = React.lazy(() => import('./components/QualificationScreen').then(module => ({ default: module.QualificationScreen })));
+const SubscriptionScreen = React.lazy(() => import('./components/SubscriptionScreen').then(module => ({ default: module.SubscriptionScreen })));
+const ProjectScreen = React.lazy(() => import('./components/ProjectScreen').then(module => ({ default: module.ProjectScreen })));
+const ProductInstallerScreen = React.lazy(() => import('./components/ProductInstallerScreen').then(module => ({ default: module.ProductInstallerScreen })));
+const WorkflowSettingsScreen = React.lazy(() => import('./components/WorkflowSettingsScreen').then(module => ({ default: module.WorkflowSettingsScreen })));
+const SaaSAdminSettingsScreen = React.lazy(() => import('./components/SaaSAdminSettingsScreen').then(module => ({ default: module.SaaSAdminSettingsScreen })));
+const WebsiteSettingsScreen = React.lazy(() => import('./components/WebsiteSettingsScreen'));
+const CustomerEligibilityScreen = React.lazy(() => import('./components/CustomerEligibilityScreen').then(module => ({ default: module.CustomerEligibilityScreen })));
+const CountrySubsidyManagementScreen = React.lazy(() => import('./components/CountrySubsidyManagementScreen').then(module => ({ default: module.CountrySubsidyManagementScreen })));
+const OrderJourneyScreen = React.lazy(() => import('./components/OrderJourneyScreen').then(module => ({ default: module.OrderJourneyScreen })));
+const LiveProjectTrackingScreen = React.lazy(() => import('./components/LiveProjectTrackingScreen').then(module => ({ default: module.LiveProjectTrackingScreen })));
+const EpcWalletSettingsScreen = React.lazy(() => import('./components/Epcwalletsettingsscreen').then(module => ({ default: module.EpcWalletSettingsScreen })));
+const EpcSystemSettingsScreen = React.lazy(() => import('./components/EpcSystemSettingsScreen'));
+const BlogManagementScreen = React.lazy(() => import('./components/BlogManagementScreen'));
+const BDEManagementScreen = React.lazy(() => import('./components/BDEManagementScreen'));
+const BDEOnboardingScreen = React.lazy(() => import('./components/BDEOnboardingScreen'));
+const PlatformAnalyticsScreen = React.lazy(() => import('./components/PlatformAnalyticsScreen'));
+const EpcRewardsScreen = React.lazy(() => import('./components/EpcRewardsScreen').then(module => ({ default: module.EpcRewardsScreen })));
+const LeadScreenNew = React.lazy(() => import('./components/LeadScreenNew'));
+const DemandSupplyScreen = React.lazy(() => import('./components/DemandSupplyScreen').then(module => ({ default: module.DemandSupplyScreen })));
+const DiscomManagementScreen = React.lazy(() => import('./components/DiscomManagementScreen').then(module => ({ default: module.DiscomManagementScreen })));
+const BrandManagementScreen = React.lazy(() => import('./components/BrandManagementScreen'));
+const ProductsScreen = React.lazy(() => import('./components/ProductsScreen'));
+const ProjectsScreen = React.lazy(() => import('./components/ProjectsScreen'));
+const BillTemplateManagementScreen = React.lazy(() => import('./components/BillTemplateManagementScreen'));
+const CountryWebsiteScreen = React.lazy(() => import('./components/country/CountryWebsiteScreen'));
+const StcManagementDashboard = React.lazy(() => import('./components/country/StcManagementDashboard'));
+const PaymentSettingsTab = React.lazy(() => import('./components/country/PaymentSettingsTab'));
+const EpcRatesForBrandsTab = React.lazy(() => import('./components/EpcRatesForBrandsTab'));
+const UnifiedCountrySettings = React.lazy(() => import('./components/UnifiedCountrySettings'));
 
 // â”€â”€ BDE Portal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-import BDELayout from "./components/bde/BDELayout";
-import BDEDashboard from "./components/bde/BDEDashboard";
-import BDEMyLeads from './components/bde/BDEMyLeads';
-import BDELeadManagement from "./components/bde/BDELeadManagement";
-import BDEDemandPool from "./components/bde/BDEDemandPool";
-import BDEProjectTracking from "./components/bde/BDEProjectTracking";
-import BDEAustDashboard from "./components/bde/BDEAustDashboard";
-import BDEProfile from "./components/bde/BDEProfile";
-import BDEProspects from "./components/bde/BDEProspects";
+const BDEDashboard = React.lazy(() => import("./components/bde/BDEDashboard"));
+const BDEMyLeads = React.lazy(() => import('./components/bde/BDEMyLeads'));
+const BDELeadManagement = React.lazy(() => import("./components/bde/BDELeadManagement"));
+const BDEDemandPool = React.lazy(() => import("./components/bde/BDEDemandPool"));
+const BDEProjectTracking = React.lazy(() => import("./components/bde/BDEProjectTracking"));
+const BDEAustDashboard = React.lazy(() => import("./components/bde/BDEAustDashboard"));
+const BDEProfile = React.lazy(() => import("./components/bde/BDEProfile"));
+const BDEProspects = React.lazy(() => import("./components/bde/BDEProspects"));
 import {
   initialEPCPartners,
   initialQualificationRules,
@@ -603,7 +602,9 @@ export default function App() {
         onCountryChange={(c) => { setUserCountry(c); localStorage.setItem('sunnovative_user_country', c); }}
       >
         <div className="animate-fade-in-up duration-300">
-          {renderTabContent()}
+          <React.Suspense fallback={<div className="p-12 text-center text-sm font-semibold text-slate-500">Loading screen...</div>}>
+            {renderTabContent()}
+          </React.Suspense>
         </div>
       </BDELayout>
     );
@@ -618,7 +619,9 @@ export default function App() {
       onLogout={handleLogout}
     >
       <div className="animate-fade-in-up duration-300">
-        {renderTabContent()}
+        <React.Suspense fallback={<div className="p-12 text-center text-sm font-semibold text-slate-500">Loading screen...</div>}>
+          {renderTabContent()}
+        </React.Suspense>
       </div>
     </MainLayout>
   );

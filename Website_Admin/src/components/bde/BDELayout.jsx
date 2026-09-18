@@ -258,12 +258,17 @@ export default function BDELayout({ children, currentTab, onTabChange, onLogout,
           {/* Notifications Bell for BDE */}
           <div className="relative" ref={notifRef}>
             <button
-              onClick={() => setNotificationsOpen(!notificationsOpen)}
+              onClick={() => {
+                if (!notificationsOpen && unreadCount > 0) {
+                  markAllAsRead();
+                }
+                setNotificationsOpen(!notificationsOpen);
+              }}
               className="p-2 rounded-xl hover:bg-slate-100 relative transition-colors cursor-pointer"
             >
               <Bell className="w-5 h-5 text-gray-600" />
               {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white ring-2 ring-white">
+                <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white ring-2 ring-white animate-pulse shadow-sm shadow-rose-500/50">
                   {unreadCount}
                 </span>
               )}

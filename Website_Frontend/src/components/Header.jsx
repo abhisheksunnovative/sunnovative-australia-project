@@ -20,7 +20,8 @@ export default function Header({
   settings: propSettings,
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [availableCountries, setAvailableCountries] = useState([]);
+  const cachedCountries = JSON.parse(localStorage.getItem('sn_countries') || 'null');
+  const [availableCountries, setAvailableCountries] = useState(cachedCountries || []);
   const baseSettings = useWebsiteSettings();
   const settings = propSettings || baseSettings;
 
@@ -28,8 +29,10 @@ export default function Header({
     fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4005'}/api/countries`)
       .then(res => res.json())
       .then(data => {
-        if (data.success && data.data) {
-          setAvailableCountries(data.data.filter(c => c.isActive !== false));
+        if (data.success && data.data && data.data.length > 0) {
+          const active = data.data.filter(c => c.isActive !== false);
+          setAvailableCountries(active);
+          localStorage.setItem('sn_countries', JSON.stringify(active));
         }
       })
       .catch(e => console.error("Error fetching countries:", e));

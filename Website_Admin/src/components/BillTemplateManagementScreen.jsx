@@ -80,9 +80,15 @@ export default function BillTemplateManagementScreen() {
     setStates([]);
     setStatesLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/districts/states?country=${countryName.toLowerCase()}`);
+      // Fetch DISCOMS for this country to get the active states
+      const res = await fetch(`${API_URL}/api/discoms?country=${countryName}`);
       const data = await res.json();
-      const stateList = data.success ? data.data : (Array.isArray(data) ? data : []);
+      let stateList = [];
+      if (data.success && data.data) {
+        stateList = [...new Set(data.data.filter(d => d.isActive).map(d => d.state).filter(Boolean))].sort();
+      } else if (Array.isArray(data)) {
+        stateList = [...new Set(data.filter(d => d.isActive).map(d => d.state).filter(Boolean))].sort();
+      }
       setStates(stateList);
     } catch (err) {
       console.error('Error fetching states:', err);

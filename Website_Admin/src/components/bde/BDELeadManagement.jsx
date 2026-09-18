@@ -740,7 +740,7 @@ Customer has been notified in Customer Portal to select their preferred installe
             </button>
           )}
         </div>
-        <button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition shadow-sm"><Plus className="w-4 h-4" /> Add Lead</button>
+        <button onClick={() => { setCurrentLead(null); setIsAddModalOpen(true); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition shadow-sm"><Plus className="w-4 h-4" /> Add Lead</button>
         
       </div>
 

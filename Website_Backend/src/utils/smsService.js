@@ -26,7 +26,7 @@ export const sendOTP = async (mobile, otp) => {
   console.log(`[SMS SERVICE] Sending OTP to ${cleanMobile} via YourBulkSMS...`);
   
   try {
-    const smsRes = await axios.get(SMS_API_URL, { params });
+    const smsRes = await axios.get(SMS_API_URL, { params, timeout: 5000 });
     console.log(`[SMS SERVICE] Response:`, smsRes.data);
     return smsRes.data;
   } catch (error) {

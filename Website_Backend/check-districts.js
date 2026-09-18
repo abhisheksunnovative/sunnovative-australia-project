@@ -1,0 +1,1 @@
+import mongoose from 'mongoose'; import District from './src/models/District.js'; import dotenv from 'dotenv'; dotenv.config(); mongoose.connect(process.env.MONGODB_URL).then(async () => { const count = await District.countDocuments(); const sample = await District.findOne(); console.log('Count:', count); console.log('Sample:', sample); process.exit(0); });

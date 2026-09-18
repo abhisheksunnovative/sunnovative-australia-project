@@ -1,4 +1,4 @@
-﻿import fs from 'fs';
+import fs from 'fs';
 import { BillExtraction } from '../models/BillExtraction.js';
 import { addBillToQueue } from '../jobs/ocrQueue.js';
 
@@ -17,11 +17,15 @@ export const scanLightBillV2 = async (req, res) => {
     const extraction = await BillExtraction.create({
       job_id: `job-${Date.now()}`,
       status: 'PENDING',
-      bill_document_uri: filePath,
+      bill_document_uri: `/uploads/bills_v2/${filename}`,
       mime_type: req.file.mimetype
     });
     
-    await addBillToQueue({ extractionId: extraction._id, filePath });
+    await addBillToQueue({ 
+      extractionId: extraction._id, 
+      filePath, 
+      mimeType: req.file.mimetype 
+    });
     
     return res.status(202).json({
       message: 'Bill uploaded successfully. OCR is running in background.',

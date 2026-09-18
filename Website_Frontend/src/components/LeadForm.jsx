@@ -445,7 +445,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
-    if (!fullName || !city) {
+    if (!fullName || !city || !customerState) {
       alert("Required details (Name, City) are missing.");
       return;
     }

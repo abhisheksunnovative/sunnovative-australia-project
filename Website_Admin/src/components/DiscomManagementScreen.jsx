@@ -80,12 +80,17 @@ export const DiscomStateSelector = ({ selectedCountryObj, onBack }) => {
         let districtsList = distData.data || distData;
         if (!Array.isArray(districtsList)) districtsList = [];
         
-        const uniqueStates = [...new Set(districtsList.map(d => d.state).filter(Boolean))];
-        setStates(uniqueStates);
-
+        let discomsList = [];
         if (discomData.success) {
-          setDiscoms(discomData.data);
+          discomsList = discomData.data;
+          setDiscoms(discomsList);
         }
+
+        const districtStates = districtsList.map(d => d.state).filter(Boolean);
+        const discomStates = discomsList.map(d => d.state).filter(Boolean);
+        const uniqueStates = [...new Set([...districtStates, ...discomStates])].sort();
+        
+        setStates(uniqueStates);
       } catch (err) {
         console.error(err);
       } finally {

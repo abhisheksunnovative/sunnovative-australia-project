@@ -53,7 +53,7 @@ const UnifiedAddLeadModal = ({ onClose, onSuccess, initialSource = "website", bd
   
   const [formData, setFormData] = useState({
     name: existingLead?.name || "", mobile: existingLead?.mobile || "", email: existingLead?.email || "", district: existingLead?.district || "",
-    state: existingLead?.state || (isAU ? "New South Wales" : "Gujarat"),
+    state: existingLead?.state || "",
     pincode: existingLead?.pincode || "", kw: existingLead?.kw || "", billAmount: existingLead?.billAmount || "",
     solarType: existingLead?.solarType || (projectTypes?.[0]?.value) || (isAU ? "residential" : "surya-ghar"),
     notes: existingLead?.notes || "", discom: existingLead?.discom || "", country: isAU ? "australia" : "india",

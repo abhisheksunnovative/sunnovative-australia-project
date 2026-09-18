@@ -8,19 +8,38 @@
 
 import { BillExtraction } from '../models/BillExtraction.js';
 import { BillTemplate } from '../models/BillTemplate.js';
-import { runOcr, parseBillText } from '../utils/Ocrextractor.js';
+import { runOcr, parseBillText, extractPdfText, convertScannedPdfToImages } from '../utils/Ocrextractor.js';
 import { matchTemplate } from '../utils/TemplateMatcher.js';
 import { validateExtraction } from '../utils/ValidationEngine.js';
 import fs from 'fs';
 
 // Process OCR job directly without Redis/BullMQ
-const processOcrJob = async ({ extractionId, filePath }) => {
+const processOcrJob = async ({ extractionId, filePath, mimeType }) => {
   try {
     await BillExtraction.findByIdAndUpdate(extractionId, { status: 'PROCESSING' });
 
-    // 1. Run OCR
+    // 1. Run OCR (handle both Image & PDF)
     const fileBuffer = fs.readFileSync(filePath);
-    const rawText = await runOcr(fileBuffer);
+    let rawText = '';
+
+    if (mimeType === 'application/pdf') {
+      const { text, isScanned } = await extractPdfText(fileBuffer);
+      if (isScanned) {
+        const pageImages = await convertScannedPdfToImages(fileBuffer);
+        if (pageImages && pageImages.length > 0) {
+          const pageTexts = [];
+          for (const imgBuffer of pageImages) {
+            const pageText = await runOcr(imgBuffer);
+            if (pageText && pageText.trim().length > 10) pageTexts.push(pageText);
+          }
+          rawText = pageTexts.join('\n');
+        }
+      } else {
+        rawText = text;
+      }
+    } else {
+      rawText = await runOcr(fileBuffer);
+    }
 
     // 2. Fetch Active Template
     const template = await BillTemplate.findOne({ active: true });
