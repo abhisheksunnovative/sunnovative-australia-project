@@ -565,7 +565,7 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
   const { states: availableStates, districts: availableDistricts } = useGeography(order?.country || "india", order?.state || "");
   useEffect(() => { 
     fetchOrder(); 
-    const interval = setInterval(() => fetchOrder(true), 8000);
+    const interval = setInterval(() => fetchOrder(true), 30000);
     return () => clearInterval(interval);
   }, [fetchOrder]);
 
@@ -629,6 +629,7 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
 
       const res = await fetch(`${API_BASE}/api/project-orders/${orderId}/complete-step`, {
         method: "POST",
+        headers: { "x-admin-key": "super_admin_key_123" },
         body: formData,
       });
       const data = await res.json();

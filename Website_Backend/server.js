@@ -149,8 +149,8 @@ app.use("/api/v2/bill-templates", billTemplateRoutes);
 // ══════════════════════════════════════════════════════════════════════════
 // WEBSITE / ADMIN SETTINGS ROUTES
 // ══════════════════════════════════════════════════════════════════════════
-import tempRoutes from "./src/routes/tempRoutes.js";
-app.use("/api/temp", tempRoutes);
+// import tempRoutes from "./src/routes/tempRoutes.js";
+// app.use("/api/temp", tempRoutes);
 
 app.use("/api/website-settings", websiteSettingsRoutes);
 app.use("/api/eligibility-settings", eligibilitySettingsRoutes);

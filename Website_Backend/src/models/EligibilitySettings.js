@@ -84,6 +84,7 @@ const eligibilitySettingsSchema = new mongoose.Schema(
       latestBillRules: {
         enabled: { type: Boolean, default: true },
         maxBillAgeMonths: { type: Number, default: 3 },
+        maxBillingPeriodDays: { type: Number, default: 95 },
       },
       stateSubsidies: { type: [stateSubsidySchema], default: [] },
       centralSubsidyTiers: { type: [centralSubsidyTierSchema], default: [] },

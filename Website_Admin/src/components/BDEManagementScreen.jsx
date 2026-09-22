@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Plus, Edit2, Trash2, Save, X, Activity, UserCheck, MapPin, Building, ArrowLeft, Briefcase, Map } from "lucide-react";
 import { useGeography } from "../hooks/useGeography";
 import { useAdminSettings } from "../hooks/useAdminSettings";
+import { fetchWithCache } from '../utils/fetchWithCache';
 
 export default function BDEManagementScreen() {
   const [countries, setCountries] = React.useState([]);
@@ -12,7 +13,7 @@ export default function BDEManagementScreen() {
   React.useEffect(() => {
     const fetchCountries = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/countries`);
+        const res = await fetchWithCache(`${API_BASE}/api/countries`);
         const data = await res.json();
         if (data.success && data.data) {
           setCountries(data.data.filter(c => c.isActive));

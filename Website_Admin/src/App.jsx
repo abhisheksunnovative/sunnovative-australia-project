@@ -30,6 +30,7 @@ const BlogManagementScreen = React.lazy(() => import('./components/BlogManagemen
 const BDEManagementScreen = React.lazy(() => import('./components/BDEManagementScreen'));
 const BDEOnboardingScreen = React.lazy(() => import('./components/BDEOnboardingScreen'));
 const PlatformAnalyticsScreen = React.lazy(() => import('./components/PlatformAnalyticsScreen'));
+const WebAppAnalyticsScreen = React.lazy(() => import('./components/WebAppAnalyticsScreen'));
 const EpcRewardsScreen = React.lazy(() => import('./components/EpcRewardsScreen').then(module => ({ default: module.EpcRewardsScreen })));
 const LeadScreenNew = React.lazy(() => import('./components/LeadScreenNew'));
 const DemandSupplyScreen = React.lazy(() => import('./components/DemandSupplyScreen').then(module => ({ default: module.DemandSupplyScreen })));
@@ -400,38 +401,6 @@ export default function App() {
           />
         );
 
-      case "order-settings":
-        return (
-          <WorkflowSettingsScreen
-            activeSubTab="order-settings"
-            orderRules={orderRules}
-            processRules={processRules}
-            ratingRules={ratingRules}
-            onUpdateOrderRule={handleUpdateOrderRule}
-            onUpdateProcessRule={handleUpdateProcessRule}
-            onUpdateRatingRule={handleUpdateRatingRule}
-            onAddOrderRule={handleAddOrderRule}
-            onAddProcessRule={handleAddProcessRule}
-            onAddRatingRule={handleAddRatingRule}
-          />
-        );
-
-      case "process-settings":
-        return (
-          <WorkflowSettingsScreen
-            activeSubTab="process-settings"
-            orderRules={orderRules}
-            processRules={processRules}
-            ratingRules={ratingRules}
-            onUpdateOrderRule={handleUpdateOrderRule}
-            onUpdateProcessRule={handleUpdateProcessRule}
-            onUpdateRatingRule={handleUpdateRatingRule}
-            onAddOrderRule={handleAddOrderRule}
-            onAddProcessRule={handleAddProcessRule}
-            onAddRatingRule={handleAddRatingRule}
-          />
-        );
-
       case "ratings-benefits":
         return (
           <WorkflowSettingsScreen
@@ -461,15 +430,6 @@ export default function App() {
         return (
           <SaaSAdminSettingsScreen
             activeSubTab="reports"
-            partners={partners}
-            projects={projects}
-          />
-        );
-
-      case "admin-settings":
-        return (
-          <SaaSAdminSettingsScreen
-            activeSubTab="admin-settings"
             partners={partners}
             projects={projects}
           />
@@ -519,7 +479,9 @@ export default function App() {
         return <BDEManagementScreen />;
       case "bde-onboarding":
         return <BDEOnboardingScreen />;
-      case "platform-analytics":
+              case "web-app-analytics":
+          return <WebAppAnalyticsScreen />;
+        case "platform-analytics":
         return <PlatformAnalyticsScreen />;
       case "brand-management":
         return <BrandManagementScreen />;

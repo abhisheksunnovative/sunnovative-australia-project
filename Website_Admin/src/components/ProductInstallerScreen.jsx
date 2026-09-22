@@ -429,7 +429,8 @@ export const ProductInstallerScreen = ({
           {/* PRODUCTS INVENTORY LIST */}
           {!showProductForm && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
-              <table className="min-w-full divide-y text-xs text-left">
+              <div className="overflow-x-auto min-w-full">
+                <table className="min-w-full divide-y text-xs text-left">
                 <thead className="bg-orange-600 text-white">
                   <tr>
                     <th className="px-5 py-3.5 font-bold font-display uppercase">
@@ -515,6 +516,7 @@ export const ProductInstallerScreen = ({
                     ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>
@@ -742,7 +744,8 @@ export const ProductInstallerScreen = ({
           {/* INSTALLER TABLE RENDER */}
           {!showInstallerForm && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
-              <table className="min-w-full divide-y text-xs text-left">
+              <div className="overflow-x-auto min-w-full">
+                <table className="min-w-full divide-y text-xs text-left">
                 <thead className="bg-orange-600 text-white">
                   <tr>
                     <th className="px-5 py-3.5 font-bold font-display uppercase">
@@ -852,6 +855,7 @@ export const ProductInstallerScreen = ({
                     ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, FileSpreadsheet, Settings, RefreshCw, CheckCircle, AlertTriangle, Download, Trash2, Plus, Users, ArrowLeft, Map, Globe } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { fetchWithCache } from '../utils/fetchWithCache';
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
@@ -61,7 +62,7 @@ export const EpcBulkUploadScreen = () => {
   const fetchCountries = async () => {
     setLoadingLocations(true);
     try {
-      const res = await fetch(`${API_BASE}/api/countries`);
+      const res = await fetchWithCache(`${API_BASE}/api/countries`);
       const data = await res.json();
       if (data.success) setCountries(data.data.filter(c => c.isActive !== false));
     } catch (e) {

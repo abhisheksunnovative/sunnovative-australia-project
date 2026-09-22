@@ -37,7 +37,7 @@ import {
   Square,
   Check,
   ClipboardList,
-} from "lucide-react";
+LineChart} from "lucide-react";
 
 export const MainLayout = ({
   currentTab,
@@ -87,9 +87,19 @@ export const MainLayout = ({
       icon: <FileCheck className="w-5 h-5" />,
     },
     {
+      name: "Scanned Bills (OCR)",
+      id: "scanned-bills",
+      icon: <FileCheck className="w-5 h-5" />,
+    },
+    {
       name: "Platform Analytics",
       id: "platform-analytics",
       icon: <Activity className="w-5 h-5" />,
+    },
+    {
+      name: "Web App Analytics",
+      id: "web-app-analytics",
+      icon: <LineChart className="w-5 h-5" />,
     },
     {
       name: "Country Settings",
@@ -153,16 +163,8 @@ export const MainLayout = ({
 },
     { name: "Live Project Tracking", id: "project-orders", icon: <ListChecks className="w-5 h-5" /> },
     { name: "Demand & Supply", id: "demand-supply", icon: <Activity className="w-5 h-5" /> },
-    {
-      name: "Project Order Settings",
-      id: "order-settings",
-      icon: <CalendarRange className="w-5 h-5" />,
-    },
-    {
-      name: "Order Process Settings",
-      id: "process-settings",
-      icon: <Sliders className="w-5 h-5" />,
-    },
+    
+    
     {
       name: "Ratings & Benefits",
       id: "ratings-benefits",
@@ -210,11 +212,7 @@ export const MainLayout = ({
       id: "brand-management",
       icon: <Package className="w-5 h-5" />,
     },
-    {
-      name: "Admin Settings",
-      id: "admin-settings",
-      icon: <ShieldCheck className="w-5 h-5" />,
-    },
+    
     {
       name: "BDE Management",
       id: "bde-management",
@@ -228,7 +226,7 @@ export const MainLayout = ({
   ];
 
   const filteredMenuItems = isVeneet 
-    ? allMenuItems.filter(item => ["dashboard", "project-orders", "order-journey", "platform-analytics"].includes(item.id))
+    ? allMenuItems.filter(item => ["dashboard", "project-orders", "order-journey", "platform-analytics", "web-app-analytics"].includes(item.id))
     : allMenuItems;
 
   // ── Website Content — Now a single unified page ──
@@ -250,19 +248,27 @@ export const MainLayout = ({
   const eligibilityIds = eligibilityItems.map((item) => item.id);
 
   const epcSequenceItems = [
-    { name: "KYC & Agreement", id: "kyc-agreement", step: 1 },
-    { name: "Partner Qualification", id: "qualification", step: 2 },
-    { name: "Ratings & Benefits", id: "ratings-benefits", step: 3 },
-    { name: "EPC Partner Settings", id: "epc-settings", step: 4 },
-    { name: "Rewards & Incentives", id: "epc-rewards", step: 5 },
+    { name: "EPC Rates for Brands", id: "epc-rates-brands" },
+    { name: "EPC System Settings", id: "epc-system-settings" },
+    { name: "Plans & Subscriptions", id: "subscriptions" },
+    { name: "Trust Badge EPC", id: "trust-badge-epc" },
+    { name: "EPC Partner Settings", id: "epc-settings" },
   ];
 
   const epcSequenceIds = epcSequenceItems.map((item) => item.id);
+  const bdeSequenceItems = [
+    { name: "BDE Management", id: "bde-management" },
+    { name: "BDE Onboarding", id: "bde-onboarding" },
+    { name: "BDE Uploaded Leads", id: "bde-leads-admin" }
+  ];
+  const bdeSequenceIds = bdeSequenceItems.map((item) => item.id);
+
   const topLevelMenuItems = filteredMenuItems.filter(
-    (item) => !epcSequenceIds.includes(item.id),
+    (item) => !epcSequenceIds.includes(item.id) && !bdeSequenceIds.includes(item.id)
   );
 
-  const [epcSettingsOpen, setEpcSettingsOpen] = useState(true);
+  const [epcSettingsOpen, setEpcSettingsOpen] = useState(false);
+  const [bdeSettingsOpen, setBdeSettingsOpen] = useState(false);
   const [websiteContentOpen, setWebsiteContentOpen] = useState(false);
   const [eligibilityOpen, setEligibilityOpen] = useState(false);
 
@@ -270,6 +276,9 @@ export const MainLayout = ({
   React.useEffect(() => {
     if (epcSequenceIds.includes(currentTab)) {
       setEpcSettingsOpen(true);
+    }
+    if (bdeSequenceIds.includes(currentTab)) {
+      setBdeSettingsOpen(true);
     }
     if (websiteContentIds.includes(currentTab)) {
       setWebsiteContentOpen(true);
@@ -542,9 +551,21 @@ export const MainLayout = ({
               setIsOpen={setEpcSettingsOpen}
               items={epcSequenceItems}
               activeIds={epcSequenceIds}
-              showStep
+              
             />
           )}
+          {/* BDE Settings Dropdown */}
+          {!isVeneet && (
+            <DropdownGroup
+              label="BDE Settings"
+              icon={<Users className="w-5 h-5 text-orange-200" />}
+              isOpen={bdeSettingsOpen}
+              setIsOpen={setBdeSettingsOpen}
+              items={bdeSequenceItems}
+              activeIds={bdeSequenceIds}
+            />
+          )}
+
 
           {/* Remaining Top Level Menu Items (Plans, Projects, Products, Settings, Admin) */}
           {topLevelMenuItems.slice(2).map((item) => {
@@ -699,7 +720,18 @@ export const MainLayout = ({
                   setIsOpen={setEpcSettingsOpen}
                   items={epcSequenceItems}
                   activeIds={epcSequenceIds}
-                  showStep
+                  onMobileSelect={() => setMobileMenuOpen(false)}
+                />
+              )}
+              {/* BDE Settings Dropdown */}
+              {!isVeneet && (
+                <DropdownGroup
+                  label="BDE Settings"
+                  icon={<Users className="w-5 h-5 text-sky-200" />}
+                  isOpen={bdeSettingsOpen}
+                  setIsOpen={setBdeSettingsOpen}
+                  items={bdeSequenceItems}
+                  activeIds={bdeSequenceIds}
                   onMobileSelect={() => setMobileMenuOpen(false)}
                 />
               )}

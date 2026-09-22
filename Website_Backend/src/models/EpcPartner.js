@@ -50,8 +50,15 @@ const EpcPartnerSchema = new mongoose.Schema({
     cecAccreditationNumber: { type: String, default: '' },
     cecExpiryDate: { type: Date, default: null },
     cecLicenseUrl: { type: String, default: '' },
-    cecStatus: { type: String, enum: ['Pending', 'Verified', 'Rejected', 'Expired'], default: 'Pending' }
+        cecStatus: { type: String, enum: ['Pending', 'Verified', 'Rejected', 'Expired'], default: 'Pending' },
+    dynamicDocuments: [{
+      documentName: { type: String },
+      fileUrl: { type: String },
+      uploadedAt: { type: Date, default: Date.now },
+      status: { type: String, enum: ['Pending', 'Verified', 'Rejected'], default: 'Pending' }
+    }]
   },
+  qualificationCategory: { type: mongoose.Schema.Types.ObjectId, ref: 'QualificationCategory' },
   rating:                   { type: Number, default: 0 },
   totalRatings:              { type: Number, default: 0 },
   onTimeCompletionPercent:   { type: Number, default: 0 },
@@ -99,5 +106,7 @@ EpcPartnerSchema.methods.matchPassword = async function(enteredPassword) {
 };
 
 EpcPartnerSchema.index({ state: 1, country: 1 });
+EpcPartnerSchema.index({ district: 1, status: 1 });
+EpcPartnerSchema.index({ activeDistricts: 1 });
 
 export default mongoose.model('EpcPartner', EpcPartnerSchema);

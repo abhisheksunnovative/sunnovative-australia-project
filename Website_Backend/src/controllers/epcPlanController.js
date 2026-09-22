@@ -95,7 +95,11 @@ export const createInstallerUpgradeOrder = async (req, res) => {
     const order = await razorpay.orders.create({
       amount: amountInPaise,
       currency: "INR",
-      receipt: `upg_${Date.now()}`.substring(0, 40)
+      receipt: `upg_${Date.now()}`.substring(0, 40),
+      notes: {
+        installers: additionalInstallers,
+        district: targetDistrict
+      }
     });
 
     res.json({
@@ -118,9 +122,7 @@ export const verifyInstallerUpgrade = async (req, res) => {
     const { 
       razorpay_order_id, 
       razorpay_payment_id, 
-      razorpay_signature, 
-      additionalInstallers,
-      targetDistrict
+      razorpay_signature 
     } = req.body;
 
     const secret = process.env.RAZORPAY_KEY_SECRET || "secret_placeholder";
@@ -133,8 +135,26 @@ export const verifyInstallerUpgrade = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid payment signature' });
     }
 
+    const order = await razorpay.orders.fetch(razorpay_order_id);
+    if (order.status !== 'paid') {
+      return res.status(400).json({ message: `Payment not completed (status: ${order.status})` });
+    }
+
+    const additionalInstallers = Number(order.notes?.installers);
+    const targetDistrict = order.notes?.district;
+    if (!additionalInstallers || !targetDistrict) {
+      return res.status(400).json({ message: 'Missing installers/district in order notes' });
+    }
+
     const epc = await EpcPartner.findById(req.epc._id);
     if (!epc) return res.status(404).json({ message: 'EPC not found' });
+
+    // Ensure payment not reused
+    if (epc.installerPayments && epc.installerPayments.includes(razorpay_payment_id)) {
+      return res.status(400).json({ message: 'Payment already verified' });
+    }
+    if (!epc.installerPayments) epc.installerPayments = [];
+    epc.installerPayments.push(razorpay_payment_id);
 
     // Initialize districtCapacities if null
     if (!epc.districtCapacities) epc.districtCapacities = [];
@@ -184,7 +204,7 @@ export const requestUpgrade = async (req, res) => {
         message: `Minimum ${plan.minYearsExperience} years experience required for ${newPlan} plan`,
       });
 
-    const amount = billingCycle === 'Annual' ? plan.annualFee : plan.monthlyFee;
+    const amount = billingCycle === 'Annual' ? plan.annualPrice : plan.monthlyPrice;
     
     // If plan is free (e.g. Standard with 0 fee)
     if (!amount || amount === 0) {
@@ -202,6 +222,10 @@ export const requestUpgrade = async (req, res) => {
       amount: Math.round(amount * 100), // paise
       currency: "INR",
       receipt: `rcpt_epc_plan_${epc._id}`,
+      notes: {
+        newPlan: newPlan,
+        billingCycle: billingCycle
+      }
     };
 
     const order = await razorpay.orders.create(options);
@@ -223,7 +247,7 @@ export const requestUpgrade = async (req, res) => {
 
 export const verifyUpgrade = async (req, res) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, newPlan, billingCycle } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
     const sign = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSign = crypto
@@ -235,8 +259,26 @@ export const verifyUpgrade = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid payment signature" });
     }
 
+    const order = await razorpay.orders.fetch(razorpay_order_id);
+    if (order.status !== 'paid') {
+      return res.status(400).json({ message: `Payment not completed (status: ${order.status})` });
+    }
+
+    const newPlan = order.notes?.newPlan;
+    const billingCycle = order.notes?.billingCycle;
+    if (!newPlan || !billingCycle) {
+      return res.status(400).json({ message: 'Missing plan/billing in order notes' });
+    }
+
     const epc = await EpcPartner.findById(req.epc._id);
     if (!epc) return res.status(404).json({ success: false, message: "EPC not found" });
+
+    // Ensure payment not reused
+    if (epc.planPayments && epc.planPayments.includes(razorpay_payment_id)) {
+      return res.status(400).json({ message: 'Payment already verified' });
+    }
+    if (!epc.planPayments) epc.planPayments = [];
+    epc.planPayments.push(razorpay_payment_id);
 
     epc.plan = newPlan;
     const expiry = new Date();

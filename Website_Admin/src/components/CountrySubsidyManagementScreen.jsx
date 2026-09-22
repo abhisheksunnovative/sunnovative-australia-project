@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Save, AlertCircle, Plus, Trash2, Zap, MapPin, CheckCircle, Percent, DollarSign, Building, ArrowLeft } from 'lucide-react';
+import { fetchWithCache } from '../utils/fetchWithCache';
 
 const SUBSIDY_MODEL_MAP = {
   'india': 'tiered-state',
@@ -35,7 +36,7 @@ export const CountrySubsidyManagementScreen = ({ selectedCountryCode }) => {
 
   const fetchCountries = async () => {
     try {
-      const res = await fetch(API_BASE + '/api/countries');
+      const res = await fetchWithCache(API_BASE + '/api/countries');
       const data = await res.json();
       const list = data.success ? data.data : Array.isArray(data) ? data : [];
       const activeList = list.filter(c => c.isActive);

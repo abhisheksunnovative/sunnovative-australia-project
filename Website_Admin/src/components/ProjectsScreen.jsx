@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, Globe, Home, Package, Zap } from 'lucide-react';
 import ProjectTypeSettings from './ProjectTypeSettings';
+import { fetchWithCache } from '../utils/fetchWithCache';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4005';
 
@@ -14,7 +15,7 @@ const ProjectsScreen = () => {
   const fetchCountries = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/countries`);
+      const res = await fetchWithCache(`${API_BASE}/api/countries`);
       const data = await res.json();
       if (data.success && data.data) {
         setCountries(data.data);

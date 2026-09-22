@@ -12,7 +12,6 @@ const epcEnquirySchema = new mongoose.Schema({
   },
   projectType: {
     type: String,
-    enum: ['Surya Ghar Yojana', 'Group Solar', 'Village Solar Campaign', 'Commercial Solar', 'Residential Solar'],
     required: true,
   },
   systemCapacityKw: { type: Number },
@@ -49,5 +48,10 @@ const epcEnquirySchema = new mongoose.Schema({
   convertedAt:      { type: Date },
   leadRef: { type: mongoose.Schema.Types.ObjectId, ref: 'Lead' },
 }, { timestamps: true });
+
+epcEnquirySchema.index({ epcPartner: 1, status: 1 });
+epcEnquirySchema.index({ status: 1, state: 1 });
+epcEnquirySchema.index({ district: 1, status: 1 });
+epcEnquirySchema.index({ acceptedAt: -1 });
 
 export default mongoose.model('EpcEnquiry', epcEnquirySchema);

@@ -176,10 +176,7 @@ export const getMyOrders = async (req, res) => {
     }
 
     if (projectType && projectType !== 'All') {
-      const mappedType = (projectType === 'Residential Solar' || projectType === 'Surya Ghar Yojana') ? 'residential' : 
-                         projectType === 'Commercial Solar' ? 'commercial' :
-                         projectType === 'Group Solar' ? 'group' : 'common-meter';
-      filter.projectType = mappedType;
+      filter.projectType = projectType;
     }
 
     if (country && country !== 'All') filter.country = country;
@@ -218,6 +215,12 @@ export const updateOrderStage = async (req, res) => {
 
     const { stage } = req.body;
     
+    // Block order completion if KYC is not Approved
+    const restrictedStages = ['Installation In Progress', 'Installation Completed', 'STC Approval', 'Grid Connect Approval', 'Project Closed'];
+    if (restrictedStages.includes(stage) && req.epc.onboardingStatus !== 'Approved') {
+      return res.status(403).json({ message: 'Please upload your mandatory KYC documents and wait for Admin approval to proceed with the next steps.' });
+    }
+    
     // In Australia flow, moving from lead to Registration Started
     if (order.status === 'lead' && stage === 'Registration Started') {
       order.status = 'qualified'; // or whatever the next status should be to show up in Orders
@@ -243,7 +246,7 @@ export const updateOrderStage = async (req, res) => {
 
 export const uploadRegistrationDocs = async (req, res) => {
   try {
-    const order = await EpcOrder.findOne({ _id: req.params.id, epcPartner: req.epc._id });
+    const order = await ProjectOrder.findOne({ _id: req.params.id, assignedEPCId: req.epc._id });
     if (!order) return res.status(404).json({ message: 'Order not found' });
     if (!req.files || req.files.length === 0)
       return res.status(400).json({ message: 'No files uploaded' });
@@ -265,7 +268,7 @@ export const uploadRegistrationDocs = async (req, res) => {
 
 export const uploadInstallationDocs = async (req, res) => {
   try {
-    const order = await EpcOrder.findOne({ _id: req.params.id, epcPartner: req.epc._id });
+    const order = await ProjectOrder.findOne({ _id: req.params.id, assignedEPCId: req.epc._id });
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
     if (req.files?.photos) {
@@ -292,7 +295,7 @@ export const uploadInstallationDocs = async (req, res) => {
 
 export const uploadPcr = async (req, res) => {
   try {
-    const order = await EpcOrder.findOne({ _id: req.params.id, epcPartner: req.epc._id });
+    const order = await ProjectOrder.findOne({ _id: req.params.id, assignedEPCId: req.epc._id });
     if (!order) return res.status(404).json({ message: 'Order not found' });
     if (!req.file) return res.status(400).json({ message: 'No PCR file uploaded' });
 

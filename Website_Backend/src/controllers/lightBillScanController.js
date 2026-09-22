@@ -24,8 +24,10 @@ import {
   getAuStcZone,
 } from '../utils/Ocrextractor.js';
 import { calculateSTC } from '../utils/stcCalculator.js';
-import { parseAuBillWithGemini } from '../utils/geminiBillExtractor.js';
+import { parseAuBillWithGemini, extractRawTextWithGemini } from '../utils/geminiBillExtractor.js';
 import ProjectPricing from '../models/ProjectPricing.js';
+import { BillExtraction } from '../models/BillExtraction.js';
+
 
 export const scanLightBill = async (req, res) => {
   try {
@@ -50,53 +52,35 @@ export const scanLightBill = async (req, res) => {
     // ── 2. Extract raw text ────────────────────────────────────────────────
     let rawText;
 
-    if (req.file.mimetype === 'application/pdf') {
-      const { text, isScanned } = await extractPdfText(req.file.buffer);
-      if (isScanned) {
-        try {
-          const pageImages = await convertScannedPdfToImages(req.file.buffer);
-          if (!pageImages || pageImages.length === 0) {
-            return res.status(400).json({
-              message:
-                'Scanned PDF se koi readable page extract nahi ho paya. ' +
-                'Kripya bill ka clear JPG/PNG photo upload karo.',
-            });
-          }
-          const pageTexts = [];
-          for (const imgBuffer of pageImages) {
-            const pageText = await runOcr(imgBuffer);
-            if (pageText && pageText.trim().length > 10) {
-              pageTexts.push(pageText);
-            }
-          }
-          if (pageTexts.length === 0) {
-            return res.status(400).json({
-              message:
-                'Scanned PDF me OCR se kuch readable text nahi mila. ' +
-                'Kripya bill ka clear, high-quality photo upload karo.',
-            });
-          }
-          rawText = pageTexts.join('\n');
-        } catch (pdfImgErr) {
-          console.error('Scanned PDF conversion error:', pdfImgErr);
-          return res.status(400).json({
-            message:
-              'Scanned PDF process karne me error aaya. ' +
-              'Kripya bill ka JPG/PNG photo upload karo.',
-            error: pdfImgErr.message,
-          });
-        }
-      } else {
-        rawText = text;
-      }
-    } else if (req.file.mimetype.startsWith('image/')) {
-      rawText = await runOcr(req.file.buffer);
-    } else if (req.file.mimetype === 'text/plain') {
-      // Text files — for testing: read directly as UTF-8
+    if (req.file.mimetype === 'text/plain') {
       rawText = req.file.buffer.toString('utf-8');
     } else {
+      rawText = await extractRawTextWithGemini(req.file.buffer, req.file.mimetype);
+      if (!rawText) {
+        // Fallback to Tesseract if Gemini fails or no key
+        if (req.file.mimetype === 'application/pdf') {
+          const { text, isScanned } = await extractPdfText(req.file.buffer);
+          if (isScanned) {
+            try {
+              const pageImages = await convertScannedPdfToImages(req.file.buffer);
+              if (pageImages && pageImages.length > 0) {
+                rawText = await runOcr(pageImages[0]);
+              }
+            } catch (e) {
+              console.error('PDF OCR error', e);
+            }
+          } else {
+            rawText = text;
+          }
+        } else {
+          rawText = await runOcr(req.file.buffer);
+        }
+      }
+    }
+
+    if (!rawText || rawText.trim().length < 10) {
       return res.status(400).json({
-        message: 'Unsupported file type. Please upload JPG, PNG, or PDF.',
+        message: 'Could not read text from the uploaded bill. Please ensure it is clear and retry.',
       });
     }
 
@@ -308,6 +292,20 @@ export const scanLightBill = async (req, res) => {
         subsidyNote: `${stcCalc.stcCount} STCs × $${stcPrice} = $${stcCalc.totalRebate} rebate (Zone ${zone}, ${deemingYears}-yr deeming)`,
       };
 
+      try {
+        await BillExtraction.create({
+          job_id: `au-${Date.now()}-${Math.round(Math.random() * 10000)}`,
+          status: 'COMPLETED',
+          bill_document_uri: fileUrl,
+          mime_type: req.file.mimetype,
+          normalized_data_json: response.extracted,
+          confidence: confidence === 'high' ? 1.0 : 0.5,
+          raw_text: rawText
+        });
+      } catch (dbErr) {
+        console.error('Failed to save AU BillExtraction:', dbErr);
+      }
+
       return res.json(response);
     }
 
@@ -393,6 +391,20 @@ export const scanLightBill = async (req, res) => {
 
     // ── 8. Low confidence — still return data, warn user ──────────────────
     if (parsed.confidence === 'low') {
+      try {
+        await BillExtraction.create({
+          job_id: `in-low-${Date.now()}-${Math.round(Math.random() * 10000)}`,
+          status: 'COMPLETED',
+          bill_document_uri: fileUrl,
+          mime_type: req.file.mimetype,
+          normalized_data_json: parsed,
+          confidence: 0.1,
+          raw_text: rawText
+        });
+      } catch (dbErr) {
+        console.error('Failed to save IN (low conf) BillExtraction:', dbErr);
+      }
+
       return res.json({
         success: true,
         confidence: 'low',
@@ -409,7 +421,7 @@ export const scanLightBill = async (req, res) => {
     }
 
     // ── 9. Success response ────────────────────────────────────────────────
-    res.json({
+    const responsePayload = {
       success: true,
       confidence: parsed.confidence,
       country: 'india',
@@ -418,6 +430,7 @@ export const scanLightBill = async (req, res) => {
         extracted: {
         discomId:           parsed.discomId,
         detectedState:      parsed.detectedState,
+        pincode:            parsed.pincode,
         billFormat:         parsed.billFormat,
         consumerNumber:     parsed.consumerNumber,
         consumerName:       parsed.consumerName,
@@ -443,7 +456,23 @@ export const scanLightBill = async (req, res) => {
       monthlyUnitsUsed,
       subsidyAmount,
       subsidyNote: note,
-    });
+    };
+
+    try {
+      await BillExtraction.create({
+        job_id: `in-${Date.now()}-${Math.round(Math.random() * 10000)}`,
+        status: 'COMPLETED',
+        bill_document_uri: fileUrl,
+        mime_type: req.file.mimetype,
+        normalized_data_json: responsePayload.extracted,
+        confidence: parsed.confidence === 'high' ? 1.0 : 0.5,
+        raw_text: rawText
+      });
+    } catch (dbErr) {
+      console.error('Failed to save IN BillExtraction:', dbErr);
+    }
+
+    res.json(responsePayload);
 
   } catch (err) {
     console.error('scanLightBill error:', err);

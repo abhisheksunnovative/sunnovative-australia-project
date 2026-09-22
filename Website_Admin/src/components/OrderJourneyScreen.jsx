@@ -14,6 +14,7 @@ import {
   Settings, Bell, Clock, CheckSquare, FileText, CheckCircle2
 } from "lucide-react";
 import FeatureTrialConnector from "./FeatureTrialConnector";
+import { fetchWithCache } from '../utils/fetchWithCache';
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
@@ -902,7 +903,7 @@ export const OrderJourneyScreen = ({ selectedCountry: propCountry, readOnly = fa
   useEffect(() => {
     const fetchCountries = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/countries`);
+        const res = await fetchWithCache(`${API_BASE}/api/countries`);
         const data = await res.json();
         if (data.success) {
           setDbCountries(data.data);

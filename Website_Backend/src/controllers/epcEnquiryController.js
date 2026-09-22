@@ -1,6 +1,6 @@
 import EpcEnquiry from '../models/EpcEnquiry.js';
-import EpcOrder from '../models/EpcOrder.js';
 import EpcPartner from '../models/EpcPartner.js';
+import EpcInstallerConfig from '../models/EpcInstallerConfig.js';
 import { deductCreditsForOrder } from './epcWalletController.js';
 
 export const getMyEnquiries = async (req, res) => {
@@ -11,7 +11,7 @@ export const getMyEnquiries = async (req, res) => {
     let filter = {};
     let nullEpcCondition = {
       epcPartner: null,
-      status: { $in: ['Open For EPC', 'Bid Running', 'Lead', 'Token Paid', 'Order Generated'] }
+      status: { $in: ['Open For EPC', 'Bid Running'] }
     };
 
     if (epc.country?.toLowerCase() === 'india' || !epc.country) {
@@ -66,13 +66,25 @@ export const getEnquiryById = async (req, res) => {
 };
 
 export const acceptEnquiry = async (req, res) => {
-  try {
-    const epcId = req.epc._id;
-    const enquiryId = req.params.id;
+  const epcId = req.epc._id;
+  const enquiryId = req.params.id;
 
+  // Mutex lock to prevent concurrent acceptances for the same EPC
+  const epcMutex = await EpcPartner.findOneAndUpdate(
+    { _id: epcId, $or: [{ isAcceptingWaitLock: false }, { isAcceptingWaitLock: { $exists: false } }] },
+    { $set: { isAcceptingWaitLock: true } }
+  );
+
+  if (!epcMutex) {
+    return res.status(429).json({ message: 'You are already processing another acceptance. Please wait a moment.' });
+  }
+
+  try {
     // 1. First fetch to check district & basic eligibility before locking
     const enquiryCheck = await EpcEnquiry.findById(enquiryId);
-    if (!enquiryCheck) return res.status(404).json({ message: 'Enquiry not found' });
+    if (!enquiryCheck) {
+      return res.status(404).json({ message: 'Enquiry not found' });
+    }
 
     const acceptableStatuses = ['Open For EPC', 'Bid Running', 'New'];
     if (!acceptableStatuses.includes(enquiryCheck.status)) {
@@ -105,18 +117,30 @@ export const acceptEnquiry = async (req, res) => {
       }
     }
 
-    // District-wise Weekly Plan Check
-    const targetDistrict = enquiryCheck.district;
-    const districtCap = epc.districtCapacities?.find(d => d.district === targetDistrict);
-    const maxWeeklyKw = districtCap ? districtCap.weeklyCapacityKw : 25; // default 25 if not explicitly purchased yet but active
+    // Global Weekly Capacity Check (1 installer = X kW per week globally)
+    const epcCountry = (epc.country || 'india').toLowerCase();
+    let config = await EpcInstallerConfig.findOne({ country: epcCountry });
+    if (!config) {
+      config = await EpcInstallerConfig.findOne({ country: 'australia' }); // fallback
+      if (!config) config = { weeklyKwCapacityPerInstaller: 25 }; // ultimate fallback
+    }
+
+    let totalInstallers = 1;
+    if (epc.districtCapacities && epc.districtCapacities.length > 0) {
+      totalInstallers = epc.districtCapacities.reduce((sum, d) => sum + (d.installerCount || 1), 0);
+    } else if (epc.plan) {
+      const match = epc.plan.match(/^(\d+)/);
+      if (match) totalInstallers = parseInt(match[1]);
+    }
+
+    const maxWeeklyKw = totalInstallers * config.weeklyKwCapacityPerInstaller;
 
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     
-    // Only fetch enquiries for this specific district!
+    // Fetch ALL accepted enquiries for this EPC globally in the last 7 days
     const recentEnquiries = await EpcEnquiry.find({
       epcPartner: epcId,
-      district: targetDistrict,
       acceptedAt: { $gte: sevenDaysAgo },
     });
     
@@ -124,7 +148,7 @@ export const acceptEnquiry = async (req, res) => {
     const kwRequired = enquiryCheck.systemCapacityKw || 1;
     
     if (currentlyUsedKw + kwRequired > maxWeeklyKw) {
-      return res.status(403).json({ message: `Your capacity for ${targetDistrict} allows ${maxWeeklyKw} kW per week. You have accepted ${currentlyUsedKw} kW in the last 7 days. Upgrade your team capacity for ${targetDistrict} to accept this project.` });
+      return res.status(403).json({ message: `Your total global capacity allows ${maxWeeklyKw} kW per week (${totalInstallers} installers  ${config.weeklyKwCapacityPerInstaller} kW). You have accepted ${currentlyUsedKw} kW in the last 7 days. Upgrade your team size to accept this ${kwRequired} kW project.` });
     }
 
     // Trust Badge Leads limit check
@@ -174,7 +198,7 @@ export const acceptEnquiry = async (req, res) => {
 
     try {
       // 3. Deduct Wallet Points
-      await deductCreditsForOrder(epcId, lockedEnquiry.projectType, kwRequired, enquiryId, true);
+      await deductCreditsForOrder(epcId, lockedEnquiry.projectType, kwRequired, enquiryId, true, lockedEnquiry.district);
 
       // Decrement Trust Badge leads if they accepted a priority lead
       const delayMinutes = process.env.TRUST_BADGE_DELAY_MINUTES || 60;
@@ -196,15 +220,15 @@ export const acceptEnquiry = async (req, res) => {
       // Sync to ProjectOrder & Lead
       try {
         const { ProjectOrder } = await import('../models/ProjectModel.js');
-        const EpcPartner = (await import('../models/EpcPartner.js')).default;
-        const epc = await EpcPartner.findById(epcId);
+        const EpcPartnerModel = (await import('../models/EpcPartner.js')).default;
+        const freshEpc = await EpcPartnerModel.findById(epcId);
         
-        if (epc) {
+        if (freshEpc) {
           // Update ProjectOrder
           const project = await ProjectOrder.findOne({ orderNumber: lockedEnquiry.orderNumber });
           if (project) {
-            project.assignedEPCId = epc._id.toString();
-            project.assignedEPCName = epc.companyName;
+            project.assignedEPCId = freshEpc._id.toString();
+            project.assignedEPCName = freshEpc.companyName;
             project.status = 'EPC Accepted';
             project.pendingActionAlert = 'EPC Partner accepted your project! Site survey scheduled.';
             project.pendingActionFor = 'epc-partner';
@@ -223,15 +247,15 @@ export const acceptEnquiry = async (req, res) => {
           await LeadModel.updateOne(
             { mobile: lockedEnquiry.customerMobile },
             { 
-              assignedEPCId: epc._id, 
-              assignedEPCName: epc.companyName, 
+              assignedEPCId: freshEpc._id, 
+              assignedEPCName: freshEpc.companyName, 
               enquiryStatus: 'EPC Accepted',
               epcDetails: {
-                companyName: epc.companyName,
-                contactPerson: epc.ownerName || epc.contactPerson,
-                mobile: epc.mobile,
-                email: epc.email,
-                rating: epc.rating
+                companyName: freshEpc.companyName,
+                contactPerson: freshEpc.ownerName || freshEpc.contactPerson,
+                mobile: freshEpc.mobile,
+                email: freshEpc.email,
+                rating: freshEpc.rating
               }
             }
           );
@@ -261,6 +285,9 @@ export const acceptEnquiry = async (req, res) => {
   } catch (err) {
     console.error('acceptEnquiry error:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
+  } finally {
+    // Release the mutex lock
+    await EpcPartner.findByIdAndUpdate(epcId, { $set: { isAcceptingWaitLock: false } });
   }
 };
 

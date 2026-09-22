@@ -237,6 +237,26 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
   const { states: availableStates, districts: availableDistricts } = useGeography(filterCountry, filterState);
   useEffect(() => { fetchOrder(); }, [fetchOrder]);
 
+  const handleForcePayment = async () => {
+    if (!window.confirm("Are you sure you want to FORCE SIMULATE the token payment? This will mark it as paid and open the enquiry for EPCs.")) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/project-orders/${orderId}/force-payment`, {
+        method: "POST",
+        headers: { "x-admin-key": "super_admin_key_123" }
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("success", "Payment simulated successfully!");
+        fetchOrder();
+        if (onRefreshList) onRefreshList();
+      } else {
+        showToast("error", data.message || "Failed to force payment");
+      }
+    } catch (err) {
+      showToast("error", "Network error");
+    }
+  };
+
   const handleCompleteStep = async (stepId, file = null, note = "") => {
     setCompletingId(stepId);
     try {
@@ -253,6 +273,8 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
         headers = { "Content-Type": "application/json" };
         body = JSON.stringify({ stepId, completedBy: "Admin", note });
       }
+
+      headers["x-admin-key"] = "super_admin_key_123";
 
       const res = await fetch(`${API_BASE}/api/project-orders/${orderId}/complete-step`, {
         method: "POST",
@@ -464,6 +486,14 @@ const OrderDetail = ({ orderId, onBack, onRefreshList }) => {
           <div className="flex flex-col items-end gap-1">
             <span className="text-xs text-slate-400">Current Step</span>
             <span className="text-sm font-bold text-slate-700">{order.currentStepTitle || "—"}</span>
+            {order.paymentStatus !== "paid" && (
+              <button 
+                onClick={handleForcePayment}
+                className="mt-1 text-[10px] font-bold px-2 py-1 bg-red-50 text-red-600 rounded border border-red-200 hover:bg-red-100"
+              >
+                Simulate Payment (Test)
+              </button>
+            )}
           </div>
         </div>
 

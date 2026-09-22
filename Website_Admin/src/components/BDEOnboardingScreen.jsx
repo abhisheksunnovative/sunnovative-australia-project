@@ -8,6 +8,7 @@ import {
 import { useGeography } from "../hooks/useGeography";
 import { useAdminSettings } from "../hooks/useAdminSettings";
 import DocViewerModal from "./shared/DocViewerModal";
+import { fetchWithCache } from '../utils/fetchWithCache';
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
@@ -247,7 +248,7 @@ export default function BDEOnboardingScreen() {
     const fetchData = async () => {
       try {
         const [cRes, bRes] = await Promise.all([
-          fetch(`${API_BASE}/api/countries`).then(r => r.json()),
+          fetchWithCache(`${API_BASE}/api/countries`).then(r => r.json()),
           fetch(`${API_BASE}/api/bde`).then(r => r.json()),
         ]);
         if (cRes.success) setCountries(cRes.data?.filter(c => c.isActive) || []);

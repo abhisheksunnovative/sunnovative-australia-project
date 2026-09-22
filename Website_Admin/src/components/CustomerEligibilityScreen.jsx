@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
+import { fetchWithCache } from '../utils/fetchWithCache';
 import {
   Zap, Save, RefreshCw, Plus, Trash2,
   ChevronDown, ChevronUp, AlertCircle, CheckCircle,
@@ -96,7 +97,7 @@ export const CustomerEligibilityScreen = ({ section = null }) => {
   React.useEffect(() => {
     const fetchCountries = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/countries`);
+        const res = await fetchWithCache(`${API_BASE}/api/countries`);
         const data = await res.json();
         if (data.success && data.data) {
           setCountries(data.data.filter(c => c.isActive));

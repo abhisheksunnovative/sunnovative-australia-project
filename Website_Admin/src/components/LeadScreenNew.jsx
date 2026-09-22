@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import LeadScreen from './LeadScreen';
 import { useGeography } from '../hooks/useGeography';
 import { useAdminSettings } from '../hooks/useAdminSettings';
+import { fetchWithCache } from '../utils/fetchWithCache';
 
 export default function LeadScreenNew({ uploadSource = 'website' }) {
   const [countries, setCountries] = useState([]);
@@ -53,7 +54,7 @@ export default function LeadScreenNew({ uploadSource = 'website' }) {
     const fetchData = async () => {
       try {
         const [cRes, hRes] = await Promise.all([
-          fetch(API_BASE + '/api/countries').then(r => r.json()),
+          fetchWithCache(API_BASE + '/api/countries').then(r => r.json()),
           fetch(API_BASE + '/api/leads/hierarchy').then(r => r.json())
         ]);
         

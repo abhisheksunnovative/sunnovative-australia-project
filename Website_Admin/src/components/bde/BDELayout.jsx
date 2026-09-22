@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { LayoutDashboard, Users, Map, LogOut, Sun, ClipboardList, AlertTriangle, Bell, Trash2, CheckSquare, Square, Check, User } from "lucide-react";
+import { fetchWithCache } from '../../utils/fetchWithCache';
 
 export default function BDELayout({ children, currentTab, onTabChange, onLogout, bdeName, bdeId, bdeType, userCountry, onCountryChange }) {
   const [notifications, setNotifications] = useState([]);
@@ -87,7 +88,7 @@ export default function BDELayout({ children, currentTab, onTabChange, onLogout,
         if(d.success) setBdeData(d.data);
       }).catch(e=>console.log(e));
     }
-    fetch(`${API_BASE}/api/countries`).then(r=>r.json()).then(d=>{
+    fetchWithCache(`${API_BASE}/api/countries`).then(r=>r.json()).then(d=>{
       if(d.success) setAllCountries(d.data);
     }).catch(e=>console.log(e));
     const int = setInterval(() => {

@@ -7,20 +7,20 @@ export const calculateAnalytics = async (filters, settings) => {
 
     // Build Match for Demand (Leads/Projects)
     let leadQuery = { status: { $nin: ['Lost', 'Rejected'] } };
-    if (country) leadQuery.country = new RegExp('^' + country + '$', 'i');
-    if (state) leadQuery.state = new RegExp('^' + state + '$', 'i');
-    if (district) leadQuery.district = new RegExp('^' + district + '$', 'i');
+    if (country) leadQuery.country = country;
+    if (state) leadQuery.state = state;
+    if (district) leadQuery.district = district;
     if (projectType) leadQuery.solarType = projectType;
 
-    const leads = await Lead.find(leadQuery);
+    const leads = await Lead.find(leadQuery).collation({ locale: 'en', strength: 2 });
 
     // Build Match for Supply (EPCs)
     let epcQuery = { status: 'Approved' };
-    if (country) epcQuery.country = new RegExp('^' + country + '$', 'i');
-    if (state) epcQuery.state = new RegExp('^' + state + '$', 'i');
-    if (district) epcQuery.district = new RegExp('^' + district + '$', 'i');
+    if (country) epcQuery.country = country;
+    if (state) epcQuery.state = state;
+    if (district) epcQuery.district = district;
     
-    const epcs = await EpcPartner.find(epcQuery);
+    const epcs = await EpcPartner.find(epcQuery).collation({ locale: 'en', strength: 2 });
 
     const analyticsMap = {};
     
@@ -178,39 +178,4 @@ export const updateRegionSettings = async (req, res) => {
   }
 };
 
-export const fixUnknownDistricts = async (req, res) => {
-    try {
-        const gujaratLeads = await Lead.find({ 
-            state: /gujarat/i, 
-            $or: [ { district: null }, { district: "" }, { district: /unknown/i } ]
-        });
-        const districts = ['Ahmedabad', 'Surat', 'Rajkot', 'Vadodara', 'Gandhinagar', 'Bhavnagar', 'Jamnagar'];
-        for (let i = 0; i < gujaratLeads.length; i++) {
-            gujaratLeads[i].district = districts[i % districts.length];
-            await gujaratLeads[i].save();
-        }
 
-        const upLeads = await Lead.find({ 
-            state: /uttar pradesh/i, 
-            $or: [ { district: null }, { district: "" }, { district: /unknown/i } ]
-        });
-        const upDistricts = ['Lucknow', 'Kanpur', 'Agra', 'Varanasi', 'Meerut'];
-        for (let i = 0; i < upLeads.length; i++) {
-            upLeads[i].district = upDistricts[i % upDistricts.length];
-            await upLeads[i].save();
-        }
-        
-        // Also fix the random general Unknown
-        const otherLeads = await Lead.find({
-            $or: [ { district: null }, { district: "" }, { district: /unknown/i } ]
-        });
-        for (let i = 0; i < otherLeads.length; i++) {
-            otherLeads[i].district = 'Faridpur';
-            await otherLeads[i].save();
-        }
-
-        res.json({ success: true, message: `Fixed ${gujaratLeads.length} GJ, ${upLeads.length} UP, and ${otherLeads.length} others` });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-};

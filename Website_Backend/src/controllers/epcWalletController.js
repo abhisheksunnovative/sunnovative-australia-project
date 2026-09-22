@@ -231,31 +231,42 @@ export const verifyRechargePayment = async (req, res) => {
       return res.status(400).json({ message: `Payment not completed (status: ${order.status})` });
     }
 
-    const kwNum = Number(kw);
+    const { default: EpcWallet } = await import('../models/EpcWallet.js');
+    const existingTx = await EpcWallet.findOne({ 'transactions.note': { $regex: razorpay_payment_id } });
+    if (existingTx) {
+      return res.status(400).json({ message: 'Payment already verified.' });
+    }
+
+    const projectTypeFromNote = order.notes?.projectType;
+    const kwNum = Number(order.notes?.kw);
+    if (!projectTypeFromNote || !kwNum) {
+      return res.status(400).json({ message: 'Payment validation failed: Missing project/kw in order notes.' });
+    }
+
     const amount = order.amount / 100; // back to rupees
 
     const wallet = await getOrCreateWallet(req.epc._id);
 
-    const entry = wallet.credits.find(c => c.projectType === projectType && c.district === district);
+    const entry = wallet.credits.find(c => c.projectType === projectTypeFromNote && c.district === district);
     if (entry) entry.credits += kwNum;
-    else wallet.credits.push({ projectType, district, credits: kwNum });
+    else wallet.credits.push({ projectType: projectTypeFromNote, district, credits: kwNum });
 
     wallet.transactions.push({
       type:        'PURCHASE',
       district:    district,
-      projectType,
+      projectType: projectTypeFromNote,
       kw:          kwNum,
       amount,
-      note:        `Purchased ${kwNum} KW credits for ${projectType}${packageId && packageId !== 'custom' ? ` (${packageId} pack)` : ''} — Razorpay payment ${razorpay_payment_id}`,
+      note:        `Purchased ${kwNum} KW credits for ${projectTypeFromNote}${packageId && packageId !== 'custom' ? ` (${packageId} pack)` : ''} — Razorpay payment ${razorpay_payment_id}`,
     });
 
     await wallet.save();
     await checkAndSendLowBalanceAlert(wallet, req.epc); // in case this was a partial/insufficient recharge
 
     res.json({
-      message:      `Payment successful — ${kwNum} KW credited for ${projectType}`,
+      message:      `Payment successful — ${kwNum} KW credited for ${projectTypeFromNote}`,
       amountPaid:   amount,
-      newBalance:   wallet.getCreditsFor(projectType),
+      newBalance:   wallet.getCreditsFor(projectTypeFromNote),
       totalCredits: wallet.getTotalCredits(),
     });
   } catch (err) {
@@ -266,15 +277,18 @@ export const verifyRechargePayment = async (req, res) => {
 
 export const checkEligibility = async (req, res) => {
   try {
-    const { projectType, kwRequired } = req.body;
+    const { projectType, kwRequired, district } = req.body;
     const validProjectTypes = await getValidProjectTypes(req.epc);
     if (!projectType || !validProjectTypes.includes(projectType)) return res.status(400).json({ message: 'Invalid project type' });
 
     const kwNum = Number(kwRequired);
     if (!kwNum || kwNum <= 0) return res.status(400).json({ message: 'Invalid KW requirement' });
 
+    // Use requested district, fallback to EPC's primary district, or 'All'
+    const targetDistrict = district || req.epc.district || (req.epc.activeDistricts && req.epc.activeDistricts[0]) || 'All';
+
     const wallet = await getOrCreateWallet(req.epc._id);
-    const result = wallet.canAcceptOrder(projectType, kwNum);
+    const result = wallet.canAcceptOrder(projectType, kwNum, targetDistrict);
 
     res.json({
       eligible:           result.canAccept,
@@ -284,7 +298,7 @@ export const checkEligibility = async (req, res) => {
       shortfall:           result.canAccept ? 0 : kwNum - (result.freeTrialRemaining + result.paidCredits),
       message: result.canAccept
         ? 'Eligible to accept this order'
-        : `Insufficient credits. You need ${kwNum - (result.freeTrialRemaining + result.paidCredits)} more KW credits for ${projectType}`,
+        : `Insufficient credits. You need ${kwNum - (result.freeTrialRemaining + result.paidCredits)} more KW credits for ${projectType} in ${targetDistrict}`,
     });
   } catch (err) {
     console.error('checkEligibility error:', err);
@@ -292,12 +306,12 @@ export const checkEligibility = async (req, res) => {
   }
 };
 
-export const deductCreditsForOrder = async (epcPartnerId, projectType, kwRequired, referenceId, isEnquiry = false) => {
+export const deductCreditsForOrder = async (epcPartnerId, projectType, kwRequired, referenceId, isEnquiry = false, district = 'All') => {
   const wallet = await getOrCreateWallet(epcPartnerId);
 
-  const result = wallet.canAcceptOrder(projectType, kwRequired);
+  const result = wallet.canAcceptOrder(projectType, kwRequired, district);
   if (!result.canAccept) {
-    throw new Error(`Insufficient credits for ${projectType}. Need ${kwRequired - (result.freeTrialRemaining + result.paidCredits)} more KW.`);
+    throw new Error(`Insufficient credits for ${projectType} in ${district}. Need ${kwRequired - (result.freeTrialRemaining + result.paidCredits)} more KW.`);
   }
 
   let remainingToDeduct = kwRequired;
@@ -308,17 +322,24 @@ export const deductCreditsForOrder = async (epcPartnerId, projectType, kwRequire
   }
 
   if (remainingToDeduct > 0) {
-    const entry = wallet.credits.find(c => c.projectType === projectType);
-    if (entry) entry.credits -= remainingToDeduct;
+    const entry = wallet.credits.find(c => c.projectType === projectType && c.district === district);
+    if (entry) {
+      entry.credits -= remainingToDeduct;
+    } else {
+      // Fallback if somehow they had credits under 'All' but passed a specific district
+      const allEntry = wallet.credits.find(c => c.projectType === projectType && c.district === 'All');
+      if (allEntry) allEntry.credits -= remainingToDeduct;
+    }
   }
 
   wallet.transactions.push({
     type:        'DEDUCT',
     projectType,
+    district,
     kw:          kwRequired,
     orderId:     isEnquiry ? null : referenceId,
     enquiryId:   isEnquiry ? referenceId : null,
-    note:        `Order accepted — ${kwRequired} KW deducted for ${projectType}`,
+    note:        `Order accepted — ${kwRequired} KW deducted for ${projectType} in ${district}`,
   });
 
   await wallet.save();

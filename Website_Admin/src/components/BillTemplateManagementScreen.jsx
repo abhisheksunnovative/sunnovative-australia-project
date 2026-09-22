@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Plus, Edit2, Check, X, Globe, ArrowLeft, Building2, Upload, MapPin } from 'lucide-react';
+import { fetchWithCache } from '../utils/fetchWithCache';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4005';
 
@@ -62,7 +63,7 @@ export default function BillTemplateManagementScreen() {
 
   const fetchCountries = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/countries`);
+      const res = await fetchWithCache(`${API_URL}/api/countries`);
       const data = await res.json();
       const countryList = data.success ? data.data : (Array.isArray(data) ? data : []);
       setCountries(countryList.filter(c => c.isActive !== false));
@@ -126,10 +127,10 @@ export default function BillTemplateManagementScreen() {
       let stateDiscoms = countryDiscoms;
       if (stateName && stateName !== 'All') {
         const stateFiltered = countryDiscoms.filter(
-          d => d.state && d.state.toLowerCase() === stateName.toLowerCase()
+          d => d.state && d.state.toLowerCase().trim() === stateName.toLowerCase().trim()
         );
-        // If discoms have state field, use filtered. Otherwise show all country discoms.
-        if (stateFiltered.length > 0) stateDiscoms = stateFiltered;
+        // Strictly use filtered discoms
+        stateDiscoms = stateFiltered;
       }
 
       console.log(`Fetched ${stateDiscoms.length} discoms for ${countryName} / ${stateName}`);

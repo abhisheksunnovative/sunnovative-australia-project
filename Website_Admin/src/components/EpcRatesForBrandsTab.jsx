@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Check, X, Shield, Settings, CheckCircle, Search, Edit2 } from 'lucide-react';
 import { MasterFilterBar } from "./common/MasterFilterBar";
 import ProjectPricingTab from "./ProjectPricingTab";
+import { fetchWithCache } from '../utils/fetchWithCache';
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
@@ -19,7 +20,7 @@ export default function EpcRatesForBrandsTab() {
 
   const fetchCountries = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/countries`);
+      const res = await fetchWithCache(`${API_BASE}/api/countries`);
       const data = await res.json();
       if (data.success) setCountries(data.data);
     } catch (err) { console.error(err); }

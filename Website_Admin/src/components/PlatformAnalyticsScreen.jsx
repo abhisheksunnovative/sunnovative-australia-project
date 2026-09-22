@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { useGeography } from "../hooks/useGeography";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { fetchWithCache } from '../utils/fetchWithCache';
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
@@ -55,7 +56,7 @@ export default function PlatformAnalyticsScreen() {
   useEffect(() => {
     const fetchCountries = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/countries?isActive=true`);
+        const res = await fetchWithCache(`${API_BASE}/api/countries?isActive=true`);
         const data = await res.json();
         if (data.success) {
           setCountries(data.data || []);

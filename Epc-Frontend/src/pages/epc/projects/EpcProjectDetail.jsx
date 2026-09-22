@@ -121,7 +121,7 @@ const EpcProjectDetail = () => {
 
   useEffect(() => { 
     load();
-    const interval = setInterval(() => load(), 8000);
+    const interval = setInterval(() => load(), 30000);
     return () => clearInterval(interval);
   }, [id]);
 

@@ -90,7 +90,8 @@ leadSchema.index({ solarType: 1, isActive: 1 });
 leadSchema.index({ status: 1 });
 leadSchema.index({ createdAt: -1 });
 leadSchema.index({ assignedBde: 1, createdAt: -1 });
-leadSchema.index({ country: 1 });
+leadSchema.index({ country: 1, state: 1, district: 1 });
+leadSchema.index({ district: 1, solarType: 1 });
 leadSchema.index({ uploadSource: 1 });
 
 export default mongoose.model('Lead', leadSchema);

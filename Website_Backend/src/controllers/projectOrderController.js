@@ -177,6 +177,11 @@ export const getProjectOrder = async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 export const completeStep = async (req, res) => {
   try {
+    const adminKey = req.headers['x-admin-key'];
+    if (adminKey !== 'super_admin_key_123') {
+      return res.status(403).json({ success: false, message: "Unauthorized: Invalid or missing admin key" });
+    }
+
     const { stepId, completedBy = "Admin", note = "", evidenceNote = "", uploadedActions: rawActions } = req.body;
     
     const finalNote = evidenceNote || note || "";
@@ -256,6 +261,11 @@ export const completeStep = async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 export const approveStep = async (req, res) => {
   try {
+    const adminKey = req.headers['x-admin-key'];
+    if (adminKey !== 'super_admin_key_123') {
+      return res.status(403).json({ success: false, message: "Unauthorized: Invalid or missing admin key" });
+    }
+
     const { id, stepId } = req.params;
     const order = await ProjectOrder.findById(id);
     if (!order) return res.status(404).json({ success: false, message: "Order nahi mila" });
@@ -302,6 +312,11 @@ export const approveStep = async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 export const rejectStep = async (req, res) => {
   try {
+    const adminKey = req.headers['x-admin-key'];
+    if (adminKey !== 'super_admin_key_123') {
+      return res.status(403).json({ success: false, message: "Unauthorized: Invalid or missing admin key" });
+    }
+
     const { id, stepId } = req.params;
     const order = await ProjectOrder.findById(id);
     if (!order) return res.status(404).json({ success: false, message: "Order nahi mila" });
@@ -651,15 +666,6 @@ export const qualifyProjectOrder = async (req, res) => {
     }
     await order.save();
 
-    // Map project type to EpcEnquiry enum
-    const pTypeMap = {
-      "surya-ghar": "Surya Ghar Yojana",
-      "residential": "Residential Solar",
-      "commercial": "Commercial Solar",
-      "group": "Group Solar"
-    };
-    const mappedType = pTypeMap[order.projectType] || "Residential Solar";
-
     // Create EPC Enquiry with Token amount
     const kw = order.systemSizeKW || 1;
     const tokenAmt = kw * 2000;
@@ -671,7 +677,7 @@ export const qualifyProjectOrder = async (req, res) => {
       customerMobile: order.customerMobile,
       customerEmail: order.customerEmail || "",
       enquiryType: 'ECommerce',
-      projectType: mappedType,
+      projectType: order.projectTypeLabel || order.projectType,
       systemCapacityKw: order.systemSizeKW,
       state: order.state || order.location?.state || "",
       district: order.location?.city || "",
@@ -855,6 +861,45 @@ export const requestReupload = async (req, res) => {
     const { requestStepReupload } = await import('../utils/stepEngine.js');
     const result = await requestStepReupload(order, stepId, reason || "Document quality issue", adminName || "Admin");
     res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const forcePayment = async (req, res) => {
+  try {
+    const adminKey = req.headers['x-admin-key'];
+    if (adminKey !== 'super_admin_key_123') {
+      return res.status(403).json({ success: false, message: "Unauthorized: Invalid or missing admin key" });
+    }
+
+    const order = await ProjectOrder.findById(req.params.id);
+    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+
+    // Force mark the payment as paid
+    order.paymentStatus = 'paid';
+    if (!order.signupTokenPayment) order.signupTokenPayment = {};
+    order.signupTokenPayment.status = 'paid';
+    order.signupTokenPayment.paidAt = new Date();
+    order.signupTokenPayment.razorpayPaymentId = 'simulated_test_payment';
+
+    // Open enquiry for EPCs
+    const { openEnquiryForEpcs } = await import('../utils/enquiryHelpers.js');
+    await openEnquiryForEpcs(order._id);
+
+    // Complete the payment step
+    let targetStep = order.steps?.find(s => s.milestoneType === 'customer_payment' || s.title.toLowerCase().includes("pay") || s.title.toLowerCase().includes("token"));
+    if (!targetStep && order.steps?.length > 0) {
+      targetStep = order.steps.find(s => s.status === 'in-progress' || s.status === 'pending');
+    }
+
+    if (targetStep) {
+      const { processStepCompletionEngine } = await import('../utils/stepEngine.js');
+      await processStepCompletionEngine(order, targetStep.stepId, 'Admin', '', 'Forced Payment (Test Mode)');
+    }
+
+    await order.save();
+    res.json({ success: true, message: "Payment forced successfully for testing!" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

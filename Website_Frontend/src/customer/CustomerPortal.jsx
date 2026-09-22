@@ -838,7 +838,7 @@ function ProjectDetail({ projectId, onBack, authFetch }) {
       authFetch(`/api/customer/projects/${projectId}`)
         .then(r => r.json())
         .then(d => { if (d.success) setProject(d.data); });
-    }, 8000);
+    }, 30000);
     return () => clearInterval(interval);
   }, [projectId]);
 
@@ -1487,8 +1487,8 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
     setSubmitting(true);
     const fd = new FormData();
     const payload = {
-        projectType: pkg.projectType || pkg.suitable?.[0]?.toLowerCase().replace(" solar","").replace(/[\s/]/g,"-").replace("+-","") || "residential",
-        projectTypeLabel: pkg.name,
+        projectType: pkg.projectType || pkg.suitable?.[0] || "Residential Solar",
+        projectTypeLabel: pkg.name || pkg.projectType || pkg.suitable?.[0] || "Residential Solar",
         systemSizeKW: isAU && selectedCapacity ? selectedCapacity.systemSizeKW : pkg.kw,
         monthlyBillAmount: 0,
         estimatedSubsidy: isAU && selectedCapacity ? selectedCapacity.estimatedSubsidy : total,
@@ -2682,7 +2682,8 @@ export default function CustomerPortal({ onClose }) {
                                                         const tokenStr = localStorage.getItem("token") || sessionStorage.getItem("token");
                                                         const payRes = await fetch(`${API}/api/customer/projects/${p._id}/pay-token`, {
                                                             method: "POST",
-                                                            headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenStr}` }
+                                                            headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenStr}` },
+                                                            body: JSON.stringify(resp)
                                                         });
                                                         const payData = await payRes.json();
                                                         if (payData.success) {

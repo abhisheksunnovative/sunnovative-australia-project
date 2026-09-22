@@ -8,6 +8,7 @@ import {
   Users, Zap, CheckCircle, Plus, ArrowRight, Globe, Settings, CreditCard, Edit2, Trash2, Wrench, X
 } from "lucide-react";
 import { StatusBadge } from "./CommonUI";
+import { fetchWithCache } from '../utils/fetchWithCache';
 
 // --- Tab Button Helper ---
 const TabButton = ({ active, onClick, icon: Icon, label }) => (
@@ -55,7 +56,7 @@ export const SubscriptionScreen = ({ selectedCountryCode }) => {
 
   const fetchCountries = async () => {
     try {
-      const res = await fetch("http://localhost:4005/api/countries");
+      const res = await fetchWithCache("http://localhost:4005/api/countries");
       const data = await res.json();
       if (data.success && data.data && data.data.length > 0) {
         setCountries(data.data);

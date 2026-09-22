@@ -607,6 +607,30 @@ export const parseBillText = (rawText) => {
   // ── v5: Bill format label ──────────────────────────────────────────────────
   const billFormat = discomId !== 'UNKNOWN' ? `${discomId} Format` : 'Generic';
 
+  if (!detectedState && pincode) {
+    const prefix2 = parseInt(pincode.substring(0, 2), 10);
+    if (prefix2 === 11) detectedState = 'Delhi';
+    else if (prefix2 === 12 || prefix2 === 13) detectedState = 'Haryana';
+    else if (prefix2 === 14 || prefix2 === 15) detectedState = 'Punjab';
+    else if (prefix2 === 16) detectedState = 'Chandigarh';
+    else if (prefix2 === 17) detectedState = 'Himachal Pradesh';
+    else if (prefix2 === 18 || prefix2 === 19) detectedState = 'Jammu & Kashmir';
+    else if (prefix2 >= 20 && prefix2 <= 28) detectedState = 'Uttar Pradesh';
+    else if (prefix2 >= 30 && prefix2 <= 34) detectedState = 'Rajasthan';
+    else if (prefix2 >= 36 && prefix2 <= 39) detectedState = 'Gujarat';
+    else if (prefix2 >= 40 && prefix2 <= 44) detectedState = 'Maharashtra';
+    else if (prefix2 >= 45 && prefix2 <= 48) detectedState = 'Madhya Pradesh';
+    else if (prefix2 === 49) detectedState = 'Chhattisgarh';
+    else if (prefix2 >= 50 && prefix2 <= 53) detectedState = 'Andhra Pradesh'; // or Telangana
+    else if (prefix2 >= 56 && prefix2 <= 59) detectedState = 'Karnataka';
+    else if (prefix2 >= 60 && prefix2 <= 64) detectedState = 'Tamil Nadu';
+    else if (prefix2 >= 67 && prefix2 <= 69) detectedState = 'Kerala';
+    else if (prefix2 >= 70 && prefix2 <= 74) detectedState = 'West Bengal';
+    else if (prefix2 >= 75 && prefix2 <= 77) detectedState = 'Odisha';
+    else if (prefix2 === 78) detectedState = 'Assam';
+    else if (prefix2 >= 80 && prefix2 <= 85) detectedState = 'Bihar';
+  }
+
   return {
     discomId,
     detectedState,

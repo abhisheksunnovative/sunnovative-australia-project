@@ -3,8 +3,7 @@ import { fixPayments, fixDistricts, createLead, getAllLeads, getLeadById, update
 
 const router = express.Router();
 
-router.get('/fix-districts', fixDistricts);
-router.get('/fix-payments', fixPayments);
+// Test routes removed
 
 // Analytics + project + stats + export — specific routes BEFORE /:id
 router.get('/hierarchy', getLeadsHierarchy);

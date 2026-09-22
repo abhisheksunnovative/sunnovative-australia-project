@@ -24,4 +24,16 @@ router.post('/scan', upload.single('billFile'), scanLightBill);
 // Task 2 — matches OCR-extracted data against CustomerEligibilityScreen settings
 router.post('/check-eligibility', checkBillEligibility);
 
+// Task 3 — Fetch scanned bills history
+router.get('/history', async (req, res) => {
+  try {
+    const { BillExtraction } = await import('../models/BillExtraction.js');
+    const bills = await BillExtraction.find().sort({ createdAt: -1 }).limit(100);
+    res.json({ success: true, bills });
+  } catch (err) {
+    console.error('Failed to fetch bill history:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 export default router;

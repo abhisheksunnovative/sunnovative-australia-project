@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Save, AlertTriangle, ShieldCheck, Settings, CheckCircle, Plus, ChevronRight, ArrowLeft, MapPin, Briefcase } from 'lucide-react';
 import FeatureTrialConnector from './FeatureTrialConnector';
+import { fetchWithCache } from '../utils/fetchWithCache';
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4005";
 
@@ -67,7 +68,7 @@ const EpcSystemSettingsScreen = ({ selectedCountryCode }) => {
 
   const fetchCountries = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/countries`);
+      const res = await fetchWithCache(`${API_BASE}/api/countries`);
       const data = await res.json();
       if (data.success && data.data) {
         setCountries(data.data);

@@ -8,6 +8,7 @@ import OnboardingChecklist from './OnboardingChecklist';
 import EpcSystemSettingsScreen from './EpcSystemSettingsScreen';
 import { SubscriptionScreen } from './SubscriptionScreen';
 import { CountrySubsidyManagementScreen } from './CountrySubsidyManagementScreen';
+import { fetchWithCache } from '../utils/fetchWithCache';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4005';
 
@@ -25,7 +26,7 @@ export default function UnifiedCountrySettings() {
 
   const fetchCountries = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/countries`);
+      const res = await fetchWithCache(`${API_BASE}/api/countries`);
       const data = await res.json();
       if (data.success) {
         setCountries(data.data);
@@ -39,7 +40,7 @@ export default function UnifiedCountrySettings() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/countries`, {
+      const res = await fetchWithCache(`${API_BASE}/api/countries`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)

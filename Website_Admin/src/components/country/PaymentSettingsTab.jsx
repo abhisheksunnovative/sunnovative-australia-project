@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Save, RefreshCw, CheckCircle2, CheckSquare, Settings, ArrowLeft, Landmark } from 'lucide-react';
+import { fetchWithCache } from '../../utils/fetchWithCache';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4005';
 
@@ -20,7 +21,7 @@ export default function PaymentSettingsTab() {
   const fetchCountries = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/countries`);
+      const res = await fetchWithCache(`${API_BASE}/api/countries`);
       const data = await res.json();
       if (data.success) setCountries(data.data);
     } catch (err) { console.error(err); }

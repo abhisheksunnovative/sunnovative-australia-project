@@ -314,25 +314,12 @@ export const applyForProject = async (req, res) => {
     const EpcEnquiry = (await import('../models/EpcEnquiry.js')).default;
     let enquiry = await EpcEnquiry.findOne({ orderNumber: order.orderNumber });
     if (!enquiry) {
-      const pTypeMap = {
-        "surya-ghar": "Surya Ghar Yojana",
-        "residential": "Residential Solar",
-        "commercial": "Commercial Solar",
-        "group": "Group Solar",
-        "au-small-home": "AU Small Home (6.6kW)",
-        "au-standard-family": "AU Standard Family (8-10kW)",
-        "au-large-home": "AU Large Home (10-13kW)",
-        "au-ev-owners": "AU EV Owners (13-20kW)",
-        "au-solar-battery": "AU Solar + Battery"
-      };
-      const mappedType = pTypeMap[order.projectType?.toLowerCase()] || "Residential Solar";
-
       let enquiryData = {
         customerName: order.customerName,
         customerMobile: order.customerMobile,
         customerEmail: order.customerEmail || "",
         enquiryType: 'ECommerce',
-        projectType: mappedType,
+        projectType: order.projectTypeLabel || order.projectType, // Use consistent mapping
         systemCapacityKw: order.systemSizeKW || 1,
         location: order.state ? `${order.location?.district || ''}, ${order.state}, ${order.location?.pincode || ''}` : '',
         state: order.state || 'Unknown',
@@ -340,7 +327,7 @@ export const applyForProject = async (req, res) => {
         city: order.location?.district || order.state || 'Unknown',
         orderNumber: order.orderNumber,
         preferredInstallDate: order.preferredInstallDate || null,
-        status: 'Open For EPC',
+        status: 'Pending Info', // Default to Pending until gate opens
       };
 
       if (order.assignedEPCId) {
@@ -349,7 +336,6 @@ export const applyForProject = async (req, res) => {
         if (epc) {
           enquiryData.epcPartner = epc._id.toString();
           enquiryData.assignedEPCName = epc.companyName;
-          enquiryData.status = 'Open For EPC';
           
           // Advance step in ProjectOrder since EPC is assigned
           const epcStep = order.steps?.find(s => s.title.toLowerCase().includes("epc assign"));
@@ -362,6 +348,10 @@ export const applyForProject = async (req, res) => {
       enquiry = new EpcEnquiry(enquiryData);
       await enquiry.save();
     }
+
+    // Call Enquiry Release Gate
+    const { openEnquiryForEpcs } = await import('../utils/enquiryHelpers.js');
+    await openEnquiryForEpcs(order._id);
 
     if (relatedLead) {
       const { attemptAutoConversion } = await import('./leadController.js');
@@ -428,13 +418,30 @@ export const payToken = async (req, res) => {
     });
     if (!project) return res.status(404).json({ message: 'Project not found' });
 
-    const enquiry = await EpcEnquiry.findOne({ orderNumber: project.orderNumber });
-    if (enquiry) {
-      enquiry.tokenPaid = true;
-      enquiry.tokenPaidAt = new Date();
-      enquiry.status = 'Open For EPC';
-      await enquiry.save();
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ success: false, message: 'Missing payment signature' });
     }
+
+    const crypto = await import('crypto');
+    const expectedSign = crypto.default
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(razorpay_order_id + "|" + razorpay_payment_id)
+      .digest("hex");
+
+    if (razorpay_signature !== expectedSign) {
+      return res.status(400).json({ success: false, message: 'Invalid payment signature' });
+    }
+
+    project.paymentStatus = 'paid';
+    if (!project.signupTokenPayment) project.signupTokenPayment = {};
+    project.signupTokenPayment.status = 'paid';
+    project.signupTokenPayment.paidAt = new Date();
+    project.signupTokenPayment.razorpayPaymentId = razorpay_payment_id;
+
+    // Trigger the gate!
+    const { openEnquiryForEpcs } = await import('../utils/enquiryHelpers.js');
+    await openEnquiryForEpcs(project);
 
     // Find and complete payment step using processStepCompletionEngine
     let targetStep = project.steps?.find(s => s.milestoneType === 'customer_payment' || s.title.toLowerCase().includes("pay") || s.title.toLowerCase().includes("token"));
@@ -443,11 +450,11 @@ export const payToken = async (req, res) => {
     }
 
     if (targetStep) {
+      const { processStepCompletionEngine } = await import('../utils/stepEngine.js');
       await processStepCompletionEngine(project, targetStep.stepId, 'Customer', '', 'Token payment completed');
     }
 
     await project.save();
-    if (project.assignedBDE) { await Notification.create({ role: "bde", title: "Customer Completed a Step", message: `Customer  has completed the step. Current status: `, recipientId: project.assignedBDE }); }
     res.json({ success: true, message: 'Token paid successfully. Order is now Open for EPCs.' });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });

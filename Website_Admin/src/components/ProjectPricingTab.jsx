@@ -342,7 +342,8 @@ export default function ProjectPricingTab({ defaultCountry, defaultProjectType, 
       )}
 
       <div className="bg-white border rounded-xl overflow-hidden mt-6">
-        <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto min-w-full">
+          <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-slate-500 border-b">
             <tr>
               <th className="p-4 font-semibold uppercase">KW</th>
@@ -387,7 +388,8 @@ export default function ProjectPricingTab({ defaultCountry, defaultProjectType, 
               ))
             )}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
 
       {showModal && (

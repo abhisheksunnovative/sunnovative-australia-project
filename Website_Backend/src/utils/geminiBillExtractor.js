@@ -12,31 +12,33 @@ export const parseAuBillWithGemini = async (fileBuffer, mimeType) => {
     generationConfig: { responseMimeType: 'application/json' } 
   });
 
-  const prompt = `You are an expert Australian electricity bill parser. Extract the following details from the attached bill image/PDF.
+  const prompt = `You are an expert electricity bill parser (Global, including Australia and India). Extract the following details from the attached bill image/PDF.
 Respond ONLY with a valid JSON object matching the schema below. Do not include markdown formatting like \`\`\`json.
 If a field is not found or cannot be determined, set its value to null.
 
 Schema:
 {
-  "retailer": "string (e.g. AGL, Origin Energy, Alinta Energy, EnergyAustralia, etc.)",
-  "accountNumber": "string (the customer's account number)",
-  "nmiNumber": "string (10 or 11 digit National Metering Identifier)",
-  "customerName": "string",
-  "distributor": "string (the DNSP or distributor)",
+  "retailer": "string (e.g. AGL, Origin Energy, Tata Power, BESCOM, etc.)",
+  "consumerNumber": "string (Consumer / Account Number)",
+  "accountNumber": "string (the customer's account number, fallback for consumerNumber)",
+  "nmiNumber": "string (10 or 11 digit National Metering Identifier if applicable)",
+  "customerName": "string (Customer Name)",
+  "distributor": "string (DISCOM / Utility)",
   "suburb": "string",
-  "state": "string (NSW, VIC, QLD, WA, SA, TAS, ACT, NT)",
-  "postcode": "string (4-digit Australian postcode)",
+  "state": "string (State or province)",
+  "postcode": "string",
   "billingPeriodFrom": "string (DD MMM YYYY)",
   "billingPeriodTo": "string (DD MMM YYYY)",
-  "billingDays": "number (integer)",
-  "quarterlyKwh": "number (total electricity usage in kWh for the period)",
+  "billingDays": "number (integer, total billing period duration in days)",
+  "quarterlyKwh": "number (total Units Consumed in kWh for the period)",
   "dailyKwh": "number (average daily electricity usage in kWh)",
-  "quarterlyBillAmount": "number (total amount due on the bill, without $)",
+  "quarterlyBillAmount": "number (total Bill Amount due, numeric only)",
+  "dueDate": "string (Due Date, DD MMM YYYY format if found)",
   "solarExportKwh": "number (feed-in or exported solar in kWh, if any)",
   "solarExportCredit": "number (feed-in or exported solar credit amount, if any)",
-  "tariffType": "string (e.g. Time of Use (TOU), Single Rate, Controlled Load, etc. Peak/Off-Peak implies TOU)",
-  "meterType": "string (e.g. Smart Meter, Interval Meter, Basic Meter)",
-  "customerType": "string (e.g. Residential or Commercial/Business)"
+  "tariffType": "string (Tariff Category, e.g. Time of Use (TOU), Single Rate, LT-1, etc.)",
+  "meterType": "string (Meter Information, e.g. Smart Meter, Interval Meter, Basic Meter, Phase)",
+  "customerType": "string (Residential / Commercial Category)"
 }`;
 
   const imageParts = [
@@ -114,4 +116,29 @@ Schema:
     meterType: parsed.meterType,
     customerType: parsed.customerType
   };
+};
+
+export const extractRawTextWithGemini = async (fileBuffer, mimeType) => {
+  if (!process.env.GEMINI_API_KEY) return null;
+
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
+
+  const prompt = "Please extract all the readable text from this electricity bill exactly as it appears. Preserve the logical layout and order.";
+  const imageParts = [
+    {
+      inlineData: {
+        data: fileBuffer.toString('base64'),
+        mimeType: mimeType === 'application/pdf' ? 'application/pdf' : mimeType,
+      },
+    },
+  ];
+
+  try {
+    const result = await model.generateContent([prompt, ...imageParts]);
+    return result.response.text();
+  } catch (err) {
+    console.warn("[Gemini] Raw text extraction failed, will fallback to Tesseract:", err.message);
+    return null;
+  }
 };

@@ -1,11 +1,10 @@
 import express from 'express';
-import { getDemandSupplyAnalytics, updateGlobalSettings, updateRegionSettings, fixUnknownDistricts } from '../controllers/demandSupplyController.js';
+import { getDemandSupplyAnalytics, updateGlobalSettings, updateRegionSettings } from '../controllers/demandSupplyController.js';
 
 const router = express.Router();
 
-router.get('/', getDemandSupplyAnalytics);
-router.get('/fix-districts', fixUnknownDistricts);
-router.put('/global', updateGlobalSettings);
-router.put('/region', updateRegionSettings);
+router.get('/analytics', getDemandSupplyAnalytics);
+router.put('/settings/global', updateGlobalSettings);
+router.put('/settings/region', updateRegionSettings);
 
 export default router;

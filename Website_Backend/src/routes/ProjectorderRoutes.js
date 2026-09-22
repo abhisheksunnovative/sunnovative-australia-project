@@ -58,6 +58,10 @@ router.post("/:id/epc-payout/share-qr", shareEpcPayoutQr);
 router.post("/:id/epc-payout/mark-received", markEpcPayoutReceived);
 router.post("/:id/epc-payout/confirm", confirmEpcPayout);
 
+// Admin Test Utility
+import { forcePayment } from "../controllers/projectOrderController.js";
+router.post("/:id/force-payment", forcePayment);
+
 // Customer portal — public journey status
 router.get("/:id/journey-status", getJourneyStatus);
 

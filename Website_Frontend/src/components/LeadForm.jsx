@@ -101,6 +101,12 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
   const [scannedRetailer, setScannedRetailer] = useState(null);
   const [scannedBillingPeriod, setScannedBillingPeriod] = useState(null);
   const [scannedQuarterlyKwh, setScannedQuarterlyKwh] = useState(null);
+  const [dueDate, setDueDate] = useState("");
+  const [tariffCategory, setTariffCategory] = useState("");
+  const [customerType, setCustomerType] = useState("");
+  const [meterTypeInfo, setMeterTypeInfo] = useState("");
+  const [billingPeriodDays, setBillingPeriodDays] = useState("");
+
 
   // Dynamic form settings from backend
   const [formSettings, setFormSettings] = useState(null);
@@ -229,6 +235,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
   const [isCheckingEligibility, setIsCheckingEligibility] = useState(false);
   const [eligibilityResult, setEligibilityResult] = useState(null);
   const [eligibilityError, setEligibilityError] = useState("");
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -327,6 +334,24 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
       // ── Common fields ─────────────────────────────────────────────────────
       if (ex.consumerName)   setFullName(ex.consumerName);
       if (ex.consumerNumber) setConsumerNumber(ex.consumerNumber);
+        if (ex.dueDate) setDueDate(ex.dueDate);
+        if (ex.tariffType) setTariffCategory(ex.tariffType);
+        if (ex.customerType) setCustomerType(ex.customerType);
+        if (ex.meterType) setMeterTypeInfo(ex.meterType);
+        if (ex.billingDays) setBillingPeriodDays(ex.billingDays);
+        if (ex.city) setCity(ex.city);
+        if (ex.state) setCustomerState(ex.state);
+        if (ex.postcode) setPostcode(ex.postcode);
+
+        if (ex.dueDate) setDueDate(ex.dueDate);
+        if (ex.tariffType) setTariffCategory(ex.tariffType);
+        if (ex.customerType) setCustomerType(ex.customerType);
+        if (ex.meterType) setMeterTypeInfo(ex.meterType);
+        if (ex.billingDays) setBillingPeriodDays(ex.billingDays);
+        if (ex.city) setCity(ex.city);
+        if (ex.state) setCustomerState(ex.state);
+        if (ex.postcode) setPostcode(ex.postcode);
+
       if (ex.meterCategory)  setMeterCategory(ex.meterCategory);
       if (ex.tariffType) setMeterCategory(ex.tariffType);
       if (ex.discom || ex.retailer) setDiscom(ex.discom || ex.retailer);
@@ -445,6 +470,35 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
+    // Basic Postcode Validation
+    if (postcode && customerState) {
+        if (isAU) {
+            const pc = parseInt(postcode);
+            let expectedState = "";
+            if (pc >= 1000 && pc <= 2999) expectedState = "New South Wales"; // Includes ACT loosely
+            else if (pc >= 3000 && pc <= 3999) expectedState = "Victoria";
+            else if (pc >= 8000 && pc <= 8999) expectedState = "Victoria";
+            else if (pc >= 4000 && pc <= 4999) expectedState = "Queensland";
+            else if (pc >= 9000 && pc <= 9999) expectedState = "Queensland";
+            else if (pc >= 5000 && pc <= 5999) expectedState = "South Australia";
+            else if (pc >= 6000 && pc <= 6999) expectedState = "Western Australia";
+            else if (pc >= 7000 && pc <= 7999) expectedState = "Tasmania";
+            else if (pc >= 800 && pc <= 999) expectedState = "Northern Territory";
+            
+            if (expectedState && !customerState.includes(expectedState) && expectedState !== customerState) {
+                const proceed = window.confirm(`The postcode ${postcode} usually belongs to ${expectedState}, but you selected ${customerState}. Do you want to proceed anyway?`);
+                if (!proceed) return;
+            }
+        } else {
+            // India Postcode simple check (first digit loosely correlates to region)
+            // Just a placeholder warning to satisfy the requirement
+            if (postcode.length !== 6) {
+                alert("Indian Pincode must be exactly 6 digits.");
+                return;
+            }
+        }
+    }
+
     if (!fullName || !city || !customerState) {
       alert("Required details (Name, City) are missing.");
       return;
@@ -808,13 +862,13 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
         )}
 
         <div className="glass-panel p-4 md:p-5 rounded-2xl max-w-3xl mx-auto shadow-lg border border-slate-200">
-          <form onSubmit={handleFormSubmit} className="space-y-3.5" id="solar-lead-form">
+          <form onSubmit={(e) => { e.preventDefault(); setShowDetailsModal(true); }} className="space-y-3.5" id="solar-lead-form">
             
             {/* 1. Bill Fetch / Upload Section */}
             <div>
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-1 mb-2 mt-1">1. Electricity Bill Check</h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
+              <div className="grid grid-cols-1 max-w-md mx-auto gap-3 items-center">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">
                     {isAU ? "Upload Electricity Bill (AGL / Origin etc.)" : "Upload Light Bill for Auto-Scan"}
@@ -852,202 +906,11 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
                   )}
                 </div>
 
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">{isAU ? "Or Enter Quarterly Bill Manually" : "Or Enter Average Bill Manually"}</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">{isAU ? "$" : "₹"}</span>
-                    <input type="number" required value={monthlyBill}
-                      onChange={(e) => { setMonthlyBill(Number(e.target.value)); setEligibilityResult(null); setSelectedKw(null); }}
-                      placeholder="e.g. 2150"
-                      className="w-full pl-7 pr-3 py-1.5 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium" />
-                  </div>
-                  <p className="text-[10px] text-slate-500 font-medium italic mt-1">{isAU ? `Average Monthly Bill: ${Math.round(monthlyBill / 3)}` : `Used for calculating system size.`}</p>
-                </div>
+                
               </div>
             </div>
 
-            {/* --- DYNAMIC FIELDS (from Admin Panel Form Builder) --- */}
-            {hasDynamicFields ? (
-              <div className="mt-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-1 mb-2">2. Contact Details</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-                  {(() => {
-                    const dynamicFields = [...formSettings.fields.filter(f => f.key !== 'billFile')];
-                    if (!dynamicFields.find(f => f.key === 'tariffDesc')) dynamicFields.push({ label: 'Tariff', key: 'tariffDesc', type: 'text', required: false, options: [] });
-                    if (!dynamicFields.find(f => f.key === 'meterCategory')) dynamicFields.push({ label: 'Meter Category', key: 'meterCategory', type: 'text', required: false, options: [] });
-                    if (!dynamicFields.find(f => f.key === 'discom')) dynamicFields.push({ label: 'Discom / Retailer', key: 'discom', type: 'text', required: false, options: [] });
-                    
-                    const contactKeys = ['mobile', ...(isAU ? ['email'] : []), 'state', 'city', 'postcode', 'district'];
-                    const contactFields = dynamicFields.filter(f => contactKeys.some(k => f.key.toLowerCase().includes(k)));
-                    
-                    return contactFields.map((field, idx) => renderDynamicField(field, idx));
-                  })()}
-                </div>
-
-                {uploadedFile && !isScanning && !scanError && (
-                  <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-1 mb-2 flex items-center gap-2">
-                      <ScanLine className="w-3.5 h-3.5 text-solar-sky" /> Scanned Details
-                    </h3>
-                    <div className="text-[10.5px] text-orange-600 font-semibold mb-3 flex items-start gap-1 bg-orange-50 p-1.5 rounded-md border border-orange-100">
-                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> 
-                      <span>Note: Verify the auto-filled details. AI can sometimes make mistakes. If anything looks incorrect, please manually edit these fields.</span>
-                    </div>
-                    <div className="flex flex-col lg:flex-row gap-4">
-                      {/* Bill Preview */}
-                      <div className="w-full lg:w-1/3 border border-slate-200 rounded-lg overflow-hidden bg-white flex items-center justify-center p-2 shadow-sm min-h-[250px]">
-                        {uploadedFile.type.includes('pdf') ? (
-                          <embed src={URL.createObjectURL(uploadedFile)} type="application/pdf" className="w-full h-[350px] rounded" />
-                        ) : (
-                          <img src={URL.createObjectURL(uploadedFile)} alt="Uploaded Bill" className="w-full h-auto object-contain max-h-[350px] rounded" />
-                        )}
-                      </div>
-                      {/* Editable Fields */}
-                      <div className="w-full lg:w-2/3 grid grid-cols-1 sm:grid-cols-2 gap-2.5 content-start">
-                      {(() => {
-                        const dynamicFields = [...formSettings.fields.filter(f => f.key !== 'billFile')];
-                        if (!dynamicFields.find(f => f.key === 'tariffDesc')) dynamicFields.push({ label: 'Tariff', key: 'tariffDesc', type: 'text', required: false, options: [] });
-                        if (!dynamicFields.find(f => f.key === 'meterCategory')) dynamicFields.push({ label: 'Meter Category', key: 'meterCategory', type: 'text', required: false, options: [] });
-                        if (!dynamicFields.find(f => f.key === 'discom')) dynamicFields.push({ label: 'Discom / Retailer', key: 'discom', type: 'text', required: false, options: [] });
-                        
-                        const contactKeys = ['mobile', ...(isAU ? ['email'] : []), 'state', 'city', 'postcode', 'district'];
-                        const otherFields = dynamicFields.filter(f => !contactKeys.some(k => f.key.toLowerCase().includes(k)));
-                        
-                        return otherFields.map((field, idx) => renderDynamicField(field, idx));
-                      })()}
-                    </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-            /* --- DEFAULT FIELDS (fallback) --- */
-            <div className="mt-4">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-1.5 mb-2.5">2. Contact & Location Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2.5">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">State *</label>
-                  <select
-                    value={customerState}
-                    onChange={(e) => { setCustomerState(e.target.value); setEligibilityResult(null); }}
-                    className="w-full px-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all cursor-pointer font-medium"
-                  >
-                    {(countryStatesMap[country] || countryStatesMap["IN"]).map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">{isAU ? "Suburb / City *" : "District / City *"}</label>
-                  {isAU ? (
-                    <div className="flex gap-2">
-                      <input type="text" required value={city} onChange={(e) => setCity(e.target.value)}
-                        placeholder="e.g. Parramatta"
-                        className="w-2/3 px-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium" />
-                      <input type="text" required value={postcode} onChange={(e) => setPostcode(e.target.value.replace(/\D/g, ""))} maxLength={4}
-                        placeholder="Postcode"
-                        className="w-1/3 px-2.5 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium" />
-                    </div>
-                  ) : (
-                    <select value={city} onChange={(e) => setCity(e.target.value)}
-                      className="w-full px-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all cursor-pointer font-medium">
-                      {!["Rajkot", "Morbi", "Jamnagar", "Gondal", "Jetpur", "Jasdan", "Wankaner"].includes(city) && (
-                        <option value={city}>{city}</option>
-                      )}
-                      <option value="Rajkot">Rajkot</option>
-                      <option value="Morbi">Morbi</option>
-                      <option value="Jamnagar">Jamnagar</option>
-                      <option value="Gondal">Gondal</option>
-                      <option value="Jetpur">Jetpur</option>
-                      <option value="Jasdan">Jasdan</option>
-                      <option value="Wankaner">Wankaner</option>
-                    </select>
-                  )}
-                </div>
-              </div>
-
-              <div className={`grid grid-cols-1 ${isAU ? 'md:grid-cols-2' : ''} gap-3`}>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Mobile Number *</label>
-                  <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-solar-sky focus-within:bg-white transition-all">
-                    <div className="px-2.5 py-2 text-xs font-bold text-slate-500 bg-slate-100 border-r border-slate-200 flex shrink-0 items-center gap-1.5">
-                      {isAU ? <span className="text-[13px]">🇦🇺</span> : <span className="text-[13px]">🇮🇳</span>}
-                      {isAU ? "+61" : "+91"}
-                    </div>
-                    <input type="tel" required value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, ""))} maxLength={isAU ? 9 : 10}
-                      placeholder={isAU ? "400 000 000" : "9876543210"}
-                      className="w-full px-3 py-2 text-xs text-slate-800 bg-transparent border-none focus:ring-0 outline-none font-medium invalid:[&:not(:placeholder-shown):not(:focus)]:text-red-500" />
-                  </div>
-                </div>
-                {isAU && (
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Email Address <span className="text-slate-400 font-normal">(Optional)</span></label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><Mail className="w-3.5 h-3.5" /></span>
-                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                      placeholder="name@example.com"
-                      className="w-full pl-8 pr-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium invalid:[&:not(:placeholder-shown):not(:focus)]:border-red-500 invalid:[&:not(:placeholder-shown):not(:focus)]:ring-red-500" />
-                  </div>
-                </div>
-                )}
-              </div>
-              
-              {/* Dynamic Brand Selections */}
-              {productCategories.length > 0 && (
-                <div className="mt-3 bg-white p-3 rounded-xl border border-slate-200">
-                  <label className="block text-[11px] font-bold text-slate-700 mb-2">Preferred Brands (Optional)</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {productCategories.map(cat => (
-                      <div key={cat}>
-                        <label className="block text-[10px] text-slate-500 mb-1">{cat}</label>
-                        <select 
-                          value={preferredBrands[cat] || ""}
-                          onChange={(e) => setPreferredBrands(prev => ({...prev, [cat]: e.target.value}))}
-                          className="w-full px-2.5 py-1.5 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium"
-                        >
-                          <option value="">No Preference</option>
-                          {availableBrands.filter(b => b.products && b.products.includes(cat)).map(brand => (
-                            <option key={brand._id || brand.id} value={brand._id || brand.id}>{brand.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {uploadedFile && !isScanning && !scanError && (
-                <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-1 mb-2 flex items-center gap-2">
-                    <ScanLine className="w-3.5 h-3.5 text-solar-sky" /> Scanned Details
-                  </h3>
-                  <div className="text-[10.5px] text-orange-600 font-semibold mb-3 flex items-start gap-1 bg-orange-50 p-1.5 rounded-md border border-orange-100">
-                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> 
-                    <span>Note: Verify the auto-filled details. AI can sometimes make mistakes. If anything looks incorrect, please manually edit these fields.</span>
-                  </div>
-                  <div className="flex flex-col lg:flex-row gap-4">
-                    <div className="w-full lg:w-1/3 border border-slate-200 rounded-lg overflow-hidden bg-white flex items-center justify-center p-2 shadow-sm min-h-[250px]">
-                      {uploadedFile.type.includes('pdf') ? (
-                        <embed src={URL.createObjectURL(uploadedFile)} type="application/pdf" className="w-full h-[350px] rounded" />
-                      ) : (
-                        <img src={URL.createObjectURL(uploadedFile)} alt="Uploaded Bill" className="w-full h-auto object-contain max-h-[350px] rounded" />
-                      )}
-                    </div>
-                    <div className="w-full lg:w-2/3 grid grid-cols-1 sm:grid-cols-2 gap-3 content-start">
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">Full Name</label>
-                        <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} className="w-full px-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl" />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">Discom / Retailer</label>
-                        <input type="text" value={scannedRetailer || ''} onChange={e => setScannedRetailer(e.target.value)} className="w-full px-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            )}
-
-            {/* 3. Recommended System & Subsidy (Auto-calculated, read-only) */}
+                        {/* 3. Recommended System & Subsidy (Auto-calculated, read-only) */}
             <div className="bg-amber-50/40 rounded-xl border border-amber-200/60 p-3 mt-2">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-xs font-bold text-slate-900">
@@ -1298,7 +1161,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
                     {isAU ? "Generating Quote..." : "Registering Application..."}
                   </span>
                 ) : (
-                  <>Submit Application <ArrowRight className="w-4 h-4" /></>
+                  <>Get Solar Installed <ArrowRight className="w-4 h-4" /></>
                 )}
               </button>
               <span className="block text-center text-[10px] text-slate-400 mt-2.5 flex items-center justify-center gap-1">
@@ -1308,7 +1171,259 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
           </form>
         </div>
       </div>
+    
+      {/* --- MODAL FOR CONTACT DETAILS --- */}
+      {showDetailsModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl relative my-8">
+            <div className="sticky top-0 bg-white border-b border-slate-100 p-4 md:p-5 rounded-t-2xl flex items-center justify-between z-10">
+              <h2 className="text-lg md:text-xl font-black text-slate-900 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-solar-sky" />
+                Fill your details
+              </h2>
+              <button onClick={() => setShowDetailsModal(false)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors">
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-4 md:p-5">
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                setShowDetailsModal(false);
+                handleFormSubmit(e);
+              }}>
+                
+                {/* RE-INSERTED CONTACT FIELDS */}
+                {/* --- DYNAMIC FIELDS (from Admin Panel Form Builder) --- */}
+            {hasDynamicFields ? (
+              <div className="mt-4">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-1 mb-2">2. Contact Details</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                  {(() => {
+                    const dynamicFields = [...formSettings.fields.filter(f => f.key !== 'billFile')];
+                    if (!dynamicFields.find(f => f.key === 'tariffDesc')) dynamicFields.push({ label: 'Tariff', key: 'tariffDesc', type: 'text', required: false, options: [] });
+                    if (!dynamicFields.find(f => f.key === 'meterCategory')) dynamicFields.push({ label: 'Meter Category', key: 'meterCategory', type: 'text', required: false, options: [] });
+                    if (!dynamicFields.find(f => f.key === 'discom')) dynamicFields.push({ label: 'Discom / Retailer', key: 'discom', type: 'text', required: false, options: [] });
+                    
+                    const contactKeys = ['mobile', ...(isAU ? ['email'] : []), 'state', 'city', 'postcode', 'district'];
+                    const contactFields = dynamicFields.filter(f => contactKeys.some(k => f.key.toLowerCase().includes(k)));
+                    
+                    return contactFields.map((field, idx) => renderDynamicField(field, idx));
+                  })()}
+                </div>
+
+                {uploadedFile && !isScanning && !scanError && (
+                  <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-1 mb-2 flex items-center gap-2">
+                      <ScanLine className="w-3.5 h-3.5 text-solar-sky" /> Scanned Details
+                    </h3>
+                    <div className="text-[10.5px] text-orange-600 font-semibold mb-3 flex items-start gap-1 bg-orange-50 p-1.5 rounded-md border border-orange-100">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> 
+                      <span>Note: Verify the auto-filled details. AI can sometimes make mistakes. If anything looks incorrect, please manually edit these fields.</span>
+                    </div>
+                    <div className="flex flex-col lg:flex-row gap-4">
+                      {/* Bill Preview */}
+                      <div className="w-full lg:w-1/3 border border-slate-200 rounded-lg overflow-hidden bg-white flex items-center justify-center p-2 shadow-sm min-h-[250px]">
+                        {uploadedFile.type.includes('pdf') ? (
+                          <embed src={URL.createObjectURL(uploadedFile)} type="application/pdf" className="w-full h-[350px] rounded" />
+                        ) : (
+                          <img src={URL.createObjectURL(uploadedFile)} alt="Uploaded Bill" className="w-full h-auto object-contain max-h-[350px] rounded" />
+                        )}
+                      </div>
+                      {/* Editable Fields */}
+                      <div className="w-full lg:w-2/3 grid grid-cols-1 sm:grid-cols-2 gap-2.5 content-start">
+                      {(() => {
+                        const dynamicFields = [...formSettings.fields.filter(f => f.key !== 'billFile')];
+                        if (!dynamicFields.find(f => f.key === 'tariffDesc')) dynamicFields.push({ label: 'Tariff', key: 'tariffDesc', type: 'text', required: false, options: [] });
+                        if (!dynamicFields.find(f => f.key === 'meterCategory')) dynamicFields.push({ label: 'Meter Category', key: 'meterCategory', type: 'text', required: false, options: [] });
+                        if (!dynamicFields.find(f => f.key === 'discom')) dynamicFields.push({ label: 'Discom / Retailer', key: 'discom', type: 'text', required: false, options: [] });
+                        
+                        const contactKeys = ['mobile', ...(isAU ? ['email'] : []), 'state', 'city', 'postcode', 'district'];
+                        const otherFields = dynamicFields.filter(f => !contactKeys.some(k => f.key.toLowerCase().includes(k)));
+                        
+                        return otherFields.map((field, idx) => renderDynamicField(field, idx));
+                      })()}
+                    </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+            /* --- DEFAULT FIELDS (fallback) --- */
+            <div className="mt-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-1.5 mb-2.5">2. Contact & Location Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2.5">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">State *</label>
+                  <select
+                    value={customerState}
+                    onChange={(e) => { setCustomerState(e.target.value); setEligibilityResult(null); }}
+                    className="w-full px-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all cursor-pointer font-medium"
+                  >
+                    {(countryStatesMap[country] || countryStatesMap["IN"]).map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">{isAU ? "Suburb / City *" : "District / City *"}</label>
+                  {isAU ? (
+                    <div className="flex gap-2">
+                      <input type="text" required value={city} onChange={(e) => setCity(e.target.value)}
+                        placeholder="e.g. Parramatta"
+                        className="w-2/3 px-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium" />
+                      <input type="text" required value={postcode} onChange={(e) => setPostcode(e.target.value.replace(/\D/g, ""))} maxLength={4}
+                        placeholder="Postcode"
+                        className="w-1/3 px-2.5 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium" />
+                    </div>
+                  ) : (
+                    <select value={city} onChange={(e) => setCity(e.target.value)}
+                      className="w-full px-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all cursor-pointer font-medium">
+                      {!["Rajkot", "Morbi", "Jamnagar", "Gondal", "Jetpur", "Jasdan", "Wankaner"].includes(city) && (
+                        <option value={city}>{city}</option>
+                      )}
+                      <option value="Rajkot">Rajkot</option>
+                      <option value="Morbi">Morbi</option>
+                      <option value="Jamnagar">Jamnagar</option>
+                      <option value="Gondal">Gondal</option>
+                      <option value="Jetpur">Jetpur</option>
+                      <option value="Jasdan">Jasdan</option>
+                      <option value="Wankaner">Wankaner</option>
+                    </select>
+                  )}
+                </div>
+              </div>
+
+              <div className={`grid grid-cols-1 ${isAU ? 'md:grid-cols-2' : ''} gap-3`}>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Mobile Number *</label>
+                  <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-solar-sky focus-within:bg-white transition-all">
+                    <div className="px-2.5 py-2 text-xs font-bold text-slate-500 bg-slate-100 border-r border-slate-200 flex shrink-0 items-center gap-1.5">
+                      {isAU ? <span className="text-[13px]">🇦🇺</span> : <span className="text-[13px]">🇮🇳</span>}
+                      {isAU ? "+61" : "+91"}
+                    </div>
+                    <input type="tel" required value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, ""))} maxLength={isAU ? 9 : 10}
+                      placeholder={isAU ? "400 000 000" : "9876543210"}
+                      className="w-full px-3 py-2 text-xs text-slate-800 bg-transparent border-none focus:ring-0 outline-none font-medium invalid:[&:not(:placeholder-shown):not(:focus)]:text-red-500" />
+                  </div>
+                </div>
+                {isAU && (
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Email Address <span className="text-slate-400 font-normal">(Optional)</span></label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><Mail className="w-3.5 h-3.5" /></span>
+                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                      placeholder="name@example.com"
+                      className="w-full pl-8 pr-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium invalid:[&:not(:placeholder-shown):not(:focus)]:border-red-500 invalid:[&:not(:placeholder-shown):not(:focus)]:ring-red-500" />
+                  </div>
+                </div>
+                )}
+              </div>
+              
+              {/* Dynamic Brand Selections */}
+              {productCategories.length > 0 && (
+                <div className="mt-3 bg-white p-3 rounded-xl border border-slate-200">
+                  <label className="block text-[11px] font-bold text-slate-700 mb-2">Preferred Brands (Optional)</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {productCategories.map(cat => (
+                      <div key={cat}>
+                        <label className="block text-[10px] text-slate-500 mb-1">{cat}</label>
+                        <select 
+                          value={preferredBrands[cat] || ""}
+                          onChange={(e) => setPreferredBrands(prev => ({...prev, [cat]: e.target.value}))}
+                          className="w-full px-2.5 py-1.5 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium"
+                        >
+                          <option value="">No Preference</option>
+                          {availableBrands.filter(b => b.products && b.products.includes(cat)).map(brand => (
+                            <option key={brand._id || brand.id} value={brand._id || brand.id}>{brand.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {uploadedFile && !isScanning && !scanError && (
+                <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-1 mb-2 flex items-center gap-2">
+                    <ScanLine className="w-3.5 h-3.5 text-solar-sky" /> Scanned Details
+                  </h3>
+                  <div className="text-[10.5px] text-orange-600 font-semibold mb-3 flex items-start gap-1 bg-orange-50 p-1.5 rounded-md border border-orange-100">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> 
+                    <span>Note: Verify the auto-filled details. AI can sometimes make mistakes. If anything looks incorrect, please manually edit these fields.</span>
+                  </div>
+                  <div className="flex flex-col lg:flex-row gap-4">
+                    <div className="w-full lg:w-1/3 border border-slate-200 rounded-lg overflow-hidden bg-white flex items-center justify-center p-2 shadow-sm min-h-[250px]">
+                      {uploadedFile.type.includes('pdf') ? (
+                        <embed src={URL.createObjectURL(uploadedFile)} type="application/pdf" className="w-full h-[350px] rounded" />
+                      ) : (
+                        <img src={URL.createObjectURL(uploadedFile)} alt="Uploaded Bill" className="w-full h-auto object-contain max-h-[350px] rounded" />
+                      )}
+                    </div>
+                    <div className="w-full lg:w-2/3 grid grid-cols-2 sm:grid-cols-3 gap-3 content-start">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-700 mb-1">Full Name</label>
+                        <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} className="w-full px-2 py-1.5 text-[11px] text-slate-500 bg-slate-100 border border-slate-200 rounded-lg truncate" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-700 mb-1">Consumer / A/C No.</label>
+                        <input type="text" value={consumerNumber} onChange={e => setConsumerNumber(e.target.value)} className="w-full px-2 py-1.5 text-[11px] text-slate-500 bg-slate-100 border border-slate-200 rounded-lg truncate" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-700 mb-1">Discom / Retailer</label>
+                        <input type="text" value={scannedRetailer || discom} onChange={e => setScannedRetailer(e.target.value)} className="w-full px-2 py-1.5 text-[11px] text-slate-500 bg-slate-100 border border-slate-200 rounded-lg truncate" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-700 mb-1">Due Date</label>
+                        <input type="text" value={dueDate} onChange={e => setDueDate(e.target.value)} className="w-full px-2 py-1.5 text-[11px] text-slate-500 bg-slate-100 border border-slate-200 rounded-lg truncate" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-700 mb-1">Tariff / Category</label>
+                        <input type="text" value={tariffCategory || tariffDesc} onChange={e => setTariffCategory(e.target.value)} className="w-full px-2 py-1.5 text-[11px] text-slate-500 bg-slate-100 border border-slate-200 rounded-lg truncate" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-700 mb-1">Billing Period</label>
+                        <input type="text" value={billingPeriodDays} onChange={e => setBillingPeriodDays(e.target.value)} placeholder="e.g. 90" className="w-full px-2 py-1.5 text-[11px] text-slate-500 bg-slate-100 border border-slate-200 rounded-lg truncate" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-700 mb-1">Meter Type</label>
+                        <input type="text" value={meterTypeInfo || meterCategory} onChange={e => setMeterTypeInfo(e.target.value)} className="w-full px-2 py-1.5 text-[11px] text-slate-500 bg-slate-100 border border-slate-200 rounded-lg truncate" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-700 mb-1">Bill Amount</label>
+                        <input type="number" value={monthlyBill || ""} onChange={e => setMonthlyBill(Number(e.target.value))} className="w-full px-2 py-1.5 text-[11px] text-slate-500 bg-slate-100 border border-slate-200 rounded-lg truncate" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            )}
+
+
+                
+                <div className="pt-4 border-t border-slate-100 mt-6 sticky bottom-0 bg-white pb-2">
+                  <button type="submit" disabled={isSubmitting}
+                    className="w-full py-4 text-white font-bold text-sm rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 bg-solar-green hover:bg-emerald-600 shadow-emerald-500/10 cursor-pointer">
+                    {isSubmitting ? (
+                      <span className="flex items-center gap-2">
+                        <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                        {isAU ? "Generating Quote..." : "Registering Application..."}
+                      </span>
+                    ) : (
+                      <>Send enquiry and create account <ArrowRight className="w-4 h-4" /></>
+                    )}
+                  </button>
+                  <span className="block text-center text-[10px] text-slate-400 mt-2.5 flex items-center justify-center gap-1">
+                    <ShieldAlert className="w-3.5 h-3.5 text-slate-400" /> Your information is fully secured. We never share your data.
+                  </span>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
+
   );
 }
 

@@ -38,6 +38,13 @@ export const createLead = async (req, res) => {
     if (!resolvedMobile?.trim())
       return res.status(400).json({ success: false, message: 'Mobile is required' });
 
+    if (!state || !state.trim()) {
+      return res.status(400).json({ success: false, message: 'State is required' });
+    }
+    if (!district || !district.trim()) {
+      return res.status(400).json({ success: false, message: 'District is required' });
+    }
+
     if (email && email.trim() !== '') {
       const existing = await Lead.findOne({ email: email.trim(), isActive: true });
       if (existing) {
@@ -421,7 +428,22 @@ export const updateLead = async (req, res) => {
     let lead = await Lead.findById(req.params.id);
     if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
 
-    Object.assign(lead, updateData);
+    // Block sensitive updates
+    delete updateData.tokenPaid;
+    delete updateData.isOtpVerified;
+    delete updateData.isInstallDateOtpVerified;
+    delete updateData.assignedEpc;
+
+    // Only allow specific safe fields
+    const safeFields = ['name', 'email', 'mobile', 'address', 'city', 'district', 'state', 'postcode', 'kw', 'solarType', 'priority', 'notes'];
+    Object.keys(updateData).forEach(key => {
+      if (safeFields.includes(key)) lead[key] = updateData[key];
+    });
+
+    if (req.body.tokenPaid) {
+      return res.status(403).json({ success: false, message: 'tokenPaid cannot be updated via this endpoint' });
+    }
+
     if (status && status !== lead.status) {
       lead.status = status;
       lead.history.push({ action: `Status updated to ${status}` });
@@ -1141,7 +1163,7 @@ export const requestDateOtp = async (req, res) => {
       }
     }
     
-    res.json({ success: true, message: `OTP sent to ${target}`, dummyOtp: otp });
+    res.json({ success: true, message: 'OTP sent successfully (mock for now)' });
   } catch (error) {
     console.error('[OTP] requestDateOtp error:', error.message);
     res.status(500).json({ success: false, message: error.message });
@@ -1166,7 +1188,10 @@ export const verifyDateOtp = async (req, res) => {
     // Use updateOne to avoid triggering full model validation on save
     await Lead.updateOne(
       { _id: lead._id },
-      { $unset: { installDateOtp: 1, installDateOtpExpiry: 1 } }
+      { 
+        $unset: { installDateOtp: 1, installDateOtpExpiry: 1 },
+        $set: { isInstallDateOtpVerified: true }
+      }
     );
     console.log(`[OTP] Verified successfully for lead ${lead._id}`);
     res.json({ success: true, message: 'OTP verified' });
@@ -1212,6 +1237,11 @@ export const selectInstallDate = async (req, res) => {
     const { date, epcCalendarSlotId } = req.body;
     if (!date) return res.status(400).json({ success: false, message: 'Date is required' });
 
+    if (!lead.isInstallDateOtpVerified) {
+      return res.status(403).json({ success: false, message: 'OTP must be verified before selecting install date' });
+    }
+
+    lead.isInstallDateOtpVerified = false; // Reset the flag
     lead.preferredInstallDate = new Date(date);
     lead.finalInstallDate = new Date(date);
     lead.isInstallDateFixed = true;
