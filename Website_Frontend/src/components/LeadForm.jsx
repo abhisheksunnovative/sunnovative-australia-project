@@ -264,8 +264,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
   };
 
   // Task 2: Call the real eligibility engine (CustomerEligibilityScreen rules)
-  const handleCheckEligibility = async ({ meterCategory, billAmount, monthlyUnits, dueAmount, billStatus, monthsOverdue,
-        billDate, overrideKw = 0 }) => {
+  const handleCheckEligibility = async ({ meterCategory, billAmount, monthlyUnits, dueAmount, billStatus, monthsOverdue, billDate, overrideKw = 0, passedState, isCustomerVerified = false, criticalFieldsConfirmed = true }) => {
     setIsCheckingEligibility(true);
     setEligibilityError("");
     setEligibilityResult(null);
@@ -278,8 +277,10 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
         dueAmount,
         billStatus,
         monthsOverdue,
-        state: customerState,
+        state: passedState || customerState,
         overrideKw,
+        isCustomerVerified,
+        criticalFieldsConfirmed
       }, { headers: { "x-country": getCountryCode() } });
       setEligibilityResult(data);
 
@@ -328,11 +329,11 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
         headers: { "x-country": getCountryCode() }
       });
 
-      setScanConfidence(data.confidence);
-      const ex = data.extracted;
+      setScanConfidence(data.confidence || data.confidenceScore);
+      const ex = data.extracted || data.extractedData || {};
 
       // ── Common fields ─────────────────────────────────────────────────────
-      if (ex.consumerName)   setFullName(ex.consumerName);
+      if (ex.fullName || ex.consumerName || ex.customerName) setFullName(ex.fullName || ex.consumerName || ex.customerName);
       if (ex.consumerNumber) setConsumerNumber(ex.consumerNumber);
         if (ex.dueDate) setDueDate(ex.dueDate);
         if (ex.tariffType) setTariffCategory(ex.tariffType);
@@ -407,15 +408,30 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
         const units = data.monthlyUnitsUsed || ex.monthlyUnits || null;
         setOcrMonthlyUnits(units);
 
-        if (ex.billAmount) {
+        
+        let finalStateToPass = customerState;
+        if (data.country === "australia" && ex.state) {
+            const auStates = countryStatesMap["AU"] || [];
+            const matchedState = auStates.find(s => s.toLowerCase() === ex.state.toLowerCase());
+            if (matchedState) finalStateToPass = matchedState;
+        } else if (ex.detectedState) {
+            const inStates = countryStatesMap["IN"] || [];
+            const matchedState = inStates.find(s => s.toLowerCase() === ex.detectedState.toLowerCase());
+            if (matchedState) finalStateToPass = matchedState;
+        }
+
+        if (ex.billAmount || units || ex.meterCategory || data.criticalFieldsConfirmed === false) {
           await handleCheckEligibility({
-            meterCategory: ex.meterCategory,
-            billAmount: ex.billAmount,
+            meterCategory: ex.meterCategory || meterCategory,
+            billAmount: ex.billAmount || monthlyBill,
             monthlyUnits: units,
             dueAmount: ex.dueAmount || 0,
             billStatus: ex.billStatus,
             monthsOverdue: ex.monthsOverdue || 0,
             billDate: ex.billIssueDate || ex.billingPeriodTo || null,
+            passedState: finalStateToPass,
+            criticalFieldsConfirmed: data.criticalFieldsConfirmed,
+            isCustomerVerified: false
           });
         }
     } catch (err) {
@@ -768,10 +784,10 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
       email: [email, setEmail],
       city: [city, setCity],
       customerState: [customerState, setCustomerState],
-      monthlyBill: [monthlyBill, (v) => setMonthlyBill(Number(v))],
+      monthlyBill: [monthlyBill, (v) => { setMonthlyBill(Number(v)); setEligibilityResult(null); }],
       postcode: [postcode, setPostcode],
-      tariffDesc: [tariffDesc, setTariffDesc],
-        meterCategory: [meterCategory, setMeterCategory],
+      tariffDesc: [tariffDesc, (v) => { setTariffDesc(v); setEligibilityResult(null); }],
+        meterCategory: [meterCategory, (v) => { setMeterCategory(v); setEligibilityResult(null); }],
         discom: [discom, setDiscom],
         ownsProperty: [ownsProperty ? "Yes" : "No", (v) => setOwnsProperty(v === "Yes")],
       billFile: [null, null], // handled separately
@@ -1148,11 +1164,9 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
             </div>
 
             <div className="pt-4 border-t border-slate-100 mt-6">
-              <button type="submit" disabled={isSubmitting || (eligibilityResult && eligibilityResult.isEligible === false)}
+              <button type="submit" disabled={isSubmitting}
                 className={`w-full py-4 text-white font-bold text-sm rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${
-                  (eligibilityResult && eligibilityResult.isEligible === false)
-                    ? "bg-slate-400 cursor-not-allowed shadow-none"
-                    : "bg-solar-green hover:bg-emerald-600 shadow-emerald-500/10 cursor-pointer"
+                  "bg-solar-green hover:bg-emerald-600 shadow-emerald-500/10 cursor-pointer"
                 }`}
                 id="lead-submit-btn">
                 {isSubmitting ? (
@@ -1195,17 +1209,51 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
                 
                 {/* RE-INSERTED CONTACT FIELDS */}
                 {/* --- DYNAMIC FIELDS (from Admin Panel Form Builder) --- */}
-            {hasDynamicFields ? (
+            
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2 mb-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Mobile Number *</label>
+                  <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-solar-sky focus-within:bg-white transition-all">
+                    <div className="px-2.5 py-2 text-xs font-bold text-slate-500 bg-slate-100 border-r border-slate-200 flex shrink-0 items-center gap-1.5">
+                      {isAU ? <span className="text-[13px]">🇦🇺</span> : <span className="text-[13px]">🇮🇳</span>}
+                      {isAU ? "+61" : "+91"}
+                    </div>
+                    <input type="tel" required value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, ""))} maxLength={isAU ? 9 : 10}
+                      placeholder={isAU ? "400 000 000" : "9876543210"}
+                      className="w-full px-3 py-2 text-xs text-slate-800 bg-transparent border-none focus:ring-0 outline-none font-medium invalid:[&:not(:placeholder-shown):not(:focus)]:text-red-500" />
+                  </div>
+                </div>
+                {isAU && (
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Email Address <span className="text-slate-400 font-normal">(Optional)</span></label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><Mail className="w-3.5 h-3.5" /></span>
+                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                      placeholder="name@example.com"
+                      className="w-full pl-8 pr-3 py-2 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-solar-sky focus:outline-none transition-all font-medium invalid:[&:not(:placeholder-shown):not(:focus)]:border-red-500 invalid:[&:not(:placeholder-shown):not(:focus)]:ring-red-500" />
+                  </div>
+                </div>
+                )}
+              </div>
+              
+              {hasDynamicFields ? (
+
               <div className="mt-4">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-1 mb-2">2. Contact Details</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                   {(() => {
                     const dynamicFields = [...formSettings.fields.filter(f => f.key !== 'billFile')];
+                    
+                    // Force inject missing critical contact fields
+                    if (!dynamicFields.find(f => f.key === 'customerState' || f.key === 'state')) dynamicFields.unshift({ label: 'State', key: 'customerState', type: 'select', required: true });
+                    if (!dynamicFields.find(f => f.key === 'city')) dynamicFields.unshift({ label: 'City', key: 'city', type: 'text', required: true });
+                    if (getCountryCode() !== 'india' && !dynamicFields.find(f => f.key === 'email')) dynamicFields.unshift({ label: 'Email', key: 'email', type: 'email', required: false });
+                    if (!dynamicFields.find(f => f.key === 'mobileNumber' || f.key === 'mobile')) dynamicFields.unshift({ label: 'Mobile Number', key: 'mobileNumber', type: 'tel', required: true });
                     if (!dynamicFields.find(f => f.key === 'tariffDesc')) dynamicFields.push({ label: 'Tariff', key: 'tariffDesc', type: 'text', required: false, options: [] });
                     if (!dynamicFields.find(f => f.key === 'meterCategory')) dynamicFields.push({ label: 'Meter Category', key: 'meterCategory', type: 'text', required: false, options: [] });
                     if (!dynamicFields.find(f => f.key === 'discom')) dynamicFields.push({ label: 'Discom / Retailer', key: 'discom', type: 'text', required: false, options: [] });
                     
-                    const contactKeys = ['mobile', ...(isAU ? ['email'] : []), 'state', 'city', 'postcode', 'district'];
+                    const contactKeys = ['state', 'city', 'postcode', 'district'];
                     const contactFields = dynamicFields.filter(f => contactKeys.some(k => f.key.toLowerCase().includes(k)));
                     
                     return contactFields.map((field, idx) => renderDynamicField(field, idx));

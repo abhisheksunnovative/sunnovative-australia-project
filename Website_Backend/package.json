@@ -34,6 +34,7 @@
     "pdf-parse": "^1.1.1",
     "pdf-parse-fork": "^1.2.0",
     "pdf-to-img": "^6.2.0",
+    "pdfjs-dist": "^6.3.289",
     "razorpay": "^2.9.6",
     "react-toastify": "^11.1.0",
     "sharp": "^0.35.4",

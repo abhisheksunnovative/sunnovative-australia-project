@@ -28,6 +28,8 @@ const DynamicPageRenderer = lazy(() => import("./components/DynamicPageRenderer"
 const UserReviewsSection = lazy(() => import("./components/UserReviewsSection"));
 const EpcPartnerModal = lazy(() => import("./components/EpcPartnerModal"));
 const CustomerLogin = lazy(() => import("./customer/CustomerLogin"));
+const ScanInsightDashboard = lazy(() => import("./components/ScanInsightDashboard"));
+
 const CustomerPortal = lazy(() => import("./customer/CustomerPortal"));
 const OurPlatformPage = lazy(() => import("./pages/OurPlatformPage"));
 const HowItWorksPage = lazy(() => import("./pages/HowItWorksPage"));
@@ -303,6 +305,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Admin Pages */}
+        <Route path="/admin/insights" element={<Suspense fallback={<div>Loading Insights...</div>}><ScanInsightDashboard /></Suspense>} />
         {/* Standalone pages */}
         <Route path="/platform" element={<CountryProvider countryProp="IN"><Suspense fallback={<div />}><OurPlatformPage /></Suspense></CountryProvider>} />
         <Route path="/how-it-works" element={<CountryProvider countryProp="IN"><Suspense fallback={<div />}><HowItWorksPage /></Suspense></CountryProvider>} />

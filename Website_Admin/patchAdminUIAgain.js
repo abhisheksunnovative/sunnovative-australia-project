@@ -1,4 +1,9 @@
-import React, { useState, useEffect } from 'react';
+﻿import fs from 'fs';
+
+let content = fs.readFileSync('src/components/BillTemplateManagementScreen.jsx', 'utf8');
+
+// The original UI with the folder approach but updated to use Regex rules
+const combinedJSX = `import React, { useState, useEffect } from 'react';
 import { FileText, Plus, Edit2, Trash2, Check, X, Globe, ArrowLeft, Building2, MapPin } from 'lucide-react';
 import axios from 'axios';
 import { fetchWithCache } from '../utils/fetchWithCache';
@@ -33,7 +38,7 @@ export default function BillTemplateManagementScreen() {
   const fetchCountries = async () => {
     try {
       setLoading(true);
-      const res = await fetchWithCache(`${API_URL}/api/countries`);
+      const res = await fetchWithCache(\`\${API_URL}/api/countries\`);
       const data = await res.json();
       const countryList = data.success ? data.data : (Array.isArray(data) ? data : []);
       setCountries(countryList.filter(c => c.isActive !== false));
@@ -50,7 +55,7 @@ export default function BillTemplateManagementScreen() {
     setStates([]);
     setStatesLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/discoms?country=${countryName}`);
+      const res = await fetch(\`\${API_URL}/api/discoms?country=\${countryName}\`);
       const data = await res.json();
       let stateList = [];
       if (data.success && data.data) {
@@ -76,8 +81,8 @@ export default function BillTemplateManagementScreen() {
     setLoading(true);
     try {
       const [tempRes, discRes] = await Promise.all([
-        axios.get(`${API_URL}/api/v2/bill-templates`),
-        fetch(`${API_URL}/api/discoms?country=${countryName}`)
+        axios.get(\`\${API_URL}/api/v2/bill-templates\`),
+        fetch(\`\${API_URL}/api/discoms?country=\${countryName}\`)
       ]);
       const tempJson = tempRes.data;
       const discJson = await discRes.json();
@@ -102,7 +107,7 @@ export default function BillTemplateManagementScreen() {
       const discomNamesInState = stateDiscoms.map(d => d.name.toLowerCase().trim());
       
       setTemplates(allTemplates.filter(t => 
-        t.discomName && discomNamesInState.includes(t.discomName.toLowerCase().trim())
+        discomNamesInState.includes(t.discomName.toLowerCase().trim())
       ));
 
     } catch (err) {
@@ -144,47 +149,15 @@ export default function BillTemplateManagementScreen() {
       };
 
       if (editingTemplate) {
-        await axios.put(`${API_URL}/api/v2/bill-templates/${editingTemplate._id}`, payload);
+        await axios.put(\`\${API_URL}/api/v2/bill-templates/\${editingTemplate._id}\`, payload);
       } else {
-        await axios.post(`${API_URL}/api/v2/bill-templates`, payload);
+        await axios.post(\`\${API_URL}/api/v2/bill-templates\`, payload);
       }
       setIsModalOpen(false);
       fetchCountryStateData(selectedCountry, selectedState);
     } catch (err) {
       console.error('Failed to save template', err);
       alert('Failed to save template. Check console.');
-    }
-  };
-
-  
-  const [isScanning, setIsScanning] = useState(false);
-
-  const handleScanSampleBill = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    setIsScanning(true);
-    const fd = new FormData();
-    fd.append('billFile', file);
-    e.target.value = ''; 
-
-    try {
-      const res = await axios.post(`${API_URL}/api/v2/bill-templates/auto-generate`, fd);
-      if (res.data.success) {
-        let generatedRules = res.data.data;
-        if (typeof generatedRules === 'string') {
-           generatedRules = JSON.parse(generatedRules);
-        }
-        if (Array.isArray(generatedRules)) {
-           setFormData(prev => ({ ...prev, extractionRules: generatedRules }));
-           alert("Template Rules automatically generated from sample bill!");
-        }
-      }
-    } catch (err) {
-      console.error("Error scanning bill", err);
-      alert("Failed to auto-generate from bill");
-    } finally {
-      setIsScanning(false);
     }
   };
 
@@ -286,7 +259,9 @@ export default function BillTemplateManagementScreen() {
               <p className="text-slate-500 text-sm mt-1">Manage zero-cost Regex templates for these Discoms</p>
             </div>
           </div>
-          
+          <button onClick={() => handleOpenModal()} className="px-4 py-2 bg-indigo-600 text-white rounded-lg flex items-center gap-2 hover:bg-indigo-700">
+            <Plus className="w-4 h-4" /> Custom Template
+          </button>
         </div>
       </div>
 
@@ -320,7 +295,7 @@ export default function BillTemplateManagementScreen() {
                       )}
                     </td>
                     <td className="p-4 text-slate-500 text-xs">
-                      {existingTemplate ? `${existingTemplate.extractionRules?.length || 0} fields covered` : '---'}
+                      {existingTemplate ? \`\${existingTemplate.extractionRules?.length || 0} fields covered\` : '---'}
                     </td>
                     <td className="p-4 flex justify-end gap-2">
                       {existingTemplate ? (
@@ -348,12 +323,6 @@ export default function BillTemplateManagementScreen() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <h2 className="text-lg font-bold text-slate-800">{editingTemplate ? 'Edit Template Override' : 'New Template Override'}</h2>
-              <div className="flex items-center gap-2">
-                <label className="cursor-pointer px-4 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg hover:bg-emerald-100 flex items-center gap-2">
-                  {isScanning ? "Scanning PDF..." : "Upload Sample Bill (Auto-Generate Regex)"}
-                  <input type="file" className="hidden" accept="image/*,.pdf" onChange={handleScanSampleBill} disabled={isScanning} />
-                </label>
-              </div>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-red-500"><X className="w-5 h-5" /></button>
             </div>
             
@@ -365,7 +334,7 @@ export default function BillTemplateManagementScreen() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Country</label>
-                  <select value={formData.country} onChange={e => setFormData({...formData, country: e.target.value})} className="w-full p-2 border border-slate-300 bg-slate-100 rounded-lg text-sm" disabled>
+                  <select value={formData.country} onChange={e => setFormData({...formData, country: e.target.value})} className="w-full p-2 border rounded-lg text-sm" disabled>
                     <option value="india">India</option>
                     <option value="australia">Australia</option>
                   </select>
@@ -405,7 +374,7 @@ export default function BillTemplateManagementScreen() {
                         </div>
                         <div className="col-span-2">
                           <label className="block text-[10px] font-bold text-slate-500 mb-1">Regex Pattern</label>
-                          <input type="text" value={rule.regex} onChange={e => updateRule(idx, 'regex', e.target.value)} className="w-full p-1.5 text-xs font-mono border border-slate-300 rounded bg-white" placeholder="e.g. Total Amount\s*([0-9.]+)" />
+                          <input type="text" value={rule.regex} onChange={e => updateRule(idx, 'regex', e.target.value)} className="w-full p-1.5 text-xs font-mono border border-slate-300 rounded bg-white" placeholder="e.g. Total Amount\\s*([0-9.]+)" />
                         </div>
                         <div>
                           <label className="block text-[10px] font-bold text-slate-500 mb-1">Type</label>
@@ -437,3 +406,7 @@ export default function BillTemplateManagementScreen() {
     </div>
   );
 }
+`;
+
+fs.writeFileSync('src/components/BillTemplateManagementScreen.jsx', combinedJSX);
+console.log("Restored Original Hierarchy but with Regex Modal.");

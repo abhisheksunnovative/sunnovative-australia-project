@@ -129,7 +129,10 @@ const DISCOM_LIST = [
   { id: 'MVVNL', pattern: /MVVNL|MADHYANCHAL\s*VIDYUT/i,                                   state: 'Uttar Pradesh' },
   // v5 FIX: was "POORVANCHAL" — actual company name is "PURVANCHAL"
   { id: 'PuVVNL',pattern: /PuVVNL|PUVVNL|PURVANCHAL\s*VIDYUT|POORVANCHAL\s*VIDYUT/i,     state: 'Uttar Pradesh' },
+  { id: 'UPCL', pattern: /\bUPCL\b|UTTARAKHAND\s*POWER\s*CORPORATION/i, state: 'Uttarakhand' },
   { id: 'UPPCL', pattern: /UPPCL|uppcl\.org/i,                                              state: 'Uttar Pradesh' },
+  { id: 'MePDCL', pattern: /Me[-\s]?PDCL|MEGHALAYA\s*POWER\s*DISTRIBUTION/i, state: 'Meghalaya' },
+  { id: 'Puducherry Electricity', pattern: /Government\s*of\s*Puducherry|Puducherry.*Electricity\s*Dept/i, state: 'Puducherry' },
   { id: 'BESCOM',pattern: /BESCOM|BANGALORE\s*ELECTRICITY/i,                                state: 'Karnataka'     },
   { id: 'MESCOM',pattern: /MESCOM|MANGALORE\s*ELECTRICITY/i,                                state: 'Karnataka'     },
   { id: 'CHESCOM',pattern: /CHESCOM|CHAMUNDESHWARI\s*ELECTRICITY/i,                         state: 'Karnataka'     },
@@ -247,7 +250,8 @@ const detectMeterCategory = (text) => {
 // If regex-based detection returns 'Unknown', use DISCOM identity + sanctioned
 // load as a smart fallback (covers OCR noise, tabular format issues).
 const GUJARAT_DISCOMS = ['PGVCL', 'DGVCL', 'UGVCL', 'MGVCL'];
-const UP_DISCOMS     = ['PVVNL', 'DVVNL', 'MVVNL', 'PuVVNL', 'UPPCL'];
+const UP_DISCOMS     = ['PVVNL', 'DVVNL', 'MVVNL', 'PuVVNL', 'UPPCL', 'UPCL'];
+const OTHER_DISCOMS  = ['MePDCL', 'Puducherry Electricity'];
 
 const resolveMeterCategory = (text, meterCategory, discomId, sanctionedLoad) => {
   // If already detected, return as-is

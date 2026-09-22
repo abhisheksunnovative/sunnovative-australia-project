@@ -1,6 +1,6 @@
 import express from 'express';
 import multer from 'multer';
-import { scanLightBill } from '../controllers/lightBillScanController.js';
+import { scanLightBill, getScanAnalytics } from '../controllers/lightBillScanController.js';
 import { checkBillEligibility } from '../controllers/lightBillEligibilityController.js';
 import { extractCountry } from '../middleware/countryMiddleware.js';
 
@@ -35,5 +35,7 @@ router.get('/history', async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
+
+router.get('/analytics', getScanAnalytics);
 
 export default router;

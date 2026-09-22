@@ -71,7 +71,14 @@ export async function extractData(rawText, countryContext = 'australia') {
                 const match = rawText.match(regex);
 
                 if (match && match[1]) { 
-                    const val = sanitizeValue(match[1], rule.type);
+                    let val = sanitizeValue(match[1], rule.type);
+                    
+                    // Regex Root-Cause Fix: Reject garbage extractions like "actual meter reading" for category fields
+                    if (rule.field === 'meterTypeInfo' || rule.field === 'tariffCategory' || rule.field === 'meterCategory') {
+                        if (typeof val === 'string' && val.toLowerCase().includes('reading')) {
+                            val = null; // Skip garbage extraction
+                        }
+                    }
                     if (val !== null) {
                         extractedData[rule.field] = val;
                         if (rule.required) fieldsMatched++;
