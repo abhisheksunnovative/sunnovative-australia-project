@@ -7,7 +7,7 @@
  */
 
 import { BillExtraction } from '../models/BillExtraction.js';
-import { BillTemplate } from '../models/BillTemplate.js';
+import BillTemplate from '../models/BillTemplate.js';
 import { runOcr, parseBillText, extractPdfText, convertScannedPdfToImages } from '../utils/Ocrextractor.js';
 import { matchTemplate } from '../utils/TemplateMatcher.js';
 import { validateExtraction } from '../utils/ValidationEngine.js';

@@ -1,21 +1,19 @@
 ﻿import mongoose from 'mongoose';
 
-const BillTemplateSchema = new mongoose.Schema(
-  {
-    discom_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Discom', required: true },
-    consumer_type: { type: String, default: 'Residential' },
-    tariff_code: { type: String },
-    version: { type: String, required: true },
-    effective_from: { type: Date, required: true },
-    effective_to: { type: Date },
-    active: { type: Boolean, default: true },
-    source_document: { type: String },
-    sample_file: { type: String },
-    OCR_aliases_json: { type: Object, default: {} },
-    layout_rules_json: { type: Object, default: {} },
-    validation_rules_json: { type: Object, default: {} }
-  },
-  { timestamps: true }
-);
+const billTemplateSchema = new mongoose.Schema({
+  discomName: { type: String, required: true, trim: true, unique: true },
+  country: { type: String, enum: ['australia', 'india'], required: true },
+  isActive: { type: Boolean, default: true },
+  anchorKeywords: [{ type: String, required: true }],
+  extractionRules: [{
+    field: { type: String, required: true },
+    regex: { type: String, required: true },
+    flags: { type: String, default: 'i' },
+    type: { type: String, enum: ['string', 'number', 'date', 'boolean'], default: 'string' },
+    required: { type: Boolean, default: false }
+  }]
+}, { timestamps: true });
 
-export const BillTemplate = mongoose.model('BillTemplate', BillTemplateSchema);
+const BillTemplate = mongoose.model('BillTemplate', billTemplateSchema);
+export { BillTemplate };
+export default BillTemplate;
