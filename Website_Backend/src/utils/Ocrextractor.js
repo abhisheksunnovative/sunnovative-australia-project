@@ -1032,7 +1032,7 @@ for (const p of amountPatterns) {
   // FIX: [a-zA-Z0-9\- ] instead of \s to prevent matching newlines
   const originAgreementMatch = t.match(/Your\s*Current\s*Agreement\s*:\s*\n?\s*([a-zA-Z0-9\- ]{4,30})/i);
 
-  if (yourTariffMatch && !/period|:/i.test(yourTariffMatch[1])) {
+  if (yourTariffMatch) {
     tariffType = yourTariffMatch[1].trim();
     console.log('[DEBUG] tariffType matched via yourTariffMatch:', yourTariffMatch[0]);
   } else if (currentChargeMatch && !/total|amount/i.test(currentChargeMatch[1])) {
