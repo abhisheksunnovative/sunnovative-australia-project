@@ -795,7 +795,7 @@ export const parseAuBillText = (text) => {
   if (nmiMatch) nmiNumber = nmiMatch[1].trim();
 
   // ── 3. Customer Name ──────────────────────────────────────────────────────
-  let customerName = null;
+    let customerName = null;
   const namePatterns = [
     /(?:Customer|Account\s*Holder|Account\s*Name|Name)\s*[:\-]?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})(?=\s*(?:Supply|Account|NMI|$))/i,
     /Dear\s+(?:Mr\.?\s*|Ms\.?\s*|Mrs\.?\s*)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3}),?/i,
@@ -803,6 +803,18 @@ export const parseAuBillText = (text) => {
   for (const p of namePatterns) {
     const m = t.match(p);
     if (m) { customerName = m[1].trim(); break; }
+  }
+  
+  if (!customerName) {
+    const nameMatch = t.match(/(?:Name|Customer|Account\s*holder)[\s:]*([A-Z][a-zA-Z\s\-']{3,30})/i);
+    if (nameMatch && !/Name/i.test(nameMatch[1]) && !/account/i.test(nameMatch[1])) {
+      customerName = nameMatch[1].trim();
+    } else {
+      const upperName = t.match(/\b([A-Z][A-Z\s]{5,30})\b/);
+      if (upperName && !/TAX|INVOICE|ACCOUNT|SUMMARY|ELECTRICITY/i.test(upperName[1])) {
+         customerName = upperName[1].trim();
+      }
+    }
   }
 
   // Distributor (DNSP)
@@ -889,16 +901,23 @@ export const parseAuBillText = (text) => {
 
   // "Total Usage: 1,234 kWh" or "Electricity Used 987.5 kWh"
   const usagePatterns = [
+    /This\s*bill\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*(?:kWh|units)?/i,
+    /(?:Energy\s*Use|Energy\s*Usage|electricity\s*you\s*used|Total\s*electricity\s*used)\s*([\d,]+(?:\.\d+)?)/i,
+    /Equals\s*total\s*units\s*used\s*.*\n.*\s+([\d,]+(?:\.\d+)?)/i,
     /(?:Total\s*)?(?:Electricity\s*)?(?:Usage|Used|Consumption|kWh\s*Used|Units\s*Used)[\s\S]{0,40}?([\d,]+(?:\.\d+)?)\s*(?:kWh|kW|units)/i,
-    /([\d,]+(?:\.\d+)?)\s*kWh\s*(?:used|consumed|usage)/i,
+    /([\d,]+(?:\.\d+)?)\s*kWh\s*(?:used|consumed|usage|total)/i,
     /(?:Peak\s*\+\s*Off.?Peak|Total)\s*(?:Usage)?\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*kWh/i,
+    /([\d,]{3,}(?:\.\d+)?)\s*(?:kWh|kW)/i // Generic fallback for large kWh numbers
   ];
   for (const p of usagePatterns) {
     const m = t.match(p);
     if (m) {
-      quarterlyKwh = parseFloat(m[1].replace(/,/g, ''));
-      if (billingDays && billingDays > 0) dailyKwh = +(quarterlyKwh / billingDays).toFixed(2);
-      break;
+      const context = t.substring(Math.max(0, m.index - 20), m.index + m[0].length);
+      if (!/Average|daily/i.test(context)) {
+        quarterlyKwh = parseFloat(m[1].replace(/,/g, ''));
+        if (billingDays && billingDays > 0) dailyKwh = +(quarterlyKwh / billingDays).toFixed(2);
+        break;
+      }
     }
   }
 
@@ -916,6 +935,7 @@ export const parseAuBillText = (text) => {
     /(?:Total\s*balance|Total\s*Amount\s*(?:Due|Payable|Outstanding)|Amount\s*(?:Due|Payable)|Balance\s*Due|Please\s*Pay)[\s\S]{0,150}?\$\s*([\d,]+(?:\.\d{2})?)/i,
     /(?:Total\s*(?:Current\s*)?Bill|Bill\s*Total)\s*[:\-]?\s*\$\s*([\d,]+(?:\.\d{2})?)/i,
     /\$\s*([\d,]+\.\d{2})\s*(?:is\s*due|payable|due\s*by)/i,
+    /\bTotal\s*[:\-]?\s*\$\s*([\d,]+(?:\.\d{2})?)/i,
   ];
   for (const p of amountPatterns) {
     const m = t.match(p);
@@ -935,10 +955,27 @@ export const parseAuBillText = (text) => {
   if (exportCreditMatch) solarExportCredit = parseFloat(exportCreditMatch[1].replace(/,/g, ''));
 
   // ── 10. Tariff type ───────────────────────────────────────────────────────
-  let tariffType = null;
-  if (/Time\s*of\s*Use|TOU|Peak.*Shoulder|Shoulder.*Peak/is.test(t)) tariffType = 'Time of Use (TOU)';
-  else if (/Single\s*Rate|Flat\s*Rate/i.test(t)) tariffType = 'Single Rate';
-  else if (/Controlled\s*Load|Off.?Peak/i.test(t)) tariffType = 'Controlled Load';
+    let tariffType = null;
+  const explicitTariffMatch = t.match(/Tariff(?:\s*:|\s*-)?\s+([^\n]{4,30})/i);
+  const currentChargeMatch = t.match(/Current\s*Account\s*Charges\s*\n\s*([a-zA-Z0-9\- ]{4,30})/i);
+  const productMatch = t.match(/(?:Energy product|Your plan)[\s\:]+([^\n]{4,30})/i);
+  const originAgreementMatch = t.match(/Your\s*Current\s*Agreement\s*:\s*\n?\s*([a-zA-Z0-9\-\s]{4,30})/i);
+
+  if (currentChargeMatch && !/total|amount/i.test(currentChargeMatch[1])) {
+    tariffType = currentChargeMatch[1].trim();
+  } else if (originAgreementMatch) {
+    tariffType = originAgreementMatch[1].trim();
+  } else if (productMatch) {
+    tariffType = productMatch[1].trim();
+  } else if (explicitTariffMatch && !/total|amount/i.test(explicitTariffMatch[1]) && !explicitTariffMatch[1].includes('NMI')) {
+    tariffType = explicitTariffMatch[1].trim();
+  } else if (/Time\s*of\s*Use|TOU|Peak.*Shoulder|Shoulder.*Peak/is.test(t)) {
+    tariffType = 'Time of Use (TOU)';
+  } else if (/Single\s*Rate|Flat\s*Rate/i.test(t)) {
+    tariffType = 'Single Rate';
+  } else if (/Controlled\s*Load|Off.?Peak/i.test(t)) {
+    tariffType = 'Controlled Load';
+  }
 
   // ── 11. Meter type ────────────────────────────────────────────────────────
   let meterType = null;

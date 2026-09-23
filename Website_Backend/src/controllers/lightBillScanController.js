@@ -37,28 +37,28 @@ export const scanLightBill = async (req, res) => {
         const overrideResult = await templateExtractor.extractData(rawText, countryContext);
         const ed = overrideResult.extractedData || {};
 
-        // Merge logic: DB overrides base, base fills gaps
+        // Merge logic: For AU, Base (Ocrextractor) is robust so it overrides DB templates. For India, DB overrides base.
         const merged = {
-            retailer: ed.retailer || baseParsed.retailer || baseParsed.discomId,
-            monthlyBill: ed.monthlyBill || (isAU ? baseParsed.quarterlyBillAmount : baseParsed.billAmount),
+            retailer: isAU ? (baseParsed.retailer || ed.retailer) : (ed.retailer || baseParsed.retailer || baseParsed.discomId),
+            monthlyBill: isAU ? (baseParsed.quarterlyBillAmount || ed.monthlyBill) : (ed.monthlyBill || baseParsed.billAmount),
             amountType: baseParsed.amountType || 'due',
-            fullName: ed.fullName || baseParsed.customerName,
-            consumerNumber: ed.consumerNumber || baseParsed.accountNumber || baseParsed.consumerNumber,
-            dueDate: ed.dueDate || baseParsed.dueDate,
-            tariffCategory: ed.tariffCategory || baseParsed.tariffType || baseParsed.tariffDesc,
+            fullName: isAU ? (baseParsed.customerName || ed.fullName) : (ed.fullName || baseParsed.customerName),
+            consumerNumber: isAU ? (baseParsed.accountNumber || baseParsed.consumerNumber || ed.consumerNumber) : (ed.consumerNumber || baseParsed.accountNumber || baseParsed.consumerNumber),
+            dueDate: isAU ? (baseParsed.dueDate || ed.dueDate) : (ed.dueDate || baseParsed.dueDate),
+            tariffCategory: isAU ? (baseParsed.tariffType || baseParsed.tariffDesc || ed.tariffCategory) : (ed.tariffCategory || baseParsed.tariffType || baseParsed.tariffDesc),
             billingDays: ed.billingDays || baseParsed.billingDays,
-            meterTypeInfo: ed.meterTypeInfo || baseParsed.meterType || baseParsed.meterCategory,
-            state: ed.state || baseParsed.state || baseParsed.detectedState,
-            city: ed.city || baseParsed.suburb || baseParsed.district,
-            postcode: ed.postcode || baseParsed.postcode,
-            quarterlyKwh: ed.quarterlyKwh || baseParsed.quarterlyKwh,
+            meterTypeInfo: isAU ? (baseParsed.meterType || baseParsed.meterCategory || ed.meterTypeInfo) : (ed.meterTypeInfo || baseParsed.meterType || baseParsed.meterCategory),
+            state: isAU ? (baseParsed.state || baseParsed.detectedState || ed.state) : (ed.state || baseParsed.state || baseParsed.detectedState),
+            city: isAU ? (baseParsed.suburb || baseParsed.district || ed.city) : (ed.city || baseParsed.suburb || baseParsed.district),
+            postcode: isAU ? (baseParsed.postcode || ed.postcode) : (ed.postcode || baseParsed.postcode),
+            quarterlyKwh: isAU ? (baseParsed.quarterlyKwh || ed.quarterlyKwh) : (ed.quarterlyKwh || baseParsed.quarterlyKwh),
             monthlyUnits: ed.monthlyUnits || baseParsed.monthlyUnitsUsed
         };
 
-        // Red Energy / Synergy average daily fallback
+        // Average daily fallback for low kWh values (e.g. Origin 27.78, Horizon 25)
         let finalKwh = merged.quarterlyKwh;
-        if (merged.retailer === 'Red Energy' || merged.retailer === 'Synergy') {
-            if (finalKwh && finalKwh < 200) finalKwh = Math.round(finalKwh * 90); // If average daily was extracted instead of quarterly sum
+        if (isAU && finalKwh && finalKwh < 150) {
+            finalKwh = Math.round(finalKwh * (merged.billingDays || 90));
         }
 
         // Recommendation Safety Gate - Critical Fields Check
@@ -162,8 +162,7 @@ export const scanLightBill = async (req, res) => {
         // If the extracted category is completely invalid/garbage, trigger Safety Gate
         if (!isValidCategory) {
             criticalFieldsConfirmed = false;
-            merged.meterTypeInfo = ""; // Clear garbage
-            merged.tariffCategory = ""; // Clear garbage
+            // Removed clearing of fields so user can see extracted garbage and correct it
         }
         // ----------------------------------------
 
