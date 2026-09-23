@@ -1,4 +1,4 @@
-﻿import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export const runGeminiFallback = async (fileBuffer, mimeType, countryContext) => {
     try {
@@ -9,8 +9,8 @@ export const runGeminiFallback = async (fileBuffer, mimeType, countryContext) =>
 
         console.log(`[GeminiFallback] Initiating Gemini Vision API for ${countryContext} bill...`);
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        // Using flash for fast OCR fallback (cost is ~$0.0001 per image)
-        const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
+        // Using flash for fast OCR fallback
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
         const prompt = `You are a precise data extraction AI. Extract the following fields from this electricity bill image.
 Country context: ${countryContext}.

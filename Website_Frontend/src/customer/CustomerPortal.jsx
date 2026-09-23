@@ -111,27 +111,14 @@ function StarRating({ rating, count }) {
   );
 }
 
-function ProgressTracker({ status, pct }) {
-  // Ultra-thin & compact line tracker UI matching screenshot
+function ProgressTracker({ project }) {
+  const status = project?.status || "lead";
+  const steps = project?.steps || [];
   
-  const getActiveIndex = (s) => {
-    switch (s) {
-      case 'lead': return 0; 
-      case 'document-upload': return 2;
-      case 'epc-assigned': return 8;
-      case 'site-survey': return 9;
-      case 'proposal': return 10;
-      case 'mnre-registration': return 11;
-      case 'installation': return 11;
-      case 'inspection': return 12;
-      case 'net-metering': return 13;
-      case 'subsidy': return 14;
-      case 'completed': return 15;
-      default: return 0;
-    }
-  };
-  
-  const activeIndex = getActiveIndex(status);
+  if (!steps.length) return null;
+
+  const activeIndex = steps.findIndex(s => s.status === 'in-progress' || s.status === 'pending');
+  const resolvedActive = activeIndex === -1 ? steps.length - 1 : activeIndex;
 
   return (
     <div className="w-full bg-white/90 backdrop-blur-md border border-white/20 rounded-xl p-2 shadow-sm overflow-x-auto scrollbar-hide">
@@ -140,15 +127,17 @@ function ProgressTracker({ status, pct }) {
         <Badge status={status} />
       </div>
 
-      <div className="min-w-[680px] flex items-start justify-between relative px-2 py-0.5">
+      <div className="min-w-max flex items-start justify-between relative px-2 py-0.5 gap-2 md:gap-4">
         {/* Connecting track line */}
         <div className="absolute left-5 right-5 top-3 h-0.5 bg-slate-200 -z-10" />
 
-        {["Lead...", "Submit...", "Upload...", "Verify...", "Docum...", "Select...", "Payment", "Allocat...", "Accept...", "Site...", "Proposal", "Installation", "Upload...", "Net...", "Subsid...", "Progres..."].map((title, i) => {
-          const done = i < activeIndex;
-          const active = i === activeIndex;
+        {steps.map((step, i) => {
+          const done = step.status === 'completed';
+          const active = i === resolvedActive;
+          const title = step.title.substring(0, 10) + (step.title.length > 10 ? "..." : "");
+
           return (
-            <div key={i} className="flex flex-col items-center flex-1 relative group cursor-pointer">
+            <div key={i} className="flex flex-col items-center flex-1 relative group cursor-pointer min-w-[60px]">
               {i > 0 && (done || active) && (
                 <div className={`absolute right-[50%] left-[-50%] top-3 h-0.5 -z-10 transition-all ${done ? 'bg-orange-500' : 'bg-amber-400'}`} />
               )}
@@ -903,7 +892,7 @@ function ProjectDetail({ projectId, onBack, authFetch }) {
 
           {/* Slim Progress Tracker Line */}
           <div className="relative z-10 mb-2">
-            <ProgressTracker status={project.status} pct={project.completionPercentage} />
+            <ProgressTracker project={project} />
           </div>
 
           {/* 3 Compact Metric Badges */}
@@ -1532,26 +1521,7 @@ function ApplyModal({ pkg, selectedState, stateSubsidy, minBookingDays, customer
           return;
         }
 
-        if (d.requiresPayment) {
-          // BYPASS RAZORPAY FOR TESTING
-          console.log("Bypassing Razorpay and firing pay-token directly!");
-          try {
-            const payRes = await fetch(`${API}/api/customer/projects/${d.data._id}/pay-token`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
-            });
-            const payData = await payRes.json();
-            if (payData.success) {
-              onSuccess(d.data);
-            } else {
-              setError("Payment bypass failed: " + payData.message);
-            }
-          } catch(err) {
-            setError("Payment bypass error");
-          }
-        } else {
-          onSuccess(d.data);
-        }
+        onSuccess(d.data);
       } else {
         setError(d.message || "Error aayi, try again");
       }
@@ -3889,7 +3859,7 @@ export default function CustomerPortal({ onClose }) {
                 </div>
                 <div>
                   <p className="font-black text-lg">{customer?.fullName}</p>
-                  <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3" />{isAU ? "+61" : "+91"} {customer?.mobile}</p>
+                  <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5"><Phone className="w-3 h-3" />{customer?.mobile ? `${isAU ? "+61" : "+91"} ${customer.mobile}` : "Not Provided"}</p>
                   <p className="text-[10px] text-slate-500 mt-1">Member since {fmtDate(customer?.createdAt)}</p>
                 </div>
               </div>
@@ -3918,7 +3888,7 @@ export default function CustomerPortal({ onClose }) {
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mb-1.5"><Phone className="w-3.5 h-3.5" />Mobile (Read Only)</label>
-                  <input value={`${isAU ? "+61" : "+91"} ${customer?.mobile}`} readOnly className="w-full border border-slate-100 rounded-xl px-4 py-2.5 text-sm bg-slate-50 text-slate-400 cursor-not-allowed" />
+                  <input value={customer?.mobile ? `${isAU ? "+61" : "+91"} ${customer.mobile}` : "Not Provided"} readOnly className="w-full border border-slate-100 rounded-xl px-4 py-2.5 text-sm bg-slate-50 text-slate-400 cursor-not-allowed" />
                 </div>
               </div>
 

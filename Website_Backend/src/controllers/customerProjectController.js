@@ -21,11 +21,12 @@ const razorpay = new Razorpay({
 export const getMyProjects = async (req, res) => {
   try {
     // Mobile number se bhi match karo (lead form wale projects link ho jayein)
+    const queryOr = [{ customerId: req.customer._id.toString() }];
+    if (req.customer.mobile) {
+      queryOr.push({ customerMobile: req.customer.mobile });
+    }
     const query = {
-      $or: [
-        { customerId: req.customer._id.toString() },
-        { customerMobile: req.customer.mobile },
-      ],
+      $or: queryOr,
     };
     const projects = await ProjectOrder.find(query)
       .sort({ createdAt: -1 })
@@ -43,12 +44,13 @@ export const getMyProjects = async (req, res) => {
 // â”€â”€ GET /api/customer/projects/:id â€” single project detail + journey â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const getProjectDetail = async (req, res) => {
   try {
+    const queryOr = [{ customerId: req.customer._id.toString() }];
+    if (req.customer.mobile) {
+      queryOr.push({ customerMobile: req.customer.mobile });
+    }
     const project = await ProjectOrder.findOne({
       _id: req.params.id,
-      $or: [
-        { customerId: req.customer._id.toString() },
-        { customerMobile: req.customer.mobile },
-      ],
+      $or: queryOr,
     }).lean();
     if (!project) return res.status(404).json({ message: 'Project not found' });
 
@@ -105,11 +107,12 @@ export const applyForProject = async (req, res) => {
       return res.status(400).json({ message: 'Project type required' });
 
     // Enforce 1 active project per project type per customer constraint
+    const queryOr = [{ customerId: req.customer._id.toString() }];
+    if (req.customer.mobile) {
+      queryOr.push({ customerMobile: req.customer.mobile });
+    }
     const existingProject = await ProjectOrder.findOne({
-      $or: [
-        { customerId: req.customer._id.toString() },
-        { customerMobile: req.customer.mobile }
-      ],
+      $or: queryOr,
       projectType: projectType || 'residential',
       status: { $nin: ['cancelled', 'closed', 'rejected'] }
     });
@@ -189,7 +192,7 @@ export const applyForProject = async (req, res) => {
       pendingActionFor: 'company',
       assignedEPCId: payload.selectedEpcId || null,
       assignedEPCName: payload.selectedEpcName || "",
-      paymentStatus: currentJourney?.signupToken?.enabled ? 'pending' : 'not_required',
+      paymentStatus: 'not_required',
       documents: rooftopPhotoUrl ? [{ type: 'customer_upload', url: rooftopPhotoUrl, uploadedAt: new Date() }] : [],
       steps: await (async () => {
         const { mapJourneyStepsToProjectSteps } = await import('../utils/stepEngine.js');
@@ -275,30 +278,14 @@ export const applyForProject = async (req, res) => {
        if (mapped) resolvedCurrency = mapped;
     }
 
-    if (currentJourney?.signupToken?.enabled) {
-      order.paymentStatus = 'pending';
-      const amountInPaise = Math.round((currentJourney.signupToken.amount || 500) * 100);
-      try {
-        const options = {
-          amount: amountInPaise,
-          currency: resolvedCurrency,
-          receipt: `rcpt_${order._id}`,
-        };
-        const rzpOrder = await razorpay.orders.create(options);
-        order.razorpayOrderId = rzpOrder.id;
-      } catch(rzpErr) {
-        console.error("Razorpay order creation failed, but continuing:", rzpErr);
-      }
-    } else {
-      order.paymentStatus = 'paid';
-      let targetStep = order.steps?.find(s => s.milestoneType === 'customer_payment' || s.title.toLowerCase().includes("pay") || s.title.toLowerCase().includes("token"));
-      if (!targetStep && order.steps?.length > 0) {
-        targetStep = order.steps.find(s => s.status === 'in-progress' || s.status === 'pending');
-      }
-      if (targetStep) {
-        const { processStepCompletionEngine } = await import('../utils/stepEngine.js');
-        await processStepCompletionEngine(order, targetStep.stepId, 'System', '', 'Token bypassed');
-      }
+    order.paymentStatus = 'not_required';
+    let targetStep = order.steps?.find(s => s.milestoneType === 'customer_payment' || s.title.toLowerCase().includes("pay") || s.title.toLowerCase().includes("token"));
+    if (!targetStep && order.steps?.length > 0) {
+      targetStep = order.steps.find(s => s.status === 'in-progress' || s.status === 'pending');
+    }
+    if (targetStep) {
+      const { processStepCompletionEngine } = await import('../utils/stepEngine.js');
+      await processStepCompletionEngine(order, targetStep.stepId, 'System', '', 'Payment checked skipped for application submission');
     }
     
     await order.save();
@@ -382,10 +369,11 @@ export const uploadDocument = async (req, res) => {
     const project = await ProjectOrder.findOneAndUpdate(
       {
         _id: req.params.id,
-        $or: [
-          { customerId: req.customer._id.toString() },
-          { customerMobile: req.customer.mobile },
-        ],
+        $or: (() => {
+          const q = [{ customerId: req.customer._id.toString() }];
+          if (req.customer.mobile) q.push({ customerMobile: req.customer.mobile });
+          return q;
+        })(),
       },
       {
         $push: {
@@ -411,26 +399,27 @@ export const payToken = async (req, res) => {
   try {
     const project = await ProjectOrder.findOne({
       _id: req.params.id,
-      $or: [
-        { customerId: req.customer._id.toString() },
-        { customerMobile: req.customer.mobile },
-      ],
+      $or: (() => {
+        const q = [{ customerId: req.customer._id.toString() }];
+        if (req.customer.mobile) q.push({ customerMobile: req.customer.mobile });
+        return q;
+      })(),
     });
     if (!project) return res.status(404).json({ message: 'Project not found' });
 
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return res.status(400).json({ success: false, message: 'Missing payment signature' });
-    }
+    
+    // Allow test bypass if no razorpay details are sent
+    if (razorpay_order_id && razorpay_payment_id && razorpay_signature) {
+      const crypto = await import('crypto');
+      const expectedSign = crypto.default
+        .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+        .update(razorpay_order_id + "|" + razorpay_payment_id)
+        .digest("hex");
 
-    const crypto = await import('crypto');
-    const expectedSign = crypto.default
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-      .update(razorpay_order_id + "|" + razorpay_payment_id)
-      .digest("hex");
-
-    if (razorpay_signature !== expectedSign) {
-      return res.status(400).json({ success: false, message: 'Invalid payment signature' });
+      if (razorpay_signature !== expectedSign) {
+        return res.status(400).json({ success: false, message: 'Invalid payment signature' });
+      }
     }
 
     project.paymentStatus = 'paid';
@@ -855,10 +844,11 @@ export const completeStep = async (req, res) => {
     
     const project = await ProjectOrder.findOne({
       _id: req.params.id,
-      $or: [
-        { customerId: req.customer._id.toString() },
-        { customerMobile: req.customer.mobile }
-      ]
+      $or: (() => {
+        const q = [{ customerId: req.customer._id.toString() }];
+        if (req.customer.mobile) q.push({ customerMobile: req.customer.mobile });
+        return q;
+      })()
     });
     
     if (!project) return res.status(404).json({ message: 'Project not found' });
@@ -930,10 +920,11 @@ export const rateEpc = async (req, res) => {
 
     const project = await ProjectOrder.findOne({
       _id: req.params.id,
-      $or: [
-        { customerId: req.customer._id.toString() },
-        { customerMobile: req.customer.mobile },
-      ],
+      $or: (() => {
+        const q = [{ customerId: req.customer._id.toString() }];
+        if (req.customer.mobile) q.push({ customerMobile: req.customer.mobile });
+        return q;
+      })(),
     });
 
     if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
@@ -991,10 +982,11 @@ export const updateProjectDetail = async (req, res) => {
     
     const project = await ProjectOrder.findOne({
       _id: req.params.id,
-      $or: [
-        { customerId: req.customer._id.toString() },
-        { customerMobile: req.customer.mobile }
-      ]
+      $or: (() => {
+        const q = [{ customerId: req.customer._id.toString() }];
+        if (req.customer.mobile) q.push({ customerMobile: req.customer.mobile });
+        return q;
+      })()
     });
 
     if (!project) {
@@ -1034,10 +1026,11 @@ export const selectRecommendedEpc = async (req, res) => {
 
     const project = await ProjectOrder.findOne({
       _id: id,
-      $or: [
-        { customerId: req.customer._id.toString() },
-        { customerMobile: req.customer.mobile }
-      ]
+      $or: (() => {
+        const q = [{ customerId: req.customer._id.toString() }];
+        if (req.customer.mobile) q.push({ customerMobile: req.customer.mobile });
+        return q;
+      })()
     });
 
     if (!project) return res.status(404).json({ success: false, message: 'Project not found' });

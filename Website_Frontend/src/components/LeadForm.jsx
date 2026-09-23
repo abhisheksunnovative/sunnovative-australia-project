@@ -130,17 +130,21 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
         }
         
         if (settingsToUse && settingsToUse.fields) {
-          const hasEmail = settingsToUse.fields.some(f => f.key === 'email');
-          if (!hasEmail) {
-            const mobileIdx = settingsToUse.fields.findIndex(f => f.key === 'mobileNumber');
-            const insertIdx = mobileIdx >= 0 ? mobileIdx + 1 : 2;
-            settingsToUse.fields.splice(insertIdx, 0, {
-              key: 'email',
-              label: `Email Address *`,
-              type: 'email',
-              required: true,
-              placeholder: 'e.g. hello@example.com'
-            });
+          if (getCountryCode() === 'india') {
+            settingsToUse.fields = settingsToUse.fields.filter(f => f.key !== 'email');
+          } else {
+            const hasEmail = settingsToUse.fields.some(f => f.key === 'email');
+            if (!hasEmail) {
+              const mobileIdx = settingsToUse.fields.findIndex(f => f.key === 'mobileNumber');
+              const insertIdx = mobileIdx >= 0 ? mobileIdx + 1 : 2;
+              settingsToUse.fields.splice(insertIdx, 0, {
+                key: 'email',
+                label: `Email Address`,
+                type: 'email',
+                required: true,
+                placeholder: 'e.g. hello@example.com'
+              });
+            }
           }
           setFormSettings(settingsToUse);
         }
@@ -801,7 +805,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
 
     return (
       <div key={idx}>
-        <label className="block text-[11px] font-bold text-slate-700 mb-0.5 truncate">
+        <label className="block text-[11px] font-bold text-slate-700 mb-0.5 whitespace-normal break-words">
           {field.label}{field.required && " *"}
         </label>
         {field.type === "select" ? (
@@ -1188,9 +1192,9 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
     
       {/* --- MODAL FOR CONTACT DETAILS --- */}
       {showDetailsModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl relative my-8">
-            <div className="sticky top-0 bg-white border-b border-slate-100 p-4 md:p-5 rounded-t-2xl flex items-center justify-between z-10">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl relative flex flex-col max-h-[90vh]">
+            <div className="bg-white border-b border-slate-100 p-4 md:p-5 rounded-t-2xl flex items-center justify-between shrink-0">
               <h2 className="text-lg md:text-xl font-black text-slate-900 flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-solar-sky" />
                 Fill your details
@@ -1200,15 +1204,12 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
               </button>
             </div>
             
-            <div className="p-4 md:p-5">
+            <div className="p-4 md:p-5 overflow-y-auto">
               <form onSubmit={(e) => {
                 e.preventDefault();
                 setShowDetailsModal(false);
                 handleFormSubmit(e);
               }}>
-                
-                {/* RE-INSERTED CONTACT FIELDS */}
-                {/* --- DYNAMIC FIELDS (from Admin Panel Form Builder) --- */}
             
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2 mb-3">
                 <div>

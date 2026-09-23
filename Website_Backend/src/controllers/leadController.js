@@ -1237,7 +1237,10 @@ export const selectInstallDate = async (req, res) => {
     const { date, epcCalendarSlotId } = req.body;
     if (!date) return res.status(400).json({ success: false, message: 'Date is required' });
 
-    if (!lead.isInstallDateOtpVerified) {
+    const isAU = lead.country?.toLowerCase() === 'australia' || lead.currency === 'AUD';
+    
+    // In Australia or if mobile is already verified, bypass the specific install date OTP requirement
+    if (!isAU && !lead.isMobileVerified && !lead.isInstallDateOtpVerified) {
       return res.status(403).json({ success: false, message: 'OTP must be verified before selecting install date' });
     }
 

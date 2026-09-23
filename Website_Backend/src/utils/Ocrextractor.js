@@ -780,15 +780,38 @@ export const parseAuBillText = (text) => {
 
   // ── 1. Retailer detection ─────────────────────────────────────────────────
   let retailer = null;
+
+// Step A: Domain-based match wins outright (strongest signal)
+for (const r of AU_RETAILERS) {
+  const domainSlug = r.id.toLowerCase().replace(/\s+/g, '');
+  const domainPattern = new RegExp(domainSlug + '\\.com\\.au', 'i');
+  if (domainPattern.test(t)) { retailer = r.id; console.log('[DEBUG] Retailer matched via Domain:', r.id); break; }
+}
+
+// Step B: Fallback to brand-keyword scan, but SKIP matches that are just a
+// "call X for faults/emergencies" style distributor mention
+if (!retailer) {
   for (const r of AU_RETAILERS) {
-    if (r.pattern.test(t)) { retailer = r.id; break; }
+    const m = r.pattern.exec(t);
+    if (m) {
+      const context = t.substring(Math.max(0, m.index - 40), m.index + m[0].length + 10);
+      if (!/(?:call|faults?|emergenc(?:y|ies)|distributor|network)\b/i.test(context)) {
+        retailer = r.id;
+        break;
+      }
+    }
   }
+}
 
   // ── 2. Account / NMI Number ───────────────────────────────────────────────
   let accountNumber = null;
-  const acctMatch = t.match(/(?:Account\s+(?:Number|No\.?|#)|Account\s*:[\s\S]{0,10}?)[\s:]*([A-Z0-9][A-Z0-9\- ]{4,18}[A-Z0-9])/i);
-  if (acctMatch) accountNumber = acctMatch[1].trim();
-  if (accountNumber && (accountNumber.toLowerCase().includes("details") || accountNumber.toLowerCase().includes("diss"))) accountNumber = null;
+  // Gap `[\s\S]{0,10}?` hata diya — sirf immediate-next value allow, taaki "Account: 1 number" jaisa caption-text na pakde
+  const acctMatch = t.match(/(?:Account\s+(?:Number|No\.?|#)|Account\s*:)[\s:]*([A-Z0-9][A-Z0-9\- ]{4,18}[A-Z0-9])/i);
+  if (acctMatch) {
+    accountNumber = acctMatch[1].trim();
+    console.log('[DEBUG] Account Number matched:', accountNumber);
+  }
+  if (accountNumber && /\b(details|number|diss|name|account)\b/i.test(accountNumber)) accountNumber = null;
   
   let nmiNumber = null;
   const nmiMatch = t.match(/(?:NMI|National\s*Metering\s*Identifier)[\s\S]{0,40}?([0-9]{9,11}[X]*)/i);
@@ -797,24 +820,18 @@ export const parseAuBillText = (text) => {
   // ── 3. Customer Name ──────────────────────────────────────────────────────
     let customerName = null;
   const namePatterns = [
-    /(?:Customer|Account\s*Holder|Account\s*Name|Name)\s*[:\-]?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})(?=\s*(?:Supply|Account|NMI|$))/i,
+    /(?:[Cc]ustomer|[Aa]ccount\s*[Hh]older|[Aa]ccount\s*[Nn]ame)\s*[:\-]?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})(?=\s*(?:Supply|Account|NMI|$))/,
     /Dear\s+(?:Mr\.?\s*|Ms\.?\s*|Mrs\.?\s*)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3}),?/i,
   ];
   for (const p of namePatterns) {
     const m = t.match(p);
-    if (m) { customerName = m[1].trim(); break; }
+    if (m) { customerName = m[1].trim(); console.log('[DEBUG] Customer Name matched via namePatterns:', customerName); break; }
   }
-  
+
+  // Uppercase-only fallback (bills me naam aksar ALL CAPS hota hai address-block me)
   if (!customerName) {
-    const nameMatch = t.match(/(?:Name|Customer|Account\s*holder)[\s:]*([A-Z][a-zA-Z\s\-']{3,30})/i);
-    if (nameMatch && !/Name/i.test(nameMatch[1]) && !/account/i.test(nameMatch[1])) {
-      customerName = nameMatch[1].trim();
-    } else {
-      const upperName = t.match(/\b([A-Z][A-Z\s]{5,30})\b/);
-      if (upperName && !/TAX|INVOICE|ACCOUNT|SUMMARY|ELECTRICITY/i.test(upperName[1])) {
-         customerName = upperName[1].trim();
-      }
-    }
+    const nameMatch = t.match(/(?:Name|Customer|Account\s*holder)[\s:]*\n?([A-Z][A-Z\s\-'&]{3,40})(?=\n)/);
+    if (nameMatch) { customerName = nameMatch[1].trim(); console.log('[DEBUG] Customer Name matched via ALL-CAPS fallback:', customerName); }
   }
 
   // Distributor (DNSP)
@@ -901,49 +918,40 @@ export const parseAuBillText = (text) => {
 
   // "Total Usage: 1,234 kWh" or "Electricity Used 987.5 kWh"
     const usagePatterns = [
-    /This\s*bill\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*(?:kWh|units)?/ig,
-    /(?:Energy\s*Use|Energy\s*Usage|electricity\s*you\s*used|Total\s*electricity\s*used)\s*([\d,]+(?:\.\d+)?)/ig,
-    /Equals\s*total\s*units\s*used\s*.*\n.*\s+([\d,]+(?:\.\d+)?)/ig,
-    /(?:Total\s*)?(?:Electricity\s*)?(?:Usage|Used|Consumption|kWh\s*Used|Units\s*Used)[\s\S]{0,40}?([\d,]+(?:\.\d+)?)\s*(?:kWh|kW|units)/ig,
-    /([\d,]+(?:\.\d+)?)\s*kWh\s*(?:used|consumed|usage|total)/ig,
-    /(?:Peak\s*\+\s*Off.?Peak|Total)\s*(?:Usage)?\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*kWh/ig,
-    /([\d,]{3,}(?:\.\d+)?)\s*(?:kWh|kW)/ig // Generic fallback for large kWh numbers
-  ];
+  /This\s*bill\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*(?:kWh|units)/i,   // note: unit suffix ab MANDATORY hai, optional nahi
+  /(?:Energy\s*Use|Energy\s*Usage|electricity\s*you\s*used|Total\s*electricity\s*used)\s*([\d,]+(?:\.\d+)?)/i,
+  /Equals\s*total\s*units\s*used\s*.*\n.*\s+([\d,]+(?:\.\d+)?)/i,
+  /(?:Total\s*)?(?:Electricity\s*)?(?:Usage|Used|Consumption|kWh\s*Used|Units\s*Used)[\s\S]{0,40}?([\d,]+(?:\.\d+)?)\s*(?:kWh|kW|units)/i,
+  /([\d,]+(?:\.\d+)?)\s*kWh\s*(?:used|consumed|usage|total)/i,
+];
 
-  for (const p of usagePatterns) {
-    const matches = [...t.matchAll(p)];
-    if (matches && matches.length > 0) {
-      let sum = 0;
-      let validMatchFound = false;
-      
-      for (const m of matches) {
-        const context = t.substring(Math.max(0, m.index - 20), m.index + m[0].length);
-        if (!/Average|daily/i.test(context)) {
-          sum += parseFloat(m[1].replace(/,/g, ''));
-          validMatchFound = true;
-        }
-      }
-      
-      if (validMatchFound) {
-        // Only sum if we have multiple different values, but avoid double counting if the exact same value appears twice (e.g. on two pages)
-        // Wait, if it's Peak 100, OffPeak 200, it's safer to sum. But if it's Total 300 on page 1 and Total 300 on page 2, sum is 600 (wrong).
-        // A safer multi-period sum: only use unique values, or sum them if they are small? 
-        // Let's just sum unique matches to avoid page duplication, or if they are the exact same match text, maybe deduplicate?
-        // Let's deduplicate by the exact parsed number.
-        const uniqueVals = [...new Set(matches.map(m => {
-          const ctx = t.substring(Math.max(0, m.index - 20), m.index + m[0].length);
-          if (!/Average|daily/i.test(ctx)) {
-             return parseFloat(m[1].replace(/,/g, ''));
-          }
-          return null;
-        }).filter(v => v !== null))];
-        
-        quarterlyKwh = uniqueVals.reduce((a, b) => a + b, 0);
-        if (billingDays && billingDays > 0) dailyKwh = +(quarterlyKwh / billingDays).toFixed(2);
-        break; // Stop checking other patterns once we found a match
-      }
+// Single-value patterns: try each, take FIRST valid (non-average) match, then STOP.
+for (const p of usagePatterns) {
+  const m = t.match(p);
+  if (m) {
+    const context = t.substring(Math.max(0, m.index - 25), m.index + m[0].length);
+    if (!/Average|daily/i.test(context)) {
+      quarterlyKwh = parseFloat(m[1].replace(/,/g, ''));
+      console.log('[DEBUG] Usage (kWh) matched via standard pattern:', quarterlyKwh);
+      if (billingDays && billingDays > 0) dailyKwh = +(quarterlyKwh / billingDays).toFixed(2);
+      break;
     }
   }
+}
+
+// Multi-period sum: ONLY for explicit tariff-band bills (Peak/Off-peak/Shoulder), run separately if above found nothing.
+if (quarterlyKwh === null) {
+  const bandPattern = /(?:Peak|Off.?Peak|Shoulder|High\s*shoulder|Low\s*shoulder)\s*(?:Energy)?\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*kWh/ig;
+  const bandMatches = [...t.matchAll(bandPattern)];
+  if (bandMatches.length > 0) {
+    const sum = bandMatches.reduce((acc, match) => acc + parseFloat(match[1].replace(/,/g, '')), 0);
+    if (sum > 0) {
+      quarterlyKwh = sum;
+      console.log('[DEBUG] Usage (kWh) matched via Multi-period sum:', quarterlyKwh);
+      if (billingDays && billingDays > 0) dailyKwh = +(quarterlyKwh / billingDays).toFixed(2);
+    }
+  }
+}
 
   // ── 7. Daily average kWh (some bills show this directly) ─────────────────
   if (!dailyKwh) {
@@ -956,22 +964,23 @@ export const parseAuBillText = (text) => {
 
   // "Total Amount Due: $1,234.56" or "Amount Payable $456.78"
   const amountPatterns = [
-    // 1. Strict exact matches (highest priority)
-    /(?:Total\s*Amount\s*(?:Due|Payable|Outstanding)|Amount\s*(?:Due|Payable)|Balance\s*Due|Please\s*Pay|Total\s*balance)\s*[:\-]?\s*\$\s*([\d,]+(?:\.\d{2})?)/i,
-    /(?:Total\s*(?:Current\s*)?Bill|Bill\s*Total)\s*[:\-]?\s*\$\s*([\d,]+(?:\.\d{2})?)/i,
-    /\$\s*([\d,]+\.\d{2})\s*(?:is\s*due|payable|due\s*by)/i,
-    // 2. Loose matches (scan ahead up to 30 chars max)
-    /(?:Total\s*Amount\s*Due|Amount\s*Due|Please\s*Pay)[\s\S]{0,30}?\$\s*([\d,]+(?:\.\d{2})?)/i,
-    // 3. Fallback to generic "Total"
-    /\bTotal\s*[:\-]?\s*\$\s*([\d,]+(?:\.\d{2})?)/i,
-  ];
-  for (const p of amountPatterns) {
-    const m = t.match(p);
-    if (m) {
-      quarterlyBillAmount = parseFloat(m[1].replace(/,/g, ''));
-      break;
-    }
+  // 1. Strict exact matches (highest priority)
+  /(?:Total\s*Amount\s*(?:Due|Payable|Outstanding)|Amount\s*(?:Due|Payable)|Balance\s*Due|Please\s*Pay|Total\s*balance)\s*[:\-]?\s*\$\s*([\d,]+(?:\.\d{2})?)/i,
+  /(?:Total\s*(?:Current\s*)?Bill|Bill\s*Total)\s*[:\-]?\s*\$\s*([\d,]+(?:\.\d{2})?)/i,
+  /\$\s*([\d,]+\.\d{2})\s*(?:is\s*due|payable|due\s*by)/i,
+  // 2. Wider scan for boxed/widget layouts (e.g. "TOTAL DUE" ... "$1,020.42" separated by date/labels)
+  /(?:TOTAL\s*DUE|Total\s*due)[\s\S]{0,80}?\$\s*([\d,]+(?:\.\d{2})?)/i,
+  // 3. Loose matches (scan ahead up to 30 chars max)
+  /(?:Total\s*Amount\s*Due|Amount\s*Due|Please\s*Pay)[\s\S]{0,30}?\$\s*([\d,]+(?:\.\d{2})?)/i,
+];
+for (const p of amountPatterns) {
+  const m = t.match(p);
+  if (m) {
+    quarterlyBillAmount = parseFloat(m[1].replace(/,/g, ''));
+    console.log('[DEBUG] Bill Amount matched:', quarterlyBillAmount);
+    break;
   }
+}
 
   // ── 9. Solar Export (Feed-in) ─────────────────────────────────────────────
   let solarExportKwh = null, solarExportCredit = null;
@@ -986,23 +995,33 @@ export const parseAuBillText = (text) => {
     let tariffType = null;
   const explicitTariffMatch = t.match(/Tariff(?:\s*:|\s*-)?\s+([^\n]{4,30})/i);
   const currentChargeMatch = t.match(/Current\s*Account\s*Charges\s*\n\s*([a-zA-Z0-9\- ]{4,30})/i);
-  const productMatch = t.match(/(?:Energy product|Your plan)[\s\:]+([^\n]{4,30})/i);
-  const originAgreementMatch = t.match(/Your\s*Current\s*Agreement\s*:\s*\n?\s*([a-zA-Z0-9\-\s]{4,30})/i);
+  // FIX: [ :]+ instead of [\s\:]+ so it doesn't cross newlines. 
+  // And a specific pattern for when it is explicitly on the very next line.
+  const productMatch = t.match(/(?:Energy product|Your plan)[ :]+([^\n]{4,30})/i) || t.match(/(?:Energy product|Your plan)[ :]*\n\s*([^\n]{4,30})/i);
+  // FIX: [a-zA-Z0-9\- ] instead of \s to prevent matching newlines
+  const originAgreementMatch = t.match(/Your\s*Current\s*Agreement\s*:\s*\n?\s*([a-zA-Z0-9\- ]{4,30})/i);
 
   if (currentChargeMatch && !/total|amount/i.test(currentChargeMatch[1])) {
     tariffType = currentChargeMatch[1].trim();
+    console.log('[DEBUG] tariffType matched via currentChargeMatch:', currentChargeMatch[0]);
   } else if (originAgreementMatch) {
     tariffType = originAgreementMatch[1].trim();
+    console.log('[DEBUG] tariffType matched via originAgreementMatch:', originAgreementMatch[0]);
   } else if (productMatch) {
     tariffType = productMatch[1].trim();
+    console.log('[DEBUG] tariffType matched via productMatch:', productMatch[0]);
   } else if (explicitTariffMatch && !/total|amount/i.test(explicitTariffMatch[1]) && !explicitTariffMatch[1].includes('NMI')) {
     tariffType = explicitTariffMatch[1].trim();
+    console.log('[DEBUG] tariffType matched via explicitTariffMatch:', explicitTariffMatch[0]);
   } else if (/Time\s*of\s*Use|TOU|Peak.*Shoulder|Shoulder.*Peak/is.test(t)) {
     tariffType = 'Time of Use (TOU)';
+    console.log('[DEBUG] tariffType matched via TOU regex');
   } else if (/Single\s*Rate|Flat\s*Rate/i.test(t)) {
     tariffType = 'Single Rate';
+    console.log('[DEBUG] tariffType matched via Single Rate regex');
   } else if (/Controlled\s*Load|Off.?Peak/i.test(t)) {
     tariffType = 'Controlled Load';
+    console.log('[DEBUG] tariffType matched via Controlled Load regex');
   }
 
   // ── 11. Meter type ────────────────────────────────────────────────────────

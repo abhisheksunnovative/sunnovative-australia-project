@@ -1,4 +1,4 @@
-﻿import fs from 'fs';
+import fs from 'fs';
 import EligibilitySettings from '../models/EligibilitySettings.js';
 import * as billParser from '../utils/billParser.js';
 import * as templateExtractor from '../utils/templateExtractor.js';
@@ -34,8 +34,13 @@ export const scanLightBill = async (req, res) => {
         let baseParsed = isAU ? parseAuBillText(rawText) : await parseBillText(rawText);
         
         // DB Override Parser
-        const overrideResult = await templateExtractor.extractData(rawText, countryContext);
-        const ed = overrideResult.extractedData || {};
+        let ed = {};
+        try {
+            const overrideResult = await templateExtractor.extractData(rawText, countryContext);
+            ed = overrideResult.extractedData || {};
+        } catch (templateErr) {
+            console.warn(`[BillScan] Template extraction skipped/failed: ${templateErr.message}`);
+        }
 
         // Merge logic: For AU, Base (Ocrextractor) is robust so it overrides DB templates. For India, DB overrides base.
         const merged = {
