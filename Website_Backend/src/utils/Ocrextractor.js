@@ -844,19 +844,39 @@ if (!retailer) {
   // ── 4. Address — Suburb, State, Postcode ──────────────────────────────────
   let suburb = null, state = null, postcode = null;
 
-  // Australian postcode: 4 digits, 2000-9999 or 0800-0999
-  // State code (NSW, VIC, QLD, WA, SA, TAS, ACT, NT)
-  const stateMatch = t.match(/\b(NSW|VIC|QLD|WA|SA|TAS|ACT|NT)\b/);
-  if (stateMatch) state = AU_STATE_MAP[stateMatch[1]] || stateMatch[1];
+  const supplyBlockMatch = t.match(/(?:Supply\s*address|Service\s*address|Site\s*address)[\s\S]{0,120}?\b(NSW|VIC|QLD|WA|SA|TAS|ACT|NT)\s+(\d{4})\b/i);
+  if (supplyBlockMatch) {
+    state = AU_STATE_MAP[supplyBlockMatch[1].toUpperCase()] || supplyBlockMatch[1];
+    postcode = supplyBlockMatch[2];
+  }
 
-  // Phase 2 Fix: Context-aware Postcode match (to avoid years like 2026)
-  const postcodeStateMatch = t.match(/\b(NSW|VIC|QLD|WA|SA|TAS|ACT|NT)\s+(\d{4})\b/);
-  if (postcodeStateMatch) {
-    postcode = postcodeStateMatch[2];
+  if (!state) {
+    const allMatches = [...t.matchAll(/\b(NSW|VIC|QLD|WA|SA|TAS|ACT|NT)\s+(\d{4})\b/g)];
+    if (allMatches.length > 0) {
+      const freq = {};
+      allMatches.forEach(m => {
+        const key = `${m[1]}|${m[2]}`;
+        freq[key] = (freq[key] || 0) + 1;
+      });
+      const mostCommon = Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0];
+      const [st, pc] = mostCommon.split('|');
+      state = AU_STATE_MAP[st.toUpperCase()] || st;
+      postcode = pc;
+    }
+  }
+
+  let stateMatch = null;
+  if (!state) {
+    stateMatch = t.match(/\b(NSW|VIC|QLD|WA|SA|TAS|ACT|NT)\b/);
+    if (stateMatch) state = AU_STATE_MAP[stateMatch[1]] || stateMatch[1];
   } else {
-    // Fallback: look near "Address" or "Supply"
-    const postcodeAddressMatch = t.match(/(?:Address|Supply|Site)[\s\S]{0,150}?\b(0[89]\d{2}|[2-9]\d{3})\b/i);
-    if (postcodeAddressMatch) postcode = postcodeAddressMatch[1];
+    const abbr = Object.keys(AU_STATE_MAP).find(key => AU_STATE_MAP[key] === state) || state;
+    if (postcode) {
+      stateMatch = t.match(new RegExp(`\\b${abbr}\\s+${postcode}\\b`));
+    }
+    if (!stateMatch) {
+      stateMatch = t.match(new RegExp(`\\b${abbr}\\b`));
+    }
   }
 
 
@@ -991,8 +1011,19 @@ for (const p of amountPatterns) {
   const exportCreditMatch = t.match(/(?:Solar\s*Export\s*Credit|Feed.?in\s*Credit|FiT\s*Credit)\s*[:\-]?\s*-?\s*\$\s*([\d,]+(?:\.\d{2})?)/i);
   if (exportCreditMatch) solarExportCredit = parseFloat(exportCreditMatch[1].replace(/,/g, ''));
 
+  // ── Due Date (Australia) ────────────────────────────────────────────────
+  let dueDate = null;
+  const dueDatePatterns = [
+    /(?:Due\s*Date|Payable\s*by|Due\s*by)\^?\s*:?\s*([\d]{1,2}\s+[A-Za-z]{3,9}\s+\d{2,4})/i,
+  ];
+  for (const p of dueDatePatterns) {
+    const m = t.match(p);
+    if (m) { dueDate = m[1].trim(); break; }
+  }
+
   // ── 10. Tariff type ───────────────────────────────────────────────────────
-    let tariffType = null;
+  let tariffType = null;
+  const yourTariffMatch = t.match(/Your\s*tariff\s*:\s*([^\n]{4,30})/i);
   const explicitTariffMatch = t.match(/Tariff(?:\s*:|\s*-)?\s+([^\n]{4,30})/i);
   const currentChargeMatch = t.match(/Current\s*Account\s*Charges\s*\n\s*([a-zA-Z0-9\- ]{4,30})/i);
   // FIX: [ :]+ instead of [\s\:]+ so it doesn't cross newlines. 
@@ -1001,7 +1032,10 @@ for (const p of amountPatterns) {
   // FIX: [a-zA-Z0-9\- ] instead of \s to prevent matching newlines
   const originAgreementMatch = t.match(/Your\s*Current\s*Agreement\s*:\s*\n?\s*([a-zA-Z0-9\- ]{4,30})/i);
 
-  if (currentChargeMatch && !/total|amount/i.test(currentChargeMatch[1])) {
+  if (yourTariffMatch && !/period|:/i.test(yourTariffMatch[1])) {
+    tariffType = yourTariffMatch[1].trim();
+    console.log('[DEBUG] tariffType matched via yourTariffMatch:', yourTariffMatch[0]);
+  } else if (currentChargeMatch && !/total|amount/i.test(currentChargeMatch[1])) {
     tariffType = currentChargeMatch[1].trim();
     console.log('[DEBUG] tariffType matched via currentChargeMatch:', currentChargeMatch[0]);
   } else if (originAgreementMatch) {
@@ -1058,6 +1092,7 @@ for (const p of amountPatterns) {
     billingPeriodFrom,
     billingPeriodTo,
     billingDays,
+    dueDate,
     quarterlyKwh,
     dailyKwh,
     monthlyKwhEquivalent,

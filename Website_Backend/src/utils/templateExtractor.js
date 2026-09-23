@@ -1,4 +1,4 @@
-﻿import BillTemplate from '../models/BillTemplate.js';
+import BillTemplate from '../models/BillTemplate.js';
 
 function sanitizeValue(value, type) {
     if (!value) return null;
@@ -22,10 +22,10 @@ export async function extractData(rawText, countryContext = 'australia') {
     try {
         console.log(`[TemplateExtractor] Searching for matching template in ${countryContext}...`);
         
-        const templates = await BillTemplate.find({ country: countryContext, isActive: true });
+        const templates = await BillTemplate.find({ country: countryContext, isActive: true, status: 'approved' });
         
         if (!templates || templates.length === 0) {
-            throw new Error(`No active templates found for country: ${countryContext}`);
+            return { extractedData: {}, matchedTemplate: null, confidenceScore: 0, status: 'manual-review' };
         }
 
         let matchedTemplate = null;

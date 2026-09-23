@@ -168,3 +168,28 @@ Return raw JSON array only.`;
   }
 };
 
+
+
+// PATCH /api/admin/bill-templates/:id/approve
+export const approveTemplate = async (req, res) => {
+  try {
+    const template = await BillTemplate.findByIdAndUpdate(
+      req.params.id,
+      { status: 'approved', isActive: true },
+      { new: true }
+    );
+    res.json({ success: true, template });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// GET /api/admin/bill-templates/stale
+export const getStaleTemplates = async (req, res) => {
+  try {
+    const stale = await BillTemplate.find({ engineVersion: { $ne: 'v2.2' }, isActive: true });
+    res.json({ count: stale.length, templates: stale });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
