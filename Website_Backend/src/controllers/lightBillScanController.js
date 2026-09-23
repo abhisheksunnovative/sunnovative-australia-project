@@ -55,11 +55,8 @@ export const scanLightBill = async (req, res) => {
             monthlyUnits: ed.monthlyUnits || baseParsed.monthlyUnitsUsed
         };
 
-        // Average daily fallback for low kWh values (e.g. Origin 27.78, Horizon 25)
+        // Fallback removed as per user request (no guess-multiply for low kWh)
         let finalKwh = merged.quarterlyKwh;
-        if (isAU && finalKwh && finalKwh < 150) {
-            finalKwh = Math.round(finalKwh * (merged.billingDays || 90));
-        }
 
         // Recommendation Safety Gate - Critical Fields Check
         let criticalFieldsConfirmed = !!(

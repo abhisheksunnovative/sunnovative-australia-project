@@ -731,28 +731,28 @@ export const estimateSubsidy = (kw, meterCategory, detectedState, rules) => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const AU_RETAILERS = [
-  { id: 'AGL',               pattern: /\bAGL\b|AGL\s*Energy/i },
-  { id: 'Origin Energy',     pattern: /\bOrigin\b/i },
-  { id: 'EnergyAustralia',   pattern: /Energy\s*Australia/i },
-  { id: 'Synergy',           pattern: /\bSynergy\b/i },
   { id: 'ActewAGL',          pattern: /ActewAGL/i },
+  { id: 'EnergyAustralia',   pattern: /Energy\s*Australia/i },
   { id: 'Aurora Energy',     pattern: /Aurora\s*Energy/i },
   { id: 'Ergon Energy',      pattern: /Ergon\s*Energy/i },
+  { id: 'SA Power Networks', pattern: /SA\s*Power\s*Networks?/i },
+  { id: 'Endeavour Energy',  pattern: /Endeavour\s*Energy/i },
+  { id: 'Essential Energy',  pattern: /Essential\s*Energy/i },
+  { id: 'AusNet Services',   pattern: /AusNet\s*(?:Services)?/i },
+  { id: 'Momentum Energy',   pattern: /Momentum\s*Energy/i },
+  { id: 'Simply Energy',     pattern: /Simply\s*Energy/i },
+  { id: 'Alinta Energy',     pattern: /Alinta\s*Energy/i },
+  { id: 'Horizon Power',     pattern: /Horizon\s*Power/i },
+  { id: 'Lumo Energy',       pattern: /Lumo\s*Energy/i },
+  { id: 'Red Energy',        pattern: /Red\s*Energy/i },
+  { id: 'Origin Energy',     pattern: /\bOrigin\b/i },
+  { id: 'AGL',               pattern: /\bAGL\b|AGL\s*Energy/i },
+  { id: 'Synergy',           pattern: /\bSynergy\b/i },
   { id: 'Powercor',          pattern: /Powercor/i },
   { id: 'CitiPower',         pattern: /CitiPower/i },
   { id: 'Jemena',            pattern: /Jemena/i },
-  { id: 'Lumo Energy',       pattern: /Lumo\s*Energy/i },
-  { id: 'Red Energy',        pattern: /Red\s*Energy/i },
-  { id: 'Simply Energy',     pattern: /Simply\s*Energy/i },
-  { id: 'Momentum Energy',   pattern: /Momentum\s*Energy/i },
-  { id: 'Alinta Energy',     pattern: /Alinta\s*Energy/i },
-  { id: 'Horizon Power',     pattern: /Horizon\s*Power/i },
-  { id: 'SA Power Networks', pattern: /SA\s*Power\s*Networks?/i },
   { id: 'Ausgrid',           pattern: /Ausgrid/i },
-  { id: 'Endeavour Energy',  pattern: /Endeavour\s*Energy/i },
-  { id: 'Essential Energy',  pattern: /Essential\s*Energy/i },
   { id: 'Energex',           pattern: /Energex/i },
-  { id: 'AusNet Services',   pattern: /AusNet\s*(?:Services)?/i },
   { id: 'Evoenergy',         pattern: /Evoenergy/i },
 ];
 
@@ -900,23 +900,47 @@ export const parseAuBillText = (text) => {
   let quarterlyKwh = null, dailyKwh = null;
 
   // "Total Usage: 1,234 kWh" or "Electricity Used 987.5 kWh"
-  const usagePatterns = [
-    /This\s*bill\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*(?:kWh|units)?/i,
-    /(?:Energy\s*Use|Energy\s*Usage|electricity\s*you\s*used|Total\s*electricity\s*used)\s*([\d,]+(?:\.\d+)?)/i,
-    /Equals\s*total\s*units\s*used\s*.*\n.*\s+([\d,]+(?:\.\d+)?)/i,
-    /(?:Total\s*)?(?:Electricity\s*)?(?:Usage|Used|Consumption|kWh\s*Used|Units\s*Used)[\s\S]{0,40}?([\d,]+(?:\.\d+)?)\s*(?:kWh|kW|units)/i,
-    /([\d,]+(?:\.\d+)?)\s*kWh\s*(?:used|consumed|usage|total)/i,
-    /(?:Peak\s*\+\s*Off.?Peak|Total)\s*(?:Usage)?\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*kWh/i,
-    /([\d,]{3,}(?:\.\d+)?)\s*(?:kWh|kW)/i // Generic fallback for large kWh numbers
+    const usagePatterns = [
+    /This\s*bill\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*(?:kWh|units)?/ig,
+    /(?:Energy\s*Use|Energy\s*Usage|electricity\s*you\s*used|Total\s*electricity\s*used)\s*([\d,]+(?:\.\d+)?)/ig,
+    /Equals\s*total\s*units\s*used\s*.*\n.*\s+([\d,]+(?:\.\d+)?)/ig,
+    /(?:Total\s*)?(?:Electricity\s*)?(?:Usage|Used|Consumption|kWh\s*Used|Units\s*Used)[\s\S]{0,40}?([\d,]+(?:\.\d+)?)\s*(?:kWh|kW|units)/ig,
+    /([\d,]+(?:\.\d+)?)\s*kWh\s*(?:used|consumed|usage|total)/ig,
+    /(?:Peak\s*\+\s*Off.?Peak|Total)\s*(?:Usage)?\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*kWh/ig,
+    /([\d,]{3,}(?:\.\d+)?)\s*(?:kWh|kW)/ig // Generic fallback for large kWh numbers
   ];
+
   for (const p of usagePatterns) {
-    const m = t.match(p);
-    if (m) {
-      const context = t.substring(Math.max(0, m.index - 20), m.index + m[0].length);
-      if (!/Average|daily/i.test(context)) {
-        quarterlyKwh = parseFloat(m[1].replace(/,/g, ''));
+    const matches = [...t.matchAll(p)];
+    if (matches && matches.length > 0) {
+      let sum = 0;
+      let validMatchFound = false;
+      
+      for (const m of matches) {
+        const context = t.substring(Math.max(0, m.index - 20), m.index + m[0].length);
+        if (!/Average|daily/i.test(context)) {
+          sum += parseFloat(m[1].replace(/,/g, ''));
+          validMatchFound = true;
+        }
+      }
+      
+      if (validMatchFound) {
+        // Only sum if we have multiple different values, but avoid double counting if the exact same value appears twice (e.g. on two pages)
+        // Wait, if it's Peak 100, OffPeak 200, it's safer to sum. But if it's Total 300 on page 1 and Total 300 on page 2, sum is 600 (wrong).
+        // A safer multi-period sum: only use unique values, or sum them if they are small? 
+        // Let's just sum unique matches to avoid page duplication, or if they are the exact same match text, maybe deduplicate?
+        // Let's deduplicate by the exact parsed number.
+        const uniqueVals = [...new Set(matches.map(m => {
+          const ctx = t.substring(Math.max(0, m.index - 20), m.index + m[0].length);
+          if (!/Average|daily/i.test(ctx)) {
+             return parseFloat(m[1].replace(/,/g, ''));
+          }
+          return null;
+        }).filter(v => v !== null))];
+        
+        quarterlyKwh = uniqueVals.reduce((a, b) => a + b, 0);
         if (billingDays && billingDays > 0) dailyKwh = +(quarterlyKwh / billingDays).toFixed(2);
-        break;
+        break; // Stop checking other patterns once we found a match
       }
     }
   }
@@ -932,9 +956,13 @@ export const parseAuBillText = (text) => {
 
   // "Total Amount Due: $1,234.56" or "Amount Payable $456.78"
   const amountPatterns = [
-    /(?:Total\s*balance|Total\s*Amount\s*(?:Due|Payable|Outstanding)|Amount\s*(?:Due|Payable)|Balance\s*Due|Please\s*Pay)[\s\S]{0,150}?\$\s*([\d,]+(?:\.\d{2})?)/i,
+    // 1. Strict exact matches (highest priority)
+    /(?:Total\s*Amount\s*(?:Due|Payable|Outstanding)|Amount\s*(?:Due|Payable)|Balance\s*Due|Please\s*Pay|Total\s*balance)\s*[:\-]?\s*\$\s*([\d,]+(?:\.\d{2})?)/i,
     /(?:Total\s*(?:Current\s*)?Bill|Bill\s*Total)\s*[:\-]?\s*\$\s*([\d,]+(?:\.\d{2})?)/i,
     /\$\s*([\d,]+\.\d{2})\s*(?:is\s*due|payable|due\s*by)/i,
+    // 2. Loose matches (scan ahead up to 30 chars max)
+    /(?:Total\s*Amount\s*Due|Amount\s*Due|Please\s*Pay)[\s\S]{0,30}?\$\s*([\d,]+(?:\.\d{2})?)/i,
+    // 3. Fallback to generic "Total"
     /\bTotal\s*[:\-]?\s*\$\s*([\d,]+(?:\.\d{2})?)/i,
   ];
   for (const p of amountPatterns) {
