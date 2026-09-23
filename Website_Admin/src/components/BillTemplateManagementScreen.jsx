@@ -22,6 +22,7 @@ export default function BillTemplateManagementScreen() {
     discomName: '',
     country: 'india',
     isActive: true,
+      status: 'approved',
     anchorKeywords: '',
     extractionRules: []
   });
@@ -118,7 +119,8 @@ export default function BillTemplateManagementScreen() {
       setFormData({
         discomName: template.discomName,
         country: template.country,
-        isActive: template.isActive,
+        isActive: true,
+          status: 'approved',
         anchorKeywords: template.anchorKeywords.join(', '),
         extractionRules: template.extractionRules || []
       });
@@ -128,6 +130,7 @@ export default function BillTemplateManagementScreen() {
         discomName: prefilledDiscom,
         country: selectedCountry?.toLowerCase() || 'india',
         isActive: true,
+      status: 'approved',
         anchorKeywords: prefilledDiscom, // default anchor to name
         extractionRules: [{ ...DEFAULT_RULE }]
       });
@@ -137,6 +140,14 @@ export default function BillTemplateManagementScreen() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    
+    // Validation: Check if any rule has an empty field name
+    const unmappedRules = formData.extractionRules.filter(r => !r.field);
+    if (unmappedRules.length > 0) {
+        alert("Validation Error: Please assign a 'Field Name' from the dropdown to every regex rule before saving.");
+        return;
+    }
+    
     try {
       const payload = {
         ...formData,
@@ -396,10 +407,12 @@ export default function BillTemplateManagementScreen() {
                             <option value="monthlyBill">monthlyBill (Amount)</option>
                             <option value="quarterlyKwh">quarterlyKwh / monthlyUnits</option>
                             <option value="consumerNumber">consumerNumber</option>
-                            <option value="fullName">fullName</option>
+                            <option value="consumerBillNumber">consumerBillNumber / invoiceNumber</option>
+                            <option value="fullName">fullName / consumerName</option>
                             <option value="tariffCategory">tariffCategory</option>
+                            <option value="meterCategory">meterCategory</option>
                             <option value="dueDate">dueDate</option>
-                            <option value="meterTypeInfo">meterTypeInfo</option>
+                            <option value="billIssuedDate">billIssuedDate</option>
                             <option value="state">state</option>
                           </select>
                         </div>

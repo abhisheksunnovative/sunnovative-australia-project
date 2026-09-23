@@ -43,6 +43,7 @@ export const updateTemplate = async (req, res) => {
 };
 
 // 4. Auto-generate aliases from bill image/PDF using Gemini (Multimodal)
+import { AU_RETAILERS, AU_DICT } from '../utils/RegexDictionary.js';
 import { extractPdfText } from '../utils/Ocrextractor.js';
 
 export const autoGenerateAliases = async (req, res) => {
@@ -90,28 +91,42 @@ Return raw JSON array only.`;
     }];
 
     
-    // Hybrid Strategy: Check if it's an Australian PDF to bypass Gemini completely and save quota
-    let isAUBill = false;
+    // Hybrid Strategy: Check if it's a known AU Retailer to bypass Gemini completely and save quota
+    let isKnownAU = false;
     if (req.file.mimetype === 'application/pdf') {
       try {
         const { text, isScanned } = await extractPdfText(req.file.buffer);
-        if (!isScanned && (text.includes("ABN") || text.includes("Western Australia") || text.match(/(AGL|Origin|Alinta|EnergyAustralia|Synergy|Powercor|Citipower)/i))) {
-          isAUBill = true;
+        if (!isScanned) {
+          for (const r of AU_RETAILERS) {
+            if (r.pattern.test(text)) {
+              isKnownAU = true;
+              break;
+            }
+          }
         }
       } catch (e) {
         console.error("PDF extraction fail for AU check", e);
       }
     }
 
-    if (isAUBill) {
-      console.log('[Gemini Aliases] Detected AU PDF. Bypassing Gemini to save API quota.');
+    if (isKnownAU) {
+      console.log('[Gemini Aliases] Detected Known AU Retailer. Bypassing Gemini to save API quota.');
+      console.log(`[Gemini Aliases] Returning 10 predefined Regex Fields for UI.`);
       const auTemplate = [
-        { field: "monthlyBill", regex: "(?:Total\\s*Amount\\s*(?:Due|Payable)|Amount\\s*(?:Due|Payable)|Balance\\s*Due|Please\\s*Pay|Total)[\\s\\S]{0,80}?\\$\\s*([\\d,]+(?:\\.\\d{2})?)", type: "number", required: true },
-        { field: "consumerNumber", regex: "(?:Account\\s*(?:Number|No\\.?|#)|Account\\s*:)[\\s:]*([A-Z0-9][A-Z0-9\\- ]{4,18}[A-Z0-9])", type: "string", required: true },
-        { field: "tariffCategory", regex: "(?:Tariff(?:\\s*:|\\s*-)?\\s+|Your\\s*Current\\s*Agreement\\s*:\\s*\\n?\\s*|Current\\s*Account\\s*Charges\\s*\\n\\s*)([^\\n]{4,30})", type: "string", required: false },
-        { field: "quarterlyKwh", regex: "(?:Energy\\s*Use|Total\\s*(?:Electricity\\s*)?(?:Usage|Used|Consumption)|This\\s*bill\\s*[:\\-]?)[\\s\\S]{0,40}?([\\d,]+(?:\\.\\d+)?)\\s*(?:kWh|kW|units)?", type: "number", required: false },
-        { field: "dueDate", regex: "(?:Due\\s*Date|Pay\\s*By)[\\s:]*([0-9]{1,2}\\s*[a-zA-Z]{3}\\s*[0-9]{2,4})", type: "string", required: false }
+        { field: "consumerName", regex: AU_DICT.namePatterns.join('|'), type: "string", required: false },
+        { field: "consumerNumber", regex: AU_DICT.accountNumber, type: "string", required: false },
+        { field: "consumerBillNumber", regex: AU_DICT.billNumber, type: "string", required: false },
+        { field: "meterCategory", regex: "(Smart\\s*Meter|Interval|Basic\\s*Meter|Accumulation\\s*Meter)", type: "string", required: false },
+        { field: "tariffCategory", regex: AU_DICT.tariffCategory, type: "string", required: false },
+        { field: "monthlyBill", regex: AU_DICT.amountPatterns.join('|'), type: "number", required: true },
+        { field: "billIssuedDate", regex: AU_DICT.billIssueDate, type: "string", required: false },
+        { field: "quarterlyKwh", regex: AU_DICT.usagePatterns.join('|'), type: "number", required: false },
+        { field: "state", regex: "(?:VIC|NSW|QLD|WA|SA|TAS|ACT|NT|Victoria|New\\s*South\\s*Wales|Queensland|Western\\s*Australia|South\\s*Australia|Tasmania)", type: "string", required: false },
+        { field: "dueDate", regex: AU_DICT.dueDate, type: "string", required: false }
       ];
+      console.log(`[Gemini Aliases] ===== FINAL GENERATED TEMPLATE RESPONSE =====`);
+      console.log(JSON.stringify(auTemplate, null, 2));
+      console.log(`============================================================`);
       return res.status(200).json({ success: true, data: auTemplate });
     }
 

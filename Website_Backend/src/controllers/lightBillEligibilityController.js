@@ -110,8 +110,20 @@ export const checkBillEligibility = async (req, res) => {
 
       overrideKw,     // Optional: custom kW requested by user
       billDate, // from OCR
+      criticalFieldsConfirmed,
 
     } = req.body;
+    
+    // Fix: Block Safety Gate explicitly
+    if (criticalFieldsConfirmed === false) {
+       return res.status(200).json({
+          isEligible: false,
+          reasons: ['Bill is too old or expired. Recommendations blocked.'],
+          suggestedKW: 0,
+          subsidy: { central: 0, state: 0, total: 0 },
+          message: "Please upload a recent bill to view accurate recommendations."
+       });
+    }
 
 
 

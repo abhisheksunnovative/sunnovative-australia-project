@@ -102,6 +102,8 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
   const [scannedBillingPeriod, setScannedBillingPeriod] = useState(null);
   const [scannedQuarterlyKwh, setScannedQuarterlyKwh] = useState(null);
   const [dueDate, setDueDate] = useState("");
+  const [scanFallbackReason, setScanFallbackReason] = useState(null);
+  const [manualBillDate, setManualBillDate] = useState("");
   const [tariffCategory, setTariffCategory] = useState("");
   const [customerType, setCustomerType] = useState("");
   const [meterTypeInfo, setMeterTypeInfo] = useState("");
@@ -315,6 +317,8 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
     setScannedStcInfo(null);
     setScannedRetailer(null);
     setScannedBillingPeriod(null);
+      setScanFallbackReason(null);
+      setManualBillDate("");
     setScannedQuarterlyKwh(null);
     setFullName("");
     setConsumerNumber("");
@@ -387,6 +391,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
           setScannedBillingPeriod(`${ex.billingPeriodFrom} → ${ex.billingPeriodTo}`);
         }
         if (data.stcInfo) setScannedStcInfo(data.stcInfo);
+          setScanFallbackReason(data.fallbackReason || null);
         // Update kW slider from scan recommendation
         if (data.recommendedKw) setSelectedKw(data.recommendedKw);
 
@@ -794,8 +799,13 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
         meterCategory: [meterCategory, (v) => { setMeterCategory(v); setEligibilityResult(null); }],
         discom: [discom, setDiscom],
         ownsProperty: [ownsProperty ? "Yes" : "No", (v) => setOwnsProperty(v === "Yes")],
-      billFile: [null, null], // handled separately
-    };
+      dueDate: [dueDate, setDueDate],
+        billingPeriodDays: [billingPeriodDays, setBillingPeriodDays],
+        scannedQuarterlyKwh: [scannedQuarterlyKwh, setScannedQuarterlyKwh],
+        ocrMonthlyUnits: [ocrMonthlyUnits, setOcrMonthlyUnits],
+        manualBillDate: [manualBillDate, setManualBillDate],
+        billFile: [null, null], // handled separately
+      };
     const mapped = stateKeyMap[field.key];
     const value = (mapped ? mapped[0] : dynamicValues[field.key]) ?? "";
     const onChange = mapped ? mapped[1] : (v) => setDynamicValues(prev => ({ ...prev, [field.key]: v }));
@@ -931,6 +941,46 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
             </div>
 
                         {/* 3. Recommended System & Subsidy (Auto-calculated, read-only) */}
+            {eligibilityResult && eligibilityResult.isEligible === false ? (
+               <div className="bg-red-50 rounded-xl border border-red-200 p-4 mt-2">
+                 {scanFallbackReason === 'Bill date not found — cannot verify recency' ? (
+                   <div>
+                     <h3 className="text-sm font-bold text-red-900 mb-1">Bill Issue Date Missing</h3>
+                     <p className="text-xs text-red-700 mb-3">We couldn't extract the Bill Issue Date. Please enter it manually to get your recommendation.</p>
+                     <div className="flex gap-2 items-center">
+                       <input type="date" className="p-2 text-xs border rounded-lg flex-1" value={manualBillDate} onChange={(e) => setManualBillDate(e.target.value)} />
+                       <button 
+                         className="px-4 py-2 bg-red-600 text-white rounded-lg text-xs font-bold whitespace-nowrap"
+                         onClick={() => {
+                           if (!manualBillDate) return alert("Please select a date first");
+                           setScanFallbackReason(null); // Clear so it shows the new response
+                           handleCheckEligibility({
+                             meterCategory: meterCategory,
+                             billAmount: monthlyBill,
+                             monthlyUnits: ocrMonthlyUnits,
+                             dueAmount: dueAmount,
+                             billStatus: billStatus,
+                             monthsOverdue: 0,
+                             billDate: manualBillDate,
+                             passedState: customerState,
+                             criticalFieldsConfirmed: true, // We are providing the date manually
+                             isCustomerVerified: false
+                           });
+                         }}
+                       >
+                         Update & Retry
+                       </button>
+                     </div>
+                   </div>
+                 ) : (
+                   <>
+                     <h3 className="text-sm font-bold text-red-900 mb-1">Recommendation Unavailable</h3>
+                     <p className="text-xs text-red-700">{scanFallbackReason || eligibilityResult.reasons?.[0] || 'Your bill does not meet the requirements for an automatic recommendation. Please provide a valid, recent bill.'}</p>
+                   </>
+                 )}
+               </div>
+            ) : (
+            <>
             <div className="bg-amber-50/40 rounded-xl border border-amber-200/60 p-3 mt-2">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-xs font-bold text-slate-900">
@@ -1004,6 +1054,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
             {/* 4. Customize Your System Size (customer-chosen kW) */}
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+            {!(eligibilityResult && eligibilityResult.isEligible === false) && (
             <div className="rounded-2xl border-2 border-solar-sky/30 bg-gradient-to-br from-sky-50/60 to-blue-50/40 p-5 mt-4" id="section-customize-kw">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-bold text-slate-900">4. Customize Your System Size</h3>
@@ -1166,6 +1217,9 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
                 </div>
               )}
             </div>
+            )}
+            </>
+            )}
 
             <div className="pt-4 border-t border-slate-100 mt-6">
               <button type="submit" disabled={isSubmitting}
@@ -1253,6 +1307,11 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
                     if (!dynamicFields.find(f => f.key === 'tariffDesc')) dynamicFields.push({ label: 'Tariff', key: 'tariffDesc', type: 'text', required: false, options: [] });
                     if (!dynamicFields.find(f => f.key === 'meterCategory')) dynamicFields.push({ label: 'Meter Category', key: 'meterCategory', type: 'text', required: false, options: [] });
                     if (!dynamicFields.find(f => f.key === 'discom')) dynamicFields.push({ label: 'Discom / Retailer', key: 'discom', type: 'text', required: false, options: [] });
+                          if (!dynamicFields.find(f => f.key === 'dueDate')) dynamicFields.push({ label: 'Due Date', key: 'dueDate', type: 'text', required: false, options: [] });
+                          if (!dynamicFields.find(f => f.key === 'billingPeriodDays')) dynamicFields.push({ label: 'Billing Period (Days)', key: 'billingPeriodDays', type: 'text', required: false, options: [] });
+                          if (!dynamicFields.find(f => f.key === 'scannedQuarterlyKwh')) dynamicFields.push({ label: 'Quarterly Usage (kWh)', key: 'scannedQuarterlyKwh', type: 'number', required: false, options: [] });
+                          if (!dynamicFields.find(f => f.key === 'ocrMonthlyUnits')) dynamicFields.push({ label: 'Monthly Usage (Units)', key: 'ocrMonthlyUnits', type: 'number', required: false, options: [] });
+                          if (!dynamicFields.find(f => f.key === 'manualBillDate')) dynamicFields.push({ label: 'Bill Issue Date', key: 'manualBillDate', type: 'date', required: false, options: [] });
                     
                     const contactKeys = ['state', 'city', 'postcode', 'district'];
                     const contactFields = dynamicFields.filter(f => contactKeys.some(k => f.key.toLowerCase().includes(k)));
@@ -1286,6 +1345,11 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
                         if (!dynamicFields.find(f => f.key === 'tariffDesc')) dynamicFields.push({ label: 'Tariff', key: 'tariffDesc', type: 'text', required: false, options: [] });
                         if (!dynamicFields.find(f => f.key === 'meterCategory')) dynamicFields.push({ label: 'Meter Category', key: 'meterCategory', type: 'text', required: false, options: [] });
                         if (!dynamicFields.find(f => f.key === 'discom')) dynamicFields.push({ label: 'Discom / Retailer', key: 'discom', type: 'text', required: false, options: [] });
+                          if (!dynamicFields.find(f => f.key === 'dueDate')) dynamicFields.push({ label: 'Due Date', key: 'dueDate', type: 'text', required: false, options: [] });
+                          if (!dynamicFields.find(f => f.key === 'billingPeriodDays')) dynamicFields.push({ label: 'Billing Period (Days)', key: 'billingPeriodDays', type: 'text', required: false, options: [] });
+                          if (!dynamicFields.find(f => f.key === 'scannedQuarterlyKwh')) dynamicFields.push({ label: 'Quarterly Usage (kWh)', key: 'scannedQuarterlyKwh', type: 'number', required: false, options: [] });
+                          if (!dynamicFields.find(f => f.key === 'ocrMonthlyUnits')) dynamicFields.push({ label: 'Monthly Usage (Units)', key: 'ocrMonthlyUnits', type: 'number', required: false, options: [] });
+                          if (!dynamicFields.find(f => f.key === 'manualBillDate')) dynamicFields.push({ label: 'Bill Issue Date', key: 'manualBillDate', type: 'date', required: false, options: [] });
                         
                         const contactKeys = ['mobile', ...(isAU ? ['email'] : []), 'state', 'city', 'postcode', 'district'];
                         const otherFields = dynamicFields.filter(f => !contactKeys.some(k => f.key.toLowerCase().includes(k)));

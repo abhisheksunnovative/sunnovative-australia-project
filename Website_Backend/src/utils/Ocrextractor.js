@@ -30,6 +30,7 @@ import Tesseract from 'tesseract.js';
 import pdfParse from 'pdf-parse-fork';
 import { pdf as pdfToImages } from 'pdf-to-img';
 import { getStateSubsidyData } from './stateSubsidyData.js';
+import { AU_RETAILERS, AU_DICT } from './RegexDictionary.js';
 
 let globalScheduler = null;
 
@@ -730,31 +731,7 @@ export const estimateSubsidy = (kw, meterCategory, detectedState, rules) => {
 //           Ergon Energy, Powercor, ActewAGL, Aurora Energy, SA Power Networks
 // ═══════════════════════════════════════════════════════════════════════════
 
-const AU_RETAILERS = [
-  { id: 'ActewAGL',          pattern: /ActewAGL/i },
-  { id: 'EnergyAustralia',   pattern: /Energy\s*Australia/i },
-  { id: 'Aurora Energy',     pattern: /Aurora\s*Energy/i },
-  { id: 'Ergon Energy',      pattern: /Ergon\s*Energy/i },
-  { id: 'SA Power Networks', pattern: /SA\s*Power\s*Networks?/i },
-  { id: 'Endeavour Energy',  pattern: /Endeavour\s*Energy/i },
-  { id: 'Essential Energy',  pattern: /Essential\s*Energy/i },
-  { id: 'AusNet Services',   pattern: /AusNet\s*(?:Services)?/i },
-  { id: 'Momentum Energy',   pattern: /Momentum\s*Energy/i },
-  { id: 'Simply Energy',     pattern: /Simply\s*Energy/i },
-  { id: 'Alinta Energy',     pattern: /Alinta\s*Energy/i },
-  { id: 'Horizon Power',     pattern: /Horizon\s*Power/i },
-  { id: 'Lumo Energy',       pattern: /Lumo\s*Energy/i },
-  { id: 'Red Energy',        pattern: /Red\s*Energy/i },
-  { id: 'Origin Energy',     pattern: /\bOrigin\b/i },
-  { id: 'AGL',               pattern: /\bAGL\b|AGL\s*Energy/i },
-  { id: 'Synergy',           pattern: /\bSynergy\b/i },
-  { id: 'Powercor',          pattern: /Powercor/i },
-  { id: 'CitiPower',         pattern: /CitiPower/i },
-  { id: 'Jemena',            pattern: /Jemena/i },
-  { id: 'Ausgrid',           pattern: /Ausgrid/i },
-  { id: 'Energex',           pattern: /Energex/i },
-  { id: 'Evoenergy',         pattern: /Evoenergy/i },
-];
+
 
 // AU State code → full state name
 const AU_STATE_MAP = {
@@ -819,10 +796,7 @@ if (!retailer) {
 
   // ── 3. Customer Name ──────────────────────────────────────────────────────
     let customerName = null;
-  const namePatterns = [
-    /(?:[Cc]ustomer|[Aa]ccount\s*[Hh]older|[Aa]ccount\s*[Nn]ame)\s*[:\-]?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})(?=\s*(?:Supply|Account|NMI|$))/,
-    /Dear\s+(?:Mr\.?\s*|Ms\.?\s*|Mrs\.?\s*)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3}),?/i,
-  ];
+  const namePatterns = AU_DICT.namePatterns.map(p => new RegExp(p, 'i'));
   for (const p of namePatterns) {
     const m = t.match(p);
     if (m) { customerName = m[1].trim(); console.log('[DEBUG] Customer Name matched via namePatterns:', customerName); break; }
@@ -937,13 +911,7 @@ if (!retailer) {
   let quarterlyKwh = null, dailyKwh = null;
 
   // "Total Usage: 1,234 kWh" or "Electricity Used 987.5 kWh"
-    const usagePatterns = [
-  /This\s*bill\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*(?:kWh|units)/i,   // note: unit suffix ab MANDATORY hai, optional nahi
-  /(?:Energy\s*Use|Energy\s*Usage|electricity\s*you\s*used|Total\s*electricity\s*used)\s*([\d,]+(?:\.\d+)?)/i,
-  /Equals\s*total\s*units\s*used\s*.*\n.*\s+([\d,]+(?:\.\d+)?)/i,
-  /(?:Total\s*)?(?:Electricity\s*)?(?:Usage|Used|Consumption|kWh\s*Used|Units\s*Used)[\s\S]{0,40}?([\d,]+(?:\.\d+)?)\s*(?:kWh|kW|units)/i,
-  /([\d,]+(?:\.\d+)?)\s*kWh\s*(?:used|consumed|usage|total)/i,
-];
+    const usagePatterns = AU_DICT.usagePatterns.map(p => new RegExp(p, 'i'));
 
 // Single-value patterns: try each, take FIRST valid (non-average) match, then STOP.
 for (const p of usagePatterns) {
@@ -983,16 +951,7 @@ if (quarterlyKwh === null) {
   let quarterlyBillAmount = null;
 
   // "Total Amount Due: $1,234.56" or "Amount Payable $456.78"
-  const amountPatterns = [
-  // 1. Strict exact matches (highest priority)
-  /(?:Total\s*Amount\s*(?:Due|Payable|Outstanding)|Amount\s*(?:Due|Payable)|Balance\s*Due|Please\s*Pay|Total\s*balance)\s*[:\-]?\s*\$\s*([\d,]+(?:\.\d{2})?)/i,
-  /(?:Total\s*(?:Current\s*)?Bill|Bill\s*Total)\s*[:\-]?\s*\$\s*([\d,]+(?:\.\d{2})?)/i,
-  /\$\s*([\d,]+\.\d{2})\s*(?:is\s*due|payable|due\s*by)/i,
-  // 2. Wider scan for boxed/widget layouts (e.g. "TOTAL DUE" ... "$1,020.42" separated by date/labels)
-  /(?:TOTAL\s*DUE|Total\s*due)[\s\S]{0,80}?\$\s*([\d,]+(?:\.\d{2})?)/i,
-  // 3. Loose matches (scan ahead up to 30 chars max)
-  /(?:Total\s*Amount\s*Due|Amount\s*Due|Please\s*Pay)[\s\S]{0,30}?\$\s*([\d,]+(?:\.\d{2})?)/i,
-];
+  const amountPatterns = AU_DICT.amountPatterns.map(p => new RegExp(p, 'i'));
 for (const p of amountPatterns) {
   const m = t.match(p);
   if (m) {
@@ -1013,12 +972,15 @@ for (const p of amountPatterns) {
 
   // ── Due Date (Australia) ────────────────────────────────────────────────
   let dueDate = null;
-  const dueDatePatterns = [
-    /(?:Due\s*Date|Payable\s*by|Due\s*by)\^?\s*:?\s*([\d]{1,2}\s+[A-Za-z]{3,9}\s+\d{2,4})/i,
-  ];
-  for (const p of dueDatePatterns) {
-    const m = t.match(p);
-    if (m) { dueDate = m[1].trim(); break; }
+  const m = t.match(new RegExp(AU_DICT.dueDate, 'i'));
+  if (m) { dueDate = m[1].trim(); }
+  
+  let billDate = null;
+  const mDate = t.match(new RegExp(AU_DICT.billIssueDate, 'i'));
+  if (mDate) { billDate = mDate[1].trim(); }
+  else {
+    const fallbackDate = t.match(/(?:Issue\\s*Date|Date\\s*of\\s*Issue|Invoice\\s*Date|Bill\\s*Date|Statement\\s*Date)\\s*[:\\-]?\\s*([\\d]{1,2}\\s+[A-Za-z]{3,9}\\s+\\d{2,4}|[\\d]{1,2}[-/][\\d]{1,2}[-/][\\d]{2,4})/i);
+    if (fallbackDate) { billDate = fallbackDate[1].trim(); }
   }
 
   // ── 10. Tariff type ───────────────────────────────────────────────────────
@@ -1093,6 +1055,7 @@ for (const p of amountPatterns) {
     billingPeriodTo,
     billingDays,
     dueDate,
+    billDate,
     quarterlyKwh,
     dailyKwh,
     monthlyKwhEquivalent,

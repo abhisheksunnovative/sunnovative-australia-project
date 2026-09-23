@@ -7,6 +7,24 @@ import { parseAuBillText, parseBillText } from '../utils/Ocrextractor.js';
 import ScanAnalytics from '../models/ScanAnalytics.js';
 import { runGeminiFallback } from '../utils/geminiExtractor.js';
 
+// Define isBillTooOld helper
+const isBillTooOld = (dateStr, countryContext) => {
+    if (!dateStr) return false;
+    try {
+        const parsed = new Date(dateStr);
+        if (isNaN(parsed)) return false; // cannot parse, assume it's okay for now or fallback manually
+        
+        const now = new Date();
+        const diffMonths = (now.getFullYear() - parsed.getFullYear()) * 12 + (now.getMonth() - parsed.getMonth());
+        
+        // AU limit: 4 months. IN limit: 3 months
+        const limit = countryContext === 'australia' ? 4 : 3;
+        return diffMonths > limit;
+    } catch(err) {
+        return false;
+    }
+};
+
 export const scanLightBill = async (req, res) => {
     console.log('[BillScan] Received scan request');
     try {
@@ -57,8 +75,9 @@ export const scanLightBill = async (req, res) => {
             city: isAU ? (baseParsed.suburb || baseParsed.district || ed.city) : (ed.city || baseParsed.suburb || baseParsed.district),
             postcode: isAU ? (baseParsed.postcode || ed.postcode) : (ed.postcode || baseParsed.postcode),
             quarterlyKwh: isAU ? (baseParsed.quarterlyKwh || ed.quarterlyKwh) : (ed.quarterlyKwh || baseParsed.quarterlyKwh),
-            monthlyUnits: ed.monthlyUnits || baseParsed.monthlyUnitsUsed
-        };
+            monthlyUnits: ed.monthlyUnits || baseParsed.monthlyUnitsUsed,
+              billIssueDate: isAU ? (baseParsed.billDate || ed.billIssuedDate || ed.billIssueDate) : (ed.billIssuedDate || ed.billIssueDate || baseParsed.billDate)
+          };
 
         // Fallback removed as per user request (no guess-multiply for low kWh)
         let finalKwh = merged.quarterlyKwh;
@@ -74,6 +93,25 @@ export const scanLightBill = async (req, res) => {
         let fallbackReason = null;
         let geminiCost = 0;
         let needsTemplate = false;
+
+        // Bill Recency Check
+          console.log('[DEBUG] Raw billIssueDate from template:', ed.billIssueDate || ed.billIssuedDate);
+          console.log('[DEBUG] Raw billDate from base parser:', baseParsed.billDate);
+          console.log('[DEBUG] merged.billIssueDate:', merged.billIssueDate);
+
+          const effectiveDate = merged.billIssueDate || merged.billingPeriodTo;
+        console.log(`[SafetyGate] Checking Recency. Effective Date found: ${effectiveDate || 'NONE'}`);
+        if (!effectiveDate) {
+            criticalFieldsConfirmed = false;
+            fallbackReason = 'Bill date not found — cannot verify recency';
+            console.log('[SafetyGate] ❌ FAILED: Bill date missing completely.');
+        } else if (isBillTooOld(effectiveDate, countryContext)) {
+            criticalFieldsConfirmed = false;
+            fallbackReason = 'Bill is older than allowed limit — ask customer for a recent bill';
+            console.log(`[SafetyGate] ❌ FAILED: Bill issued on ${effectiveDate} is too old for ${countryContext} rules!`);
+        } else {
+            console.log(`[SafetyGate] ✅ PASSED: Bill date ${effectiveDate} is within valid recency limits.`);
+        }
 
         if (!criticalFieldsConfirmed) {
             if (isAU) {
@@ -205,14 +243,15 @@ export const scanLightBill = async (req, res) => {
             tariffDesc: merged.tariffCategory || "",
             billingDays: merged.billingDays || null,
             meterTypeInfo: merged.meterTypeInfo || "",
-            meterCategory: (countryContext === 'australia' ? (merged.tariffCategory || "") : (merged.meterTypeInfo || merged.tariffCategory || "")),
+            meterCategory: (countryContext === 'australia' ? (ed.meterCategory || baseParsed.meterType || baseParsed.meterCategory || merged.tariffCategory || "") : (ed.meterCategory || merged.meterTypeInfo || merged.tariffCategory || "")),
             state: merged.state || "",
             detectedState: merged.state || "",
             city: merged.city || "",
             district: merged.city || "",
             postcode: merged.postcode || "",
             quarterlyKwh: finalKwh || null,
-            monthlyUnits: merged.monthlyUnits || null
+            monthlyUnits: merged.monthlyUnits || null,
+              billIssueDate: merged.billIssueDate || null
         };
 
         console.log('[BillScan] Success! Final JSON:', finalJson);
@@ -226,7 +265,8 @@ export const scanLightBill = async (req, res) => {
             stcInfo: null,
             confidenceScore: confidenceScore,
             status: status,
-            criticalFieldsConfirmed: criticalFieldsConfirmed
+            criticalFieldsConfirmed: criticalFieldsConfirmed,
+            fallbackReason: fallbackReason || null
         });
 
     } catch (err) {

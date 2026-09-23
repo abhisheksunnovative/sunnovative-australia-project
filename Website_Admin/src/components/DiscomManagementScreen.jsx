@@ -194,7 +194,7 @@ export const DiscomManagementContent = ({ selectedCountryObj, selectedState, onB
         name: formData.name,
         country: selectedCountry,
         state: selectedState,
-        districts: formData.districts.split(",").map(d => d.trim()).filter(Boolean)
+        districts: (formData.districts || "").split(",").map(d => d.trim()).filter(Boolean)
       };
 
       const url = editingId ? `${API_BASE}/api/discoms/${editingId}` : `${API_BASE}/api/discoms`;
@@ -226,8 +226,8 @@ export const DiscomManagementContent = ({ selectedCountryObj, selectedState, onB
   const handleEdit = (discom) => {
     setEditingId(discom._id);
     setFormData({
-      name: discom.name,
-      districts: discom.districts.join(", ")
+      name: discom.name || "",
+      districts: Array.isArray(discom.districts) ? discom.districts.join(", ") : ""
     });
   };
 
@@ -263,11 +263,11 @@ export const DiscomManagementContent = ({ selectedCountryObj, selectedState, onB
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Discom Name</label>
-            <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="e.g. MSEB" className="w-full border p-2 rounded-xl text-sm" />
+            <input type="text" value={formData.name || ""} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="e.g. MSEB" className="w-full border p-2 rounded-xl text-sm" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Districts (Comma separated)</label>
-            <input type="text" value={formData.districts} onChange={(e) => setFormData({...formData, districts: e.target.value})} placeholder="e.g. Pune, Mumbai, Thane" className="w-full border p-2 rounded-xl text-sm" />
+            <input type="text" value={formData.districts || ""} onChange={(e) => setFormData({...formData, districts: e.target.value})} placeholder="e.g. Pune, Mumbai, Thane" className="w-full border p-2 rounded-xl text-sm" />
           </div>
         </div>
         

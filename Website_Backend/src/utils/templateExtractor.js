@@ -70,19 +70,35 @@ export async function extractData(rawText, countryContext = 'australia') {
                 const regex = new RegExp(rule.regex, rule.flags || 'i');
                 const match = rawText.match(regex);
 
-                if (match && match[1]) { 
-                    let val = sanitizeValue(match[1], rule.type);
+                if (match) { 
+                    const capturedValue = match.slice(1).find(g => g !== undefined);
+                    console.log(`[TemplateExtractor][${rule.field}] 🔍 Regex Matched Full String: "${match[0]}"`);
+                    console.log(`[TemplateExtractor][${rule.field}] 🎯 Captured Group Value: "${capturedValue}"`);
+                    
+                    if (!capturedValue) {
+                         console.log(`[TemplateExtractor][${rule.field}] ⚠️ Match succeeded, but captured group was undefined (possible alternative group issue).`);
+                         continue;
+                    }
+                    
+                    let val = sanitizeValue(capturedValue, rule.type);
                     
                     // Regex Root-Cause Fix: Reject garbage extractions like "actual meter reading" for category fields
                     if (rule.field === 'meterTypeInfo' || rule.field === 'tariffCategory' || rule.field === 'meterCategory') {
                         if (typeof val === 'string' && val.toLowerCase().includes('reading')) {
+                            console.log(`[TemplateExtractor][${rule.field}] 🗑️ Rejected Garbage Value (contains 'reading'): "${val}"`);
                             val = null; // Skip garbage extraction
                         }
                     }
+                    
                     if (val !== null) {
+                        console.log(`[TemplateExtractor][${rule.field}] ✅ FINAL EXTRACTED VALUE: ${val}`);
                         extractedData[rule.field] = val;
                         if (rule.required) fieldsMatched++;
+                    } else {
+                        console.log(`[TemplateExtractor][${rule.field}] ⚠️ Value became null after sanitization or garbage filter.`);
                     }
+                } else {
+                    console.log(`[TemplateExtractor][${rule.field}] FAILED MATCH. String length: ${rawText.length}, Regex used: ${regex}`);
                 }
             } catch (err) {
                 console.error(`[TemplateExtractor] Invalid regex for field ${rule.field}: ${rule.regex}`, err);
@@ -99,6 +115,14 @@ export async function extractData(rawText, countryContext = 'australia') {
         let status = 'auto-save';
         if (confidenceScore < 40) status = 'manual-review';
         else if (confidenceScore < 80) status = 'needs-review';
+
+        console.log('\n======================================================');
+        console.log('[TemplateExtractor] ✅ SCAN COMPLETED!');
+        console.log(`[TemplateExtractor] Discom Template Used: ${matchedTemplate.discomName}`);
+        console.log(`[TemplateExtractor] Confidence Score: ${confidenceScore}%`);
+        console.log('[TemplateExtractor] FINAL EXTRACTED DATA (JSON):');
+        console.log(JSON.stringify(extractedData, null, 2));
+        console.log('======================================================\n');
 
         return {
             success: true,
