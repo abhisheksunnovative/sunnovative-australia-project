@@ -7,6 +7,38 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4005';
 const DEFAULT_RULE = { field: '', regex: '', type: 'string', required: false };
 
 export default function BillTemplateManagementScreen() {
+
+  const renderRegexContext = (regexStr) => {
+    if (!regexStr) return null;
+    let before = "";
+    let after = "";
+    
+    try {
+      const beforeMatch = regexStr.match(/^\(\?\:([^)]+)\)/);
+      if (beforeMatch) {
+         before = beforeMatch[1].replace(/\[\\s\\n\]\+/g, ' ').replace(/\\/g, '');
+      }
+      
+      const afterMatch = regexStr.match(/\(\?\=\[\\s\\n\]\*([^)]+)\)$/);
+      if (afterMatch) {
+         after = afterMatch[1].replace(/\[\\s\\n\]\+/g, ' ').replace(/\\/g, '');
+      }
+      
+      if (before || after) {
+         return (
+           <div className="mt-1.5 flex items-center gap-1 text-[10px] text-slate-500 bg-slate-50 p-1 rounded border border-slate-200">
+             {before && <span className="font-semibold text-blue-600 px-1 bg-blue-100 rounded">Heading: {before}</span>}
+             <span className="text-slate-400">➜</span>
+             <span className="font-semibold text-emerald-600 px-1 bg-emerald-100 rounded">Main Data</span>
+             <span className="text-slate-400">➜</span>
+             {after && <span className="font-semibold text-purple-600 px-1 bg-purple-100 rounded">Tail: {after}</span>}
+           </div>
+         );
+      }
+    } catch(e) {}
+    return null;
+  };
+
   const [countries, setCountries] = useState([]);
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [selectedState, setSelectedState] = useState(null);
@@ -177,7 +209,8 @@ export default function BillTemplateManagementScreen() {
 
     setIsScanning(true);
     const fd = new FormData();
-    fd.append('billFile', file);
+    fd.append('country', formData.country);
+      fd.append('billFile', file);
     e.target.value = ''; 
 
     try {
@@ -452,6 +485,7 @@ export default function BillTemplateManagementScreen() {
                               {rule.previewValue === 'Not Found' || rule.previewValue === 'Regex Error' || rule.previewValue.includes('Invalid') 
                                 ? <span className="text-red-500 font-bold">❌ {rule.previewValue}</span>
                                 : <span className="text-green-600 font-bold">✅ {rule.previewValue}</span>}
+                                {renderRegexContext(rule.regex)}
                             </div>
                           )}
                         </div>

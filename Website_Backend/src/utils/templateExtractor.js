@@ -22,7 +22,7 @@ export async function extractData(rawText, countryContext = 'australia') {
     try {
         console.log(`[TemplateExtractor] Searching for matching template in ${countryContext}...`);
         
-        const templates = await BillTemplate.find({ country: countryContext, isActive: true });
+        const templates = await BillTemplate.find({ country: countryContext, isActive: true }).sort({ updatedAt: -1 });
         
         if (!templates || templates.length === 0) {
             return { extractedData: {}, matchedTemplate: null, confidenceScore: 0, status: 'manual-review' };

@@ -15,15 +15,21 @@ export const createTemplate = async (req, res) => {
       req.body.effective_from = new Date();
     }
     req.body.engineVersion = 'v2.4_latest';
-      req.body.isActive = true;
-      const template = await BillTemplate.create(req.body);
+    req.body.isActive = true;
+    
+    const template = await BillTemplate.findOneAndUpdate(
+      { country: req.body.country, discomName: req.body.discomName },
+      { $set: req.body },
+      { returnDocument: 'after', upsert: true, setDefaultsOnInsert: true }
+    );
+    
     res.status(201).json({ success: true, data: template });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
 };
 
-// 2. Get all Templates (Admin use to view list)
+  // 2. Get all Templates (Admin use to view list)
 export const getTemplates = async (req, res) => {
   try {
     const templates = await BillTemplate.find().sort({ createdAt: -1 });
@@ -48,7 +54,7 @@ export const updateTemplate = async (req, res) => {
 
 // 4. Auto-generate aliases from bill image/PDF using Gemini (Multimodal)
 import { AU_RETAILERS, AU_DICT } from '../utils/RegexDictionary.js';
-import { extractPdfText } from '../utils/Ocrextractor.js';
+import { extractRawText } from '../utils/billParser.js';
 
 export const autoGenerateAliases = async (req, res) => {
   try {
@@ -100,7 +106,7 @@ Return raw JSON array only.`;
     let extractedRawText = '';
     if (req.file.mimetype === 'application/pdf') {
       try {
-        const { text, isScanned } = await extractPdfText(req.file.buffer);
+        const { rawText: text, usedOCR: isScanned } = await extractRawText(req.file.buffer, req.file.mimetype);
         extractedRawText = text;
         if (!isScanned) {
           for (const r of AU_RETAILERS) {
@@ -239,7 +245,7 @@ export const getStaleTemplates = async (req, res) => {
 };
 
 
-// 5. Generate Regex from Highlighted Text (100% Offline, Before & After Anchor Logic)
+// 5. Generate Regex from Highlighted Text (100% Offline, Smart Anchor Logic)
 export const generateRegexFromSelection = async (req, res) => {
   try {
     const { rawText, selectedText, fieldName } = req.body;
@@ -252,7 +258,6 @@ export const generateRegexFromSelection = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Selected text not found in the bill.' });
     }
 
-    // Escape regex characters safely
     const escapeRegex = (str) => {
        let escaped = "";
        for (let i = 0; i < str.length; i++) {
@@ -265,27 +270,47 @@ export const generateRegexFromSelection = async (req, res) => {
        return escaped;
     };
 
-    // 1. Get BEFORE Context (Up to 80 chars)
-    const precedingText = rawText.substring(Math.max(0, index - 80), index);
-    const beforeLines = precedingText.split(/[\n\r]+/);
-    let targetBeforeText = beforeLines[beforeLines.length - 1].trim();
-    if (targetBeforeText.length < 5 && beforeLines.length > 1) {
-       targetBeforeText = beforeLines[beforeLines.length - 2].trim() + " " + targetBeforeText;
-    }
-    const beforeWords = targetBeforeText.split(/[\s]+/).filter(w => w.length > 0);
-    const anchorBeforeWords = beforeWords.slice(Math.max(0, beforeWords.length - 3));
-    const anchorBefore = anchorBeforeWords.map(escapeRegex).join('[\\s\\n]+');
+    // Smart anchor logic to skip data-like words (numbers, dates, months)
+    const looksLikeData = (word) => {
+        return /^\$?([0-9,]+(\.[0-9]+)?|[0-9]{1,4}[-\/][0-9]{1,2}[-\/][0-9]{1,4})$/.test(word) ||
+               /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.test(word) ||
+               /^[0-9]+$/.test(word) ||
+               /^[$£€₹:,-]+$/.test(word); // Skip isolated symbols and punctuation
+    };
 
-    // 2. Get AFTER Context (Up to 40 chars)
-    const afterText = rawText.substring(index + selectedText.length, index + selectedText.length + 40);
-    const afterLines = afterText.split(/[\n\r]+/);
-    let targetAfterText = afterLines[0].trim();
-    if (targetAfterText.length < 3 && afterLines.length > 1) {
-       targetAfterText += " " + afterLines[1].trim();
+    // 1. Get BEFORE Context (Up to 150 chars)
+    const precedingText = rawText.substring(Math.max(0, index - 150), index);
+    const beforeWordsRaw = precedingText.split(/[\s\n\r]+/).filter(w => w.length > 0);
+    const candidateBefore = beforeWordsRaw.reverse(); // traverse backwards
+    
+    const stableBeforeWords = [];
+    let skippedData = false;
+    for (const w of candidateBefore) {
+        if (looksLikeData(w)) {
+            if (stableBeforeWords.length > 0) break; // Already found real words, stop traversing back
+            skippedData = true;
+            continue; // Skip data words
+        }
+        stableBeforeWords.push(w);
+        if (stableBeforeWords.length >= 3) break; // We have enough strong anchor words
     }
-    const afterWords = targetAfterText.split(/[\s]+/).filter(w => w.length > 0);
-    const anchorAfterWords = afterWords.slice(0, 3);
-    const anchorAfter = anchorAfterWords.map(escapeRegex).join('[\\s\\n]+');
+    stableBeforeWords.reverse(); // Restore normal order
+    const anchorBefore = stableBeforeWords.map(escapeRegex).join('[\\s\\n]+');
+
+    // 2. Get AFTER Context (Up to 80 chars)
+    const afterText = rawText.substring(index + selectedText.length, index + selectedText.length + 80);
+    const afterWordsRaw = afterText.split(/[\s\n\r]+/).filter(w => w.length > 0);
+    
+    const stableAfterWords = [];
+    for (const w of afterWordsRaw) {
+        if (looksLikeData(w)) {
+            if (stableAfterWords.length > 0) break;
+            continue;
+        }
+        stableAfterWords.push(w);
+        if (stableAfterWords.length >= 3) break;
+    }
+    const anchorAfter = stableAfterWords.map(escapeRegex).join('[\\s\\n]+');
 
     // 3. Define the Capture Group Type
     let captureGroup = "([^\\n\\r]{2,80}?)"; // Generic string
@@ -301,12 +326,12 @@ export const generateRegexFromSelection = async (req, res) => {
       captureGroup = "([A-Za-z0-9\\- ]{3,25})";
     }
 
-    // 4. Build the Regex with Before and After constraints!
+    // 4. Build the Regex with Before and After constraints
     let regexStr = "";
     if (anchorBefore && anchorAfter) {
-      regexStr = "(?:" + anchorBefore + ")[\\s\\n:]{0,20}?" + captureGroup + "(?=[\\s\\n]*" + anchorAfter + ")";
+      regexStr = "(?:" + anchorBefore + ")[\\s\\n:]{0,50}?" + captureGroup + "(?=[\\s\\n]*" + anchorAfter + ")";
     } else if (anchorBefore) {
-      regexStr = "(?:" + anchorBefore + ")[\\s\\n:]{0,20}?" + captureGroup;
+      regexStr = "(?:" + anchorBefore + ")[\\s\\n:]{0,50}?" + captureGroup;
     } else {
        regexStr = escapeRegex(selectedText).replace(/\d+/g, '\\d+');
     }
@@ -318,7 +343,6 @@ export const generateRegexFromSelection = async (req, res) => {
       const testRegex = new RegExp(regexStr, isStrictCase ? '' : 'i');
       const match = rawText.match(testRegex);
       if (match) {
-         // Fix JS bug: if match[1] is undefined, do not fallback to match[0] if match[1] was empty string
          if (match[1] !== undefined) {
              extracted = match[1].trim();
          } else {
