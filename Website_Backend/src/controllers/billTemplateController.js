@@ -14,7 +14,9 @@ export const createTemplate = async (req, res) => {
     if (!req.body.effective_from) {
       req.body.effective_from = new Date();
     }
-    const template = await BillTemplate.create(req.body);
+    req.body.engineVersion = 'v2.4_latest';
+      req.body.isActive = true;
+      const template = await BillTemplate.create(req.body);
     res.status(201).json({ success: true, data: template });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
@@ -34,7 +36,9 @@ export const getTemplates = async (req, res) => {
 // 3. Update an existing Template (Admin use to change rules)
 export const updateTemplate = async (req, res) => {
   try {
-    const template = await BillTemplate.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    req.body.engineVersion = 'v2.4_latest';
+      req.body.isActive = true;
+      const template = await BillTemplate.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!template) return res.status(404).json({ success: false, message: 'Template not found' });
     res.status(200).json({ success: true, data: template });
   } catch (error) {
@@ -61,7 +65,7 @@ export const autoGenerateAliases = async (req, res) => {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-3.6-flash',
+      model: 'gemini-pro',
       generationConfig: { responseMimeType: 'application/json' }
     });
 
@@ -93,9 +97,11 @@ Return raw JSON array only.`;
     
     // Hybrid Strategy: Check if it's a known AU Retailer to bypass Gemini completely and save quota
     let isKnownAU = false;
+    let extractedRawText = '';
     if (req.file.mimetype === 'application/pdf') {
       try {
         const { text, isScanned } = await extractPdfText(req.file.buffer);
+        extractedRawText = text;
         if (!isScanned) {
           for (const r of AU_RETAILERS) {
             if (r.pattern.test(text)) {
@@ -113,7 +119,7 @@ Return raw JSON array only.`;
       console.log('[Gemini Aliases] Detected Known AU Retailer. Bypassing Gemini to save API quota.');
       console.log(`[Gemini Aliases] Returning 10 predefined Regex Fields for UI.`);
       const auTemplate = [
-        { field: "consumerName", regex: AU_DICT.namePatterns.join('|'), type: "string", required: false },
+        { field: "fullName", regex: AU_DICT.namePatterns.join('|'), type: "string", required: false },
         { field: "consumerNumber", regex: AU_DICT.accountNumber, type: "string", required: false },
         { field: "consumerBillNumber", regex: AU_DICT.billNumber, type: "string", required: false },
         { field: "meterCategory", regex: "(Smart\\s*Meter|Interval|Basic\\s*Meter|Accumulation\\s*Meter)", type: "string", required: false },
@@ -124,10 +130,33 @@ Return raw JSON array only.`;
         { field: "state", regex: "(?:VIC|NSW|QLD|WA|SA|TAS|ACT|NT|Victoria|New\\s*South\\s*Wales|Queensland|Western\\s*Australia|South\\s*Australia|Tasmania)", type: "string", required: false },
         { field: "dueDate", regex: AU_DICT.dueDate, type: "string", required: false }
       ];
+      
+      // Inject Preview Values
+      const injectPreview = (templateArray) => {
+        if (!extractedRawText) return templateArray;
+        return templateArray.map(rule => {
+          try {
+            const isStrictCase = rule.field === 'fullName' || rule.field === 'fullName';
+            const regex = new RegExp(rule.regex, isStrictCase ? '' : 'i');
+            const match = extractedRawText.match(regex);
+            if (match) {
+              const val = match.slice(1).find(v => v !== undefined);
+              rule.previewValue = val ? val.trim() : match[0].trim();
+            } else {
+              rule.previewValue = 'Not Found';
+            }
+          } catch(e) {
+            rule.previewValue = 'Regex Error';
+          }
+          return rule;
+        });
+      };
+
+      const validatedAuTemplate = injectPreview(auTemplate);
       console.log(`[Gemini Aliases] ===== FINAL GENERATED TEMPLATE RESPONSE =====`);
       console.log(JSON.stringify(auTemplate, null, 2));
       console.log(`============================================================`);
-      return res.status(200).json({ success: true, data: auTemplate });
+      return res.status(200).json({ success: true, data: validatedAuTemplate, rawText: extractedRawText });
     }
 
     console.log('[Gemini Aliases] Sending file to Gemini...');
@@ -176,7 +205,7 @@ Return raw JSON array only.`;
     }
 
     console.log('[Gemini Aliases] ✅ success');
-    return res.status(200).json({ success: true, data: parsed });
+    return res.status(200).json({ success: true, data: validatedGeminiTemplate, rawText: extractedRawText });
   } catch (error) {
     console.error('Error auto-generating aliases with Gemini:', error);
     return res.status(500).json({ success: false, message: error.message || 'Failed to parse file' });
@@ -208,3 +237,101 @@ export const getStaleTemplates = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+
+// 5. Generate Regex from Highlighted Text (100% Offline, Before & After Anchor Logic)
+export const generateRegexFromSelection = async (req, res) => {
+  try {
+    const { rawText, selectedText, fieldName } = req.body;
+    if (!rawText || !selectedText) {
+      return res.status(400).json({ success: false, message: 'Missing rawText or selectedText' });
+    }
+
+    const index = rawText.indexOf(selectedText);
+    if (index === -1) {
+      return res.status(400).json({ success: false, message: 'Selected text not found in the bill.' });
+    }
+
+    // Escape regex characters safely
+    const escapeRegex = (str) => {
+       let escaped = "";
+       for (let i = 0; i < str.length; i++) {
+          if ("-\\/^$*+?.()|[]{}".includes(str[i])) {
+             escaped += "\\" + str[i];
+          } else {
+             escaped += str[i];
+          }
+       }
+       return escaped;
+    };
+
+    // 1. Get BEFORE Context (Up to 80 chars)
+    const precedingText = rawText.substring(Math.max(0, index - 80), index);
+    const beforeLines = precedingText.split(/[\n\r]+/);
+    let targetBeforeText = beforeLines[beforeLines.length - 1].trim();
+    if (targetBeforeText.length < 5 && beforeLines.length > 1) {
+       targetBeforeText = beforeLines[beforeLines.length - 2].trim() + " " + targetBeforeText;
+    }
+    const beforeWords = targetBeforeText.split(/[\s]+/).filter(w => w.length > 0);
+    const anchorBeforeWords = beforeWords.slice(Math.max(0, beforeWords.length - 3));
+    const anchorBefore = anchorBeforeWords.map(escapeRegex).join('[\\s\\n]+');
+
+    // 2. Get AFTER Context (Up to 40 chars)
+    const afterText = rawText.substring(index + selectedText.length, index + selectedText.length + 40);
+    const afterLines = afterText.split(/[\n\r]+/);
+    let targetAfterText = afterLines[0].trim();
+    if (targetAfterText.length < 3 && afterLines.length > 1) {
+       targetAfterText += " " + afterLines[1].trim();
+    }
+    const afterWords = targetAfterText.split(/[\s]+/).filter(w => w.length > 0);
+    const anchorAfterWords = afterWords.slice(0, 3);
+    const anchorAfter = anchorAfterWords.map(escapeRegex).join('[\\s\\n]+');
+
+    // 3. Define the Capture Group Type
+    let captureGroup = "([^\\n\\r]{2,80}?)"; // Generic string
+    if (fieldName === 'monthlyBill' || fieldName === 'dueAmount' || fieldName === 'quarterlyKwh') {
+      captureGroup = "([0-9,]+(?:\\.[0-9]+)?)";
+    } else if (fieldName === 'dueDate' || fieldName === 'billIssuedDate') {
+      if (selectedText.match(/[a-zA-Z]/)) {
+        captureGroup = "([0-9]{1,2}\\s+[A-Za-z]{3,9}\\s+[0-9]{2,4})";
+      } else {
+        captureGroup = "([0-9\\/-]{8,10})";
+      }
+    } else if (fieldName === 'consumerNumber' || fieldName === 'consumerBillNumber') {
+      captureGroup = "([A-Za-z0-9\\- ]{3,25})";
+    }
+
+    // 4. Build the Regex with Before and After constraints!
+    let regexStr = "";
+    if (anchorBefore && anchorAfter) {
+      regexStr = "(?:" + anchorBefore + ")[\\s\\n:]{0,20}?" + captureGroup + "(?=[\\s\\n]*" + anchorAfter + ")";
+    } else if (anchorBefore) {
+      regexStr = "(?:" + anchorBefore + ")[\\s\\n:]{0,20}?" + captureGroup;
+    } else {
+       regexStr = escapeRegex(selectedText).replace(/\d+/g, '\\d+');
+    }
+
+    // 5. Test it
+    let extracted = "Not Found";
+    try {
+      const isStrictCase = fieldName === 'fullName' || fieldName === 'consumerName';
+      const testRegex = new RegExp(regexStr, isStrictCase ? '' : 'i');
+      const match = rawText.match(testRegex);
+      if (match) {
+         // Fix JS bug: if match[1] is undefined, do not fallback to match[0] if match[1] was empty string
+         if (match[1] !== undefined) {
+             extracted = match[1].trim();
+         } else {
+             extracted = match[0].trim();
+         }
+      }
+    } catch (e) {
+      extracted = "Invalid Regex Generated";
+    }
+
+    res.status(200).json({ success: true, data: { regex: regexStr, previewValue: extracted } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+

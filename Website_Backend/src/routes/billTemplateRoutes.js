@@ -1,6 +1,6 @@
 import express from 'express';
 import multer from 'multer';
-import { createTemplate, getTemplates, updateTemplate, autoGenerateAliases } from '../controllers/billTemplateController.js';
+import { createTemplate, getTemplates, updateTemplate, autoGenerateAliases, generateRegexFromSelection } from '../controllers/billTemplateController.js';
 
 const router = express.Router();
 
@@ -10,6 +10,7 @@ const upload = multer({
 });
 
 router.post('/auto-generate', upload.single('billFile'), autoGenerateAliases);
+router.post('/generate-from-selection', generateRegexFromSelection);
 router.post('/', createTemplate);
 router.get('/', getTemplates);
 router.put('/:id', updateTemplate);

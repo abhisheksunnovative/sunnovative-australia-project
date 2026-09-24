@@ -3,8 +3,7 @@ import mongoose from 'mongoose';
 const billTemplateSchema = new mongoose.Schema({
   discomName: { type: String, required: true, trim: true, unique: true },
   country: { type: String, enum: ['australia', 'india'], required: true },
-  isActive: { type: Boolean, default: false },   // false by default ab — sirf approve hone par true hoga
-  status: { type: String, enum: ['pending_review', 'approved', 'rejected'], default: 'pending_review' },
+  isActive: { type: Boolean, default: true },   // false by default ab — sirf approve hone par true hoga
   engineVersion: { type: String, default: 'unknown' },
   anchorKeywords: [{ type: String, required: true }],
   extractionRules: [{

@@ -169,6 +169,7 @@ export default function BillTemplateManagementScreen() {
 
   
   const [isScanning, setIsScanning] = useState(false);
+  const [rawTextPreview, setRawTextPreview] = useState('');
 
   const handleScanSampleBill = async (e) => {
     const file = e.target.files[0];
@@ -188,6 +189,7 @@ export default function BillTemplateManagementScreen() {
         }
         if (Array.isArray(generatedRules)) {
            setFormData(prev => ({ ...prev, extractionRules: generatedRules }));
+             if (res.data.rawText) setRawTextPreview(res.data.rawText);
            alert("Template Rules automatically generated from sample bill!");
         }
       }
@@ -196,6 +198,31 @@ export default function BillTemplateManagementScreen() {
       alert("Failed to auto-generate from bill");
     } finally {
       setIsScanning(false);
+    }
+  };
+
+  
+  const handleHighlightGenerate = async (index, fieldName) => {
+    const selection = window.getSelection().toString();
+    if (!selection || !selection.trim()) return alert("Please highlight a value in the Raw Bill Text pane first!");
+    if (!fieldName) return alert("Please select a Field Name from the dropdown first!");
+    if (!rawTextPreview) return alert("Raw text is empty!");
+    
+    try {
+      const res = await axios.post(`${API_URL}/api/v2/bill-templates/generate-from-selection`, {
+        rawText: rawTextPreview,
+        selectedText: selection,
+        fieldName: fieldName
+      });
+      if (res.data.success) {
+        const rules = [...formData.extractionRules];
+        rules[index].regex = res.data.data.regex;
+        rules[index].previewValue = res.data.data.previewValue;
+        setFormData({ ...formData, extractionRules: rules });
+      }
+    } catch(e) {
+      console.error(e);
+      alert("Failed to generate regex from selection.");
     }
   };
 
@@ -356,7 +383,7 @@ export default function BillTemplateManagementScreen() {
       {/* REGEX BUILDER MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-7xl max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <h2 className="text-lg font-bold text-slate-800">{editingTemplate ? 'Edit Template Override' : 'New Template Override'}</h2>
               <div className="flex items-center gap-2">
@@ -368,7 +395,7 @@ export default function BillTemplateManagementScreen() {
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-red-500"><X className="w-5 h-5" /></button>
             </div>
             
-            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+            <div className="p-6 overflow-hidden flex-1 grid grid-cols-2 gap-6"><div className="space-y-6 overflow-y-auto pr-2">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Discom Name</label>
@@ -405,6 +432,7 @@ export default function BillTemplateManagementScreen() {
                           <select value={rule.field} onChange={e => updateRule(idx, 'field', e.target.value)} className="w-full p-1.5 text-xs border border-slate-300 rounded bg-white">
                             <option value="">Select Field...</option>
                             <option value="monthlyBill">monthlyBill (Amount)</option>
+                              <option value="dueAmount">dueAmount (Overdue Balance)</option>
                             <option value="quarterlyKwh">quarterlyKwh / monthlyUnits</option>
                             <option value="consumerNumber">consumerNumber</option>
                             <option value="consumerBillNumber">consumerBillNumber / invoiceNumber</option>
@@ -419,6 +447,13 @@ export default function BillTemplateManagementScreen() {
                         <div className="col-span-2">
                           <label className="block text-[10px] font-bold text-slate-500 mb-1">Regex Pattern</label>
                           <input type="text" value={rule.regex} onChange={e => updateRule(idx, 'regex', e.target.value)} className="w-full p-1.5 text-xs font-mono border border-slate-300 rounded bg-white" placeholder="e.g. Total Amount\s*([0-9.]+)" />
+                          {rule.previewValue && (
+                            <div className="mt-1 text-xs truncate max-w-full">
+                              {rule.previewValue === 'Not Found' || rule.previewValue === 'Regex Error' || rule.previewValue.includes('Invalid') 
+                                ? <span className="text-red-500 font-bold">❌ {rule.previewValue}</span>
+                                : <span className="text-green-600 font-bold">✅ {rule.previewValue}</span>}
+                            </div>
+                          )}
                         </div>
                         <div>
                           <label className="block text-[10px] font-bold text-slate-500 mb-1">Type</label>
@@ -429,16 +464,33 @@ export default function BillTemplateManagementScreen() {
                           </select>
                         </div>
                       </div>
-                      <button onClick={() => removeRule(idx)} className="p-1 text-red-500 hover:bg-red-50 rounded mt-5">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex flex-col gap-2 mt-5">
+                        <button onClick={() => removeRule(idx)} className="p-1 text-red-500 hover:bg-red-50 rounded border border-red-100 bg-red-50/50" title="Delete Rule">
+                          <Trash2 className="w-4 h-4 mx-auto" />
+                        </button>
+                        <button onClick={() => handleHighlightGenerate(idx, rule.field)} title="Generate regex from highlighted text" className="p-1 text-indigo-600 hover:bg-indigo-50 rounded border border-indigo-200 bg-indigo-50/50 flex flex-col items-center justify-center">
+                          <span className="text-sm leading-none">🖊️</span>
+                          <span className="text-[8px] font-bold">Auto</span>
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
 
-            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+            <div className="space-y-3 flex flex-col h-full overflow-hidden border border-slate-200 rounded-xl bg-slate-50">
+               <div className="p-3 bg-slate-200 border-b border-slate-300 font-bold text-xs text-slate-700 flex justify-between">
+                  Raw Bill Text
+                  <span className="text-[10px] font-normal text-indigo-700">1. Highlight text here ➔ 2. Click 🖊️ on a field</span>
+               </div>
+               <pre className="p-3 text-[10px] font-mono whitespace-pre-wrap flex-1 overflow-y-auto text-slate-600">
+                  {rawTextPreview || "Upload a sample bill to see raw text here..."}
+               </pre>
+            </div>
+          </div>
+
+          <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
               <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 rounded-lg">Cancel</button>
               <button onClick={handleSave} className="px-6 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg shadow-sm hover:bg-indigo-700 flex items-center gap-2">
                 <Check className="w-4 h-4" /> Save Template

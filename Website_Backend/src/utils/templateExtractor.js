@@ -22,7 +22,7 @@ export async function extractData(rawText, countryContext = 'australia') {
     try {
         console.log(`[TemplateExtractor] Searching for matching template in ${countryContext}...`);
         
-        const templates = await BillTemplate.find({ country: countryContext, isActive: true, status: 'approved' });
+        const templates = await BillTemplate.find({ country: countryContext, isActive: true });
         
         if (!templates || templates.length === 0) {
             return { extractedData: {}, matchedTemplate: null, confidenceScore: 0, status: 'manual-review' };
@@ -67,7 +67,8 @@ export async function extractData(rawText, countryContext = 'australia') {
             if (rule.required) totalRequiredFields++;
 
             try {
-                const regex = new RegExp(rule.regex, rule.flags || 'i');
+                const isStrictCase = rule.field === 'fullName' || rule.field === 'consumerName';
+                const regex = new RegExp(rule.regex, rule.flags || (isStrictCase ? '' : 'i'));
                 const match = rawText.match(regex);
 
                 if (match) { 

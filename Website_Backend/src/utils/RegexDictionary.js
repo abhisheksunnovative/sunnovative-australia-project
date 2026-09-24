@@ -25,7 +25,7 @@ export const AU_RETAILERS = [
 ];
 
 export const AU_DICT = {
-  accountNumber: "(?:Account\\s+(?:Number|No\\.?|#)|Account\\s*:)[\\s:]*([A-Z0-9][A-Z0-9\\- ]{4,18}[A-Z0-9])",
+  accountNumber: "(?<!Payment\\s*)(?:Account\\s+(?:Number|No\\.?|#)|Account\\s*:)[\\s:]*([A-Z0-9][A-Z0-9\\- ]{4,15}[A-Z0-9])",
   tariffCategory: "(?:Your\\s*tariff\\s*:\\s*|Tariff(?:\\s*:|\\s*-)?\\s+|Current\\s*Account\\s*Charges\\s*\\n\\s*)([A-Za-z0-9\\/\\- ]+?)(?=\\s+Period\\b|\\n|\\r|$)",
   
   billNumber: "(?:Invoice\\s*(?:No\\.?|Number)?|Bill\\s*(?:No\\.?|Number)?|Tax\\s*Invoice\\s*(?:No\\.?|Number)?)\\s*[:\\-]?\\s*([A-Za-z0-9\\-]+)",

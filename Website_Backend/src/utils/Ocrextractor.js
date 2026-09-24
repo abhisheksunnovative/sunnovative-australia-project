@@ -781,14 +781,19 @@ if (!retailer) {
 }
 
   // ── 2. Account / NMI Number ───────────────────────────────────────────────
-  let accountNumber = null;
-  // Gap `[\s\S]{0,10}?` hata diya — sirf immediate-next value allow, taaki "Account: 1 number" jaisa caption-text na pakde
-  const acctMatch = t.match(/(?:Account\s+(?:Number|No\.?|#)|Account\s*:)[\s:]*([A-Z0-9][A-Z0-9\- ]{4,18}[A-Z0-9])/i);
-  if (acctMatch) {
-    accountNumber = acctMatch[1].trim();
-    console.log('[DEBUG] Account Number matched:', accountNumber);
+    let accountNumber = null;
+  const acctMatches = [...t.matchAll(new RegExp(AU_DICT.accountNumber, 'gi'))];
+  for (const m of acctMatches) {
+    const context = t.substring(Math.max(0, m.index - 30), m.index + m[0].length);
+    if (!/Payment|BSB|Bank/i.test(context)) {
+      let val = m[1].trim();
+      if (!/\b(details|number|diss|name|account)\b/i.test(val)) {
+        accountNumber = val;
+        console.log('[DEBUG] Account Number matched:', accountNumber);
+        break;
+      }
+    }
   }
-  if (accountNumber && /\b(details|number|diss|name|account)\b/i.test(accountNumber)) accountNumber = null;
   
   let nmiNumber = null;
   const nmiMatch = t.match(/(?:NMI|National\s*Metering\s*Identifier)[\s\S]{0,40}?([0-9]{9,11}[X]*)/i);
@@ -796,7 +801,7 @@ if (!retailer) {
 
   // ── 3. Customer Name ──────────────────────────────────────────────────────
     let customerName = null;
-  const namePatterns = AU_DICT.namePatterns.map(p => new RegExp(p, 'i'));
+  const namePatterns = AU_DICT.namePatterns.map(p => new RegExp(p)); // strict case
   for (const p of namePatterns) {
     const m = t.match(p);
     if (m) { customerName = m[1].trim(); console.log('[DEBUG] Customer Name matched via namePatterns:', customerName); break; }
