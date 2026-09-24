@@ -53,7 +53,11 @@ export async function extractData(rawText, countryContext = 'australia') {
             };
         }
 
-        console.log(`[TemplateExtractor] Matched Template: ${matchedTemplate.discomName}`);
+        console.log(`\n======================================================`);
+        console.log(`[TemplateExtractor] 🌟 USING YOUR SAVED TEMPLATE: ${matchedTemplate.discomName}`);
+        console.log(`[TemplateExtractor] 🕒 Template Last Updated: ${matchedTemplate.updatedAt}`);
+        console.log(`[TemplateExtractor] 📏 Total Rules Inside: ${matchedTemplate.extractionRules.length}`);
+        console.log(`======================================================\n`);
 
         const extractedData = {
             retailer: matchedTemplate.discomName,

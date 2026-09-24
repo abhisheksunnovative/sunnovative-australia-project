@@ -1,6 +1,6 @@
 import express from 'express';
 import multer from 'multer';
-import { scanLightBill, getScanAnalytics } from '../controllers/lightBillScanController.js';
+import { scanLightBill, getScanAnalytics, getNeedsTemplateQueue } from '../controllers/lightBillScanController.js';
 import { checkBillEligibility } from '../controllers/lightBillEligibilityController.js';
 import { extractCountry } from '../middleware/countryMiddleware.js';
 
@@ -37,5 +37,6 @@ router.get('/history', async (req, res) => {
 });
 
 router.get('/analytics', getScanAnalytics);
+router.get('/needs-review', getNeedsTemplateQueue);
 
 export default router;

@@ -22,6 +22,11 @@ const scanAnalyticsSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    resolvedTemplateId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'BillTemplate',
+        default: null
+    },
     rawText: {
         type: String,
         default: ""

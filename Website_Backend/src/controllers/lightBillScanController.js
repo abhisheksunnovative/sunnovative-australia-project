@@ -118,7 +118,8 @@ export const scanLightBill = async (req, res) => {
                 // AU/NZ Handle: Parser bugs on Digital PDFs
                 engineUsed = 'in-house-failed';
                 fallbackReason = 'Critical fields missing on AU bill (Likely Parser Bug)';
-                console.warn("[BillScan] AU Bill failed critical check. Logging as parser bug. No Gemini fallback.");
+                needsTemplate = true; // Mark for Admin Review Queue
+                console.warn("[BillScan] AU Bill failed critical check. Flagged for template review.");
             } else {
                 // Hybrid Gemini Fallback for India/Other (Blurry photos)
                 console.log("[BillScan] Critical fields missing. Triggering Gemini Fallback...");
@@ -300,10 +301,31 @@ export const getScanAnalytics = async (req, res) => {
         ]);
 
         const totalScans = await ScanAnalytics.countDocuments();
+        const templateMatched = await ScanAnalytics.countDocuments({ engineUsed: { $ne: 'in-house-failed' } });
+        const coveragePercent = totalScans > 0 ? ((templateMatched / totalScans) * 100).toFixed(1) : 0;
         
-        res.status(200).json({ success: true, stats, reasons, totalScans });
+        res.status(200).json({ success: true, stats, reasons, totalScans, coveragePercent });
     } catch (err) {
         console.error("[BillScan] Analytics Error:", err);
         res.status(500).json({ success: false, error: 'Failed to fetch analytics' });
+    }
+};
+
+export const getNeedsTemplateQueue = async (req, res) => {
+    try {
+        const { country } = req.query;
+        const query = {
+            needsTemplateCreation: true,
+            resolvedTemplateId: null
+        };
+        if (country) query.country = country;
+        
+        const items = await ScanAnalytics.find(query)
+            .sort({ createdAt: -1 })
+            .limit(50);
+            
+        res.json({ success: true, count: items.length, items });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 };

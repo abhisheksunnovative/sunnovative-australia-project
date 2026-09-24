@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Plus, Edit2, Trash2, Check, X, Globe, ArrowLeft, Building2, MapPin } from 'lucide-react';
 import axios from 'axios';
 import { fetchWithCache } from '../utils/fetchWithCache';
+import NeedsTemplateReviewQueue from './NeedsTemplateReviewQueue';
+
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4005';
 const DEFAULT_RULE = { field: '', regex: '', type: 'string', required: false };
@@ -49,6 +51,7 @@ export default function BillTemplateManagementScreen() {
   const [statesLoading, setStatesLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState(null);
+  const [activeTab, setActiveTab] = useState("templates");
 
   const [formData, setFormData] = useState({
     discomName: '',
@@ -56,8 +59,25 @@ export default function BillTemplateManagementScreen() {
     isActive: true,
       status: 'approved',
     anchorKeywords: '',
-    extractionRules: []
+    extractionRules: [],
+    sourceScanAnalyticsId: null
   });
+
+  
+  const handleBuildFromQueue = (analyticsItem) => {
+    setEditingTemplate(null);
+    setFormData({
+      discomName: '',
+      country: analyticsItem.country,
+      isActive: true,
+      status: 'approved',
+      anchorKeywords: '',
+      extractionRules: [],
+      sourceScanAnalyticsId: analyticsItem._id
+    });
+    setRawTextPreview(analyticsItem.rawText || '');
+    setIsModalOpen(true);
+  };
 
   useEffect(() => {
     fetchCountries();
@@ -236,16 +256,52 @@ export default function BillTemplateManagementScreen() {
 
   
   const handleHighlightGenerate = async (index, fieldName) => {
-    const selection = window.getSelection().toString();
+    const sel = window.getSelection();
+    const selection = sel.toString();
     if (!selection || !selection.trim()) return alert("Please highlight a value in the Raw Bill Text pane first!");
     if (!fieldName) return alert("Please select a Field Name from the dropdown first!");
     if (!rawTextPreview) return alert("Raw text is empty!");
+    
+    let selectionIndex = -1;
+    if (sel.anchorNode) {
+        const preElement = sel.anchorNode.parentElement ? sel.anchorNode.parentElement.closest('pre') : null;
+        if (preElement) {
+            const range = sel.getRangeAt(0);
+            const preSelectionRange = range.cloneRange();
+            preSelectionRange.selectNodeContents(preElement);
+            preSelectionRange.setEnd(range.startContainer, range.startOffset);
+            const domIndex = preSelectionRange.toString().length;
+            
+            // Find ALL occurrences of the selection in rawTextPreview
+            // and pick the one closest to the DOM index to avoid \r\n shifting issues
+            let bestIndex = -1;
+            let minDiff = Infinity;
+            let currentIndex = rawTextPreview.indexOf(selection);
+            while (currentIndex !== -1) {
+                const diff = Math.abs(currentIndex - domIndex);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    bestIndex = currentIndex;
+                }
+                currentIndex = rawTextPreview.indexOf(selection, currentIndex + 1);
+            }
+            selectionIndex = bestIndex !== -1 ? bestIndex : domIndex;
+            console.log(`[Frontend] 🖱️ Auto clicked for ${fieldName}`);
+            console.log(`[Frontend] ✂️ Selected Text: "${selection}"`);
+            console.log(`[Frontend] 📏 DOM Index: ${domIndex}`);
+            console.log(`[Frontend] 🎯 Best Matched Index in rawTextPreview: ${selectionIndex}`);
+        } else {
+            selectionIndex = rawTextPreview.indexOf(selection);
+            console.log(`[Frontend] ⚠️ Fallback to basic indexOf: ${selectionIndex}`);
+        }
+    }
     
     try {
       const res = await axios.post(`${API_URL}/api/v2/bill-templates/generate-from-selection`, {
         rawText: rawTextPreview,
         selectedText: selection,
-        fieldName: fieldName
+        fieldName: fieldName,
+        selectionIndex: selectionIndex
       });
       if (res.data.success) {
         const rules = [...formData.extractionRules];

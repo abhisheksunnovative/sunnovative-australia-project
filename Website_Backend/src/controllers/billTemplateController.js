@@ -1,3 +1,4 @@
+import ScanAnalytics from '../models/ScanAnalytics.js';
 /**
  * billTemplateController.js
  *
@@ -17,11 +18,17 @@ export const createTemplate = async (req, res) => {
     req.body.engineVersion = 'v2.4_latest';
     req.body.isActive = true;
     
-    const template = await BillTemplate.findOneAndUpdate(
+        const template = await BillTemplate.findOneAndUpdate(
       { country: req.body.country, discomName: req.body.discomName },
       { $set: req.body },
       { returnDocument: 'after', upsert: true, setDefaultsOnInsert: true }
     );
+    
+    if (req.body.sourceScanAnalyticsId) {
+      await ScanAnalytics.findByIdAndUpdate(req.body.sourceScanAnalyticsId, {
+        resolvedTemplateId: template._id
+      });
+    }
     
     res.status(201).json({ success: true, data: template });
   } catch (error) {
@@ -253,7 +260,23 @@ export const generateRegexFromSelection = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Missing rawText or selectedText' });
     }
 
-    const index = rawText.indexOf(selectedText);
+    let index = -1;
+    const { selectionIndex } = req.body;
+    console.log(`[Backend] 📍 Received selectionIndex: ${selectionIndex}`);
+    if (selectionIndex !== undefined && selectionIndex >= 0) {
+        const searchWindowStart = Math.max(0, selectionIndex - 500);
+        const searchWindowEnd = Math.min(rawText.length, selectionIndex + selectedText.length + 500);
+        const windowText = rawText.substring(searchWindowStart, searchWindowEnd);
+        const windowMatchIndex = windowText.indexOf(selectedText);
+        if (windowMatchIndex !== -1) {
+            index = searchWindowStart + windowMatchIndex;
+        } else {
+            index = rawText.indexOf(selectedText);
+        }
+    } else {
+        index = rawText.indexOf(selectedText);
+    }
+    console.log(`[Backend] 🎯 Final index used: ${index}`);
     if (index === -1) {
       return res.status(400).json({ success: false, message: 'Selected text not found in the bill.' });
     }
@@ -313,7 +336,7 @@ export const generateRegexFromSelection = async (req, res) => {
     const anchorAfter = stableAfterWords.map(escapeRegex).join('[\\s\\n]+');
 
     // 3. Define the Capture Group Type
-    let captureGroup = "([^\\n\\r]{2,80}?)"; // Generic string
+    let captureGroup = "([^\\n\\r]{2,80}?)"; // Generic string (fallback)
     if (fieldName === 'monthlyBill' || fieldName === 'dueAmount' || fieldName === 'quarterlyKwh') {
       captureGroup = "([0-9,]+(?:\\.[0-9]+)?)";
     } else if (fieldName === 'dueDate' || fieldName === 'billIssuedDate') {
@@ -323,15 +346,21 @@ export const generateRegexFromSelection = async (req, res) => {
         captureGroup = "([0-9\\/-]{8,10})";
       }
     } else if (fieldName === 'consumerNumber' || fieldName === 'consumerBillNumber') {
-      captureGroup = "([A-Za-z0-9\\- ]{3,25})";
+      captureGroup = "([A-Za-z0-9\\- ]{3,25})"; // Greedy alphanumeric
+    } else if (fieldName === 'fullName' || fieldName === 'consumerName') {
+      captureGroup = "([A-Za-z\\s\\.\\'-]{2,50})"; // Greedy name characters only
     }
 
     // 4. Build the Regex with Before and After constraints
+        console.log(`[Backend] 🛑 Anchor Before Chosen: "${anchorBefore}"`);
+    console.log(`[Backend] 🛑 Anchor After Chosen: "${anchorAfter}"`);
     let regexStr = "";
     if (anchorBefore && anchorAfter) {
-      regexStr = "(?:" + anchorBefore + ")[\\s\\n:]{0,50}?" + captureGroup + "(?=[\\s\\n]*" + anchorAfter + ")";
+      // Use strict spaces before the capture group to prevent greedy matching,
+      // but use loose [\s\S] in the lookahead to allow skipping over other data numbers
+      regexStr = "(?:" + anchorBefore + ")[\\s\\n:$,\\-]{0,50}?" + captureGroup + "(?=[\\s\\S]{0,150}?" + anchorAfter + ")";
     } else if (anchorBefore) {
-      regexStr = "(?:" + anchorBefore + ")[\\s\\n:]{0,50}?" + captureGroup;
+      regexStr = "(?:" + anchorBefore + ")[\\s\\n:$,\\-]{0,50}?" + captureGroup;
     } else {
        regexStr = escapeRegex(selectedText).replace(/\d+/g, '\\d+');
     }
@@ -339,6 +368,7 @@ export const generateRegexFromSelection = async (req, res) => {
     // 5. Test it
     let extracted = "Not Found";
     try {
+      console.log(`[Backend] ⚙️ Generated Regex: ${regexStr}`);
       const isStrictCase = fieldName === 'fullName' || fieldName === 'consumerName';
       const testRegex = new RegExp(regexStr, isStrictCase ? '' : 'i');
       const match = rawText.match(testRegex);
