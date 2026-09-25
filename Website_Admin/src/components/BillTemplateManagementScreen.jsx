@@ -11,7 +11,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
 
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4005';
-const DEFAULT_RULE = { field: '', regex: '', type: 'string', required: false };
+const DEFAULT_RULE = { field: '', regex: '', type: 'string', required: false, heading: '', mainData: '', trailing: '' };
 
 export default function BillTemplateManagementScreen() {
 
@@ -57,6 +57,7 @@ export default function BillTemplateManagementScreen() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState(null);
   const [activeTab, setActiveTab] = useState("templates");
+  const [viewMode, setViewMode] = useState("visual");
 
   const [formData, setFormData] = useState({
     discomName: '',
@@ -313,17 +314,49 @@ export default function BillTemplateManagementScreen() {
         rawText: rawTextPreview,
         selectedText: selection,
         fieldName: fieldName,
-        selectionIndex: selectionIndex
+        selectionIndex: selectionIndex,
+        ruleType: formData.extractionRules[index].type
       });
       if (res.data.success) {
         const rules = [...formData.extractionRules];
         rules[index].regex = res.data.data.regex;
         rules[index].previewValue = res.data.data.previewValue;
+        rules[index].heading = res.data.heading || '';
+        rules[index].mainData = res.data.mainData || '';
+        rules[index].trailing = res.data.trailing || '';
+        if (res.data.warning) alert(res.data.warning);
         setFormData({ ...formData, extractionRules: rules });
       }
     } catch(e) {
       console.error(e);
-      alert("Failed to generate regex from selection.");
+      alert(e.response?.data?.message || "Failed to generate regex from selection.");
+    }
+  };
+
+  const handleRegenerate = async (index, fieldName) => {
+    const rule = formData.extractionRules[index];
+    try {
+      const res = await axios.post(`${API_URL}/api/v2/bill-templates/generate-from-selection`, {
+        rawText: rawTextPreview,
+        selectedText: rule.mainData,
+        fieldName: fieldName,
+        ruleType: rule.type,
+        override: {
+            heading: rule.heading,
+            mainData: rule.mainData,
+            trailing: rule.trailing
+        }
+      });
+      if (res.data.success) {
+        const rules = [...formData.extractionRules];
+        rules[index].regex = res.data.data.regex;
+        rules[index].previewValue = res.data.data.previewValue;
+        if (res.data.warning) alert(res.data.warning);
+        setFormData({ ...formData, extractionRules: rules });
+      }
+    } catch(e) {
+      console.error(e);
+      alert(e.response?.data?.message || "Failed to regenerate regex.");
     }
   };
 
@@ -546,16 +579,37 @@ export default function BillTemplateManagementScreen() {
                           </select>
                         </div>
                         <div className="col-span-2">
-                          <label className="block text-[10px] font-bold text-slate-500 mb-1">Regex Pattern</label>
-                          <input type="text" value={rule.regex} onChange={e => updateRule(idx, 'regex', e.target.value)} className="w-full p-1.5 text-xs font-mono border border-slate-300 rounded bg-white" placeholder="e.g. Total Amount\s*([0-9.]+)" />
-                          {rule.previewValue && (
-                            <div className="mt-1 text-xs truncate max-w-full">
-                              {rule.previewValue === 'Not Found' || rule.previewValue === 'Regex Error' || rule.previewValue.includes('Invalid') 
-                                ? <span className="text-red-500 font-bold">❌ {rule.previewValue}</span>
-                                : <span className="text-green-600 font-bold">✅ {rule.previewValue}</span>}
-                                {renderRegexContext(rule.regex)}
+                            <div className="flex flex-col gap-2">
+                              <div className="grid grid-cols-3 gap-2 relative z-10">
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 mb-1">🏷️ Heading</label>
+                                  <input type="text" value={rule.heading || ''} onChange={e => updateRule(idx, 'heading', e.target.value)} className="w-full p-1 text-xs font-mono border border-slate-300 rounded bg-white" placeholder="Auto-filled" />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 mb-1">🎯 Main Data</label>
+                                  <input type="text" value={rule.mainData || ''} readOnly className="w-full p-1 text-xs font-mono border border-slate-300 rounded bg-slate-100 text-slate-500 cursor-not-allowed" placeholder="Auto-filled" />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 mb-1">➡️ Trailing word</label>
+                                  <input type="text" value={rule.trailing || ''} onChange={e => updateRule(idx, 'trailing', e.target.value)} className="w-full p-1 text-xs font-mono border border-slate-300 rounded bg-white" placeholder="Auto-filled" />
+                                </div>
+                              </div>
+                              <div className="flex flex-col gap-2 mt-1">
+                                <div className="flex gap-2">
+                                    <button type="button" onClick={() => handleRegenerate(idx, rule.field)} className="w-full text-[10px] font-bold bg-indigo-100 text-indigo-700 px-2 py-1.5 rounded hover:bg-indigo-200" disabled={!rule.mainData}>
+                                    🔄 Regenerate Regex
+                                    </button>
+                                </div>
+                                {rule.previewValue && (
+                                  <div className="text-xs break-all bg-slate-100 p-1.5 rounded">
+                                    {rule.previewValue === 'Not Found' || rule.previewValue === 'Regex Error' || rule.previewValue.includes('Invalid') 
+                                      ? <span className="text-red-500 font-bold">❌ {rule.previewValue}</span>
+                                      : <span className="text-green-600 font-bold">✅ {rule.previewValue}</span>}
+                                    {rule.regex && !rule.heading && <span className="text-[9px] text-slate-400 ml-2 block mt-1">(Using Generic Pre-defined Regex)</span>}
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          )}
                         </div>
                         <div>
                           <label className="block text-[10px] font-bold text-slate-500 mb-1">Type</label>
@@ -582,11 +636,14 @@ export default function BillTemplateManagementScreen() {
             </div>
 
             <div className="space-y-3 flex flex-col h-full overflow-hidden border border-slate-200 rounded-xl bg-slate-50">
-               <div className="p-3 bg-slate-200 border-b border-slate-300 font-bold text-xs text-slate-700 flex justify-between">
-                  {pdfFile ? "Visual Bill Viewer" : "Raw Bill Text"}
+               <div className="p-3 bg-slate-200 border-b border-slate-300 font-bold text-xs text-slate-700 flex justify-between items-center">
+                  <div className="flex gap-2">
+                      <button type="button" onClick={() => setViewMode('visual')} className={`px-2 py-1 rounded ${viewMode === 'visual' ? 'bg-indigo-500 text-white' : 'bg-slate-300 text-slate-600'}`}>Visual Viewer</button>
+                      <button type="button" onClick={() => setViewMode('raw')} className={`px-2 py-1 rounded ${viewMode === 'raw' ? 'bg-indigo-500 text-white' : 'bg-slate-300 text-slate-600'}`}>Raw Text</button>
+                  </div>
                   <span className="text-[10px] font-normal text-indigo-700">1. Highlight text here -&gt; 2. Click Auto on a field</span>
                </div>
-               {pdfFile ? (
+               {pdfFile && viewMode === 'visual' ? (
                  <div className="flex-1 overflow-auto bg-slate-200 relative flex justify-center py-4">
                    <div style={{ maxWidth: '100%', overflowX: 'auto' }}>
                      <Document 

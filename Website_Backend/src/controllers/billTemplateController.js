@@ -131,7 +131,28 @@ export const autoGenerateAliases = async (req, res) => {
     };
 
     const validatedTemplate = injectPreview(templateFields);
-    return res.status(200).json({ success: true, data: validatedTemplate, rawText: extractedRawText });
+    
+    let suggestedAnchor = '';
+    if (extractedRawText) {
+        const topText = extractedRawText.substring(0, 300);
+        const anchors = [];
+        
+        // Try to find acronyms like PGVCL, PSPCL
+        const acronymMatch = topText.match(/\b([A-Z]{4,6})\b/);
+        if (acronymMatch && !['DATE', 'BILL', 'TAX', 'GST', 'INVOICE'].includes(acronymMatch[1])) {
+            anchors.push(acronymMatch[1]);
+        }
+        
+        // Try to find company names
+        const companyMatch = topText.match(/([A-Z][A-Za-z\s]{5,40}(?:Limited|Ltd|Company|Power|Energy|Board|Corporation|Vidyut|Vitran))\b/i);
+        if (companyMatch) {
+            anchors.push(companyMatch[1].trim());
+        }
+        
+        suggestedAnchor = anchors.join(', ');
+    }
+
+    return res.status(200).json({ success: true, data: validatedTemplate, rawText: extractedRawText, suggestedAnchor });
   } catch (error) {
     console.error('Error auto-generating aliases without Gemini:', error);
     return res.status(500).json({ success: false, message: error.message || 'Failed to parse file' });
@@ -166,188 +187,157 @@ export const getStaleTemplates = async (req, res) => {
 // 5. Generate Regex from Highlighted Text (100% Offline, Smart Anchor Logic)
 export const generateRegexFromSelection = async (req, res) => {
   try {
-    const { rawText, selectedText, fieldName } = req.body;
-    if (!rawText || !selectedText) {
+    const { rawText, selectedText, fieldName, override, ruleType } = req.body;
+    if (!rawText || (!selectedText && !override?.mainData)) {
       return res.status(400).json({ success: false, message: 'Missing rawText or selectedText' });
     }
 
+
     let index = -1;
+    let mainData = override?.mainData ?? selectedText;
     const { selectionIndex } = req.body;
-    console.log(`[Backend] 📍 Received selectionIndex: ${selectionIndex}`);
+    
     if (selectionIndex !== undefined && selectionIndex >= 0) {
-        const searchWindowStart = Math.max(0, selectionIndex - 500);
-        const searchWindowEnd = Math.min(rawText.length, selectionIndex + selectedText.length + 500);
-        const windowText = rawText.substring(searchWindowStart, searchWindowEnd);
-        const windowMatchIndex = windowText.indexOf(selectedText);
-        if (windowMatchIndex !== -1) {
-            index = searchWindowStart + windowMatchIndex;
-        } else {
-            index = rawText.indexOf(selectedText);
-        }
+        index = selectionIndex;
     } else {
-        index = rawText.indexOf(selectedText);
-    }
-    console.log(`[Backend] 🎯 Final index used: ${index}`);
-    if (index === -1) {
-      return res.status(400).json({ success: false, message: 'Selected text not found in the bill.' });
+        index = rawText.indexOf(mainData);
     }
 
+    // Flexible space matching if exact index not found
+    if (index === -1 && mainData) {
+        const flexibleSelectedText = mainData.trim().split(/[\s\n\r]+/).map(w => w.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')).join('[\\s\\n\\r]+');
+        const match = rawText.match(new RegExp(flexibleSelectedText, 'i'));
+        if (match) {
+            index = match.index;
+            mainData = match[0]; // Update mainData to the actual text in rawText to preserve original spacing
+        }
+    }
+
+    if (index === -1 && !override) {
+      return res.status(400).json({ success: false, message: 'Selected text not found in raw bill text.' });
+    }
+
+
+    // Helper: Escape Regex but keep spaces simple
     const escapeRegex = (str) => {
-       let escaped = "";
-       for (let i = 0; i < str.length; i++) {
-          if ("-\\/^$*+?.()|[]{}".includes(str[i])) {
-             escaped += "\\" + str[i];
-          } else {
-             escaped += str[i];
-          }
-       }
-       return escaped;
+        let o = '';
+        for (const c of str) {
+            o += '.*+?^$\{}()|[]\\'.includes(c) ? '\\' + c : c;
+        }
+        return o;
     };
 
-    // Smart anchor logic to skip data-like words (numbers, dates, months)
+    const flexible = (str) => escapeRegex(str.trim()).replace(/\s+/g, '[\\s\\n]+');
+
+    // Helper: Looks like data
     const looksLikeData = (word) => {
-        if (word.includes('\uFFFD')) return true; // Skip corrupted PDF characters
-        return /^\$?([0-9,]+(\.[0-9]+)?|[0-9]{1,4}[-\/][0-9]{1,2}[-\/][0-9]{1,4})$/.test(word) ||
-               /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.test(word) ||
-               /^[0-9]+$/.test(word) ||
-               /^[^a-zA-Z0-9]+$/.test(word); // Skip anything that is pure symbols/punctuation
+        if (/^[0-9.,\-$]+$/.test(word)) return true;
+        if (/^[0-9]{2}[\/\-][0-9]{2}[\/\-][0-9]{2,4}$/.test(word)) return true;
+        if (/^[0-9]{1,2}[a-zA-Z]{3}[0-9]{2,4}$/.test(word)) return true;
+        return false;
     };
 
-    // Helper to transform gap text into a safe regex gap
-    const buildGapRegex = (gapText) => {
-        if (!gapText || gapText.trim() === '') return "[\\s\\n:$,\\-]{0,50}?";
+    // Find Stable Anchor Helper
+    const findStableAnchor = (textStr, direction) => {
+        const wordsRaw = textStr.split(/[\s\n\r]+/).filter(w => w.length > 0);
+        let candidateWords = direction === 'before' ? wordsRaw.reverse() : wordsRaw;
         
-        let gapRegex = "";
-        // Split by whitespace but keep the whitespace tokens
-        const tokens = gapText.split(/([\s\n\r]+)/);
-        for (const token of tokens) {
-            if (/^[\s\n\r]+$/.test(token)) {
-                gapRegex += "[\\s\\n]+";
-            } else if (looksLikeData(token)) {
-                // If it's a number/data, replace with a generic data matcher
-                if (/^[0-9.,]+$/.test(token) || /^\$?[0-9.,]+$/.test(token)) {
-                    gapRegex += "\\$?[0-9.,]+";
-                } else if (/[a-zA-Z]/.test(token) && /[0-9]/.test(token)) {
-                    gapRegex += "[A-Za-z0-9\\/-]+";
-                } else {
-                    gapRegex += "[\\s\\S]{1," + (token.length + 5) + "}?";
-                }
+        const stableWords = [];
+        for (let i = 0; i < candidateWords.length; i++) {
+            const w = candidateWords[i];
+            if (looksLikeData(w)) {
+                if (stableWords.length > 0) break;
+                continue;
+            }
+            stableWords.push(w);
+            if (stableWords.length >= 3) break;
+        }
+        
+        if (direction === 'before') stableWords.reverse();
+        return stableWords.join(' ');
+    };
+
+    // CORE LOGIC
+    let heading, trailing;
+
+    if (override?.heading !== undefined) {
+        heading = override.heading;
+    } else {
+        const precedingText = rawText.substring(Math.max(0, index - 150), index);
+        heading = findStableAnchor(precedingText, 'before');
+    }
+
+    if (override?.trailing !== undefined) {
+        trailing = override.trailing;
+    } else {
+        const afterText = rawText.substring(index + mainData.length, index + mainData.length + 80);
+        trailing = findStableAnchor(afterText, 'after');
+    }
+
+    // Type-specific capture group
+    const captureGroups = {
+        monthlyBill:   '([0-9,]+(?:\\.[0-9]+)?)',
+        quarterlyKwh:  '([0-9,]+(?:\\.[0-9]+)?)',
+        dueDate:       '([0-9]{1,2}\\s+[A-Za-z]{3,9}\\s+[0-9]{2,4}|[0-9]{1,2}[-/][0-9]{1,2}[-/][0-9]{2,4})',
+        billIssuedDate:'([0-9]{1,2}\\s+[A-Za-z]{3,9}\\s+[0-9]{2,4}|[0-9]{1,2}[-/][0-9]{1,2}[-/][0-9]{2,4})',
+        default:       '([^\\n\\r]{2,80}?)'
+    };
+    
+    // Map to fieldName provided from frontend
+    const mappedType = ['monthlyBill', 'quarterlyKwh', 'dueDate', 'billIssuedDate'].includes(fieldName) ? fieldName : 'default';
+    let captureGroup = captureGroups[mappedType];
+    
+    if (fieldName === 'consumerNumber' || fieldName === 'consumerBillNumber') {
+      captureGroup = '([A-Za-z0-9\\- ]{3,25})';
+    } else if (fieldName === 'fullName' || fieldName === 'consumerName') {
+      captureGroup = "([A-Za-z\\s\\.\\'-]{2,50})";
+    } else if (fieldName === 'state') {
+      captureGroup = '([A-Za-z]{2,5})';
+    }
+    if (ruleType === 'split-currency') {
+      captureGroup = '([0-9,]+)\\s+([0-9]{1,2})\\b';
+    }
+
+    // Build the Regex Parts
+    let parts = [];
+    if (heading && heading.trim())  {
+        parts.push(`(?:(?:${flexible(heading)})[\\s\\S]{0,150}?)`);
+    }
+    parts.push(captureGroup);
+    if (trailing && trailing.trim()) {
+        // STRICT LOOKAHEAD: Allows up to 20 non-alphanumeric chars between the value and the trailing word.
+        // This acts as a powerful 2D column matcher by forcing the value to be immediately adjacent to the trailing word!
+        parts.push(`(?=[^A-Za-z0-9]{0,20}?${flexible(trailing)})`);
+    }
+
+    let finalRegex = parts.join('');
+    if (!heading?.trim() && !trailing?.trim()) {
+        finalRegex = escapeRegex(mainData).replace(/\d+/g, '\\d+');
+    }
+
+    let previewValue = 'Not Found';
+    try {
+        const isStrictCase = fieldName === 'fullName' || fieldName === 'consumerName';
+        const match = rawText.match(new RegExp(finalRegex, isStrictCase ? '' : 'i'));
+
+
+        if (match) {
+            if (ruleType === 'split-currency' && match[1] && match[2]) {
+                previewValue = parseFloat(match[1].replace(/,/g, '') + '.' + match[2]).toString();
             } else {
-                // If it's a symbol or something else
-                gapRegex += escapeRegex(token);
+                previewValue = match[1] ? match[1].trim() : match[0].trim();
             }
         }
-        return gapRegex;
-    };
-
-    // 1. Get BEFORE Context (Up to 150 chars)
-    const precedingText = rawText.substring(Math.max(0, index - 150), index);
-    const beforeWordsRaw = precedingText.split(/[\s\n\r]+/).filter(w => w.length > 0);
-    const candidateBefore = beforeWordsRaw.reverse(); 
-    
-    const stableBeforeWords = [];
-    let skippedDataBefore = false;
-    let anchorBeforeEndIndexRaw = -1;
-
-    for (let i = 0; i < candidateBefore.length; i++) {
-        const w = candidateBefore[i];
-        if (looksLikeData(w)) {
-            if (stableBeforeWords.length > 0) break;
-            skippedDataBefore = true;
-            continue;
-        }
-        stableBeforeWords.push(w);
-        if (stableBeforeWords.length === 1) {
-             // Record where the stable anchor ended in the original text (working backwards)
-             // We need to find this word's position in precedingText
-             anchorBeforeEndIndexRaw = precedingText.lastIndexOf(w) + w.length;
-        }
-        if (stableBeforeWords.length >= 3) break;
-    }
-    stableBeforeWords.reverse();
-    const anchorBefore = stableBeforeWords.map(escapeRegex).join('[\\s\\n]+');
-    
-    let gapBeforeRegex = "[\\s\\n:$,\\-]{0,50}?";
-    if (skippedDataBefore && anchorBeforeEndIndexRaw !== -1) {
-         const gapText = precedingText.substring(anchorBeforeEndIndexRaw);
-         gapBeforeRegex = buildGapRegex(gapText);
-    }
-
-    // 2. Get AFTER Context (Up to 80 chars)
-    const afterText = rawText.substring(index + selectedText.length, index + selectedText.length + 80);
-    const afterWordsRaw = afterText.split(/[\s\n\r]+/).filter(w => w.length > 0);
-    
-    const stableAfterWords = [];
-    let skippedDataAfter = false;
-    let anchorAfterStartIndexRaw = -1;
-
-    for (let i = 0; i < afterWordsRaw.length; i++) {
-        const w = afterWordsRaw[i];
-        if (looksLikeData(w)) {
-            if (stableAfterWords.length > 0) break;
-            skippedDataAfter = true;
-            continue;
-        }
-        if (stableAfterWords.length === 0) {
-            anchorAfterStartIndexRaw = afterText.indexOf(w);
-        }
-        stableAfterWords.push(w);
-        if (stableAfterWords.length >= 3) break;
-    }
-    const anchorAfter = stableAfterWords.map(escapeRegex).join('[\\s\\n]+');
-    
-    // We already use [\s\S]{0,150}? for the after gap in step 4, which naturally skips data.
-    // So we don't strictly need a strict gapAfterRegex, but we leave the logic available.
-
-    // 3. Define the Capture Group Type
-    let captureGroup = "([^\\n\\r]{2,80}?)"; // Generic string (fallback)
-    if (fieldName === 'monthlyBill' || fieldName === 'dueAmount' || fieldName === 'quarterlyKwh') {
-      captureGroup = "([0-9,]+(?:\\.[0-9]+)?)";
-    } else if (fieldName === 'dueDate' || fieldName === 'billIssuedDate') {
-      if (selectedText.match(/[a-zA-Z]/)) {
-        captureGroup = "([0-9]{1,2}\\s+[A-Za-z]{3,9}\\s+[0-9]{2,4})";
-      } else {
-        captureGroup = "([0-9\\/-]{8,10})";
-      }
-    } else if (fieldName === 'consumerNumber' || fieldName === 'consumerBillNumber') {
-      captureGroup = "([A-Za-z0-9\\- ]{3,25})"; // Greedy alphanumeric
-    } else if (fieldName === 'fullName' || fieldName === 'consumerName') {
-      captureGroup = "([A-Za-z\\s\\.\\'-]{2,50})"; // Greedy name characters only
-    } else if (fieldName === 'state') {
-      captureGroup = "([A-Za-z]{2,5})"; // e.g. NSW, WA, VIC
-    }
-
-    // 4. Build the Regex with Before and After constraints
-        console.log(`[Backend] 🛑 Anchor Before Chosen: "${anchorBefore}"`);
-    console.log(`[Backend] 🛑 Anchor After Chosen: "${anchorAfter}"`);
-    let regexStr = "";
-    if (anchorBefore && anchorAfter) {
-      regexStr = "(?:" + anchorBefore + ")" + gapBeforeRegex + captureGroup + "(?=[\\s\\S]{0,150}?" + anchorAfter + ")";
-    } else if (anchorBefore) {
-      regexStr = "(?:" + anchorBefore + ")" + gapBeforeRegex + captureGroup;
-    } else {
-       regexStr = escapeRegex(selectedText).replace(/\d+/g, '\\d+');
-    }
-
-    // 5. Test it
-    let extracted = "Not Found";
-    try {
-      console.log(`[Backend] ⚙️ Generated Regex: ${regexStr}`);
-      const isStrictCase = fieldName === 'fullName' || fieldName === 'consumerName';
-      const testRegex = new RegExp(regexStr, isStrictCase ? '' : 'i');
-      const match = rawText.match(testRegex);
-      if (match) {
-         if (match[1] !== undefined) {
-             extracted = match[1].trim();
-         } else {
-             extracted = match[0].trim();
-         }
-      }
     } catch (e) {
-      extracted = "Invalid Regex Generated";
+        return res.status(400).json({ success: false, message: 'Regex build error: ' + e.message });
     }
 
-    res.status(200).json({ success: true, data: { regex: regexStr, previewValue: extracted } });
+    const warning = (!heading?.trim() && !trailing?.trim())
+        ? 'Koi heading/trailing nahi mila — ye field galat data bhi pakad sakti hai kisi doosre bill pe.'
+        : null;
+
+    res.json({ success: true, data: { regex: finalRegex, previewValue }, heading, mainData, trailing, warning });
+
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

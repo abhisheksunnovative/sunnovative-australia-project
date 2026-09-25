@@ -10,8 +10,12 @@ const billTemplateSchema = new mongoose.Schema({
     field: { type: String, required: true },
     regex: { type: String, required: true },
     flags: { type: String, default: 'i' },
-    type: { type: String, enum: ['string', 'number', 'date', 'boolean'], default: 'string' },
-    required: { type: Boolean, default: false }
+    type: { type: String, enum: ['string', 'number', 'date', 'boolean', 'split-currency'], default: 'string' },
+    required: { type: Boolean, default: false },
+    heading: { type: String, default: '' },
+    mainData: { type: String, default: '' },
+    trailing: { type: String, default: '' },
+    previewValue: { type: String, default: '' }
   }]
 }, { timestamps: true });
 

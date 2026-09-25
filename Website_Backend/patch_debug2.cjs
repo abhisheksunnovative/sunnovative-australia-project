@@ -2,7 +2,12 @@ const fs = require('fs');
 const file = 'd:/sunnovative-australia-website/Website_Backend/src/controllers/billTemplateController.js';
 let code = fs.readFileSync(file, 'utf8');
 
-const target = `    let previewValue = 'Not Found';
+const targetStr = `    let previewValue = 'Not Found';
+    try {
+        const isStrictCase = fieldName === 'fullName' || fieldName === 'consumerName';
+        const match = rawText.match(new RegExp(finalRegex, isStrictCase ? '' : 'i'));`;
+
+const replacement = `    let previewValue = 'Not Found';
     try {
         const isStrictCase = fieldName === 'fullName' || fieldName === 'consumerName';
         const match = rawText.match(new RegExp(finalRegex, isStrictCase ? '' : 'i'));
@@ -14,15 +19,8 @@ const target = `    let previewValue = 'Not Found';
                 override: override,
                 match: match ? match.slice(0, 3) : null
             }, null, 2));
-        }
-        if (match) {`;
+        }`;
 
-const repl = `    let previewValue = 'Not Found';
-    try {
-        const isStrictCase = fieldName === 'fullName' || fieldName === 'consumerName';
-        const match = rawText.match(new RegExp(finalRegex, isStrictCase ? '' : 'i'));
-        if (match) {`;
-
-code = code.replace(target, repl);
+code = code.replace(targetStr, replacement);
 fs.writeFileSync(file, code);
-console.log("Fixed!");
+console.log("Patched debug dump");

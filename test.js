@@ -1,0 +1,1 @@
+const text = 'Litigation\n0.0  1.00   1340   10   Fuse Misc Chg   0   0'; const r = /(?:Litigation)[\s\S]{0,150}?([0-9,]+(?:\.[0-9]+)?)(?=[^A-Za-z0-9]{0,20}?10[\s\n]+Fuse)/i; console.log(text.match(r));
