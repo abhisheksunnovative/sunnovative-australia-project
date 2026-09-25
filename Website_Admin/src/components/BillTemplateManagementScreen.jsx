@@ -3,6 +3,11 @@ import { FileText, Plus, Edit2, Trash2, Check, X, Globe, ArrowLeft, Building2, M
 import axios from 'axios';
 import { fetchWithCache } from '../utils/fetchWithCache';
 import NeedsTemplateReviewQueue from './NeedsTemplateReviewQueue';
+import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/Page/TextLayer.css';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4005';
@@ -76,6 +81,7 @@ export default function BillTemplateManagementScreen() {
       sourceScanAnalyticsId: analyticsItem._id
     });
     setRawTextPreview(analyticsItem.rawText || '');
+    setPdfFile(null);
     setIsModalOpen(true);
   };
 
@@ -222,10 +228,14 @@ export default function BillTemplateManagementScreen() {
   
   const [isScanning, setIsScanning] = useState(false);
   const [rawTextPreview, setRawTextPreview] = useState('');
+  const [pdfFile, setPdfFile] = useState(null);
+  const [numPages, setNumPages] = useState(null);
 
   const handleScanSampleBill = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
+    setPdfFile(file);
 
     setIsScanning(true);
     const fd = new FormData();
@@ -257,7 +267,9 @@ export default function BillTemplateManagementScreen() {
   
   const handleHighlightGenerate = async (index, fieldName) => {
     const sel = window.getSelection();
-    const selection = sel.toString();
+    let selection = sel.toString();
+    // Clean up invisible characters that PDF.js text layer often injects
+    selection = selection.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
     if (!selection || !selection.trim()) return alert("Please highlight a value in the Raw Bill Text pane first!");
     if (!fieldName) return alert("Please select a Field Name from the dropdown first!");
     if (!rawTextPreview) return alert("Raw text is empty!");
@@ -571,12 +583,44 @@ export default function BillTemplateManagementScreen() {
 
             <div className="space-y-3 flex flex-col h-full overflow-hidden border border-slate-200 rounded-xl bg-slate-50">
                <div className="p-3 bg-slate-200 border-b border-slate-300 font-bold text-xs text-slate-700 flex justify-between">
-                  Raw Bill Text
-                  <span className="text-[10px] font-normal text-indigo-700">1. Highlight text here ➔ 2. Click 🖊️ on a field</span>
+                  {pdfFile ? "Visual Bill Viewer" : "Raw Bill Text"}
+                  <span className="text-[10px] font-normal text-indigo-700">1. Highlight text here -&gt; 2. Click Auto on a field</span>
                </div>
-               <pre className="p-3 text-[10px] font-mono whitespace-pre-wrap flex-1 overflow-y-auto text-slate-600">
-                  {rawTextPreview || "Upload a sample bill to see raw text here..."}
-               </pre>
+               {pdfFile ? (
+                 <div className="flex-1 overflow-auto bg-slate-200 relative flex justify-center py-4">
+                   <div style={{ maxWidth: '100%', overflowX: 'auto' }}>
+                     <Document 
+                       file={pdfFile} 
+                       onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+                       loading={<div className="text-sm text-slate-500 p-4">Loading visual PDF viewer...</div>}
+                       error={<div className="text-sm text-red-500 p-4">Failed to load PDF visual layer.</div>}
+                     >
+                     {numPages ? Array.from(new Array(numPages), (el, index) => (
+                       <Page 
+                         key={`page_${index + 1}`}
+                         pageNumber={index + 1} 
+                         renderTextLayer={true} 
+                         renderAnnotationLayer={false} 
+                         scale={1.2} 
+                         className="shadow-lg bg-white mb-4"
+                       />
+                     )) : (
+                       <Page 
+                         pageNumber={1} 
+                         renderTextLayer={true} 
+                         renderAnnotationLayer={false} 
+                         scale={1.2} 
+                         className="shadow-lg bg-white mb-4"
+                       />
+                     )}
+                   </Document>
+                   </div>
+                 </div>
+               ) : (
+                 <pre className="p-3 text-[10px] font-mono whitespace-pre-wrap flex-1 overflow-y-auto text-slate-600">
+                    {rawTextPreview || "Upload a sample bill to see raw text here..."}
+                 </pre>
+               )}
             </div>
           </div>
 

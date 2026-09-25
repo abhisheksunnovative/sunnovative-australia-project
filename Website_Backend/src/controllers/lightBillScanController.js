@@ -82,6 +82,20 @@ export const scanLightBill = async (req, res) => {
         // Fallback removed as per user request (no guess-multiply for low kWh)
         let finalKwh = merged.quarterlyKwh;
 
+        // Calculate Initial Confidence Score BEFORE Gemini
+        const totalFields = isAU ? 7 : 8;
+        let filledFields = 0;
+        if (merged.monthlyBill) filledFields++;
+        if (merged.retailer) filledFields++;
+        if (merged.fullName) filledFields++;
+        if (merged.consumerNumber) filledFields++;
+        if (merged.dueDate) filledFields++;
+        if (finalKwh || merged.monthlyUnits) filledFields++;
+        if (merged.state) filledFields++;
+        if (!isAU && (merged.meterTypeInfo || merged.tariffCategory)) filledFields++;
+        
+        let initialConfidence = Math.round((filledFields / totalFields) * 100);
+
         // Recommendation Safety Gate - Critical Fields Check
         let criticalFieldsConfirmed = !!(
             merged.monthlyBill && 
@@ -95,81 +109,81 @@ export const scanLightBill = async (req, res) => {
         let needsTemplate = false;
 
         // Bill Recency Check
-          console.log('[DEBUG] Raw billIssueDate from template:', ed.billIssueDate || ed.billIssuedDate);
-          console.log('[DEBUG] Raw billDate from base parser:', baseParsed.billDate);
-          console.log('[DEBUG] merged.billIssueDate:', merged.billIssueDate);
-
-          const effectiveDate = merged.billIssueDate || merged.billingPeriodTo;
+        const effectiveDate = merged.billIssueDate || merged.billingPeriodTo;
         console.log(`[SafetyGate] Checking Recency. Effective Date found: ${effectiveDate || 'NONE'}`);
         if (!effectiveDate) {
             criticalFieldsConfirmed = false;
             fallbackReason = 'Bill date not found — cannot verify recency';
-            console.log('[SafetyGate] ❌ FAILED: Bill date missing completely.');
         } else if (isBillTooOld(effectiveDate, countryContext)) {
             criticalFieldsConfirmed = false;
             fallbackReason = 'Bill is older than allowed limit — ask customer for a recent bill';
-            console.log(`[SafetyGate] ❌ FAILED: Bill issued on ${effectiveDate} is too old for ${countryContext} rules!`);
-        } else {
-            console.log(`[SafetyGate] ✅ PASSED: Bill date ${effectiveDate} is within valid recency limits.`);
         }
 
-        if (!criticalFieldsConfirmed) {
+        // --- UNIFIED ZERO-COST TEMPLATE ENGINE LOGIC (India & AU) ---
+        if (!criticalFieldsConfirmed || initialConfidence < 70) {
+            needsTemplate = true; 
+            
             if (isAU) {
-                // AU/NZ Handle: Parser bugs on Digital PDFs
+                // Australia: NO GEMINI. Wait for Admin Template.
                 engineUsed = 'in-house-failed';
-                fallbackReason = 'Critical fields missing on AU bill (Likely Parser Bug)';
-                needsTemplate = true; // Mark for Admin Review Queue
-                console.warn("[BillScan] AU Bill failed critical check. Flagged for template review.");
+                fallbackReason = fallbackReason || 'Critical fields missing or low confidence on AU bill (Likely Parser Bug)';
+                console.warn("[BillScan] AU Bill failed check. Flagged for Template Builder.");
             } else {
-                // Hybrid Gemini Fallback for India/Other (Blurry photos)
-                console.log("[BillScan] Critical fields missing. Triggering Gemini Fallback...");
-                fallbackReason = 'Critical fields missing (Likely Blurry Image)';
-                
-                const geminiData = await runGeminiFallback(fileBuffer, mimeType, countryContext);
-                if (geminiData) {
-                    engineUsed = 'gemini-fallback';
-                    geminiCost = 0.0025; // Estimated vision cost
-                    needsTemplate = true; // Flag for self-learning Admin loop
+                // India: Use Gemini ONLY IF initialConfidence < 70
+                if (initialConfidence < 70) {
+                    console.log(`[BillScan] India Bill confidence ${initialConfidence}% < 70%. Triggering Gemini Fallback...`);
+                    fallbackReason = fallbackReason || 'Confidence < 70% (Likely Blurry Image or Unknown Layout)';
                     
-                    // Merge Gemini data into our unified object
-                    if (geminiData.monthlyBill) merged.monthlyBill = geminiData.monthlyBill;
-                    if (geminiData.retailer) merged.retailer = geminiData.retailer;
-                    if (geminiData.fullName) merged.fullName = geminiData.fullName;
-                    if (geminiData.consumerNumber) merged.consumerNumber = geminiData.consumerNumber;
-                    if (geminiData.dueDate) merged.dueDate = geminiData.dueDate;
-                    if (geminiData.tariffCategory) merged.tariffCategory = geminiData.tariffCategory;
-                    if (geminiData.state) merged.state = geminiData.state;
-                    if (geminiData.quarterlyKwh) finalKwh = geminiData.quarterlyKwh;
-                    if (geminiData.monthlyUnits) merged.monthlyUnits = geminiData.monthlyUnits;
+                    const geminiData = await runGeminiFallback(fileBuffer, mimeType, countryContext);
+                    if (geminiData) {
+                        engineUsed = 'gemini-fallback';
+                        geminiCost = 0.0025;
+                        
+                        if (geminiData.monthlyBill) merged.monthlyBill = geminiData.monthlyBill;
+                        if (geminiData.retailer) merged.retailer = geminiData.retailer;
+                        if (geminiData.fullName) merged.fullName = geminiData.fullName;
+                        if (geminiData.consumerNumber) merged.consumerNumber = geminiData.consumerNumber;
+                        if (geminiData.dueDate) merged.dueDate = geminiData.dueDate;
+                        if (geminiData.tariffCategory) merged.tariffCategory = geminiData.tariffCategory;
+                        if (geminiData.state) merged.state = geminiData.state;
+                        if (geminiData.quarterlyKwh) finalKwh = geminiData.quarterlyKwh;
+                        if (geminiData.monthlyUnits) merged.monthlyUnits = geminiData.monthlyUnits;
 
-                    // Re-evaluate Safety Gate
-                    criticalFieldsConfirmed = !!(
-                        merged.monthlyBill && 
-                        (finalKwh || merged.monthlyUnits) && 
-                        (isAU || (merged.meterTypeInfo || merged.tariffCategory))
-                    );
+                        criticalFieldsConfirmed = !!(
+                            merged.monthlyBill && 
+                            (finalKwh || merged.monthlyUnits) && 
+                            (merged.meterTypeInfo || merged.tariffCategory)
+                        );
+                    } else {
+                        engineUsed = 'in-house-failed';
+                        fallbackReason = fallbackReason || 'Gemini Fallback failed or unavailable';
+                    }
                 } else {
                     engineUsed = 'in-house-failed';
-                    fallbackReason = 'Gemini Fallback also failed or unavailable';
+                    fallbackReason = fallbackReason || 'Critical fields missing (Parser Failed)';
+                    console.warn("[BillScan] IN Bill failed critical check but had >=70% confidence. No Gemini. Flagged for Template Builder.");
                 }
             }
         }
 
-        // ScanAnalytics Logging (As requested by Senior/Boss)
+        // ScanAnalytics Logging
         try {
             await ScanAnalytics.create({
-                engineUsed: engineUsed,
-                geminiEstimatedCost: geminiCost,
-                fallbackReason: fallbackReason,
                 country: countryContext,
-                needsTemplateCreation: needsTemplate,
+                engineUsed,
+                geminiCost,
+                needsTemplateCreation: needsTemplate, 
                 rawText: rawText,
-                geminiResult: engineUsed === 'gemini-fallback' ? merged : null
+                confidenceScore: initialConfidence,
+                fallbackReason: fallbackReason,
+                extractedData: {
+                    ...merged,
+                    quarterlyKwh: finalKwh
+                }
             });
-        } catch (analyticsErr) {
-            console.error("[BillScan] Failed to log ScanAnalytics:", analyticsErr);
+        } catch (err) {
+            console.error(`[BillScan] Failed to log analytics:`, err);
         }
-        // --- ADMIN VALIDATION FOR SAFETY GATE ---
         const matchMeterCategory = (ocrCategory, adminCategories) => {
             if (!ocrCategory || ocrCategory === 'Unknown') return null;
             const ocrLower = ocrCategory.toLowerCase();
@@ -207,19 +221,18 @@ export const scanLightBill = async (req, res) => {
         }
         // ----------------------------------------
 
-        // Combined Confidence Scoring (Context Aware)
-        const totalFields = isAU ? 7 : 8; // AU bills don't explicitly list meterCategory (Residential/Commercial)
-        let filledFields = 0;
-        if (merged.monthlyBill) filledFields++;
-        if (merged.retailer) filledFields++;
-        if (merged.fullName) filledFields++;
-        if (merged.consumerNumber) filledFields++;
-        if (merged.dueDate) filledFields++;
-        if (finalKwh || merged.monthlyUnits) filledFields++;
-        if (merged.state) filledFields++;
-        if (!isAU && (merged.meterTypeInfo || merged.tariffCategory)) filledFields++; // Only score category for India
+        // Final Combined Confidence Scoring (After potential Gemini merge)
+        let finalFilledFields = 0;
+        if (merged.monthlyBill) finalFilledFields++;
+        if (merged.retailer) finalFilledFields++;
+        if (merged.fullName) finalFilledFields++;
+        if (merged.consumerNumber) finalFilledFields++;
+        if (merged.dueDate) finalFilledFields++;
+        if (finalKwh || merged.monthlyUnits) finalFilledFields++;
+        if (merged.state) finalFilledFields++;
+        if (!isAU && (merged.meterTypeInfo || merged.tariffCategory)) finalFilledFields++;
 
-        let confidenceScore = Math.round((filledFields / totalFields) * 100);
+        let confidenceScore = Math.round((finalFilledFields / totalFields) * 100);
         let status = criticalFieldsConfirmed ? (confidenceScore >= 80 ? 'success' : 'needs-review') : 'needs-review';
         if (confidenceScore < 50) status = 'manual-review';
 

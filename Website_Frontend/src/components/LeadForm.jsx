@@ -337,13 +337,23 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
         headers: { "x-country": getCountryCode() }
       });
 
+
       setScanConfidence(data.confidence || data.confidenceScore);
       const ex = data.extracted || data.extractedData || {};
+
+      const formatToYYYYMMDD = (dateStr) => {
+          if (!dateStr) return "";
+          const d = new Date(dateStr);
+          if (isNaN(d.getTime())) return dateStr;
+          const pad = (n) => n.toString().padStart(2, '0');
+          return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+      };
+
 
       // ── Common fields ─────────────────────────────────────────────────────
       if (ex.fullName || ex.consumerName || ex.customerName) setFullName(ex.fullName || ex.consumerName || ex.customerName);
       if (ex.consumerNumber) setConsumerNumber(ex.consumerNumber);
-        if (ex.dueDate) setDueDate(ex.dueDate);
+        if (ex.dueDate) setDueDate(formatToYYYYMMDD(ex.dueDate));
         if (ex.tariffType) setTariffCategory(ex.tariffType);
         if (ex.customerType) setCustomerType(ex.customerType);
         if (ex.meterType) setMeterTypeInfo(ex.meterType);
@@ -352,7 +362,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
         if (ex.state) setCustomerState(ex.state);
         if (ex.postcode) setPostcode(ex.postcode);
 
-        if (ex.dueDate) setDueDate(ex.dueDate);
+        if (ex.dueDate) setDueDate(formatToYYYYMMDD(ex.dueDate));
         if (ex.tariffType) setTariffCategory(ex.tariffType);
         if (ex.customerType) setCustomerType(ex.customerType);
         if (ex.meterType) setMeterTypeInfo(ex.meterType);
@@ -372,7 +382,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
       }
 
       // ── AUSTRALIA: populate AU-specific fields ────────────────────────────
-      if (data.country === "australia") {
+      if (getCountryCode() === "australia" || (getCountryCode() === "australia" || data.country === "australia")) {
         if (ex.suburb)        setCity(ex.suburb);
         if (ex.postcode)      setPostcode(ex.postcode);
         if (ex.retailer)      setScannedRetailer(ex.retailer);
@@ -386,7 +396,8 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
         } else if (ex.monthlyBillEquivalent) {
           setMonthlyBill(ex.monthlyBillEquivalent);
         }
-        if (ex.quarterlyKwh) setScannedQuarterlyKwh(ex.quarterlyKwh);
+                if (ex.quarterlyKwh) setScannedQuarterlyKwh(ex.quarterlyKwh);
+        if (ex.billIssueDate) setManualBillDate(formatToYYYYMMDD(ex.billIssueDate));
         if (ex.billingPeriodFrom && ex.billingPeriodTo) {
           setScannedBillingPeriod(`${ex.billingPeriodFrom} → ${ex.billingPeriodTo}`);
         }
@@ -419,7 +430,7 @@ export default function LeadForm({ initialMode = "calculator", selectedProjectTy
 
         
         let finalStateToPass = customerState;
-        if (data.country === "australia" && ex.state) {
+        if ((getCountryCode() === "australia" || data.country === "australia") && ex.state) {
             const auStates = countryStatesMap["AU"] || [];
             const matchedState = auStates.find(s => s.toLowerCase() === ex.state.toLowerCase());
             if (matchedState) finalStateToPass = matchedState;
