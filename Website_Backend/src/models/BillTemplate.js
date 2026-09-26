@@ -15,7 +15,8 @@ const billTemplateSchema = new mongoose.Schema({
     heading: { type: String, default: '' },
     mainData: { type: String, default: '' },
     trailing: { type: String, default: '' },
-    previewValue: { type: String, default: '' }
+    previewValue: { type: String, default: '' },
+    matchStrategy: { type: String, enum: ['inline', 'column-below'], default: 'inline' }
   }]
 }, { timestamps: true });
 

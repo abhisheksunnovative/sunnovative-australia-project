@@ -40,7 +40,7 @@ export const scanLightBill = async (req, res) => {
         const countryContext = isAU ? 'australia' : 'india';
 
         console.log(`[BillScan] Step 1: Extracting Raw Text (Context: ${countryContext})...`);
-        const { rawText, usedOCR } = await billParser.extractRawText(fileBuffer, mimeType);
+        const { rawText, usedOCR, wordsWithPositions } = await billParser.extractRawText(fileBuffer, mimeType);
 
         if (!rawText || rawText.trim().length === 0) {
             return res.status(400).json({ success: false, error: 'Could not extract text from the document.' });
@@ -54,7 +54,7 @@ export const scanLightBill = async (req, res) => {
         // DB Override Parser
         let ed = {};
         try {
-            const overrideResult = await templateExtractor.extractData(rawText, countryContext);
+            const overrideResult = await templateExtractor.extractData(rawText, countryContext, wordsWithPositions);
             ed = overrideResult.extractedData || {};
         } catch (templateErr) {
             console.warn(`[BillScan] Template extraction skipped/failed: ${templateErr.message}`);
@@ -74,8 +74,8 @@ export const scanLightBill = async (req, res) => {
             state: (ed.state || baseParsed.state || baseParsed.detectedState),
             city: (ed.city || baseParsed.suburb || baseParsed.district),
             postcode: (ed.postcode || baseParsed.postcode),
-            quarterlyKwh: (ed.quarterlyKwh || baseParsed.quarterlyKwh),
-            monthlyUnits: ed.monthlyUnits || baseParsed.monthlyUnitsUsed,
+            ...(isAU ? { quarterlyKwh: ed.quarterlyKwh || ed.monthlyUnits || baseParsed.quarterlyKwh } : {}),
+            ...(!isAU ? { monthlyUnits: ed.monthlyUnits || ed.quarterlyKwh || baseParsed.monthlyUnitsUsed || baseParsed.quarterlyKwh } : {}),
               billIssueDate: (ed.billIssuedDate || ed.billIssueDate || baseParsed.billDate)
           };
 
@@ -246,7 +246,7 @@ export const scanLightBill = async (req, res) => {
             monthlyBill: payableAmount,
             quarterlyBillAmount: payableAmount,
             billAmount: payableAmount,
-            rawConsumptionAmount: merged.monthlyBill, // Keep actual amount safe for sizing
+            rawConsumptionAmount: merged.monthlyBill, 
             amountType: merged.amountType,
             fullName: merged.fullName || "",
             consumerNumber: merged.consumerNumber || "",
@@ -263,11 +263,23 @@ export const scanLightBill = async (req, res) => {
             city: merged.city || "",
             district: merged.city || "",
             postcode: merged.postcode || "",
-            quarterlyKwh: finalKwh || null,
-            monthlyUnits: merged.monthlyUnits || null,
-              billIssueDate: merged.billIssueDate || null
+            billIssueDate: merged.billIssueDate || null
         };
+        
+        if (isAU) {
+            finalJson.quarterlyKwh = finalKwh || null;
+        } else {
+            finalJson.monthlyUnits = merged.monthlyUnits || null;
+        }
 
+        if (isAU) {
+            delete finalJson.monthlyUnits;
+        } else {
+            delete finalJson.quarterlyKwh;
+            if (finalJson.monthlyUnits && !finalJson.monthlyUnits) { // safety 
+               finalJson.monthlyUnits = finalKwh;
+            }
+        }
         console.log('[BillScan] Success! Final JSON:', finalJson);
         console.log(`[BillScan] Confidence: ${confidenceScore}% | Status: ${status}`);
 
@@ -275,7 +287,7 @@ export const scanLightBill = async (req, res) => {
             success: true,
             isManualReview: status === 'manual-review',
             extractedData: finalJson,
-            quarterlyKwh: finalKwh || null,
+            ...(isAU ? { quarterlyKwh: finalKwh || null } : { monthlyUnits: merged.monthlyUnits || null }),
             stcInfo: null,
             confidenceScore: confidenceScore,
             status: status,

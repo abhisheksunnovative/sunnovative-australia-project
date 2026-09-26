@@ -229,6 +229,7 @@ export default function BillTemplateManagementScreen() {
   
   const [isScanning, setIsScanning] = useState(false);
   const [rawTextPreview, setRawTextPreview] = useState('');
+  const [wordsWithPositions, setWordsWithPositions] = useState(null);
   const [pdfFile, setPdfFile] = useState(null);
   const [numPages, setNumPages] = useState(null);
 
@@ -254,6 +255,7 @@ export default function BillTemplateManagementScreen() {
         if (Array.isArray(generatedRules)) {
            setFormData(prev => ({ ...prev, extractionRules: generatedRules }));
              if (res.data.rawText) setRawTextPreview(res.data.rawText);
+             if (res.data.wordsWithPositions) setWordsWithPositions(res.data.wordsWithPositions);
            alert("Template Rules automatically generated from sample bill!");
         }
       }
@@ -341,10 +343,12 @@ export default function BillTemplateManagementScreen() {
         selectedText: rule.mainData,
         fieldName: fieldName,
         ruleType: rule.type,
+        wordsWithPositions: wordsWithPositions,
         override: {
             heading: rule.heading,
             mainData: rule.mainData,
-            trailing: rule.trailing
+            trailing: rule.trailing,
+            matchStrategy: rule.matchStrategy
         }
       });
       if (res.data.success) {
@@ -618,6 +622,21 @@ export default function BillTemplateManagementScreen() {
                             <option value="number">Number</option>
                             <option value="date">Date</option>
                           </select>
+                        </div>
+                        <div className="col-span-4 mt-1 flex items-center gap-4 text-[10px] font-medium text-slate-600 bg-slate-100 p-1.5 rounded border border-slate-200">
+                          <span>Match Strategy:</span>
+                          <label className="flex items-center gap-1 cursor-pointer">
+                            <input type="radio" name={`matchStrategy-${idx}`} checked={!rule.matchStrategy || rule.matchStrategy === 'inline'} onChange={() => updateRule(idx, 'matchStrategy', 'inline')} className="text-blue-600 w-3 h-3" />
+                            Same-line (Inline)
+                          </label>
+                          <label className="flex items-center gap-1 cursor-pointer" title="Matches data vertically below the heading">
+                            <input type="radio" name={`matchStrategy-${idx}`} checked={rule.matchStrategy === 'column-below'} onChange={() => updateRule(idx, 'matchStrategy', 'column-below')} className="text-emerald-600 w-3 h-3" />
+                            Column-below
+                          </label>
+                          <label className="flex items-center gap-1 cursor-pointer" title="Skips extra text (like years) and jumps across a wide space to find the value">
+                            <input type="radio" name={`matchStrategy-${idx}`} checked={rule.matchStrategy === 'inline-gap'} onChange={() => updateRule(idx, 'matchStrategy', 'inline-gap')} className="text-purple-600 w-3 h-3" />
+                            Fuzzy / Gap Skip
+                          </label>
                         </div>
                       </div>
                       <div className="flex flex-col gap-2 mt-5">

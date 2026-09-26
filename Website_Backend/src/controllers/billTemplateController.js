@@ -72,9 +72,11 @@ export const autoGenerateAliases = async (req, res) => {
     const isAU = req.body.country === 'australia' || req.body.country === 'AU' || (req.headers['x-country'] || '').toLowerCase() === 'australia';
     
     let extractedRawText = '';
+    let globalWords = null;
     try {
-        const { rawText: text } = await extractRawText(req.file.buffer, req.file.mimetype);
+        const { rawText: text, wordsWithPositions } = await extractRawText(req.file.buffer, req.file.mimetype);
         extractedRawText = text;
+        globalWords = wordsWithPositions;
     } catch (e) {
         console.error("PDF extraction fail", e);
     }
@@ -152,7 +154,7 @@ export const autoGenerateAliases = async (req, res) => {
         suggestedAnchor = anchors.join(', ');
     }
 
-    return res.status(200).json({ success: true, data: validatedTemplate, rawText: extractedRawText, suggestedAnchor });
+    return res.status(200).json({ success: true, data: validatedTemplate, rawText: extractedRawText, suggestedAnchor, wordsWithPositions: globalWords });
   } catch (error) {
     console.error('Error auto-generating aliases without Gemini:', error);
     return res.status(500).json({ success: false, message: error.message || 'Failed to parse file' });
@@ -187,7 +189,7 @@ export const getStaleTemplates = async (req, res) => {
 // 5. Generate Regex from Highlighted Text (100% Offline, Smart Anchor Logic)
 export const generateRegexFromSelection = async (req, res) => {
   try {
-    const { rawText, selectedText, fieldName, override, ruleType } = req.body;
+    const { rawText, selectedText, fieldName, override, ruleType, wordsWithPositions } = req.body;
     if (!rawText || (!selectedText && !override?.mainData)) {
       return res.status(400).json({ success: false, message: 'Missing rawText or selectedText' });
     }
@@ -250,7 +252,7 @@ export const generateRegexFromSelection = async (req, res) => {
                 continue;
             }
             stableWords.push(w);
-            if (stableWords.length >= 3) break;
+            if (stableWords.length >= 6) break; // Grab up to 6 words for a full heading (e.g. Net Bill Amount 18-19)
         }
         
         if (direction === 'before') stableWords.reverse();
@@ -270,8 +272,7 @@ export const generateRegexFromSelection = async (req, res) => {
     if (override?.trailing !== undefined) {
         trailing = override.trailing;
     } else {
-        const afterText = rawText.substring(index + mainData.length, index + mainData.length + 80);
-        trailing = findStableAnchor(afterText, 'after');
+        trailing = ""; // USER REQUEST: NEVER auto-generate trailing words, we will only use full headings.
     }
 
     // Type-specific capture group
@@ -301,7 +302,11 @@ export const generateRegexFromSelection = async (req, res) => {
     // Build the Regex Parts
     let parts = [];
     if (heading && heading.trim())  {
-        parts.push(`(?:(?:${flexible(heading)})[\\s\\S]{0,150}?)`);
+        if (override?.matchStrategy === 'inline-gap') {
+            parts.push(`(?:(?:${flexible(heading)})[^\\n\\r]{0,150}?\\s{3,})`);
+        } else {
+            parts.push(`(?:(?:${flexible(heading)})[\\s\\S]{0,150}?)`);
+        }
     }
     parts.push(captureGroup);
     if (trailing && trailing.trim()) {
@@ -317,15 +322,82 @@ export const generateRegexFromSelection = async (req, res) => {
 
     let previewValue = 'Not Found';
     try {
-        const isStrictCase = fieldName === 'fullName' || fieldName === 'consumerName';
-        const match = rawText.match(new RegExp(finalRegex, isStrictCase ? '' : 'i'));
-
-
-        if (match) {
-            if (ruleType === 'split-currency' && match[1] && match[2]) {
-                previewValue = parseFloat(match[1].replace(/,/g, '') + '.' + match[2]).toString();
+        const matchStrategy = override?.matchStrategy || 'inline';
+        const heading = override?.heading || '';
+        
+        console.log(`\n=== [Column-Below Debug] ===`);
+        console.log(`Field Name: ${fieldName}`);
+        console.log(`Match Strategy: ${matchStrategy}`);
+        console.log(`Heading Provided: ${heading}`);
+        console.log(`Has wordsWithPositions: ${!!wordsWithPositions} (${wordsWithPositions ? wordsWithPositions.length : 0} items)`);
+        
+        if (matchStrategy === 'column-below' && wordsWithPositions && heading) {
+            const headingWords = heading.split(/[\s\n]+/).filter(w => w.trim());
+            let headingWord = null;
+            if (headingWords.length > 0) {
+                const targetWord = headingWords[headingWords.length - 1]; // Use last word of heading
+                console.log(`Looking for heading word containing: "${targetWord}"`);
+                
+                // Find nearest word containing targetWord
+                const possibleHeadings = wordsWithPositions.filter(w => w.text.toLowerCase().includes(targetWord.toLowerCase()));
+                console.log(`Found ${possibleHeadings.length} matching heading candidates:`, possibleHeadings.map(h => `"${h.text}" (X:${Math.round(h.x)}, Y:${Math.round(h.y)})`));
+                
+                if (possibleHeadings.length > 0) {
+                    headingWord = possibleHeadings[0]; // just take first for now
+                    console.log(`Selected anchor heading: "${headingWord.text}" at X:${Math.round(headingWord.x)}, Y:${Math.round(headingWord.y)}`);
+                }
+            }
+            
+            if (headingWord) {
+                console.log(`Filtering words below Y > ${Math.round(headingWord.y + 5)} and within X ±80 of ${Math.round(headingWord.x)}...`);
+                const columnCandidates = wordsWithPositions.filter(w => {
+                    const xDiff = Math.abs(w.x - headingWord.x);
+                    const yDiff = w.y - headingWord.y;
+                    return xDiff < 80 && yDiff > 5;
+                }).sort((a, b) => {
+                    if (Math.abs(a.y - b.y) < 5) {
+                        return Math.abs(a.x - headingWord.x) - Math.abs(b.x - headingWord.x);
+                    }
+                    return a.y - b.y;
+                });
+                
+                console.log(`Found ${columnCandidates.length} candidates in the column below:`);
+                columnCandidates.slice(0, 5).forEach((c, i) => {
+                    console.log(`  [${i+1}] "${c.text}" (X:${Math.round(c.x)}, Y:${Math.round(c.y)})`);
+                });
+                
+                if (columnCandidates.length > 0) {
+                    previewValue = columnCandidates[0].text;
+                    console.log(`Raw previewValue picked: "${previewValue}"`);
+                    if (ruleType === 'number') {
+                        const numMatch = previewValue.match(/[0-9,\.]+/);
+                        if (numMatch) {
+                            previewValue = numMatch[0];
+                            console.log(`Extracted number: "${previewValue}"`);
+                        }
+                    }
+                } else {
+                    console.log(`No words found below the heading within limits.`);
+                }
             } else {
-                previewValue = match[1] ? match[1].trim() : match[0].trim();
+                console.log(`Could not find heading anchor in words array.`);
+            }
+        } else {
+            if (matchStrategy !== 'column-below') console.log(`Skipping column-below because strategy is ${matchStrategy}`);
+            else if (!wordsWithPositions) console.log(`Skipping column-below because wordsWithPositions is MISSING!`);
+            else console.log(`Skipping column-below because heading is missing.`);
+        }
+        console.log(`=== [End Debug] ===\n`);
+
+        if (previewValue === 'Not Found') {
+            const isStrictCase = fieldName === 'fullName' || fieldName === 'consumerName';
+            const match = rawText.match(new RegExp(finalRegex, isStrictCase ? '' : 'i'));
+            if (match) {
+                if (ruleType === 'split-currency' && match[1] && match[2]) {
+                    previewValue = parseFloat(match[1].replace(/,/g, '') + '.' + match[2]).toString();
+                } else {
+                    previewValue = match[1] ? match[1].trim() : match[0].trim();
+                }
             }
         }
     } catch (e) {

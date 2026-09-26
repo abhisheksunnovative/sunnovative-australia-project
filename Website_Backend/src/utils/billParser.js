@@ -80,8 +80,9 @@ export async function extractRawText(fileBuffer, mimeType) {
         let rawText = "";
         let usedOCR = false;
         let isBlurry = false;
+        let globalWordsWithPositions = [];
 
-        const performAdvancedOCR = async (imageBuffer) => {
+        const performAdvancedOCR = async (imageBuffer, pageIndex = 0) => {
             isBlurry = await checkImageBlur(imageBuffer);
             
             const processedImageBuffer = await sharp(imageBuffer)
@@ -103,8 +104,9 @@ export async function extractRawText(fileBuffer, mimeType) {
                 const mappedWords = data.words.map(w => ({
                     text: w.text,
                     x: w.bbox.x0,
-                    y: w.bbox.y0
+                    y: w.bbox.y0 + (pageIndex * 2000) // Offset Y by page index to prevent overlap
                 }));
+                globalWordsWithPositions.push(...mappedWords);
                 // Tesseract lines might drift, use yTolerance of ~15 pixels
                 return reconstructTableLayout(mappedWords, 15);
             }
@@ -113,7 +115,7 @@ export async function extractRawText(fileBuffer, mimeType) {
 
         if (mimeType === 'application/pdf') {
             console.log(`[BillParser] Detected PDF. Attempting Table-Aware digital text extraction...`);
-            
+            let pageIndex = 0;
             const render_page = async (pageData) => {
                 const textContent = await pageData.getTextContent({ normalizeWhitespace: true });
                 const items = textContent.items.map(item => ({
@@ -121,9 +123,9 @@ export async function extractRawText(fileBuffer, mimeType) {
                     x: item.transform[4],
                     y: item.transform[5]
                 }));
-                // In PDFs, y is usually from bottom-left, so sorting y-descending works or ascending.
-                // We'll multiply by -1 to reverse sort it top-to-bottom.
-                const invertedItems = items.map(i => ({...i, y: -i.y}));
+                const invertedItems = items.map(i => ({...i, y: -i.y + (pageIndex * 2000)}));
+                globalWordsWithPositions.push(...invertedItems);
+                pageIndex++;
                 return reconstructTableLayout(invertedItems, 3);
             };
 
@@ -132,11 +134,12 @@ export async function extractRawText(fileBuffer, mimeType) {
 
             if (rawText.replace(/\s+/g, '').length < 50) {
                 console.log(`[BillParser] PDF text is too short. Scanned PDF fallback...`);
+                globalWordsWithPositions = []; // Reset if we fallback
                 const pageImages = await convertScannedPdfToImages(fileBuffer);
                 if (pageImages && pageImages.length > 0) {
                     const pagesToOCR = Math.min(pageImages.length, 2);
                     for (let i = 0; i < pagesToOCR; i++) {
-                        const text = await performAdvancedOCR(pageImages[i]);
+                        const text = await performAdvancedOCR(pageImages[i], i);
                         rawText += "\n" + text;
                     }
                     usedOCR = true;
@@ -148,7 +151,7 @@ export async function extractRawText(fileBuffer, mimeType) {
             }
         } else if (mimeType.startsWith('image/')) {
             console.log(`[BillParser] Detected Image. Starting Advanced Table-Aware OCR...`);
-            rawText = await performAdvancedOCR(fileBuffer);
+            rawText = await performAdvancedOCR(fileBuffer, 0);
             usedOCR = true;
         } else {
             throw new Error(`Unsupported file type: ${mimeType}`);
@@ -157,7 +160,7 @@ export async function extractRawText(fileBuffer, mimeType) {
         // Clean up empty lines
         rawText = rawText.replace(/\n\s*\n/g, '\n');
 
-        return { rawText, usedOCR, isBlurry };
+        return { rawText, usedOCR, isBlurry, wordsWithPositions: globalWordsWithPositions };
 
     } catch (error) {
         console.error(`[BillParser] Failed to extract text:`, error);

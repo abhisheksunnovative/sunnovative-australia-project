@@ -18,7 +18,7 @@ function sanitizeValue(value, type) {
     }
 }
 
-export async function extractData(rawText, countryContext = 'australia') {
+export async function extractData(rawText, countryContext = 'australia', wordsWithPositions = null) {
     try {
         console.log(`[TemplateExtractor] Searching for matching template in ${countryContext}...`);
         
@@ -98,12 +98,49 @@ export async function extractData(rawText, countryContext = 'australia') {
             if (rule.required) totalRequiredFields++;
 
             try {
-                const isStrictCase = rule.field === 'fullName' || rule.field === 'consumerName';
-                const regex = new RegExp(rule.regex, rule.flags || (isStrictCase ? '' : 'i'));
-                const match = rawText.match(regex);
+                let capturedValue = null;
+                let match = null;
 
-                if (match) { 
-                    const capturedValue = match.slice(1).find(g => g !== undefined);
+                if (rule.matchStrategy === 'column-below' && wordsWithPositions && rule.heading) {
+                    const headingWords = rule.heading.split(/[\s\n]+/).filter(w => w.trim());
+                    let headingWord = null;
+                    if (headingWords.length > 0) {
+                        const targetWord = headingWords[headingWords.length - 1]; 
+                        const possibleHeadings = wordsWithPositions.filter(w => w.text.toLowerCase().includes(targetWord.toLowerCase()));
+                        if (possibleHeadings.length > 0) {
+                            headingWord = possibleHeadings[0];
+                        }
+                    }
+                    
+                    if (headingWord) {
+                        const columnCandidates = wordsWithPositions.filter(w =>
+                    Math.abs(w.x - headingWord.x) < 80 &&
+                    w.y > headingWord.y + 5 // Below the heading
+                ).sort((a, b) => {
+                    // If on the same line (within 5px Y), pick the one most perfectly aligned vertically with heading X
+                    if (Math.abs(a.y - b.y) < 5) {
+                        return Math.abs(a.x - headingWord.x) - Math.abs(b.x - headingWord.x);
+                    }
+                    return a.y - b.y;
+                });
+                        
+                        if (columnCandidates.length > 0) {
+                            capturedValue = columnCandidates[0].text;
+                            match = [capturedValue, capturedValue]; // Fake match array
+                        }
+                    }
+                }
+
+                if (!capturedValue) {
+                    const isStrictCase = rule.field === 'fullName' || rule.field === 'consumerName';
+                    const regex = new RegExp(rule.regex, rule.flags || (isStrictCase ? '' : 'i'));
+                    match = rawText.match(regex);
+                    if (match) {
+                        capturedValue = match.slice(1).find(g => g !== undefined);
+                    }
+                }
+
+                if (match && capturedValue) {
                     console.log(`[TemplateExtractor][${rule.field}] 🔍 Regex Matched Full String: "${match[0]}"`);
                     console.log(`[TemplateExtractor][${rule.field}] 🎯 Captured Group Value: "${capturedValue}"`);
                     
